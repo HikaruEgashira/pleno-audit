@@ -4,18 +4,11 @@ interface Props {
   events: EventLog[];
 }
 
-const EVENT_LABELS: Record<EventLog["type"], string> = {
-  login_detected: "login",
-  privacy_policy_found: "privacy",
-  cookie_set: "cookie",
-};
-
 export function EventLogList({ events }: Props) {
   if (events.length === 0) {
     return (
       <div style={styles.empty}>
-        <p style={styles.emptyTitle}>No events recorded</p>
-        <p style={styles.emptyHint}>Events will appear as you browse.</p>
+        <p>No events yet</p>
       </div>
     );
   }
@@ -23,77 +16,64 @@ export function EventLogList({ events }: Props) {
   return (
     <div style={styles.list}>
       {events.slice(0, 50).map((event) => (
-        <EventItem key={event.id} event={event} />
+        <EventRow key={event.id} event={event} />
       ))}
     </div>
   );
 }
 
-function EventItem({ event }: { event: EventLog }) {
+function EventRow({ event }: { event: EventLog }) {
   const time = new Date(event.timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const detail =
-    event.type === "cookie_set" && event.details.name
-      ? String(event.details.name)
-      : null;
+  const label =
+    event.type === "cookie_set"
+      ? event.details.name
+      : event.type === "login_detected"
+        ? "login"
+        : "privacy";
 
   return (
-    <div style={styles.item}>
+    <div style={styles.row}>
       <span style={styles.time}>{time}</span>
-      <span style={styles.type}>{EVENT_LABELS[event.type]}</span>
       <span style={styles.domain}>{event.domain}</span>
-      {detail && <span style={styles.detail}>{detail}</span>}
+      <span style={styles.label}>{String(label)}</span>
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
   list: {
-    padding: "4px 0",
+    padding: "8px 0",
     fontFamily: "ui-monospace, monospace",
     fontSize: "12px",
   },
   empty: {
+    padding: "60px 20px",
     textAlign: "center",
-    padding: "48px 20px",
-    fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-  },
-  emptyTitle: {
-    fontSize: "14px",
-    fontWeight: 500,
-    color: "hsl(0 0% 20%)",
-  },
-  emptyHint: {
     fontSize: "13px",
-    marginTop: "4px",
     color: "hsl(0 0% 50%)",
+    fontFamily: "-apple-system, sans-serif",
   },
-  item: {
+  row: {
     display: "flex",
-    gap: "12px",
-    padding: "6px 8px",
-    color: "hsl(0 0% 35%)",
+    gap: "16px",
+    padding: "8px 20px",
+    color: "hsl(0 0% 40%)",
   },
   time: {
     color: "hsl(0 0% 60%)",
     flexShrink: 0,
-  },
-  type: {
-    color: "hsl(0 0% 50%)",
-    width: "52px",
-    flexShrink: 0,
+    width: "45px",
   },
   domain: {
-    color: "hsl(0 0% 20%)",
-    flexShrink: 0,
+    color: "hsl(0 0% 25%)",
+    flex: 1,
   },
-  detail: {
+  label: {
     color: "hsl(0 0% 55%)",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    textAlign: "right",
   },
 };

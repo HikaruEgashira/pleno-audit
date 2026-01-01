@@ -33,14 +33,7 @@ export function App() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>Service Exposure</h1>
-        <p style={styles.subtitle}>
-          {services.length} service{services.length !== 1 ? "s" : ""} detected
-        </p>
-      </header>
-
-      <nav style={styles.tabs}>
+      <nav style={styles.nav}>
         <button
           style={{
             ...styles.tab,
@@ -49,6 +42,9 @@ export function App() {
           onClick={() => setTab("services")}
         >
           Services
+          {services.length > 0 && (
+            <span style={styles.badge}>{services.length}</span>
+          )}
         </button>
         <button
           style={{
@@ -80,52 +76,42 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     height: "100%",
   },
-  header: {
-    padding: "16px 20px",
-    borderBottom: "1px solid hsl(0 0% 90%)",
-  },
-  title: {
-    fontSize: "16px",
-    fontWeight: 600,
-    letterSpacing: "-0.02em",
-    color: "hsl(0 0% 9%)",
-  },
-  subtitle: {
-    fontSize: "13px",
-    color: "hsl(0 0% 45%)",
-    marginTop: "2px",
-  },
-  tabs: {
+  nav: {
     display: "flex",
-    borderBottom: "1px solid hsl(0 0% 90%)",
-    padding: "0 12px",
-    gap: "4px",
+    padding: "12px 16px",
+    gap: "8px",
+    borderBottom: "1px solid hsl(0 0% 92%)",
   },
   tab: {
-    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 12px",
     border: "none",
+    borderRadius: "6px",
     background: "transparent",
     cursor: "pointer",
     fontSize: "13px",
     fontWeight: 500,
     color: "hsl(0 0% 45%)",
-    borderBottom: "2px solid transparent",
-    marginBottom: "-1px",
-    transition: "color 0.15s",
+    transition: "all 0.15s",
   },
   tabActive: {
-    color: "hsl(0 0% 9%)",
-    borderBottomColor: "hsl(0 0% 9%)",
+    color: "hsl(0 0% 10%)",
+    background: "hsl(0 0% 95%)",
+  },
+  badge: {
+    fontSize: "11px",
+    color: "hsl(0 0% 50%)",
   },
   content: {
     flex: 1,
     overflow: "auto",
-    padding: "12px",
   },
   loading: {
     textAlign: "center",
-    padding: "40px 20px",
-    color: "hsl(0 0% 45%)",
+    padding: "60px 20px",
+    color: "hsl(0 0% 50%)",
     fontSize: "13px",
   },
 };
