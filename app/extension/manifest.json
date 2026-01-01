@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "AI Service Exposure",
+  "version": "0.0.1",
+  "description": "Detect and visualize login pages, privacy policies, and session cookies",
+  "permissions": ["cookies", "storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html"
+  }
+}

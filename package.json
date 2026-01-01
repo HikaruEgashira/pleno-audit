@@ -1,0 +1,10 @@
+{
+  "name": "ai-service-exposure",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -C app/extension dev",
+    "build": "pnpm -C app/extension build"
+  }
+}
