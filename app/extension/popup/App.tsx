@@ -12,8 +12,6 @@ export function App() {
 
   useEffect(() => {
     loadData();
-
-    // Listen for storage changes
     chrome.storage.onChanged.addListener((changes) => {
       if (changes.services || changes.events) {
         loadData();
@@ -36,9 +34,9 @@ export function App() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>AI Service Exposure</h1>
+        <h1 style={styles.title}>Service Exposure</h1>
         <p style={styles.subtitle}>
-          {services.length} services detected
+          {services.length} service{services.length !== 1 ? "s" : ""} detected
         </p>
       </header>
 
@@ -83,46 +81,51 @@ const styles: Record<string, React.CSSProperties> = {
     height: "100%",
   },
   header: {
-    padding: "16px",
-    background: "#4a90d9",
-    color: "white",
+    padding: "16px 20px",
+    borderBottom: "1px solid hsl(0 0% 90%)",
   },
   title: {
-    fontSize: "18px",
+    fontSize: "16px",
     fontWeight: 600,
+    letterSpacing: "-0.02em",
+    color: "hsl(0 0% 9%)",
   },
   subtitle: {
-    fontSize: "12px",
-    opacity: 0.9,
-    marginTop: "4px",
+    fontSize: "13px",
+    color: "hsl(0 0% 45%)",
+    marginTop: "2px",
   },
   tabs: {
     display: "flex",
-    borderBottom: "1px solid #ddd",
-    background: "white",
+    borderBottom: "1px solid hsl(0 0% 90%)",
+    padding: "0 12px",
+    gap: "4px",
   },
   tab: {
-    flex: 1,
-    padding: "12px",
+    padding: "10px 12px",
     border: "none",
     background: "transparent",
     cursor: "pointer",
-    fontSize: "14px",
-    color: "#666",
+    fontSize: "13px",
+    fontWeight: 500,
+    color: "hsl(0 0% 45%)",
+    borderBottom: "2px solid transparent",
+    marginBottom: "-1px",
+    transition: "color 0.15s",
   },
   tabActive: {
-    color: "#4a90d9",
-    borderBottom: "2px solid #4a90d9",
-    fontWeight: 600,
+    color: "hsl(0 0% 9%)",
+    borderBottomColor: "hsl(0 0% 9%)",
   },
   content: {
     flex: 1,
     overflow: "auto",
-    padding: "8px",
+    padding: "12px",
   },
   loading: {
     textAlign: "center",
-    padding: "20px",
-    color: "#999",
+    padding: "40px 20px",
+    color: "hsl(0 0% 45%)",
+    fontSize: "13px",
   },
 };
