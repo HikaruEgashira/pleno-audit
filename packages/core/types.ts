@@ -13,13 +13,37 @@ export interface CookieInfo {
   isSession: boolean;
 }
 
-export interface EventLog {
+export interface LoginDetectedDetails {
+  hasLoginForm: boolean;
+  hasPasswordInput: boolean;
+  isLoginUrl: boolean;
+  formAction: string | null;
+}
+
+export interface PrivacyPolicyFoundDetails {
+  url: string;
+  method: string;
+}
+
+export interface CookieSetDetails {
+  name: string;
+  isSession: boolean;
+}
+
+export type EventLogBase<T extends string, D> = {
   id: string;
-  type: "login_detected" | "privacy_policy_found" | "cookie_set";
+  type: T;
   domain: string;
   timestamp: number;
-  details: Record<string, unknown>;
-}
+  details: D;
+};
+
+export type EventLog =
+  | EventLogBase<"login_detected", LoginDetectedDetails>
+  | EventLogBase<"privacy_policy_found", PrivacyPolicyFoundDetails>
+  | EventLogBase<"cookie_set", CookieSetDetails>;
+
+export type EventLogType = EventLog["type"];
 
 export interface StorageData {
   services: Record<string, DetectedService>;

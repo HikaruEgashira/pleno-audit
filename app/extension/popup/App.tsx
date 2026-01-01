@@ -12,11 +12,13 @@ export function App() {
 
   useEffect(() => {
     loadData();
-    chrome.storage.onChanged.addListener((changes) => {
+    const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.services || changes.events) {
         loadData();
       }
-    });
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
   async function loadData() {

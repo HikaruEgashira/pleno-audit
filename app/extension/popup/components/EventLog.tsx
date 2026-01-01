@@ -28,18 +28,22 @@ function EventRow({ event }: { event: EventLog }) {
     minute: "2-digit",
   });
 
-  const label =
-    event.type === "cookie_set"
-      ? event.details.name
-      : event.type === "login_detected"
-        ? "login"
-        : "privacy";
+  function getLabel(): string {
+    switch (event.type) {
+      case "cookie_set":
+        return event.details.name;
+      case "login_detected":
+        return "login";
+      case "privacy_policy_found":
+        return "privacy";
+    }
+  }
 
   return (
     <div style={styles.row}>
       <span style={styles.time}>{time}</span>
       <span style={styles.domain}>{event.domain}</span>
-      <span style={styles.label}>{String(label)}</span>
+      <span style={styles.label}>{getLabel()}</span>
     </div>
   );
 }

@@ -22,11 +22,15 @@ function analyzePage(): PageAnalysis {
   };
 }
 
-function sendToBackground(analysis: PageAnalysis) {
-  chrome.runtime.sendMessage({
-    type: "PAGE_ANALYZED",
-    payload: analysis,
-  });
+async function sendToBackground(analysis: PageAnalysis) {
+  try {
+    await chrome.runtime.sendMessage({
+      type: "PAGE_ANALYZED",
+      payload: analysis,
+    });
+  } catch (error) {
+    console.error("[AI Service Exposure] Failed to send analysis:", error);
+  }
 }
 
 function init() {
