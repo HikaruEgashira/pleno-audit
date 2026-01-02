@@ -1,7 +1,7 @@
-# ADR-003: Chrome Manifest V3 + Vite + Preactで実装する
+# ADR-003: Chrome Manifest V3 + WXT + Preactで実装する
 
 ## Status
-Accepted
+Accepted (Updated: CRXJSからWXTへ移行)
 
 ## Context
 ブラウザ拡張機能の開発には複数の選択肢がある：
@@ -13,7 +13,8 @@ Accepted
 
 ### ビルドツール
 - webpack: 実績豊富だが設定が複雑
-- Vite: 高速、設定シンプル、CRXJSプラグインあり
+- Vite + CRXJS: HMR対応だがメンテナンス停滞気味
+- WXT: Viteベース、マルチブラウザ対応、活発なメンテナンス
 - Parcel: ゼロコンフィグだが拡張機能サポートが弱い
 
 ### UIフレームワーク
@@ -28,16 +29,25 @@ Accepted
 |------|------|------|
 | ブラウザ | Chrome | シェア最大、Manifest V3が標準に |
 | Manifest | V3 | Chromeで必須、Service Worker対応 |
-| ビルド | Vite + CRXJS | HMR対応、manifest.jsonからの自動生成 |
+| ビルド | WXT | HMR対応、ファイルベースルーティング、マルチブラウザ対応 |
 | UI | Preact | 軽量（3KB）、React互換、hooks対応 |
 | 言語 | TypeScript | 型安全、Chrome API型定義あり |
 | パッケージ管理 | pnpm | 高速、ディスク効率、モノレポ対応 |
 
+### CRXJSからWXTへの移行理由
+- CRXJSはメンテナンスが停滞（issueの対応遅延）
+- WXTは活発に開発されており、ドキュメントも充実
+- ファイルベースのエントリーポイント（popup/, background/, content/）で構成が明確
+- 将来的なFirefox/Safari対応が容易
+
 ### モノレポ構成
 ```
 /
-├── app/extension/    # ブラウザ拡張機能
-├── packages/core/    # 共通ロジック
+├── app/extension/       # ブラウザ拡張機能
+│   ├── entrypoints/     # WXTエントリーポイント（popup, background等）
+│   ├── utils/           # 拡張機能内ユーティリティ
+│   └── wxt.config.ts    # WXT設定
+├── packages/core/       # 共通ロジック
 ├── pnpm-workspace.yaml
 ```
 
@@ -45,15 +55,18 @@ Accepted
 
 ### Positive
 - Manifest V3で将来のChrome更新に対応
-- Vite + CRXJSでビルド設定がシンプル
-- Preactで拡張機能のサイズを最小化（popup.js: 17KB）
+- WXTでビルド設定がシンプルかつ標準的
+- ファイルベースルーティングで構成が直感的
+- Preactで拡張機能のサイズを最小化
 - モノレポで将来のサーバー連携時にコード共有可能
+- WXTの`wxt build -b firefox`でFirefox対応可能
 
 ### Negative
-- Firefox/Safariユーザーは対象外（将来対応可能）
+- Firefox/Safariユーザーは現状対象外（WXTで対応容易）
 - Manifest V3のService Workerは5分でアンロードされる制限あり
 - Preactの一部React機能（Suspense等）は未サポート
 
 ### Technical Notes
 - Service Workerの5分制限は、chrome.alarms APIで定期的にwake upすることで回避可能
 - PreactのReact互換は`preact/compat`で提供されるが、本プロジェクトでは不要
+- WXTは`wxt.config.ts`で一元的に設定管理
