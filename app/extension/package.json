@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@ai-service-exposure/core": "workspace:*",
-    "preact": "^10.19.3"
+    "preact": "^10.28.2"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.2",
