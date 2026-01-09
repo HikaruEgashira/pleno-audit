@@ -23,6 +23,7 @@ export function NetworkList({ requests }: Props) {
             <th style={styles.tableHeader}>Time</th>
             <th style={styles.tableHeader}>Type</th>
             <th style={styles.tableHeader}>Method</th>
+            <th style={styles.tableHeader}>From</th>
             <th style={styles.tableHeader}>Domain</th>
           </tr>
         </thead>
@@ -35,6 +36,9 @@ export function NetworkList({ requests }: Props) {
               </td>
               <td style={styles.tableCell}>
                 <span style={styles.code}>{r.method}</span>
+              </td>
+              <td style={{ ...styles.tableCell, maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.pageUrl}>
+                {r.pageUrl}
               </td>
               <td style={styles.tableCell}>{r.domain}</td>
             </tr>

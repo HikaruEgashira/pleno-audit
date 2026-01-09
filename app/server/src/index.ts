@@ -197,6 +197,7 @@ function getDashboardHTML(data: StoredData): string {
             <th>Time</th>
             <th>Type</th>
             <th>Method</th>
+            <th>From</th>
             <th>Domain</th>
             <th>URL</th>
           </tr>
@@ -207,6 +208,7 @@ function getDashboardHTML(data: StoredData): string {
               <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
               <td><span class="badge">${(r as NetworkRequest).initiator}</span></td>
               <td><code>${(r as NetworkRequest).method || 'GET'}</code></td>
+              <td class="url" title="${r.pageUrl}">${truncate(r.pageUrl, 30)}</td>
               <td>${r.domain}</td>
               <td class="url">${truncate((r as NetworkRequest).url, 40)}</td>
             </tr>
