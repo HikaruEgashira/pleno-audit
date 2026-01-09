@@ -6,3 +6,4 @@ dist/
 
 app/server/data/service_exposure.db
 *.local.md
+app/extension/public/sql-wasm.wasm
