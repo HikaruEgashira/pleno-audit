@@ -18,6 +18,22 @@
         color: hsl(0 0% 9%);
         background: hsl(0 0% 100%);
         -webkit-font-smoothing: antialiased;
+        overflow-y: auto;
+      }
+      /* Inline scrollbar (always visible) */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: hsl(0 0% 95%);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: hsl(0 0% 75%);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: hsl(0 0% 60%);
       }
     </style>
   </head>

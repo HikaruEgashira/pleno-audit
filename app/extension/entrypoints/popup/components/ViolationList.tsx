@@ -44,6 +44,9 @@ function formatTime(timestamp: string): string {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     padding: "8px",
+    maxHeight: "300px",
+    overflowY: "auto",
+    overflowX: "hidden",
   },
   empty: {
     textAlign: "center",
