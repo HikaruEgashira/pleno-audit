@@ -1,4 +1,5 @@
 import type { DetectedService } from "@ai-service-exposure/core";
+import { styles } from "../styles";
 
 interface Props {
   services: DetectedService[];
@@ -23,8 +24,8 @@ function sanitizeUrl(url: string | null, domain: string): string {
 export function ServiceList({ services }: Props) {
   if (services.length === 0) {
     return (
-      <div style={styles.empty}>
-        <p>No services detected yet</p>
+      <div style={styles.section}>
+        <p style={styles.emptyText}>No services detected yet</p>
       </div>
     );
   }
@@ -32,10 +33,22 @@ export function ServiceList({ services }: Props) {
   const sorted = [...services].sort((a, b) => b.detectedAt - a.detectedAt);
 
   return (
-    <div style={styles.list}>
-      {sorted.map((service) => (
-        <ServiceRow key={service.domain} service={service} />
-      ))}
+    <div style={styles.section}>
+      <h3 style={styles.sectionTitle}>Detected Services ({services.length})</h3>
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th style={styles.tableHeader}>Domain</th>
+            <th style={styles.tableHeader}>Tags</th>
+            <th style={styles.tableHeader}>Cookies</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((service) => (
+            <ServiceRow key={service.domain} service={service} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -44,48 +57,33 @@ function ServiceRow({ service }: { service: DetectedService }) {
   const tags: string[] = [];
   if (service.hasLoginPage) tags.push("login");
   if (service.privacyPolicyUrl) tags.push("privacy");
-  if (service.cookies.length > 0) tags.push(`${service.cookies.length} cookies`);
+
+  const url = sanitizeUrl(service.privacyPolicyUrl, service.domain);
 
   return (
-    <a
-      href={sanitizeUrl(service.privacyPolicyUrl, service.domain)}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={styles.row}
-    >
-      <span style={styles.domain}>{service.domain}</span>
-      <span style={styles.tags}>{tags.join(" · ")}</span>
-    </a>
+    <tr style={styles.tableRow}>
+      <td style={styles.tableCell}>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "hsl(0 0% 25%)", textDecoration: "none" }}
+        >
+          <span style={styles.code}>{service.domain}</span>
+        </a>
+      </td>
+      <td style={styles.tableCell}>
+        {tags.map((tag) => (
+          <span key={tag} style={{ ...styles.badge, marginRight: "4px" }}>
+            {tag}
+          </span>
+        ))}
+      </td>
+      <td style={{ ...styles.tableCell, textAlign: "right" }}>
+        {service.cookies.length > 0 && (
+          <span style={styles.badge}>{service.cookies.length}</span>
+        )}
+      </td>
+    </tr>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  list: {
-    display: "flex",
-    flexDirection: "column",
-    padding: "8px 0",
-  },
-  empty: {
-    padding: "60px 20px",
-    textAlign: "center",
-    fontSize: "13px",
-    color: "hsl(0 0% 50%)",
-  },
-  row: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 20px",
-    textDecoration: "none",
-    color: "inherit",
-  },
-  domain: {
-    fontSize: "14px",
-    fontWeight: 500,
-    color: "hsl(0 0% 15%)",
-  },
-  tags: {
-    fontSize: "12px",
-    color: "hsl(0 0% 55%)",
-  },
-};

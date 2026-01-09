@@ -1,13 +1,23 @@
 /**
  * Grayscale minimal UI styles (CSP Auditor design)
+ * Design System: Monospace-first, grayscale, minimal
  */
 
+// Font families
+const FONT_MONO = "'Menlo', 'Monaco', 'Courier New', monospace";
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 export const styles = {
+  // Base fonts (exported for components)
+  fontMono: FONT_MONO,
+  fontSans: FONT_SANS,
+
   container: {
     width: "400px",
     maxHeight: "600px",
     backgroundColor: "hsl(0 0% 100%)",
     color: "hsl(0 0% 10%)",
+    fontFamily: FONT_SANS,
     fontSize: "13px",
     lineHeight: 1.5,
     overflow: "hidden",
@@ -146,7 +156,7 @@ export const styles = {
   },
 
   code: {
-    fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+    fontFamily: FONT_MONO,
     fontSize: "11px",
     backgroundColor: "hsl(0 0% 95%)",
     padding: "2px 4px",
