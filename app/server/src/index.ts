@@ -1,10 +1,3 @@
-/**
- * Service Policy Auditor Local Development Server
- *
- * Receives CSP violation reports and network request data from the Chrome Extension
- * and provides a simple dashboard for viewing collected data.
- */
-
 import { serve } from '@hono/node-server'
 import initSqlJs from 'sql.js'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -269,7 +262,6 @@ async function startServer() {
     },
   })
   await db.init()
-  console.log('[SQLite] Database initialized')
 
   const apiApp = createApp(db)
 

@@ -1,6 +1,5 @@
 import initSqlJs from "sql.js";
 import { createApp, SqlJsAdapter } from "@service-policy-auditor/api";
-import type { Hono } from "hono";
 import {
   isLocalApiRequest,
   type DBMessage,
@@ -21,10 +20,7 @@ async function initLocalServer(): Promise<void> {
 
   db = new SqlJsAdapter(SQL, {});
   await db.init();
-
   app = createApp(db);
-
-  console.log("[Local Server] Hono app initialized with sql.js");
 }
 
 async function handleLocalApiRequest(
