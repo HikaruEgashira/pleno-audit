@@ -5,57 +5,35 @@
  * and provides a simple dashboard for viewing collected data.
  */
 
-import { createServer, IncomingMessage, ServerResponse } from 'node:http'
+import { serve } from '@hono/node-server'
+import initSqlJs from 'sql.js'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createApp, SqlJsAdapter } from '@service-policy-auditor/api'
 import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/csp'
-import { initDatabase, getAllReports, insertReports, clearAllData, getStats } from './db.js'
+import { Hono } from 'hono'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const DATA_DIR = join(__dirname, '../data')
+const DB_PATH = join(DATA_DIR, 'service_exposure.db')
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001
 
-interface StoredData {
-  reports: (CSPViolation | NetworkRequest)[]
-  lastUpdated: string
+function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true })
+  }
 }
 
-function loadReports(): StoredData {
-  const reports = getAllReports()
-  return { reports, lastUpdated: new Date().toISOString() }
+function truncate(str: string, len: number): string {
+  return str && str.length > len ? str.substring(0, len) + '...' : str || ''
 }
 
-function saveReports(reports: (CSPViolation | NetworkRequest)[]): void {
-  insertReports(reports)
-}
+function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdated: string): string {
+  const violations = reports.filter(r => r.type === 'csp-violation')
+  const networkRequests = reports.filter(r => r.type === 'network-request')
 
-async function parseBody(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let body = ''
-    req.on('data', chunk => body += chunk)
-    req.on('end', () => {
-      try {
-        resolve(body ? JSON.parse(body) : {})
-      } catch (e) {
-        reject(e)
-      }
-    })
-    req.on('error', reject)
-  })
-}
-
-function setCORSHeaders(res: ServerResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-}
-
-function jsonResponse(res: ServerResponse, data: unknown, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify(data))
-}
-
-function getDashboardHTML(data: StoredData): string {
-  const violations = data.reports.filter(r => r.type === 'csp-violation')
-  const networkRequests = data.reports.filter(r => r.type === 'network-request')
-
-  const uniqueDomains = new Set(data.reports.map(r => r.domain).filter(Boolean))
+  const uniqueDomains = new Set(reports.map(r => r.domain).filter(Boolean))
 
   const directiveStats: Record<string, number> = {}
   for (const v of violations) {
@@ -133,11 +111,11 @@ function getDashboardHTML(data: StoredData): string {
 <body>
   <div class="container">
     <h1>Service Policy Auditor Dashboard</h1>
-    <p class="subtitle">Last updated: ${data.lastUpdated}</p>
+    <p class="subtitle">Last updated: ${lastUpdated}</p>
 
     <div class="stats">
       <div class="stat">
-        <div class="stat-value">${data.reports.length}</div>
+        <div class="stat-value">${reports.length}</div>
         <div class="stat-label">Total Events</div>
       </div>
       <div class="stat">
@@ -275,73 +253,37 @@ function getDashboardHTML(data: StoredData): string {
 </html>`
 }
 
-function truncate(str: string, len: number): string {
-  return str && str.length > len ? str.substring(0, len) + '...' : str || ''
-}
-
-async function handleRequest(req: IncomingMessage, res: ServerResponse) {
-  const url = new URL(req.url || '/', `http://localhost:${PORT}`)
-  const method = req.method || 'GET'
-
-  setCORSHeaders(res)
-
-  if (method === 'OPTIONS') {
-    res.writeHead(204)
-    res.end()
-    return
-  }
-
-  try {
-    if (url.pathname === '/' && method === 'GET') {
-      const data = loadReports()
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      res.end(getDashboardHTML(data))
-      return
-    }
-
-    if (url.pathname === '/api/v1/reports' && method === 'GET') {
-      const data = loadReports()
-      jsonResponse(res, data)
-      return
-    }
-
-    if (url.pathname === '/api/v1/reports' && method === 'POST') {
-      const body = await parseBody(req) as { reports?: (CSPViolation | NetworkRequest)[] }
-
-      if (body.reports && Array.isArray(body.reports)) {
-        saveReports(body.reports)
-        const stats = getStats()
-        const total = stats.violations + stats.requests
-
-        console.log(`[${new Date().toISOString()}] Received ${body.reports.length} reports (total: ${total})`)
-        jsonResponse(res, { success: true, totalReports: total })
-      } else {
-        jsonResponse(res, { success: true, totalReports: 0 })
-      }
-      return
-    }
-
-    if (url.pathname === '/api/v1/reports' && method === 'DELETE') {
-      clearAllData()
-      console.log(`[${new Date().toISOString()}] All reports cleared`)
-      jsonResponse(res, { success: true })
-      return
-    }
-
-    jsonResponse(res, { error: 'Not found' }, 404)
-  } catch (error) {
-    console.error('Error handling request:', error)
-    jsonResponse(res, { error: 'Internal server error' }, 500)
-  }
-}
-
 async function startServer() {
-  await initDatabase()
+  ensureDataDir()
+
+  const SQL = await initSqlJs()
+  let loadFromBuffer: Uint8Array | undefined
+  if (existsSync(DB_PATH)) {
+    loadFromBuffer = readFileSync(DB_PATH)
+  }
+
+  const db = new SqlJsAdapter(SQL, {
+    loadFromBuffer,
+    onSave: (data) => {
+      writeFileSync(DB_PATH, Buffer.from(data))
+    },
+  })
+  await db.init()
   console.log('[SQLite] Database initialized')
 
-  const server = createServer(handleRequest)
+  const apiApp = createApp(db)
 
-  server.listen(PORT, () => {
+  const app = new Hono()
+
+  app.get('/', async (c) => {
+    const reports = await db.getAllReports()
+    const lastUpdated = new Date().toISOString()
+    return c.html(getDashboardHTML(reports, lastUpdated))
+  })
+
+  app.route('/', apiApp)
+
+  serve({ fetch: app.fetch, port: PORT }, () => {
     console.log(`
 +================================================================+
 |              Service Policy Auditor Local Server               |
@@ -356,6 +298,9 @@ async function startServer() {
 |    GET  /api/v1/reports - Get all reports                      |
 |    POST /api/v1/reports - Receive reports from extension       |
 |    DELETE /api/v1/reports - Clear all reports                  |
+|    GET  /api/v1/stats  - Get statistics                        |
+|    GET  /api/v1/sync   - Get reports since timestamp           |
+|    POST /api/v1/sync   - Sync reports                          |
 |                                                                |
 +================================================================+
 `)

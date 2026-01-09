@@ -9,7 +9,10 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "@service-policy-auditor/api": "workspace:*",
     "@service-policy-auditor/csp": "workspace:*",
+    "hono": "^4.7.0",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
