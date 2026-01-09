@@ -1,4 +1,4 @@
-import type { DetectedService } from "@ai-service-exposure/core";
+import type { DetectedService } from "@service-policy-controller/core";
 import { styles } from "../styles";
 
 interface Props {

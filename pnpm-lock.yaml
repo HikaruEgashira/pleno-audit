@@ -10,7 +10,7 @@ importers:
 
   app/debugger:
     dependencies:
-      '@ai-service-exposure/core':
+      '@service-policy-controller/core':
         specifier: workspace:*
         version: link:../../packages/core
       puppeteer:
@@ -26,7 +26,7 @@ importers:
 
   app/extension:
     dependencies:
-      '@ai-service-exposure/core':
+      '@service-policy-controller/core':
         specifier: workspace:*
         version: link:../../packages/core
       preact:
@@ -45,7 +45,7 @@ importers:
 
   app/server:
     dependencies:
-      '@ai-service-exposure/core':
+      '@service-policy-controller/core':
         specifier: workspace:*
         version: link:../../packages/core
       sql.js:

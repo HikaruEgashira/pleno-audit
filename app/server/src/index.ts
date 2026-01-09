@@ -1,12 +1,12 @@
 /**
- * AI Service Exposure Local Development Server
+ * Service Policy Controller Local Development Server
  *
  * Receives CSP violation reports and network request data from the Chrome Extension
  * and provides a simple dashboard for viewing collected data.
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'node:http'
-import type { CSPViolation, NetworkRequest } from '@ai-service-exposure/core'
+import type { CSPViolation, NetworkRequest } from '@service-policy-controller/core'
 import { initDatabase, getAllReports, insertReports, clearAllData, getStats } from './db.js'
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001
@@ -74,7 +74,7 @@ function getDashboardHTML(data: StoredData): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Service Exposure - Dashboard</title>
+  <title>Service Policy Controller - Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -132,7 +132,7 @@ function getDashboardHTML(data: StoredData): string {
 </head>
 <body>
   <div class="container">
-    <h1>AI Service Exposure Dashboard</h1>
+    <h1>Service Policy Controller Dashboard</h1>
     <p class="subtitle">Last updated: ${data.lastUpdated}</p>
 
     <div class="stats">
@@ -342,7 +342,7 @@ async function startServer() {
   server.listen(PORT, () => {
     console.log(`
 +================================================================+
-|              AI Service Exposure Local Server                  |
+|              Service Policy Controller Local Server            |
 +================================================================+
 |                                                                |
 |  Dashboard:  http://localhost:${PORT}/                            |

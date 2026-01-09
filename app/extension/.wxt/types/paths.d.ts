@@ -5,8 +5,10 @@ declare module "wxt/browser" {
   export type PublicPath =
     | ""
     | "/"
+    | "/api-hooks.js"
     | "/background.js"
     | "/content-scripts/content.js"
+    | "/content-scripts/csp.js"
     | "/popup.html"
   type HtmlPublicPath = Extract<PublicPath, `${string}.html`>
   export interface WxtRuntime {

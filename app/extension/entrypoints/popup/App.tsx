@@ -5,7 +5,7 @@ import type {
   EventLog,
   CSPViolation,
   NetworkRequest,
-} from "@ai-service-exposure/core";
+} from "@service-policy-controller/core";
 import { ServiceList } from "./components/ServiceList";
 import { EventLogList } from "./components/EventLog";
 import { ViolationList } from "./components/ViolationList";
@@ -124,7 +124,7 @@ export function App() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>AI Service Exposure</h1>
+        <h1 style={styles.title}>Service Policy Controller</h1>
         <button
           onClick={handleClearData}
           style={styles.clearBtn}

@@ -1,4 +1,4 @@
-import type { CSPViolation } from "@ai-service-exposure/core";
+import type { CSPViolation } from "@service-policy-controller/core";
 import { styles } from "../styles";
 
 interface Props {

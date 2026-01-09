@@ -14,13 +14,14 @@ import type {
   NetworkRequestDetails,
   GeneratedCSPPolicy,
   CSPGenerationOptions,
-} from "@ai-service-exposure/core";
-import { DEFAULT_CSP_CONFIG } from "@ai-service-exposure/core";
+} from "@service-policy-controller/core";
+import { DEFAULT_CSP_CONFIG } from "@service-policy-controller/core";
 import { startCookieMonitor, onCookieChange } from "@/utils/cookie-monitor";
 import { CSPAnalyzer } from "@/utils/csp-analyzer";
 import { CSPReporter } from "@/utils/csp-reporter";
 
 const MAX_EVENTS = 1000;
+const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
 let storageQueue: Promise<void> = Promise.resolve();
 
@@ -59,7 +60,7 @@ async function updateBadge() {
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     await chrome.action.setBadgeBackgroundColor({ color: "#666" });
   } catch (error) {
-    console.error("[AI Service Exposure] Failed to update badge:", error);
+    console.error("[Service Policy Controller] Failed to update badge:", error);
   }
 }
 
@@ -326,7 +327,9 @@ async function setCSPConfig(
   await saveStorage({ cspConfig: updated });
 
   if (cspReporter) {
-    cspReporter.setEndpoint(updated.reportEndpoint);
+    const endpoint =
+      updated.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
+    cspReporter.setEndpoint(endpoint);
   }
 
   return { success: true };
@@ -361,7 +364,9 @@ async function getCSPReports(options?: {
 export default defineBackground(() => {
   // Initialize CSP reporter on startup
   getCSPConfig().then((config) => {
-    cspReporter = new CSPReporter(config.reportEndpoint);
+    const endpoint =
+      config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
+    cspReporter = new CSPReporter(endpoint);
   });
 
   // Set up periodic flush for CSP reports
@@ -370,7 +375,7 @@ export default defineBackground(() => {
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "flushCSPReports") {
       flushReportQueue().catch((error) => {
-        console.error("[AI Service Exposure] Error flushing CSP reports:", error);
+        console.error("[Service Policy Controller] Error flushing CSP reports:", error);
       });
     }
   });
@@ -380,7 +385,7 @@ export default defineBackground(() => {
     if (message.type === "PAGE_ANALYZED") {
       handlePageAnalysis(message.payload).catch((error) => {
         console.error(
-          "[AI Service Exposure] Error handling page analysis:",
+          "[Service Policy Controller] Error handling page analysis:",
           error
         );
       });
@@ -392,7 +397,7 @@ export default defineBackground(() => {
       handleCSPViolation(message.data, sender)
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error handling CSP violation:", error);
+          console.error("[Service Policy Controller] Error handling CSP violation:", error);
           sendResponse({ success: false, reason: String(error) });
         });
       return true;
@@ -403,7 +408,7 @@ export default defineBackground(() => {
       handleNetworkRequest(message.data, sender)
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error handling network request:", error);
+          console.error("[Service Policy Controller] Error handling network request:", error);
           sendResponse({ success: false, reason: String(error) });
         });
       return true;
@@ -414,7 +419,7 @@ export default defineBackground(() => {
       getCSPReports(message.data)
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error getting CSP reports:", error);
+          console.error("[Service Policy Controller] Error getting CSP reports:", error);
           sendResponse([]);
         });
       return true;
@@ -425,7 +430,7 @@ export default defineBackground(() => {
       generateCSPPolicy(message.data?.options)
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error generating CSP:", error);
+          console.error("[Service Policy Controller] Error generating CSP:", error);
           sendResponse(null);
         });
       return true;
@@ -436,7 +441,7 @@ export default defineBackground(() => {
       getCSPConfig()
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error getting CSP config:", error);
+          console.error("[Service Policy Controller] Error getting CSP config:", error);
           sendResponse(DEFAULT_CSP_CONFIG);
         });
       return true;
@@ -447,7 +452,7 @@ export default defineBackground(() => {
       setCSPConfig(message.data)
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error setting CSP config:", error);
+          console.error("[Service Policy Controller] Error setting CSP config:", error);
           sendResponse({ success: false });
         });
       return true;
@@ -458,7 +463,7 @@ export default defineBackground(() => {
       clearCSPData()
         .then(sendResponse)
         .catch((error) => {
-          console.error("[AI Service Exposure] Error clearing CSP data:", error);
+          console.error("[Service Policy Controller] Error clearing CSP data:", error);
           sendResponse({ success: false });
         });
       return true;
@@ -475,7 +480,7 @@ export default defineBackground(() => {
     const domain = cookie.domain.replace(/^\./, "");
 
     addCookieToService(domain, cookie).catch((error) => {
-      console.error("[AI Service Exposure] Error adding cookie:", error);
+      console.error("[Service Policy Controller] Error adding cookie:", error);
     });
 
     addEvent({
@@ -487,11 +492,11 @@ export default defineBackground(() => {
         isSession: cookie.isSession,
       },
     }).catch((error) => {
-      console.error("[AI Service Exposure] Error adding event:", error);
+      console.error("[Service Policy Controller] Error adding event:", error);
     });
   });
 
   updateBadge();
 
-  console.log("[AI Service Exposure] Background service worker started (with CSP Auditor)");
+  console.log("[Service Policy Controller] Background service worker started (with CSP Auditor)");
 });

@@ -1,5 +1,5 @@
 {
-  "name": "@ai-service-exposure/debugger",
+  "name": "@service-policy-controller/debugger",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "watch": "tsx src/index.ts watch"
   },
   "dependencies": {
-    "@ai-service-exposure/core": "workspace:*",
+    "@service-policy-controller/core": "workspace:*",
     "puppeteer": "^23.0.0"
   },
   "devDependencies": {

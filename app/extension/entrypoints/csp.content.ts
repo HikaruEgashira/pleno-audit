@@ -4,7 +4,7 @@
  * Runs at document_start to catch all violations
  */
 
-import type { CSPViolation, NetworkRequest } from "@ai-service-exposure/core";
+import type { CSPViolation, NetworkRequest } from "@service-policy-controller/core";
 
 export default defineContentScript({
   matches: ["<all_urls>"],

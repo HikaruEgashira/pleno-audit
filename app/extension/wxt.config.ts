@@ -4,7 +4,7 @@ export default defineConfig({
   srcDir: ".",
   outDir: "dist",
   manifest: {
-    name: "AI Service Exposure",
+    name: "Service Policy Controller",
     version: "0.0.1",
     description:
       "Detect and visualize login pages, privacy policies, session cookies, and CSP violations",

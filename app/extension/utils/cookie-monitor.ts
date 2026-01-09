@@ -1,4 +1,4 @@
-import { isSessionCookie, type CookieInfo } from "@ai-service-exposure/core";
+import { isSessionCookie, type CookieInfo } from "@service-policy-controller/core";
 
 export type CookieChangeCallback = (cookie: CookieInfo, removed: boolean) => void;
 

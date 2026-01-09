@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import type { GeneratedCSPPolicy } from "@ai-service-exposure/core";
+import type { GeneratedCSPPolicy } from "@service-policy-controller/core";
 import { styles } from "../styles";
 
 export function PolicyGenerator() {

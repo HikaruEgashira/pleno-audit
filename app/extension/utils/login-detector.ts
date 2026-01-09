@@ -1,4 +1,4 @@
-import { isLoginUrl } from "@ai-service-exposure/core";
+import { isLoginUrl } from "@service-policy-controller/core";
 
 export interface LoginDetectionResult {
   hasLoginForm: boolean;

@@ -2,7 +2,7 @@ import {
   isPrivacyUrl,
   isPrivacyText,
   FOOTER_SELECTORS,
-} from "@ai-service-exposure/core";
+} from "@service-policy-controller/core";
 
 export interface PrivacyPolicyResult {
   found: boolean;

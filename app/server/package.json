@@ -1,7 +1,7 @@
 {
-  "name": "@ai-service-exposure/server",
+  "name": "@service-policy-controller/server",
   "version": "0.0.1",
-  "description": "Local development server for AI Service Exposure reports",
+  "description": "Local development server for Service Policy Controller reports",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@ai-service-exposure/core": "workspace:*",
+    "@service-policy-controller/core": "workspace:*",
     "sql.js": "^1.11.0"
   },
   "devDependencies": {

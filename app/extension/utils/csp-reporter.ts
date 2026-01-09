@@ -3,7 +3,7 @@
  * Handles optional external reporting of CSP violations and network requests
  */
 
-import type { CSPReport } from "@ai-service-exposure/core";
+import type { CSPReport } from "@service-policy-controller/core";
 
 export interface ReportPayload {
   reports: CSPReport[];
@@ -57,7 +57,7 @@ export class CSPReporter {
     } catch (error) {
       if (attempt < this.maxRetries) {
         console.debug(
-          `[AI Service Exposure] Report send failed (attempt ${attempt + 1}/${this.maxRetries}), retrying...`
+          `[Service Policy Controller] Report send failed (attempt ${attempt + 1}/${this.maxRetries}), retrying...`
         );
         await new Promise((resolve) =>
           setTimeout(resolve, this.retryDelay * Math.pow(2, attempt))
@@ -66,7 +66,7 @@ export class CSPReporter {
       }
 
       console.error(
-        "[AI Service Exposure] Failed to send reports after retries:",
+        "[Service Policy Controller] Failed to send reports after retries:",
         error
       );
       return false;

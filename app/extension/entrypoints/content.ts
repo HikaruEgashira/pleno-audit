@@ -29,7 +29,7 @@ async function sendToBackground(analysis: PageAnalysis) {
       payload: analysis,
     });
   } catch (error) {
-    console.error("[AI Service Exposure] Failed to send analysis:", error);
+    console.error("[Service Policy Controller] Failed to send analysis:", error);
   }
 }
 
@@ -38,7 +38,7 @@ function runAnalysis() {
 
   if (isLoginPage() || analysis.privacy.found) {
     sendToBackground(analysis);
-    console.log("[AI Service Exposure] Page analyzed:", analysis);
+    console.log("[Service Policy Controller] Page analyzed:", analysis);
   }
 }
 

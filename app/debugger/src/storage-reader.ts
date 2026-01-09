@@ -1,7 +1,7 @@
 import puppeteer, { type Browser } from "puppeteer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { StorageData } from "@ai-service-exposure/core";
+import type { StorageData } from "@service-policy-controller/core";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, "../../extension/dist/chrome-mv3");
