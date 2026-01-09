@@ -21,23 +21,56 @@ import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
 import { CSPAnalyzer, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
 import { startCookieMonitor, onCookieChange } from "@/utils/cookie-monitor";
 import { CSPReporter } from "@/utils/csp-reporter";
-import { createMessageRouter, fireAndForget } from "@/utils/message-handler";
-import {
-  queueStorageOperation,
-  getStorage,
-  setStorage,
-  getServiceCount,
-  clearCSPReports,
-} from "@/utils/storage";
-import { DatabaseClient } from "@/utils/db-client";
+import { getApiClient, type ApiClient, type ConnectionMode, updateApiClientConfig } from "@/utils/api-client";
 import { checkMigrationNeeded, migrateToDatabase } from "@/utils/migration";
+import { getSyncManager, type SyncManager } from "@/utils/sync-manager";
 
 const MAX_EVENTS = 1000;
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
+interface StorageData {
+  services: Record<string, DetectedService>;
+  events: EventLog[];
+  cspReports: CSPReport[];
+  cspConfig: CSPConfig;
+}
+
+let storageQueue: Promise<void> = Promise.resolve();
+let apiClient: ApiClient | null = null;
+let syncManager: SyncManager | null = null;
+
+function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    storageQueue = storageQueue
+      .then(() => operation())
+      .then(resolve)
+      .catch(reject);
+  });
+}
+
+async function initStorage(): Promise<StorageData> {
+  const result = await chrome.storage.local.get([
+    "services",
+    "events",
+    "cspReports",
+    "cspConfig",
+  ]);
+  return {
+    services: result.services || {},
+    events: result.events || [],
+    cspReports: result.cspReports || [],
+    cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
+  };
+}
+
+async function saveStorage(data: Partial<StorageData>) {
+  await chrome.storage.local.set(data);
+}
+
 async function updateBadge() {
   try {
-    const count = await getServiceCount();
+    const result = await chrome.storage.local.get(["services"]);
+    const count = Object.keys(result.services || {}).length;
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     await chrome.action.setBadgeBackgroundColor({ color: "#666" });
   } catch (error) {
@@ -89,14 +122,14 @@ type NewEvent =
 
 async function addEvent(event: NewEvent): Promise<EventLog> {
   return queueStorageOperation(async () => {
-    const storage = await getStorage();
+    const storage = await initStorage();
     const newEvent = {
       ...event,
       id: generateEventId(),
     } as EventLog;
     storage.events.unshift(newEvent);
     storage.events = storage.events.slice(0, MAX_EVENTS);
-    await setStorage({ events: storage.events });
+    await saveStorage({ events: storage.events });
     await updateBadge();
     return newEvent;
   });
@@ -115,7 +148,7 @@ function createDefaultService(domain: string): DetectedService {
 
 async function updateService(domain: string, update: Partial<DetectedService>) {
   return queueStorageOperation(async () => {
-    const storage = await getStorage();
+    const storage = await initStorage();
     const existing = storage.services[domain] || createDefaultService(domain);
 
     storage.services[domain] = {
@@ -123,14 +156,14 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
       ...update,
     };
 
-    await setStorage({ services: storage.services });
+    await saveStorage({ services: storage.services });
     await updateBadge();
   });
 }
 
 async function addCookieToService(domain: string, cookie: CookieInfo) {
   return queueStorageOperation(async () => {
-    const storage = await getStorage();
+    const storage = await initStorage();
 
     if (!storage.services[domain]) {
       storage.services[domain] = createDefaultService(domain);
@@ -142,7 +175,7 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
       service.cookies.push(cookie);
     }
 
-    await setStorage({ services: storage.services });
+    await saveStorage({ services: storage.services });
     await updateBadge();
   });
 }
@@ -207,7 +240,7 @@ async function handleCSPViolation(
   data: Omit<CSPViolation, "type"> & { type?: string },
   sender: chrome.runtime.MessageSender
 ): Promise<{ success: boolean; reason?: string }> {
-  const storage = await getStorage();
+  const storage = await initStorage();
   const config = storage.cspConfig || DEFAULT_CSP_CONFIG;
 
   if (!config.enabled || !config.collectCSPViolations) {
@@ -250,7 +283,7 @@ async function handleNetworkRequest(
   data: Omit<NetworkRequest, "type"> & { type?: string },
   sender: chrome.runtime.MessageSender
 ): Promise<{ success: boolean; reason?: string }> {
-  const storage = await getStorage();
+  const storage = await initStorage();
   const config = storage.cspConfig || DEFAULT_CSP_CONFIG;
 
   if (!config.enabled || !config.collectNetworkRequests) {
@@ -276,54 +309,12 @@ async function handleNetworkRequest(
 
 async function storeCSPReport(report: CSPReport) {
   try {
-    if (report.type === "csp-violation") {
-      const violation = report as CSPViolation;
-      await DatabaseClient.insertCSPViolation([
-        {
-          timestamp: violation.timestamp,
-          pageUrl: violation.pageUrl,
-          directive: violation.directive,
-          blockedUrl: violation.blockedURL,
-          domain: violation.domain,
-          disposition: violation.disposition,
-          originalPolicy: violation.originalPolicy,
-          sourceFile: violation.sourceFile,
-          lineNumber: violation.lineNumber,
-          columnNumber: violation.columnNumber,
-          statusCode: violation.statusCode,
-        },
-      ]);
-    } else if (report.type === "network-request") {
-      const request = report as NetworkRequest;
-      await DatabaseClient.insertNetworkRequest([
-        {
-          timestamp: request.timestamp,
-          pageUrl: request.pageUrl,
-          url: request.url,
-          method: request.method,
-          initiator: request.initiator,
-          domain: request.domain,
-          resourceType: request.resourceType,
-        },
-      ]);
+    if (!apiClient) {
+      apiClient = await getApiClient();
     }
+    await apiClient.postReports([report]);
   } catch (error) {
-    console.error("[Service Policy Auditor] Error storing to database:", error);
-    // Fallback to chrome.storage
-    await queueStorageOperation(async () => {
-      const storage = await getStorage();
-      const config = storage.cspConfig || DEFAULT_CSP_CONFIG;
-      const maxReports = config.maxStoredReports;
-
-      const cspReports = storage.cspReports || [];
-      cspReports.push(report);
-
-      if (cspReports.length > maxReports) {
-        cspReports.splice(0, cspReports.length - maxReports);
-      }
-
-      await setStorage({ cspReports });
-    });
+    console.error("[Service Policy Auditor] Error storing report:", error);
   }
 }
 
@@ -335,88 +326,6 @@ async function flushReportQueue() {
 
   if (!success) {
     reportQueue.unshift(...batch);
-  }
-}
-
-async function getCSPReports(options?: {
-  type?: "csp-violation" | "network-request";
-}): Promise<CSPReport[]> {
-  try {
-    if (options?.type === "csp-violation") {
-      const violations = await DatabaseClient.getAllViolations();
-      return violations.map((v) => ({
-        type: "csp-violation" as const,
-        timestamp: v.timestamp,
-        pageUrl: v.pageUrl,
-        directive: v.directive,
-        blockedURL: v.blockedUrl,
-        domain: v.domain,
-        disposition: v.disposition,
-        originalPolicy: v.originalPolicy,
-        sourceFile: v.sourceFile,
-        lineNumber: v.lineNumber,
-        columnNumber: v.columnNumber,
-        statusCode: v.statusCode,
-      }));
-    }
-    if (options?.type === "network-request") {
-      const requests = await DatabaseClient.getAllNetworkRequests();
-      return requests.map((r) => ({
-        type: "network-request" as const,
-        timestamp: r.timestamp,
-        pageUrl: r.pageUrl,
-        url: r.url,
-        method: r.method,
-        initiator: r.initiator,
-        domain: r.domain,
-        resourceType: r.resourceType,
-      }));
-    }
-
-    const [violations, requests] = await Promise.all([
-      DatabaseClient.getAllViolations(),
-      DatabaseClient.getAllNetworkRequests(),
-    ]);
-
-    const violationReports: CSPReport[] = violations.map((v) => ({
-      type: "csp-violation" as const,
-      timestamp: v.timestamp,
-      pageUrl: v.pageUrl,
-      directive: v.directive,
-      blockedURL: v.blockedUrl,
-      domain: v.domain,
-      disposition: v.disposition,
-      originalPolicy: v.originalPolicy,
-      sourceFile: v.sourceFile,
-      lineNumber: v.lineNumber,
-      columnNumber: v.columnNumber,
-      statusCode: v.statusCode,
-    }));
-
-    const requestReports: CSPReport[] = requests.map((r) => ({
-      type: "network-request" as const,
-      timestamp: r.timestamp,
-      pageUrl: r.pageUrl,
-      url: r.url,
-      method: r.method,
-      initiator: r.initiator,
-      domain: r.domain,
-      resourceType: r.resourceType,
-    }));
-
-    return [...violationReports, ...requestReports].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-  } catch (error) {
-    console.error("[Service Policy Auditor] Error getting CSP reports from database:", error);
-    // Fallback to chrome.storage
-    const storage = await getStorage();
-    const cspReports = storage.cspReports || [];
-
-    if (options?.type) {
-      return cspReports.filter((r) => r.type === options.type);
-    }
-    return cspReports;
   }
 }
 
@@ -449,7 +358,7 @@ async function generateCSPPolicyByDomain(
 }
 
 async function getCSPConfig(): Promise<CSPConfig> {
-  const storage = await getStorage();
+  const storage = await initStorage();
   return storage.cspConfig || DEFAULT_CSP_CONFIG;
 }
 
@@ -458,7 +367,7 @@ async function setCSPConfig(
 ): Promise<{ success: boolean }> {
   const current = await getCSPConfig();
   const updated = { ...current, ...newConfig };
-  await setStorage({ cspConfig: updated });
+  await saveStorage({ cspConfig: updated });
 
   if (cspReporter) {
     const endpoint =
@@ -471,8 +380,10 @@ async function setCSPConfig(
 
 async function clearCSPData(): Promise<{ success: boolean }> {
   try {
-    await DatabaseClient.clearAll();
-    await clearCSPReports();
+    if (!apiClient) {
+      apiClient = await getApiClient();
+    }
+    await apiClient.clearReports();
     reportQueue = [];
     return { success: true };
   } catch (error) {
@@ -481,97 +392,263 @@ async function clearCSPData(): Promise<{ success: boolean }> {
   }
 }
 
-function setupMessageHandlers() {
-  const router = createMessageRouter();
+async function getCSPReports(options?: {
+  type?: "csp-violation" | "network-request";
+}): Promise<CSPReport[]> {
+  try {
+    if (!apiClient) {
+      apiClient = await getApiClient();
+    }
 
-  // Page analysis (fire-and-forget)
-  router.register<PageAnalysis, void>("PAGE_ANALYZED", {
-    handler: async (data) => {
-      await handlePageAnalysis(data);
-    },
-    errorResponse: undefined,
-    logPrefix: "page analysis",
-  });
+    if (options?.type === "csp-violation") {
+      const { violations } = await apiClient.getViolations();
+      return violations;
+    }
+    if (options?.type === "network-request") {
+      const { requests } = await apiClient.getNetworkRequests();
+      return requests;
+    }
 
-  // CSP handlers
-  router.register("CSP_VIOLATION", {
-    handler: handleCSPViolation,
-    errorResponse: { success: false, reason: "Error" },
-  });
+    const { reports } = await apiClient.getReports();
+    return reports;
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error getting CSP reports:", error);
+    return [];
+  }
+}
 
-  router.register("NETWORK_REQUEST", {
-    handler: handleNetworkRequest,
-    errorResponse: { success: false, reason: "Error" },
-  });
+async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: string | null }> {
+  if (!apiClient) {
+    apiClient = await getApiClient();
+  }
+  return {
+    mode: apiClient.getMode(),
+    endpoint: apiClient.getEndpoint(),
+  };
+}
 
-  router.register("GET_CSP_REPORTS", {
-    handler: async (data) => getCSPReports(data),
-    errorResponse: [],
-  });
+async function setConnectionConfig(
+  mode: ConnectionMode,
+  endpoint?: string
+): Promise<{ success: boolean }> {
+  try {
+    await updateApiClientConfig(mode, endpoint);
+    return { success: true };
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error setting connection config:", error);
+    return { success: false };
+  }
+}
 
-  router.register("GENERATE_CSP", {
-    handler: async (data: { options?: Partial<CSPGenerationOptions> } | undefined) =>
-      generateCSPPolicy(data?.options),
-    errorResponse: null,
-  });
+async function getSyncConfig(): Promise<{ enabled: boolean; endpoint: string | null }> {
+  if (!syncManager) {
+    syncManager = await getSyncManager();
+  }
+  return {
+    enabled: syncManager.isEnabled(),
+    endpoint: syncManager.getRemoteEndpoint(),
+  };
+}
 
-  router.register("GENERATE_CSP_BY_DOMAIN", {
-    handler: async (data: { options?: Partial<CSPGenerationOptions> } | undefined) =>
-      generateCSPPolicyByDomain(data?.options),
-    errorResponse: null,
-  });
+async function setSyncConfig(
+  enabled: boolean,
+  endpoint?: string
+): Promise<{ success: boolean }> {
+  try {
+    if (!syncManager) {
+      syncManager = await getSyncManager();
+    }
+    await syncManager.setEnabled(enabled, endpoint);
+    return { success: true };
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error setting sync config:", error);
+    return { success: false };
+  }
+}
 
-  router.register("GET_CSP_CONFIG", {
-    handler: async () => getCSPConfig(),
-    errorResponse: DEFAULT_CSP_CONFIG,
-  });
+async function triggerSync(): Promise<{ success: boolean; sent: number; received: number }> {
+  try {
+    if (!syncManager) {
+      syncManager = await getSyncManager();
+    }
+    const result = await syncManager.sync();
+    return { success: true, ...result };
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error triggering sync:", error);
+    return { success: false, sent: 0, received: 0 };
+  }
+}
 
-  router.register("SET_CSP_CONFIG", {
-    handler: async (data) => setCSPConfig(data as Partial<CSPConfig>),
-    errorResponse: { success: false },
-  });
-
-  router.register("CLEAR_CSP_DATA", {
-    handler: async () => clearCSPData(),
-    errorResponse: { success: false },
-  });
-
-  router.listen();
+async function registerMainWorldScript() {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
+    await chrome.scripting.registerContentScripts([{
+      id: "api-hooks",
+      js: ["api-hooks.js"],
+      matches: ["<all_urls>"],
+      runAt: "document_start",
+      world: "MAIN",
+      persistAcrossSessions: true,
+    }]);
+  } catch (error) {
+    console.error("[Service Policy Auditor] Failed to register main world script:", error);
+  }
 }
 
 export default defineBackground(() => {
-  // Initialize database on startup and run migration if needed
-  DatabaseClient.init()
-    .then(async () => {
+  registerMainWorldScript();
+  getApiClient()
+    .then(async (client) => {
+      apiClient = client;
       const needsMigration = await checkMigrationNeeded();
       if (needsMigration) {
-        const result = await migrateToDatabase();
-        if (result.success) {
-          console.log(`[Service Policy Auditor] Migration completed: ${result.migratedCount} reports migrated`);
-        }
+        await migrateToDatabase();
       }
     })
-    .catch((error) => {
-      console.error("[Service Policy Auditor] Failed to initialize database:", error);
-    });
+    .catch(console.error);
 
-  // Initialize CSP reporter on startup
+  getSyncManager()
+    .then(async (manager) => {
+      syncManager = manager;
+      if (manager.isEnabled()) {
+        await manager.startSync();
+      }
+    })
+    .catch(console.error);
+
   getCSPConfig().then((config) => {
     const endpoint =
       config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
     cspReporter = new CSPReporter(endpoint);
   });
 
-  // Set up periodic flush for CSP reports
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "flushCSPReports") {
-      fireAndForget(flushReportQueue(), "flushing CSP reports");
+      flushReportQueue().catch(console.error);
     }
   });
 
-  setupMessageHandlers();
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Messages handled by offscreen document
+    if (message.type === "LOCAL_API_REQUEST" || message.type === "OFFSCREEN_READY") {
+      return false;
+    }
+
+    if (message.type === "PAGE_ANALYZED") {
+      handlePageAnalysis(message.payload).catch(console.error);
+      return true;
+    }
+
+    if (message.type === "CSP_VIOLATION") {
+      handleCSPViolation(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "NETWORK_REQUEST") {
+      handleNetworkRequest(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_CSP_REPORTS") {
+      getCSPReports(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    }
+
+    if (message.type === "GENERATE_CSP") {
+      generateCSPPolicy(message.data?.options)
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "GENERATE_CSP_BY_DOMAIN") {
+      generateCSPPolicyByDomain(message.data?.options)
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "GET_CSP_CONFIG") {
+      getCSPConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_CSP_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_CSP_CONFIG") {
+      setCSPConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CLEAR_CSP_DATA") {
+      clearCSPData()
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_STATS") {
+      (async () => {
+        try {
+          if (!apiClient) {
+            apiClient = await getApiClient();
+          }
+          const stats = await apiClient.getStats();
+          sendResponse(stats);
+        } catch (error) {
+          sendResponse({ violations: 0, requests: 0, uniqueDomains: 0 });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "GET_CONNECTION_CONFIG") {
+      getConnectionConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse({ mode: "local", endpoint: null }));
+      return true;
+    }
+
+    if (message.type === "SET_CONNECTION_CONFIG") {
+      setConnectionConfig(message.data.mode, message.data.endpoint)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_SYNC_CONFIG") {
+      getSyncConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse({ enabled: false, endpoint: null }));
+      return true;
+    }
+
+    if (message.type === "SET_SYNC_CONFIG") {
+      setSyncConfig(message.data.enabled, message.data.endpoint)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "TRIGGER_SYNC") {
+      triggerSync()
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false, sent: 0, received: 0 }));
+      return true;
+    }
+
+    return true;
+  });
 
   startCookieMonitor();
 
@@ -579,23 +656,17 @@ export default defineBackground(() => {
     if (removed) return;
 
     const domain = cookie.domain.replace(/^\./, "");
-
-    fireAndForget(addCookieToService(domain, cookie), "adding cookie");
-    fireAndForget(
-      addEvent({
-        type: "cookie_set",
-        domain,
-        timestamp: cookie.detectedAt,
-        details: {
-          name: cookie.name,
-          isSession: cookie.isSession,
-        },
-      }),
-      "adding cookie event"
-    );
+    addCookieToService(domain, cookie).catch(console.error);
+    addEvent({
+      type: "cookie_set",
+      domain,
+      timestamp: cookie.detectedAt,
+      details: {
+        name: cookie.name,
+        isSession: cookie.isSession,
+      },
+    }).catch(console.error);
   });
 
   updateBadge();
-
-  console.log("[Service Policy Auditor] Background service worker started");
 });

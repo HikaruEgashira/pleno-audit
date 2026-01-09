@@ -1,5 +1,5 @@
 import type { CSPReport, CSPViolation, NetworkRequest } from "@service-policy-auditor/core";
-import { DatabaseClient } from "./db-client";
+import { getApiClient } from "./api-client";
 
 const MIGRATION_KEY = "duckdbMigrationCompleted";
 const LEGACY_REPORTS_KEY = "cspReports";
@@ -26,51 +26,13 @@ export async function migrateToDatabase(): Promise<{ success: boolean; migratedC
 
     console.log(`[Migration] Starting migration of ${legacyReports.length} reports`);
 
-    const violations: CSPViolation[] = [];
-    const requests: NetworkRequest[] = [];
-
-    for (const report of legacyReports) {
-      if (report.type === "csp-violation") {
-        violations.push(report as CSPViolation);
-      } else if (report.type === "network-request") {
-        requests.push(report as NetworkRequest);
-      }
-    }
+    const apiClient = await getApiClient();
 
     const BATCH_SIZE = 100;
 
-    for (let i = 0; i < violations.length; i += BATCH_SIZE) {
-      const batch = violations.slice(i, i + BATCH_SIZE);
-      await DatabaseClient.insertCSPViolation(
-        batch.map((v) => ({
-          timestamp: v.timestamp,
-          pageUrl: v.pageUrl,
-          directive: v.directive,
-          blockedUrl: v.blockedURL,
-          domain: v.domain,
-          disposition: v.disposition,
-          originalPolicy: v.originalPolicy,
-          sourceFile: v.sourceFile,
-          lineNumber: v.lineNumber,
-          columnNumber: v.columnNumber,
-          statusCode: v.statusCode,
-        }))
-      );
-    }
-
-    for (let i = 0; i < requests.length; i += BATCH_SIZE) {
-      const batch = requests.slice(i, i + BATCH_SIZE);
-      await DatabaseClient.insertNetworkRequest(
-        batch.map((r) => ({
-          timestamp: r.timestamp,
-          pageUrl: r.pageUrl,
-          url: r.url,
-          method: r.method,
-          initiator: r.initiator,
-          domain: r.domain,
-          resourceType: r.resourceType,
-        }))
-      );
+    for (let i = 0; i < legacyReports.length; i += BATCH_SIZE) {
+      const batch = legacyReports.slice(i, i + BATCH_SIZE);
+      await apiClient.postReports(batch);
     }
 
     await chrome.storage.local.set({ [MIGRATION_KEY]: true });

@@ -1,0 +1,120 @@
+import type { CSPReport } from "@service-policy-auditor/core";
+import { ApiClient, getApiClient } from "./api-client";
+
+const SYNC_ALARM_NAME = "syncReports";
+const LAST_SYNC_TIME_KEY = "lastSyncTime";
+const SYNC_ENABLED_KEY = "syncEnabled";
+
+export class SyncManager {
+  private localClient: ApiClient | null = null;
+  private remoteClient: ApiClient | null = null;
+  private enabled = false;
+  private remoteEndpoint: string | null = null;
+
+  async init(): Promise<void> {
+    const config = await chrome.storage.local.get([SYNC_ENABLED_KEY, "remoteEndpoint"]);
+    this.enabled = config[SYNC_ENABLED_KEY] || false;
+    this.remoteEndpoint = config.remoteEndpoint || null;
+
+    if (this.enabled && this.remoteEndpoint) {
+      this.localClient = await getApiClient();
+      this.remoteClient = new ApiClient({
+        mode: "remote",
+        remoteEndpoint: this.remoteEndpoint,
+      });
+    }
+  }
+
+  async startSync(intervalMinutes: number = 1): Promise<void> {
+    if (!this.enabled) return;
+
+    chrome.alarms.create(SYNC_ALARM_NAME, { periodInMinutes: intervalMinutes });
+
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === SYNC_ALARM_NAME) {
+        this.sync().catch((error) => {
+          console.error("[SyncManager] Sync failed:", error);
+        });
+      }
+    });
+
+    console.log(`[SyncManager] Started with ${intervalMinutes} minute interval`);
+  }
+
+  async stopSync(): Promise<void> {
+    await chrome.alarms.clear(SYNC_ALARM_NAME);
+    console.log("[SyncManager] Stopped");
+  }
+
+  async sync(): Promise<{ sent: number; received: number }> {
+    if (!this.enabled || !this.localClient || !this.remoteClient || !this.remoteEndpoint) {
+      return { sent: 0, received: 0 };
+    }
+
+    try {
+      const { lastSyncTime } = await chrome.storage.local.get(LAST_SYNC_TIME_KEY);
+      const since = lastSyncTime || "1970-01-01T00:00:00.000Z";
+
+      const { reports: localNew } = await this.localClient.sync(since);
+
+      const { serverReports, serverTime } = await this.remoteClient.pushAndPull(
+        localNew,
+        since
+      );
+
+      if (serverReports.length > 0) {
+        await this.localClient.postReports(serverReports);
+      }
+
+      await chrome.storage.local.set({ [LAST_SYNC_TIME_KEY]: serverTime });
+
+      console.log(`[SyncManager] Sync complete - Sent: ${localNew.length}, Received: ${serverReports.length}`);
+
+      return { sent: localNew.length, received: serverReports.length };
+    } catch (error) {
+      console.error("[SyncManager] Sync error:", error);
+      throw error;
+    }
+  }
+
+  async setEnabled(enabled: boolean, endpoint?: string): Promise<void> {
+    this.enabled = enabled;
+    this.remoteEndpoint = endpoint || null;
+
+    await chrome.storage.local.set({
+      [SYNC_ENABLED_KEY]: enabled,
+      remoteEndpoint: endpoint || null,
+    });
+
+    if (enabled && endpoint) {
+      this.localClient = await getApiClient();
+      this.remoteClient = new ApiClient({
+        mode: "remote",
+        remoteEndpoint: endpoint,
+      });
+      await this.startSync();
+    } else {
+      await this.stopSync();
+      this.localClient = null;
+      this.remoteClient = null;
+    }
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  getRemoteEndpoint(): string | null {
+    return this.remoteEndpoint;
+  }
+}
+
+let syncManagerInstance: SyncManager | null = null;
+
+export async function getSyncManager(): Promise<SyncManager> {
+  if (!syncManagerInstance) {
+    syncManagerInstance = new SyncManager();
+    await syncManagerInstance.init();
+  }
+  return syncManagerInstance;
+}

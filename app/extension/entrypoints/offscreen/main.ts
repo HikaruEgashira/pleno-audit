@@ -1,174 +1,117 @@
-import initSqlJs, { type Database } from "sql.js";
-import { DB_SCHEMA } from "../../utils/db-schema";
-import type { DBMessage, DBResponse } from "../../utils/db-schema";
+import initSqlJs from "sql.js";
+import { createApp, SqlJsAdapter } from "@service-policy-auditor/api";
+import type { Hono } from "hono";
+import {
+  isLocalApiRequest,
+  type DBMessage,
+  type LocalApiResponse,
+  type LegacyDBMessage,
+  type LegacyDBResponse,
+} from "../../utils/db-schema";
 
-let db: Database | null = null;
+let app: ReturnType<typeof createApp> | null = null;
+let db: SqlJsAdapter | null = null;
 
-async function initDatabase(): Promise<void> {
-  if (db) return;
+async function initLocalServer(): Promise<void> {
+  if (app) return;
 
   const SQL = await initSqlJs({
     locateFile: () => chrome.runtime.getURL("sql-wasm.wasm"),
   });
 
-  db = new SQL.Database();
+  db = new SqlJsAdapter(SQL, {});
+  await db.init();
 
-  db.run(DB_SCHEMA);
+  app = createApp(db);
 
-  console.log("[SQLite] Initialized successfully");
+  console.log("[Local Server] Hono app initialized with sql.js");
 }
 
-function escapeSQL(str: string): string {
-  return str.replace(/'/g, "''");
-}
-
-async function insertCSPViolation(data: unknown[]): Promise<void> {
-  if (!db) throw new Error("Database not initialized");
-
-  for (const item of data) {
-    const v = item as {
-      timestamp: string;
-      pageUrl: string;
-      directive: string;
-      blockedUrl: string;
-      domain: string;
-      disposition?: string;
-      originalPolicy?: string;
-      sourceFile?: string;
-      lineNumber?: number;
-      columnNumber?: number;
-      statusCode?: number;
-    };
-
-    db.run(
-      `INSERT INTO csp_violations (
-        timestamp, page_url, directive, blocked_url, domain,
-        disposition, original_policy, source_file, line_number, column_number, status_code
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        v.timestamp,
-        v.pageUrl,
-        v.directive,
-        v.blockedUrl,
-        v.domain,
-        v.disposition ?? null,
-        v.originalPolicy ?? null,
-        v.sourceFile ?? null,
-        v.lineNumber ?? null,
-        v.columnNumber ?? null,
-        v.statusCode ?? null,
-      ]
-    );
+async function handleLocalApiRequest(
+  request: { method: string; path: string; body?: unknown }
+): Promise<{ status: number; data: unknown }> {
+  if (!app) {
+    throw new Error("Local server not initialized");
   }
-}
 
-async function insertNetworkRequest(data: unknown[]): Promise<void> {
-  if (!db) throw new Error("Database not initialized");
-
-  for (const item of data) {
-    const r = item as {
-      timestamp: string;
-      pageUrl: string;
-      url: string;
-      method: string;
-      initiator: string;
-      domain: string;
-      resourceType?: string;
-    };
-
-    db.run(
-      `INSERT INTO network_requests (
-        timestamp, page_url, url, method, initiator, domain, resource_type
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        r.timestamp,
-        r.pageUrl,
-        r.url,
-        r.method,
-        r.initiator,
-        r.domain,
-        r.resourceType ?? null,
-      ]
-    );
-  }
-}
-
-function executeQuery(sql: string): unknown[] {
-  if (!db) throw new Error("Database not initialized");
-
-  const result = db.exec(sql);
-  if (result.length === 0) return [];
-
-  const columns = result[0].columns;
-  return result[0].values.map((row) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col, idx) => {
-      obj[col] = row[idx];
-    });
-    return obj;
+  const req = new Request(`http://localhost${request.path}`, {
+    method: request.method,
+    headers: { "Content-Type": "application/json" },
+    body: request.body ? JSON.stringify(request.body) : undefined,
   });
+
+  const response = await app.fetch(req);
+  const data = await response.json();
+
+  return { status: response.status, data };
 }
 
-function clearAllData(): void {
-  if (!db) throw new Error("Database not initialized");
+async function handleLegacyMessage(
+  message: LegacyDBMessage
+): Promise<LegacyDBResponse> {
+  if (!db) {
+    await initLocalServer();
+  }
 
-  db.run("DELETE FROM csp_violations");
-  db.run("DELETE FROM network_requests");
-}
-
-function getStats(): {
-  violations: number;
-  requests: number;
-  uniqueDomains: number;
-} {
-  if (!db) throw new Error("Database not initialized");
-
-  const violationsResult = db.exec(
-    "SELECT COUNT(*) as count FROM csp_violations"
-  );
-  const requestsResult = db.exec(
-    "SELECT COUNT(*) as count FROM network_requests"
-  );
-  const domainsResult = db.exec(`
-    SELECT COUNT(DISTINCT domain) as count FROM (
-      SELECT domain FROM csp_violations
-      UNION
-      SELECT domain FROM network_requests
-    )
-  `);
-
-  return {
-    violations: Number(violationsResult[0]?.values[0]?.[0] ?? 0),
-    requests: Number(requestsResult[0]?.values[0]?.[0] ?? 0),
-    uniqueDomains: Number(domainsResult[0]?.values[0]?.[0] ?? 0),
-  };
-}
-
-async function handleMessage(message: DBMessage): Promise<DBResponse> {
   try {
     switch (message.type) {
       case "init":
-        await initDatabase();
+        await initLocalServer();
         return { id: message.id, success: true };
 
       case "insert":
-        if (message.table === "csp_violations") {
-          await insertCSPViolation(message.data || []);
-        } else if (message.table === "network_requests") {
-          await insertNetworkRequest(message.data || []);
+        if (!db) throw new Error("Database not initialized");
+        if (message.table === "csp_violations" && message.data) {
+          const reports = message.data.map((item) => {
+            const v = item as Record<string, unknown>;
+            return {
+              type: "csp-violation" as const,
+              timestamp: v.timestamp as string,
+              pageUrl: v.pageUrl as string,
+              directive: v.directive as string,
+              blockedURL: v.blockedUrl as string,
+              domain: v.domain as string,
+              disposition: v.disposition as "enforce" | "report",
+              originalPolicy: v.originalPolicy as string | undefined,
+              sourceFile: v.sourceFile as string | undefined,
+              lineNumber: v.lineNumber as number | undefined,
+              columnNumber: v.columnNumber as number | undefined,
+              statusCode: v.statusCode as number | undefined,
+            };
+          });
+          await db.insertReports(reports);
+        } else if (message.table === "network_requests" && message.data) {
+          const reports = message.data.map((item) => {
+            const r = item as Record<string, unknown>;
+            return {
+              type: "network-request" as const,
+              timestamp: r.timestamp as string,
+              pageUrl: r.pageUrl as string,
+              url: r.url as string,
+              method: r.method as string,
+              initiator: r.initiator as "fetch" | "xhr" | "websocket" | "beacon" | "script" | "img" | "style" | "frame" | "font" | "media",
+              domain: r.domain as string,
+              resourceType: r.resourceType as string | undefined,
+            };
+          });
+          await db.insertReports(reports);
         }
         return { id: message.id, success: true };
 
       case "query":
-        const queryResult = executeQuery(message.sql || "");
-        return { id: message.id, success: true, data: queryResult };
+        if (!db) throw new Error("Database not initialized");
+        const violations = await db.getAllViolations();
+        const requests = await db.getAllNetworkRequests();
+        return { id: message.id, success: true, data: [...violations, ...requests] };
 
       case "clear":
-        clearAllData();
+        if (!db) throw new Error("Database not initialized");
+        await db.clearAll();
         return { id: message.id, success: true };
 
       case "stats":
-        const stats = getStats();
+        if (!db) throw new Error("Database not initialized");
+        const stats = await db.getStats();
         return { id: message.id, success: true, data: stats };
 
       default:
@@ -191,18 +134,38 @@ chrome.runtime.onMessage.addListener(
   (message: DBMessage, _sender, sendResponse) => {
     if (!message.type) return false;
 
-    handleMessage(message)
-      .then(sendResponse)
-      .catch((error) => {
-        sendResponse({
-          id: message.id,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
+    if (isLocalApiRequest(message)) {
+      handleLocalApiRequest(message.request)
+        .then((result) => {
+          const response: LocalApiResponse = {
+            id: message.id,
+            status: result.status,
+            data: result.data,
+          };
+          sendResponse(response);
+        })
+        .catch((error) => {
+          const response: LocalApiResponse = {
+            id: message.id,
+            status: 500,
+            error: error instanceof Error ? error.message : String(error),
+          };
+          sendResponse(response);
         });
-      });
+    } else {
+      handleLegacyMessage(message)
+        .then(sendResponse)
+        .catch((error) => {
+          sendResponse({
+            id: message.id,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+    }
 
     return true;
   }
 );
 
-initDatabase().catch(console.error);
+initLocalServer().catch(console.error);
