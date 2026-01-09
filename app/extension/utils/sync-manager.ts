@@ -10,6 +10,7 @@ export class SyncManager {
   private remoteClient: ApiClient | null = null;
   private enabled = false;
   private remoteEndpoint: string | null = null;
+  private alarmListenerRegistered = false;
 
   async init(): Promise<void> {
     const config = await chrome.storage.local.get([SYNC_ENABLED_KEY, "remoteEndpoint"]);
@@ -30,20 +31,18 @@ export class SyncManager {
 
     chrome.alarms.create(SYNC_ALARM_NAME, { periodInMinutes: intervalMinutes });
 
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name === SYNC_ALARM_NAME) {
-        this.sync().catch((error) => {
-          console.error("[SyncManager] Sync failed:", error);
-        });
-      }
-    });
-
-    console.log(`[SyncManager] Started with ${intervalMinutes} minute interval`);
+    if (!this.alarmListenerRegistered) {
+      chrome.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name === SYNC_ALARM_NAME) {
+          this.sync().catch(console.error);
+        }
+      });
+      this.alarmListenerRegistered = true;
+    }
   }
 
   async stopSync(): Promise<void> {
     await chrome.alarms.clear(SYNC_ALARM_NAME);
-    console.log("[SyncManager] Stopped");
   }
 
   async sync(): Promise<{ sent: number; received: number }> {
@@ -51,30 +50,22 @@ export class SyncManager {
       return { sent: 0, received: 0 };
     }
 
-    try {
-      const { lastSyncTime } = await chrome.storage.local.get(LAST_SYNC_TIME_KEY);
-      const since = lastSyncTime || "1970-01-01T00:00:00.000Z";
+    const { lastSyncTime } = await chrome.storage.local.get(LAST_SYNC_TIME_KEY);
+    const since = lastSyncTime || "1970-01-01T00:00:00.000Z";
 
-      const { reports: localNew } = await this.localClient.sync(since);
+    const { reports: localNew } = await this.localClient.sync(since);
 
-      const { serverReports, serverTime } = await this.remoteClient.pushAndPull(
-        localNew,
-        since
-      );
+    const { serverReports, serverTime } = await this.remoteClient.pushAndPull(
+      localNew,
+      since
+    );
 
-      if (serverReports.length > 0) {
-        await this.localClient.postReports(serverReports);
-      }
-
-      await chrome.storage.local.set({ [LAST_SYNC_TIME_KEY]: serverTime });
-
-      console.log(`[SyncManager] Sync complete - Sent: ${localNew.length}, Received: ${serverReports.length}`);
-
-      return { sent: localNew.length, received: serverReports.length };
-    } catch (error) {
-      console.error("[SyncManager] Sync error:", error);
-      throw error;
+    if (serverReports.length > 0) {
+      await this.localClient.postReports(serverReports);
     }
+
+    await chrome.storage.local.set({ [LAST_SYNC_TIME_KEY]: serverTime });
+    return { sent: localNew.length, received: serverReports.length };
   }
 
   async setEnabled(enabled: boolean, endpoint?: string): Promise<void> {

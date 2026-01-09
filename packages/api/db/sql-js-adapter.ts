@@ -79,29 +79,36 @@ export class SqlJsAdapter implements DatabaseAdapter {
   async insertReports(reports: CSPReport[]): Promise<void> {
     const db = this.getDb()
 
-    for (const report of reports) {
-      if (report.type === 'csp-violation') {
-        const v = report as CSPViolation
-        db.run(
-          `INSERT INTO csp_violations (timestamp, page_url, directive, blocked_url, domain, disposition, original_policy, source_file, line_number, column_number, status_code)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            v.timestamp, v.pageUrl, v.directive, v.blockedURL, v.domain,
-            v.disposition || null, v.originalPolicy || null, v.sourceFile || null,
-            v.lineNumber || null, v.columnNumber || null, v.statusCode || null
-          ]
-        )
-      } else {
-        const r = report as NetworkRequest
-        db.run(
-          `INSERT INTO network_requests (timestamp, page_url, url, method, initiator, domain, resource_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            r.timestamp, r.pageUrl, r.url, r.method, r.initiator, r.domain,
-            r.resourceType || null
-          ]
-        )
+    db.run('BEGIN TRANSACTION')
+    try {
+      for (const report of reports) {
+        if (report.type === 'csp-violation') {
+          const v = report as CSPViolation
+          db.run(
+            `INSERT INTO csp_violations (timestamp, page_url, directive, blocked_url, domain, disposition, original_policy, source_file, line_number, column_number, status_code)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              v.timestamp, v.pageUrl, v.directive, v.blockedURL, v.domain,
+              v.disposition || null, v.originalPolicy || null, v.sourceFile || null,
+              v.lineNumber || null, v.columnNumber || null, v.statusCode || null
+            ]
+          )
+        } else {
+          const r = report as NetworkRequest
+          db.run(
+            `INSERT INTO network_requests (timestamp, page_url, url, method, initiator, domain, resource_type)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              r.timestamp, r.pageUrl, r.url, r.method, r.initiator, r.domain,
+              r.resourceType || null
+            ]
+          )
+        }
       }
+      db.run('COMMIT')
+    } catch (error) {
+      db.run('ROLLBACK')
+      throw error
     }
     this.save()
   }
