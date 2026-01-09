@@ -9,10 +9,10 @@
   },
   "dependencies": {
     "@service-policy-auditor/core": "workspace:*",
-    "puppeteer": "^23.0.0"
+    "puppeteer": "^24.34.0"
   },
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

@@ -8,11 +8,11 @@
   },
   "dependencies": {
     "@service-policy-auditor/core": "workspace:*",
-    "preact": "^10.19.3"
+    "preact": "^10.28.2"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.8.2",
-    "typescript": "^5.3.3",
+    "@preact/preset-vite": "^2.10.2",
+    "typescript": "^5.9.3",
     "wxt": "^0.20.13"
   }
 }
