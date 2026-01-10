@@ -1,6 +1,6 @@
 # Service Policy Auditor
 
-Browserを通してアクセスするWebサービスの利用状況を可視化し、プライバシーリスクを管理するChrome拡張機能（CASB）です。
+Browserを通してアクセスするWebサービスの利用状況を可視化し、プライバシーリスクを管理するChrome拡張機能（CASB/Browser Security）です。
 
 ## Features
 
