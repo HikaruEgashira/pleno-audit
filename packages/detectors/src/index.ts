@@ -12,7 +12,7 @@ export type {
   EventLogType,
 } from "./casb-types.js";
 
-// NRD Detection Types
+// NRD Detection (re-export from @service-policy-auditor/nrd)
 export type {
   HeuristicScores,
   NRDResult,
@@ -20,12 +20,12 @@ export type {
   NRDDetectionMethod,
   NRDConfidence,
   NRDCache,
-} from "./nrd-types.js";
+  RDAPEvent,
+  RDAPResponse,
+} from "@service-policy-auditor/nrd";
 
-export { DEFAULT_NRD_CONFIG } from "./nrd-types.js";
-
-// NRD Heuristic Detection
 export {
+  DEFAULT_NRD_CONFIG,
   SUSPICIOUS_TLDS,
   calculateEntropy,
   extractSLD,
@@ -35,18 +35,11 @@ export {
   isRandomLooking,
   calculateHeuristics,
   isHighRiskHeuristics,
-} from "./nrd-heuristics.js";
-
-// NRD RDAP Client
-export type { RDAPEvent, RDAPResponse } from "./nrd-rdap.js";
-export {
   queryRDAP,
   extractRegistrationDate,
   extractDomainStatus,
-} from "./nrd-rdap.js";
-
-// NRD Detector Factory
-export { createNRDDetector } from "./nrd-detector.js";
+  createNRDDetector,
+} from "@service-policy-auditor/nrd";
 
 // Detection Types
 export type {

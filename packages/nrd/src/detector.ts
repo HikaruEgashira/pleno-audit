@@ -18,9 +18,9 @@ import type {
   NRDDetectionMethod,
   NRDConfidence,
   HeuristicScores,
-} from './nrd-types.js';
-import { calculateHeuristics } from './nrd-heuristics.js';
-import { queryRDAP, extractRegistrationDate } from './nrd-rdap.js';
+} from './types.js';
+import { calculateHeuristics } from './heuristics.js';
+import { queryRDAP, extractRegistrationDate } from './rdap.js';
 
 /**
  * Cache interface for storing NRD results

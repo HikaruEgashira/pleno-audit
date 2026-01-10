@@ -5,7 +5,7 @@
  * to identify potentially malicious newly registered domains without external databases.
  */
 
-import type { HeuristicScores } from './nrd-types.js';
+import type { HeuristicScores } from './types.js';
 
 /**
  * Suspicious TLDs commonly used for phishing, malware, or abuse

@@ -102,6 +102,9 @@ importers:
       '@service-policy-auditor/csp':
         specifier: workspace:*
         version: link:../csp
+      '@service-policy-auditor/nrd':
+        specifier: workspace:*
+        version: link:../nrd
       '@service-policy-auditor/typosquat':
         specifier: workspace:*
         version: link:../typosquat
@@ -114,6 +117,8 @@ importers:
       '@service-policy-auditor/detectors':
         specifier: workspace:*
         version: link:../detectors
+
+  packages/nrd: {}
 
   packages/typosquat: {}
 
