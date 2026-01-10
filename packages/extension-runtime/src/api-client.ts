@@ -3,6 +3,19 @@ import type { LocalApiResponse } from "./offscreen/db-schema.js";
 
 export type ConnectionMode = "local" | "remote";
 
+export interface QueryOptions {
+  limit?: number;
+  offset?: number;
+  since?: string;
+  until?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+}
+
 export interface ApiClientConfig {
   mode: ConnectionMode;
   remoteEndpoint?: string;
@@ -161,8 +174,20 @@ export class ApiClient {
     return this.endpoint;
   }
 
-  async getReports(): Promise<{ reports: CSPReport[]; lastUpdated: string }> {
-    return this.request("/api/v1/reports");
+  private buildQueryString(options?: QueryOptions): string {
+    if (!options) return "";
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.offset !== undefined) params.set("offset", String(options.offset));
+    if (options.since) params.set("since", options.since);
+    if (options.until) params.set("until", options.until);
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  }
+
+  async getReports(options?: QueryOptions): Promise<{ reports: CSPReport[]; total?: number; hasMore?: boolean; lastUpdated: string }> {
+    const qs = this.buildQueryString(options);
+    return this.request(`/api/v1/reports${qs}`);
   }
 
   async postReports(reports: CSPReport[]): Promise<{ success: boolean; totalReports: number }> {
@@ -180,12 +205,14 @@ export class ApiClient {
     return this.request("/api/v1/stats");
   }
 
-  async getViolations(): Promise<{ violations: CSPViolation[] }> {
-    return this.request("/api/v1/violations");
+  async getViolations(options?: QueryOptions): Promise<{ violations: CSPViolation[]; total?: number; hasMore?: boolean }> {
+    const qs = this.buildQueryString(options);
+    return this.request(`/api/v1/reports/violations${qs}`);
   }
 
-  async getNetworkRequests(): Promise<{ requests: NetworkRequest[] }> {
-    return this.request("/api/v1/requests");
+  async getNetworkRequests(options?: QueryOptions): Promise<{ requests: NetworkRequest[]; total?: number; hasMore?: boolean }> {
+    const qs = this.buildQueryString(options);
+    return this.request(`/api/v1/reports/network${qs}`);
   }
 
   async sync(since?: string): Promise<{ reports: CSPReport[]; serverTime: string }> {

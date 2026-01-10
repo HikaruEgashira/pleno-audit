@@ -1,6 +1,6 @@
 import type { Database, SqlJsStatic } from 'sql.js'
 import type { CSPViolation, NetworkRequest, CSPReport } from '@service-policy-auditor/csp'
-import type { DatabaseAdapter, DatabaseStats } from './interface'
+import type { DatabaseAdapter, DatabaseStats, QueryOptions, PaginatedResult } from './interface'
 
 export interface SqlJsAdapterOptions {
   persistPath?: string
@@ -234,5 +234,120 @@ export class SqlJsAdapter implements DatabaseAdapter {
 
   export(): Uint8Array {
     return this.getDb().export()
+  }
+
+  private buildWhereClause(options: QueryOptions, timestampColumn: string): { where: string; params: (string | number)[] } {
+    const conditions: string[] = []
+    const params: (string | number)[] = []
+
+    if (options.since) {
+      conditions.push(`${timestampColumn} >= ?`)
+      params.push(options.since)
+    }
+    if (options.until) {
+      conditions.push(`${timestampColumn} <= ?`)
+      params.push(options.until)
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    return { where, params }
+  }
+
+  async getViolations(options: QueryOptions = {}): Promise<PaginatedResult<CSPViolation>> {
+    const db = this.getDb()
+    const { where, params } = this.buildWhereClause(options, 'timestamp')
+
+    const countResult = db.exec(`SELECT COUNT(*) as count FROM csp_violations ${where}`, params)
+    const total = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0
+
+    const limit = options.limit ?? 100
+    const offset = options.offset ?? 0
+
+    const queryParams = [...params, limit, offset]
+    const results = db.exec(
+      `SELECT * FROM csp_violations ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      queryParams
+    )
+
+    const data = results.length > 0
+      ? results[0].values.map((row) => mapViolation(rowToObject(results[0].columns, row)))
+      : []
+
+    return {
+      data,
+      total,
+      hasMore: offset + data.length < total,
+    }
+  }
+
+  async getNetworkRequests(options: QueryOptions = {}): Promise<PaginatedResult<NetworkRequest>> {
+    const db = this.getDb()
+    const { where, params } = this.buildWhereClause(options, 'timestamp')
+
+    const countResult = db.exec(`SELECT COUNT(*) as count FROM network_requests ${where}`, params)
+    const total = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0
+
+    const limit = options.limit ?? 100
+    const offset = options.offset ?? 0
+
+    const queryParams = [...params, limit, offset]
+    const results = db.exec(
+      `SELECT * FROM network_requests ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      queryParams
+    )
+
+    const data = results.length > 0
+      ? results[0].values.map((row) => mapNetworkRequest(rowToObject(results[0].columns, row)))
+      : []
+
+    return {
+      data,
+      total,
+      hasMore: offset + data.length < total,
+    }
+  }
+
+  async getReports(options: QueryOptions = {}): Promise<PaginatedResult<CSPReport>> {
+    const db = this.getDb()
+    const { where: vWhere, params: vParams } = this.buildWhereClause(options, 'timestamp')
+    const { where: rWhere, params: rParams } = this.buildWhereClause(options, 'timestamp')
+
+    const vCountResult = db.exec(`SELECT COUNT(*) as count FROM csp_violations ${vWhere}`, vParams)
+    const rCountResult = db.exec(`SELECT COUNT(*) as count FROM network_requests ${rWhere}`, rParams)
+    const vTotal = vCountResult.length > 0 ? (vCountResult[0].values[0][0] as number) : 0
+    const rTotal = rCountResult.length > 0 ? (rCountResult[0].values[0][0] as number) : 0
+    const total = vTotal + rTotal
+
+    const limit = options.limit ?? 100
+    const offset = options.offset ?? 0
+
+    const vQueryParams = [...vParams, limit, offset]
+    const rQueryParams = [...rParams, limit, offset]
+
+    const vResults = db.exec(
+      `SELECT *, 'csp-violation' as report_type FROM csp_violations ${vWhere} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      vQueryParams
+    )
+    const rResults = db.exec(
+      `SELECT *, 'network-request' as report_type FROM network_requests ${rWhere} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      rQueryParams
+    )
+
+    const violations = vResults.length > 0
+      ? vResults[0].values.map((row) => mapViolation(rowToObject(vResults[0].columns, row)))
+      : []
+    const requests = rResults.length > 0
+      ? rResults[0].values.map((row) => mapNetworkRequest(rowToObject(rResults[0].columns, row)))
+      : []
+
+    const data = [...violations, ...requests]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, limit)
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    }
   }
 }

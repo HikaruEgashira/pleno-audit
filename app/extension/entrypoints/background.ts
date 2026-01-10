@@ -51,6 +51,7 @@ import {
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
+  type QueryOptions,
 } from "@service-policy-auditor/extension-runtime";
 import {
   EventStore,
@@ -544,10 +545,15 @@ async function flushReportQueue() {
   }
 }
 
+function extractReportsArray(result: CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean }): CSPReport[] {
+  return Array.isArray(result) ? result : result.reports;
+}
+
 async function generateCSPPolicy(
   options?: Partial<CSPGenerationOptions>
 ): Promise<GeneratedCSPPolicy> {
-  const cspReports = await getCSPReports();
+  const result = await getCSPReports();
+  const cspReports = extractReportsArray(result);
   const analyzer = new CSPAnalyzer(cspReports);
   return analyzer.generatePolicy({
     strictMode: options?.strictMode ?? false,
@@ -561,7 +567,8 @@ async function generateCSPPolicy(
 async function generateCSPPolicyByDomain(
   options?: Partial<CSPGenerationOptions>
 ): Promise<GeneratedCSPByDomain> {
-  const cspReports = await getCSPReports();
+  const result = await getCSPReports();
+  const cspReports = extractReportsArray(result);
   const analyzer = new CSPAnalyzer(cspReports);
   return analyzer.generatePolicyByDomain({
     strictMode: options?.strictMode ?? false,
@@ -609,23 +616,45 @@ async function clearCSPData(): Promise<{ success: boolean }> {
 
 async function getCSPReports(options?: {
   type?: "csp-violation" | "network-request";
-}): Promise<CSPReport[]> {
+  limit?: number;
+  offset?: number;
+  since?: string;
+  until?: string;
+}): Promise<CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean }> {
   try {
     if (!apiClient) {
       apiClient = await getApiClient();
     }
 
+    const queryOptions: QueryOptions = {
+      limit: options?.limit,
+      offset: options?.offset,
+      since: options?.since,
+      until: options?.until,
+    };
+
+    const hasPaginationParams = options?.limit !== undefined || options?.offset !== undefined || options?.since || options?.until;
+
     if (options?.type === "csp-violation") {
-      const { violations } = await apiClient.getViolations();
-      return violations;
+      const result = await apiClient.getViolations(queryOptions);
+      if (hasPaginationParams) {
+        return { reports: result.violations, total: result.total ?? 0, hasMore: result.hasMore ?? false };
+      }
+      return result.violations;
     }
     if (options?.type === "network-request") {
-      const { requests } = await apiClient.getNetworkRequests();
-      return requests;
+      const result = await apiClient.getNetworkRequests(queryOptions);
+      if (hasPaginationParams) {
+        return { reports: result.requests, total: result.total ?? 0, hasMore: result.hasMore ?? false };
+      }
+      return result.requests;
     }
 
-    const { reports } = await apiClient.getReports();
-    return reports;
+    const result = await apiClient.getReports(queryOptions);
+    if (hasPaginationParams) {
+      return { reports: result.reports, total: result.total ?? 0, hasMore: result.hasMore ?? false };
+    }
+    return result.reports;
   } catch (error) {
     console.error("[Service Policy Auditor] Error getting CSP reports:", error);
     return [];

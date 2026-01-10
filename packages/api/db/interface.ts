@@ -6,6 +6,19 @@ export interface DatabaseStats {
   uniqueDomains: number
 }
 
+export interface QueryOptions {
+  limit?: number
+  offset?: number
+  since?: string
+  until?: string
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  total: number
+  hasMore: boolean
+}
+
 export interface DatabaseAdapter {
   init(): Promise<void>
   insertReports(reports: CSPReport[]): Promise<void>
@@ -16,4 +29,7 @@ export interface DatabaseAdapter {
   clearAll(): Promise<void>
   close(): Promise<void>
   getReportsSince(timestamp: string): Promise<CSPReport[]>
+  getReports(options?: QueryOptions): Promise<PaginatedResult<CSPReport>>
+  getViolations(options?: QueryOptions): Promise<PaginatedResult<CSPViolation>>
+  getNetworkRequests(options?: QueryOptions): Promise<PaginatedResult<NetworkRequest>>
 }

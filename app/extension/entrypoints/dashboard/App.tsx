@@ -243,16 +243,18 @@ function DashboardContent() {
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      const cutoff = new Date(Date.now() - getPeriodMs(period)).toISOString();
       const [reportsResult, statsResult, configResult, aiPromptsResult, storageResult, eventsResult] = await Promise.all([
-        chrome.runtime.sendMessage({ type: "GET_CSP_REPORTS" }),
+        chrome.runtime.sendMessage({ type: "GET_CSP_REPORTS", data: { since: period !== "all" ? cutoff : undefined, limit: 1000 } }),
         chrome.runtime.sendMessage({ type: "GET_STATS" }),
         chrome.runtime.sendMessage({ type: "GET_CONNECTION_CONFIG" }),
         chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 10000, offset: 0 } }),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 500, offset: 0 } }),
       ]);
 
       if (Array.isArray(reportsResult)) setReports(reportsResult);
+      if (reportsResult?.reports) setReports(reportsResult.reports);
       if (statsResult) setStats(statsResult);
       if (configResult) setConnectionMode(configResult.mode);
       if (Array.isArray(aiPromptsResult)) setAIPrompts(aiPromptsResult);
@@ -265,11 +267,11 @@ function DashboardContent() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [loadData]);
 
@@ -316,7 +318,7 @@ function DashboardContent() {
   };
 
   const filteredReports = useMemo(() => {
-    const cutoff = Date.now() - getPeriodMs(period);
+    const cutoff = new Date(Date.now() - getPeriodMs(period)).toISOString();
     return reports.filter((r) => r.timestamp >= cutoff);
   }, [reports, period]);
 
@@ -559,15 +561,17 @@ function DashboardContent() {
           </div>
 
           <DataTable
-            data={domainStats.map((d, i) => ({
-              ...d,
-              requests: networkRequests.filter((r) => r.domain === d.label).length,
-              lastSeen: Math.max(
-                ...violations.filter((v) => { try { return new URL(v.blockedURL).hostname === d.label; } catch { return false; } }).map((v) => v.timestamp),
-                0
-              ),
-              index: i,
-            }))}
+            data={domainStats.map((d, i) => {
+              const domainViolations = violations.filter((v) => { try { return new URL(v.blockedURL).hostname === d.label; } catch { return false; } });
+              const timestamps = domainViolations.map((v) => new Date(v.timestamp).getTime());
+              const lastSeenMs = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+              return {
+                ...d,
+                requests: networkRequests.filter((r) => r.domain === d.label).length,
+                lastSeen: lastSeenMs,
+                index: i,
+              };
+            })}
             rowKey={(d) => d.label}
             rowHighlight={(d) => d.value > 10}
             emptyMessage="ドメインデータなし"

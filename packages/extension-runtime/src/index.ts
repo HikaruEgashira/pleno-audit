@@ -17,6 +17,8 @@ export {
   updateApiClientConfig,
   type ConnectionMode,
   type ApiClientConfig,
+  type QueryOptions,
+  type PaginatedResult,
 } from "./api-client.js";
 
 // Sync Manager
