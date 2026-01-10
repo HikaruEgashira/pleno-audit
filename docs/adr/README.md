@@ -12,3 +12,4 @@
 | [008](./008-core-domain-model.md) | Coreパッケージの廃止とドメイン分割 | Accepted |
 | [009](./009-explore-agent-optimization.md) | Claude Code Explore Agent最適化 | Accepted |
 | [010](./010-extension-runtime-package.md) | Extension Runtimeパッケージの分離 | Accepted |
+| [011](./011-ai-prompt-monitoring.md) | AIプロンプト監視機能 | Accepted |

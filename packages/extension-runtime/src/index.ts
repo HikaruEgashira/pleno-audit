@@ -7,6 +7,7 @@ export {
   getStorageKey,
   getServiceCount,
   clearCSPReports,
+  clearAIPrompts,
 } from "./storage.js";
 
 // API Client
@@ -43,4 +44,6 @@ export type {
   EventLog,
   CSPConfig,
   CSPReport,
+  CapturedAIPrompt,
+  AIMonitorConfig,
 } from "./storage-types.js";

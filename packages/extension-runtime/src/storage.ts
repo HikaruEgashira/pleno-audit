@@ -7,10 +7,20 @@ import type {
   CSPReport,
   DetectedService,
   EventLog,
+  CapturedAIPrompt,
+  AIMonitorConfig,
 } from "./storage-types.js";
 import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
+import { DEFAULT_AI_MONITOR_CONFIG } from "@service-policy-auditor/detectors";
 
-const STORAGE_KEYS = ["services", "events", "cspReports", "cspConfig"] as const;
+const STORAGE_KEYS = [
+  "services",
+  "events",
+  "cspReports",
+  "cspConfig",
+  "aiPrompts",
+  "aiMonitorConfig",
+] as const;
 type StorageKey = (typeof STORAGE_KEYS)[number];
 
 let storageQueue: Promise<void> = Promise.resolve();
@@ -31,6 +41,9 @@ export async function getStorage(): Promise<StorageData> {
     events: (result.events as EventLog[]) || [],
     cspReports: (result.cspReports as CSPReport[]) || [],
     cspConfig: (result.cspConfig as CSPConfig) || DEFAULT_CSP_CONFIG,
+    aiPrompts: (result.aiPrompts as CapturedAIPrompt[]) || [],
+    aiMonitorConfig:
+      (result.aiMonitorConfig as AIMonitorConfig) || DEFAULT_AI_MONITOR_CONFIG,
   };
 }
 
@@ -47,6 +60,8 @@ export async function getStorageKey<K extends StorageKey>(
     events: [],
     cspReports: [],
     cspConfig: DEFAULT_CSP_CONFIG,
+    aiPrompts: [],
+    aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
   };
   return (result[key] as StorageData[K]) ?? defaults[key];
 }
@@ -58,4 +73,11 @@ export async function getServiceCount(): Promise<number> {
 
 export async function clearCSPReports(): Promise<void> {
   await chrome.storage.local.remove(["cspReports"]);
+}
+
+/**
+ * AIプロンプトをクリア
+ */
+export async function clearAIPrompts(): Promise<void> {
+  await chrome.storage.local.remove(["aiPrompts"]);
 }

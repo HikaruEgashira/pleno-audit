@@ -1,5 +1,9 @@
 import { useState, useEffect } from "preact/hooks";
-import type { DetectedService, EventLog } from "@service-policy-auditor/detectors";
+import type {
+  DetectedService,
+  EventLog,
+  CapturedAIPrompt,
+} from "@service-policy-auditor/detectors";
 import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
 import type { StorageData } from "@service-policy-auditor/extension-runtime";
 import { ServiceList } from "./components/ServiceList";
@@ -8,11 +12,13 @@ import { ViolationList } from "./components/ViolationList";
 import { NetworkList } from "./components/NetworkList";
 import { PolicyGenerator } from "./components/PolicyGenerator";
 import { Settings } from "./components/Settings";
+import { AIPromptList } from "./components/AIPromptList";
 import { styles } from "./styles";
 
 type Tab =
   | "services"
   | "events"
+  | "ai_prompts"
   | "violations"
   | "network"
   | "policy"
@@ -21,7 +27,8 @@ type Tab =
 const TABS: { key: Tab; label: string }[] = [
   { key: "services", label: "Services" },
   { key: "events", label: "Events" },
-  { key: "violations", label: "Violations" },
+  { key: "ai_prompts", label: "AI" },
+  { key: "violations", label: "CSP" },
   { key: "network", label: "Network" },
   { key: "policy", label: "Policy" },
   { key: "settings", label: "Settings" },
@@ -33,10 +40,12 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
+  const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
 
   useEffect(() => {
     loadData();
     loadCSPData();
+    loadAIData();
     const listener = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
@@ -45,6 +54,9 @@ export function App() {
       }
       if (changes.cspReports) {
         loadCSPData();
+      }
+      if (changes.aiPrompts) {
+        loadAIData();
       }
     };
     chrome.storage.onChanged.addListener(listener);
@@ -79,14 +91,25 @@ export function App() {
     }
   }
 
+  async function loadAIData() {
+    try {
+      const data = await chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" });
+      if (Array.isArray(data)) setAIPrompts(data);
+    } catch (error) {
+      console.error("Failed to load AI data:", error);
+    }
+  }
+
   async function handleClearData() {
     if (!confirm("Clear all collected data?")) return;
     try {
       await chrome.storage.local.remove(["services", "events"]);
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
+      await chrome.runtime.sendMessage({ type: "CLEAR_AI_DATA" });
       setData({ services: {}, events: [] });
       setViolations([]);
       setNetworkRequests([]);
+      setAIPrompts([]);
     } catch (err) {
       console.error("Failed to clear data:", err);
     }
@@ -109,6 +132,8 @@ export function App() {
         return <ServiceList services={services} />;
       case "events":
         return <EventLogList events={events} />;
+      case "ai_prompts":
+        return <AIPromptList prompts={aiPrompts} />;
       case "violations":
         return <ViolationList violations={violations} />;
       case "network":

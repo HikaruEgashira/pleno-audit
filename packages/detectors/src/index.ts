@@ -60,3 +60,26 @@ export {
 export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
 export { createLoginDetector } from "./login-detector.js";
+
+// AI Prompt Detection Types
+export type {
+  InferredProvider,
+  AIDetectionMethod,
+  CapturedAIPrompt,
+  AIPromptContent,
+  AIResponseContent,
+  AIPromptSentDetails,
+  AIResponseReceivedDetails,
+  AIMonitorConfig,
+} from "./ai-types.js";
+
+export { DEFAULT_AI_MONITOR_CONFIG } from "./ai-types.js";
+
+// AI Prompt Detection
+export {
+  isAIRequestBody,
+  extractPromptContent,
+  extractModel,
+  extractResponseContent,
+  inferProviderFromResponse,
+} from "./ai-detector.js";

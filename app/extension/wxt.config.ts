@@ -16,7 +16,7 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ["api-hooks.js", "sql-wasm.wasm"],
+        resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm"],
         matches: ["<all_urls>"],
       },
     ],
@@ -32,10 +32,10 @@ export default defineConfig({
     },
     optimizeDeps: {
       include: [
-        "@service-policy-auditor/core",
         "@service-policy-auditor/csp",
         "@service-policy-auditor/detectors",
         "@service-policy-auditor/api",
+        "@service-policy-auditor/extension-runtime",
       ],
     },
   }),

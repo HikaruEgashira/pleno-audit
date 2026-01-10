@@ -6,6 +6,21 @@
 
 import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
 
+function isExtensionContextValid(): boolean {
+  try {
+    return chrome.runtime?.id != null;
+  } catch {
+    return false;
+  }
+}
+
+function safeSendMessage(message: unknown): void {
+  if (!isExtensionContextValid()) return;
+  chrome.runtime.sendMessage(message).catch(() => {
+    // Ignore if extension context is invalid
+  });
+}
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   runAt: "document_start",
@@ -29,14 +44,10 @@ export default defineContentScript({
           statusCode: event.statusCode,
         };
 
-        chrome.runtime
-          .sendMessage({
-            type: "CSP_VIOLATION",
-            data: violation,
-          })
-          .catch(() => {
-            // Ignore if extension context is invalid
-          });
+        safeSendMessage({
+          type: "CSP_VIOLATION",
+          data: violation,
+        });
       },
       true
     );
@@ -60,14 +71,10 @@ export default defineContentScript({
           resourceType: event.detail.resourceType,
         };
 
-        chrome.runtime
-          .sendMessage({
-            type: "NETWORK_REQUEST",
-            data: request,
-          })
-          .catch(() => {
-            // Ignore if extension context is invalid
-          });
+        safeSendMessage({
+          type: "NETWORK_REQUEST",
+          data: request,
+        });
       }) as EventListener
     );
   },

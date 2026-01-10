@@ -6,7 +6,12 @@ import type {
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
   CookieSetDetails,
+  CapturedAIPrompt,
+  AIPromptSentDetails,
+  AIResponseReceivedDetails,
+  AIMonitorConfig,
 } from "@service-policy-auditor/detectors";
+import { DEFAULT_AI_MONITOR_CONFIG } from "@service-policy-auditor/detectors";
 import type {
   CSPViolation,
   NetworkRequest,
@@ -26,6 +31,9 @@ import {
   checkMigrationNeeded,
   migrateToDatabase,
   getSyncManager,
+  getStorage,
+  setStorage,
+  clearAIPrompts,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
@@ -124,6 +132,18 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: NetworkRequestDetails;
+    }
+  | {
+      type: "ai_prompt_sent";
+      domain: string;
+      timestamp: number;
+      details: AIPromptSentDetails;
+    }
+  | {
+      type: "ai_response_received";
+      domain: string;
+      timestamp: number;
+      details: AIResponseReceivedDetails;
     };
 
 async function addEvent(event: NewEvent): Promise<EventLog> {
@@ -431,6 +451,118 @@ async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: 
   };
 }
 
+// ===== AI Prompt Monitor Functions =====
+
+const MAX_AI_PROMPTS = 500;
+
+async function handleAIPromptCaptured(
+  data: CapturedAIPrompt
+): Promise<{ success: boolean }> {
+  const storage = await getStorage();
+  const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
+
+  if (!config.enabled) {
+    return { success: false };
+  }
+
+  // Store AI prompt
+  await storeAIPrompt(data);
+
+  // Extract domain from API endpoint
+  let domain = "unknown";
+  try {
+    domain = new URL(data.apiEndpoint).hostname;
+  } catch {
+    // ignore
+  }
+
+  // Add prompt sent event
+  await addEvent({
+    type: "ai_prompt_sent",
+    domain,
+    timestamp: data.timestamp,
+    details: {
+      provider: data.provider || "unknown",
+      model: data.model,
+      promptPreview: getPromptPreview(data.prompt),
+      contentSize: data.prompt.contentSize,
+      messageCount: data.prompt.messages?.length,
+    },
+  });
+
+  // Add response received event if available
+  if (data.response) {
+    await addEvent({
+      type: "ai_response_received",
+      domain,
+      timestamp: data.responseTimestamp || Date.now(),
+      details: {
+        provider: data.provider || "unknown",
+        model: data.model,
+        responsePreview: data.response.text?.substring(0, 100) || "",
+        contentSize: data.response.contentSize,
+        latencyMs: data.response.latencyMs,
+        isStreaming: data.response.isStreaming,
+      },
+    });
+  }
+
+  return { success: true };
+}
+
+function getPromptPreview(prompt: CapturedAIPrompt["prompt"]): string {
+  if (prompt.messages?.length) {
+    const lastUserMsg = [...prompt.messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    return lastUserMsg?.content.substring(0, 100) || "";
+  }
+  return (
+    prompt.text?.substring(0, 100) || prompt.rawBody?.substring(0, 100) || ""
+  );
+}
+
+async function storeAIPrompt(prompt: CapturedAIPrompt) {
+  return queueStorageOperation(async () => {
+    const storage = await getStorage();
+    const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
+    const maxPrompts = config.maxStoredRecords || MAX_AI_PROMPTS;
+
+    const aiPrompts = storage.aiPrompts || [];
+    aiPrompts.unshift(prompt);
+
+    if (aiPrompts.length > maxPrompts) {
+      aiPrompts.splice(maxPrompts);
+    }
+
+    await setStorage({ aiPrompts });
+  });
+}
+
+async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
+  const storage = await getStorage();
+  return storage.aiPrompts || [];
+}
+
+async function getAIMonitorConfig(): Promise<AIMonitorConfig> {
+  const storage = await getStorage();
+  return storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
+}
+
+async function setAIMonitorConfig(
+  newConfig: Partial<AIMonitorConfig>
+): Promise<{ success: boolean }> {
+  const current = await getAIMonitorConfig();
+  const updated = { ...current, ...newConfig };
+  await setStorage({ aiMonitorConfig: updated });
+  return { success: true };
+}
+
+async function clearAIData(): Promise<{ success: boolean }> {
+  await clearAIPrompts();
+  return { success: true };
+}
+
 async function setConnectionConfig(
   mode: ConnectionMode,
   endpoint?: string
@@ -648,6 +780,42 @@ export default defineBackground(() => {
       triggerSync()
         .then(sendResponse)
         .catch(() => sendResponse({ success: false, sent: 0, received: 0 }));
+      return true;
+    }
+
+    // AI Prompt handlers
+    if (message.type === "AI_PROMPT_CAPTURED") {
+      handleAIPromptCaptured(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_AI_PROMPTS") {
+      getAIPrompts()
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    }
+
+    if (message.type === "GET_AI_MONITOR_CONFIG") {
+      getAIMonitorConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_AI_MONITOR_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_AI_MONITOR_CONFIG") {
+      setAIMonitorConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CLEAR_AI_DATA") {
+      clearAIData()
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 

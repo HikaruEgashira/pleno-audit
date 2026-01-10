@@ -9,6 +9,10 @@ import type {
   CSPViolationDetails,
   NetworkRequestDetails,
 } from "@service-policy-auditor/csp";
+import type {
+  AIPromptSentDetails,
+  AIResponseReceivedDetails,
+} from "./ai-types.js";
 
 // ============================================================================
 // SaaS Visibility (サービス可視性)
@@ -98,6 +102,8 @@ export type EventLogBase<T extends string, D> = {
  * - cookie_set: セッション追跡
  * - csp_violation: セキュリティ監査
  * - network_request: トラフィック分析
+ * - ai_prompt_sent: AIプロンプト送信
+ * - ai_response_received: AIレスポンス受信
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
@@ -105,6 +111,8 @@ export type EventLog =
   | EventLogBase<"terms_of_service_found", TosFoundDetails>
   | EventLogBase<"cookie_set", CookieSetDetails>
   | EventLogBase<"csp_violation", CSPViolationDetails>
-  | EventLogBase<"network_request", NetworkRequestDetails>;
+  | EventLogBase<"network_request", NetworkRequestDetails>
+  | EventLogBase<"ai_prompt_sent", AIPromptSentDetails>
+  | EventLogBase<"ai_response_received", AIResponseReceivedDetails>;
 
 export type EventLogType = EventLog["type"];
