@@ -18,19 +18,25 @@
         -webkit-font-smoothing: antialiased;
         min-height: 100vh;
       }
+      /* CSS variables with light mode defaults */
+      :root {
+        --scrollbar-track: hsl(0 0% 95%);
+        --scrollbar-thumb: hsl(0 0% 75%);
+        --scrollbar-thumb-hover: hsl(0 0% 60%);
+      }
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: hsl(0 0% 95%);
+        background: var(--scrollbar-track);
       }
       ::-webkit-scrollbar-thumb {
-        background: hsl(0 0% 75%);
+        background: var(--scrollbar-thumb);
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: hsl(0 0% 60%);
+        background: var(--scrollbar-thumb-hover);
       }
       @keyframes spin {
         to { transform: translateY(-50%) rotate(360deg); }

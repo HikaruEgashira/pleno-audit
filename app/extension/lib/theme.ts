@@ -25,6 +25,12 @@ export interface ThemeColors {
   // Interactive
   interactive: string;
   interactiveHover: string;
+  // Scrollbar
+  scrollbar: {
+    track: string;
+    thumb: string;
+    thumbHover: string;
+  };
   // Status badges
   status: {
     default: { bg: string; text: string; border: string };
@@ -55,6 +61,11 @@ export const lightColors: ThemeColors = {
   borderLight: "#f5f5f5",
   interactive: "#000",
   interactiveHover: "#333",
+  scrollbar: {
+    track: "hsl(0 0% 95%)",
+    thumb: "hsl(0 0% 75%)",
+    thumbHover: "hsl(0 0% 60%)",
+  },
   status: {
     default: { bg: "#fafafa", text: "#666", border: "#eaeaea" },
     success: { bg: "#d3f9d8", text: "#0a7227", border: "#b8f0c0" },
@@ -83,6 +94,11 @@ export const darkColors: ThemeColors = {
   borderLight: "#2a2a2a",
   interactive: "#fff",
   interactiveHover: "#ccc",
+  scrollbar: {
+    track: "#2a2a2a",
+    thumb: "#555",
+    thumbHover: "#666",
+  },
   status: {
     default: { bg: "#2a2a2a", text: "#a0a0a0", border: "#333" },
     success: { bg: "#0a3d1a", text: "#4ade80", border: "#166534" },
@@ -147,6 +163,14 @@ export function useThemeState(): ThemeContextValue {
 
   const isDark = mode === "dark" || (mode === "system" && systemDark);
   const colors = isDark ? darkColors : lightColors;
+
+  // Update CSS variables for scrollbar
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--scrollbar-track", colors.scrollbar.track);
+    root.style.setProperty("--scrollbar-thumb", colors.scrollbar.thumb);
+    root.style.setProperty("--scrollbar-thumb-hover", colors.scrollbar.thumbHover);
+  }, [colors]);
 
   return { mode, isDark, colors, setMode };
 }
