@@ -718,6 +718,15 @@ function ServicesTable({
   const filtered = useMemo(() => {
     if (!searchQuery) return services;
     const q = searchQuery.toLowerCase();
+
+    // 特殊フィルタ
+    if (q === "nrd") {
+      return services.filter((s) => s.nrdResult?.isNRD);
+    }
+    if (q === "login") {
+      return services.filter((s) => s.hasLoginPage);
+    }
+
     return services.filter(
       (s) =>
         s.domain.toLowerCase().includes(q) ||
@@ -1334,6 +1343,49 @@ export function DashboardApp() {
             <h2 style={dashboardStyles.sectionTitle}>AIプロンプト監視</h2>
             <span style={dashboardStyles.sectionCount}>{aiPrompts.length}件</span>
           </div>
+
+          {/* AIプロバイダー統計 */}
+          {aiPrompts.length > 0 && (
+            <div style={{ ...dashboardStyles.statsColumns, marginBottom: "16px" }}>
+              <div style={dashboardStyles.card}>
+                <h4 style={dashboardStyles.cardTitle}>プロバイダー別</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {Object.entries(
+                    aiPrompts.reduce((acc, p) => {
+                      const provider = p.provider || "unknown";
+                      acc[provider] = (acc[provider] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  )
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([provider, count]) => (
+                      <div key={provider} style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={dashboardStyles.badge}>{provider}</span>
+                        <span style={{ fontSize: "12px" }}>{count}件</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div style={dashboardStyles.card}>
+                <h4 style={dashboardStyles.cardTitle}>データ流出リスク</h4>
+                <div style={{ fontSize: "13px", color: "hsl(0 0% 40%)" }}>
+                  <p style={{ margin: "0 0 8px" }}>
+                    総送信プロンプト: <strong>{aiPrompts.length}</strong>件
+                  </p>
+                  <p style={{ margin: "0 0 8px" }}>
+                    総文字数: <strong>
+                      {aiPrompts.reduce((sum, p) => sum + (p.prompt.contentSize || 0), 0).toLocaleString()}
+                    </strong>文字
+                  </p>
+                  <p style={{ margin: 0, color: "hsl(45 100% 35%)" }}>
+                    機密情報の送信に注意してください
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={dashboardStyles.filterBar}>
             <div style={dashboardStyles.filterGroup}>
               <label style={dashboardStyles.filterLabel}>検索:</label>
@@ -1358,6 +1410,33 @@ export function DashboardApp() {
               {services.length}件 (NRD: {nrdServices.length}, ログイン: {loginServices.length})
             </span>
           </div>
+
+          {/* サービス統計サマリー */}
+          <div style={{ ...dashboardStyles.statsGrid, marginBottom: "16px" }}>
+            <div style={dashboardStyles.statCard}>
+              <div style={dashboardStyles.statValue}>{services.length}</div>
+              <div style={dashboardStyles.statLabel}>検出サービス</div>
+            </div>
+            <div style={dashboardStyles.statCard}>
+              <div style={{ ...dashboardStyles.statValue, color: "hsl(0 70% 50%)" }}>
+                {nrdServices.length}
+              </div>
+              <div style={dashboardStyles.statLabel}>NRD検出</div>
+            </div>
+            <div style={dashboardStyles.statCard}>
+              <div style={{ ...dashboardStyles.statValue, color: "hsl(45 100% 35%)" }}>
+                {loginServices.length}
+              </div>
+              <div style={dashboardStyles.statLabel}>ログインページ</div>
+            </div>
+            <div style={dashboardStyles.statCard}>
+              <div style={dashboardStyles.statValue}>
+                {services.filter((s) => s.privacyPolicyUrl).length}
+              </div>
+              <div style={dashboardStyles.statLabel}>プライバシーポリシー</div>
+            </div>
+          </div>
+
           <div style={dashboardStyles.filterBar}>
             <div style={dashboardStyles.filterGroup}>
               <label style={dashboardStyles.filterLabel}>検索:</label>
@@ -1368,6 +1447,22 @@ export function DashboardApp() {
                 value={searchQuery}
                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
               />
+            </div>
+            <div style={dashboardStyles.filterGroup}>
+              <label style={dashboardStyles.filterLabel}>フィルタ:</label>
+              <select
+                style={dashboardStyles.filterSelect}
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  if (val === "nrd") setSearchQuery("NRD");
+                  else if (val === "login") setSearchQuery("login");
+                  else setSearchQuery("");
+                }}
+              >
+                <option value="">すべて</option>
+                <option value="nrd">NRDのみ</option>
+                <option value="login">ログインページのみ</option>
+              </select>
             </div>
           </div>
           <ServicesTable services={services} searchQuery={searchQuery} />
