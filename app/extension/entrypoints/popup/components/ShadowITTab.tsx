@@ -30,7 +30,7 @@ export function ShadowITTab({ services, aiPrompts, events }: Props) {
 
       {events.length > 0 && (
         <div style={{ borderTop: "1px solid hsl(0 0% 80%)", marginTop: "16px", paddingTop: "16px" }}>
-          <EventLogList events={events} filterTypes={SHADOW_IT_EVENT_TYPES} />
+          <EventLogList events={events} filterTypes={SHADOW_IT_EVENT_TYPES} title="Activity" />
         </div>
       )}
     </div>

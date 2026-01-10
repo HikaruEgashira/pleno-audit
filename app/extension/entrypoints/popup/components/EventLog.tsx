@@ -4,9 +4,10 @@ import { styles } from "../styles";
 interface Props {
   events: EventLog[];
   filterTypes?: string[];
+  title?: string;
 }
 
-export function EventLogList({ events, filterTypes }: Props) {
+export function EventLogList({ events, filterTypes, title = "Events" }: Props) {
   const filteredEvents = filterTypes
     ? events.filter((event) => filterTypes.includes(event.type))
     : events;
@@ -21,7 +22,7 @@ export function EventLogList({ events, filterTypes }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>Events ({filteredEvents.length})</h3>
+      <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length})</h3>
       <table style={styles.table}>
         <thead>
           <tr>
