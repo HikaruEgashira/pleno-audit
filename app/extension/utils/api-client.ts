@@ -13,7 +13,6 @@ let offscreenReady = false;
 let offscreenCreating: Promise<void> | null = null;
 let offscreenReadyResolvers: (() => void)[] = [];
 
-// Listen for offscreen ready message
 if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === "OFFSCREEN_READY") {

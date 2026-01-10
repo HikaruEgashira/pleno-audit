@@ -17,11 +17,9 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 async function initLocalServer(): Promise<void> {
   if (app) return;
 
-  // Initialize IndexedDB storage
   indexedDBStorage = new IndexedDBStorage();
   await indexedDBStorage.init();
 
-  // Load saved database if exists
   const savedData = await indexedDBStorage.load();
 
   const SQL = await initSqlJs({
@@ -31,7 +29,6 @@ async function initLocalServer(): Promise<void> {
   db = new SqlJsAdapter(SQL, {
     loadFromBuffer: savedData || undefined,
     onSave: (data: Uint8Array) => {
-      // Debounce saves to avoid too frequent writes
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
       }
@@ -150,7 +147,6 @@ async function handleLegacyMessage(
   }
 }
 
-// Only handle messages intended for offscreen document
 const OFFSCREEN_MESSAGE_TYPES = new Set([
   "LOCAL_API_REQUEST",
   "init",
@@ -163,7 +159,6 @@ const OFFSCREEN_MESSAGE_TYPES = new Set([
 
 chrome.runtime.onMessage.addListener(
   (message: DBMessage, _sender, sendResponse) => {
-    // Only process messages intended for offscreen
     if (!message.type || !OFFSCREEN_MESSAGE_TYPES.has(message.type)) {
       return false;
     }
@@ -204,7 +199,6 @@ chrome.runtime.onMessage.addListener(
 
 initLocalServer()
   .then(() => {
-    // Notify background that offscreen is ready
     chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
   })
   .catch(console.error);

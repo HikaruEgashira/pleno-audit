@@ -42,7 +42,6 @@ export default defineContentScript({
     );
 
     // Listen for network events from main world
-    // Note: api-hooks.js is registered via chrome.scripting.registerContentScripts in background.ts
     window.addEventListener(
       "__SERVICE_DETECTION_NETWORK__",
       ((event: CustomEvent) => {

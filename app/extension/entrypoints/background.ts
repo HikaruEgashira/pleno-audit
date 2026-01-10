@@ -231,8 +231,6 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
   }
 }
 
-// ===== CSP Auditor Functions =====
-
 let cspReporter: CSPReporter | null = null;
 let reportQueue: CSPReport[] = [];
 
