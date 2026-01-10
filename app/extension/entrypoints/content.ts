@@ -6,7 +6,7 @@ import {
   type PrivacyPolicyResult,
   type TosResult,
 } from "@service-policy-auditor/detectors";
-import { browserAdapter } from "@/utils/browser-adapter";
+import { browserAdapter } from "@service-policy-auditor/extension-runtime";
 
 // Create detector instances with browser adapter
 const loginDetector = createLoginDetector(browserAdapter);

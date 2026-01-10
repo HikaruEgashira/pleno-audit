@@ -17,9 +17,6 @@ interface HandlerConfig<TData, TResult> {
 
 const LOG_PREFIX = "[Service Policy Auditor]";
 
-/**
- * メッセージハンドラーを登録
- */
 export function createMessageRouter() {
   const handlers = new Map<
     string,
@@ -68,9 +65,6 @@ export function createMessageRouter() {
   return { register, listen };
 }
 
-/**
- * 非同期ハンドラーをfire-and-forgetで実行
- */
 export function fireAndForget<T>(
   promise: Promise<T>,
   context: string

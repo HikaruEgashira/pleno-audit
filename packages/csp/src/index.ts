@@ -28,3 +28,6 @@ export {
   type DomainCSPPolicy,
   type GeneratedCSPByDomain,
 } from "./analyzer.js";
+
+// Reporter
+export { CSPReporter, type ReportPayload } from "./reporter.js";

@@ -17,13 +17,19 @@ import type {
   GeneratedCSPPolicy,
   CSPGenerationOptions,
 } from "@service-policy-auditor/csp";
-import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
-import { CSPAnalyzer, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
-import { startCookieMonitor, onCookieChange } from "@/utils/cookie-monitor";
-import { CSPReporter } from "@/utils/csp-reporter";
-import { getApiClient, type ApiClient, type ConnectionMode, updateApiClientConfig } from "@/utils/api-client";
-import { checkMigrationNeeded, migrateToDatabase } from "@/utils/migration";
-import { getSyncManager, type SyncManager } from "@/utils/sync-manager";
+import { DEFAULT_CSP_CONFIG, CSPAnalyzer, CSPReporter, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
+import {
+  startCookieMonitor,
+  onCookieChange,
+  getApiClient,
+  updateApiClientConfig,
+  checkMigrationNeeded,
+  migrateToDatabase,
+  getSyncManager,
+  type ApiClient,
+  type ConnectionMode,
+  type SyncManager,
+} from "@service-policy-auditor/extension-runtime";
 
 const MAX_EVENTS = 1000;
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";

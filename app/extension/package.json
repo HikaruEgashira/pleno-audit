@@ -10,6 +10,7 @@
     "@service-policy-auditor/api": "workspace:*",
     "@service-policy-auditor/detectors": "workspace:*",
     "@service-policy-auditor/csp": "workspace:*",
+    "@service-policy-auditor/extension-runtime": "workspace:*",
     "hono": "^4.7.0",
     "preact": "^10.28.2",
     "sql.js": "^1.13.0"

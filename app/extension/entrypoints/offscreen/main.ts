@@ -2,12 +2,12 @@ import initSqlJs from "sql.js";
 import { createApp, SqlJsAdapter } from "@service-policy-auditor/api";
 import {
   isLocalApiRequest,
+  IndexedDBStorage,
   type DBMessage,
   type LocalApiResponse,
   type LegacyDBMessage,
   type LegacyDBResponse,
-} from "../../utils/db-schema";
-import { IndexedDBStorage } from "../../utils/indexeddb-storage";
+} from "@service-policy-auditor/extension-runtime/offscreen";
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: SqlJsAdapter | null = null;

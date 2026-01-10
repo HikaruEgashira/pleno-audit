@@ -1,5 +1,5 @@
-import type { CSPReport } from "@service-policy-auditor/core";
-import { ApiClient, getApiClient } from "./api-client";
+import type { CSPReport } from "@service-policy-auditor/csp";
+import { ApiClient, getApiClient } from "./api-client.js";
 
 const SYNC_ALARM_NAME = "syncReports";
 const LAST_SYNC_TIME_KEY = "lastSyncTime";

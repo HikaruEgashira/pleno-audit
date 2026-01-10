@@ -11,3 +11,4 @@
 | [007](./007-isomorphic-hono-api.md) | Isomorphic Hono API + sql.js によるローカル/リモート両対応 | Accepted |
 | [008](./008-core-domain-model.md) | Coreパッケージの廃止とドメイン分割 | Accepted |
 | [009](./009-explore-agent-optimization.md) | Claude Code Explore Agent最適化 | Accepted |
+| [010](./010-extension-runtime-package.md) | Extension Runtimeパッケージの分離 | Accepted |

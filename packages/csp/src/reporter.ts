@@ -3,7 +3,7 @@
  * Handles optional external reporting of CSP violations and network requests
  */
 
-import type { CSPReport } from "@service-policy-auditor/csp";
+import type { CSPReport } from "./types.js";
 
 export interface ReportPayload {
   reports: CSPReport[];

@@ -25,5 +25,4 @@ export interface StorageData {
   cspConfig?: CSPConfig;
 }
 
-// Re-export for convenience
 export type { DetectedService, EventLog, CSPConfig, CSPReport };

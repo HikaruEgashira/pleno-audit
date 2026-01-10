@@ -22,7 +22,4 @@ export function createBrowserAdapter(): DOMAdapter {
   };
 }
 
-/**
- * Pre-configured browser adapter instance
- */
 export const browserAdapter = createBrowserAdapter();

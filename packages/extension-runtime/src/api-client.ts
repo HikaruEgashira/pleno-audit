@@ -1,5 +1,5 @@
-import type { CSPViolation, NetworkRequest, CSPReport } from "@service-policy-auditor/core";
-import type { LocalApiResponse } from "./db-schema";
+import type { CSPViolation, NetworkRequest, CSPReport } from "@service-policy-auditor/csp";
+import type { LocalApiResponse } from "./offscreen/db-schema.js";
 
 export type ConnectionMode = "local" | "remote";
 
