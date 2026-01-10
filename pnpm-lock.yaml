@@ -10,9 +10,9 @@ importers:
 
   app/debugger:
     dependencies:
-      '@service-policy-auditor/core':
+      '@service-policy-auditor/detectors':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/detectors
       puppeteer:
         specifier: ^24.34.0
         version: 24.34.0(typescript@5.9.3)
@@ -26,9 +26,6 @@ importers:
 
   app/extension:
     dependencies:
-      '@service-policy-auditor/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@service-policy-auditor/csp':
         specifier: workspace:*
         version: link:../../packages/csp
@@ -51,9 +48,9 @@ importers:
 
   app/server:
     dependencies:
-      '@service-policy-auditor/core':
+      '@service-policy-auditor/csp':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/csp
       sql.js:
         specifier: ^1.13.0
         version: 1.13.0
@@ -65,19 +62,13 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/core: {}
-
-  packages/csp:
-    dependencies:
-      '@service-policy-auditor/core':
-        specifier: workspace:*
-        version: link:../core
+  packages/csp: {}
 
   packages/detectors:
     dependencies:
-      '@service-policy-auditor/core':
+      '@service-policy-auditor/csp':
         specifier: workspace:*
-        version: link:../core
+        version: link:../csp
 
 packages:
 

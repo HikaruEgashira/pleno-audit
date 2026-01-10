@@ -1,11 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
-import type {
-  StorageData,
-  DetectedService,
-  EventLog,
-  CSPViolation,
-  NetworkRequest,
-} from "@service-policy-auditor/core";
+import type { DetectedService, EventLog } from "@service-policy-auditor/detectors";
+import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
+import type { StorageData } from "@/utils/storage-types";
 import { ServiceList } from "./components/ServiceList";
 import { EventLogList } from "./components/EventLog";
 import { ViolationList } from "./components/ViolationList";

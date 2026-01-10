@@ -1,18 +1,11 @@
 /**
- * @fileoverview SASE Security Audit Domain Knowledge
+ * @fileoverview Browser Security Domain: CSP Constants
  *
- * このファイルはSASE（Secure Access Service Edge）における
  * CSP（Content Security Policy）監査のためのドメイン知識を定義する。
- *
- * CSPはブラウザのセキュリティ機構であり、以下を制御する：
- * - スクリプト、スタイル、画像等の読み込み元
- * - XSS（クロスサイトスクリプティング）攻撃の防止
- * - データ漏洩リスクの軽減
- *
- * このCASBはCSP違反を監視し、セキュリティリスクを可視化する。
+ * CSPはブラウザのセキュリティ機構であり、SASE/CASBの概念には含まれない。
  */
 
-import type { CSPConfig } from "./types";
+import type { CSPConfig } from "./types.js";
 
 // ============================================================================
 // CSP Directive Mapping（CSPディレクティブマッピング）

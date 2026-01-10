@@ -7,8 +7,8 @@ import type {
   CSPReport,
   DetectedService,
   EventLog,
-} from "@service-policy-auditor/core";
-import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/core";
+} from "./storage-types";
+import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
 
 // ストレージキーの定義（型安全）
 const STORAGE_KEYS = ["services", "events", "cspReports", "cspConfig"] as const;

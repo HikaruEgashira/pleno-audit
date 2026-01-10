@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import type { GeneratedCSPPolicy } from "@service-policy-auditor/core";
+import type { GeneratedCSPPolicy } from "@service-policy-auditor/csp";
 import { styles } from "../styles";
 
 interface DomainCSPPolicy {

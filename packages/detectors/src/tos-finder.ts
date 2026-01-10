@@ -5,9 +5,8 @@ import {
   TOS_OG_PATTERNS,
   TOS_JSONLD_KEYS,
   TOS_LINK_REL_VALUES,
-  decodeUrlSafe,
-  getPathFromUrl,
-} from "@service-policy-auditor/core";
+} from "./patterns.js";
+import { decodeUrlSafe, getPathFromUrl } from "./url-utils.js";
 import type { DOMAdapter, TosResult } from "./types.js";
 import { createPolicyFinder } from "./policy-finder-base.js";
 

@@ -6,6 +6,8 @@ import type {
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
   CookieSetDetails,
+} from "@service-policy-auditor/detectors";
+import type {
   CSPViolation,
   NetworkRequest,
   CSPReport,
@@ -14,8 +16,8 @@ import type {
   NetworkRequestDetails,
   GeneratedCSPPolicy,
   CSPGenerationOptions,
-} from "@service-policy-auditor/core";
-import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/core";
+} from "@service-policy-auditor/csp";
+import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
 import { CSPAnalyzer, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
 import { startCookieMonitor, onCookieChange } from "@/utils/cookie-monitor";
 import { CSPReporter } from "@/utils/csp-reporter";

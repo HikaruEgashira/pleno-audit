@@ -6,7 +6,7 @@ import initSqlJs, { Database } from 'sql.js'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/core'
+import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/csp'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '../data')

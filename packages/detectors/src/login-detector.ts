@@ -1,4 +1,4 @@
-import { isLoginUrl } from "@service-policy-auditor/core";
+import { isLoginUrl } from "./patterns.js";
 import type { DOMAdapter, LoginDetectionResult } from "./types.js";
 
 export function createLoginDetector(dom: DOMAdapter) {

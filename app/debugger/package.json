@@ -8,7 +8,7 @@
     "watch": "tsx src/index.ts watch"
   },
   "dependencies": {
-    "@service-policy-auditor/core": "workspace:*",
+    "@service-policy-auditor/detectors": "workspace:*",
     "puppeteer": "^24.34.0"
   },
   "devDependencies": {

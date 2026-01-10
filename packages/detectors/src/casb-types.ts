@@ -1,0 +1,110 @@
+/**
+ * @fileoverview CASB Domain Types
+ *
+ * Cloud Access Security Broker (CASB) ドメインの型定義。
+ * SaaSサービスの可視化とリスク評価を担う。
+ */
+
+import type {
+  CSPViolationDetails,
+  NetworkRequestDetails,
+} from "@service-policy-auditor/csp";
+
+// ============================================================================
+// SaaS Visibility (サービス可視性)
+// ----------------------------------------------------------------------------
+// Shadow ITの検出と可視化を担う。組織が把握していないSaaSサービスの利用を
+// 検出し、リスク評価のための情報を収集する。
+// ============================================================================
+
+/**
+ * 検出されたSaaSサービス
+ * - domain: サービスの識別子（FQDN）
+ * - hasLoginPage: 認証機能の有無（Shadow IT判定に使用）
+ * - privacyPolicyUrl: コンプライアンス評価用
+ * - termsOfServiceUrl: リスク評価用
+ * - cookies: セッション追跡情報
+ */
+export interface DetectedService {
+  domain: string;
+  detectedAt: number;
+  hasLoginPage: boolean;
+  privacyPolicyUrl: string | null;
+  termsOfServiceUrl: string | null;
+  cookies: CookieInfo[];
+}
+
+/**
+ * Cookie情報
+ * - isSession: セッションCookieか否か（認証状態の追跡に使用）
+ */
+export interface CookieInfo {
+  name: string;
+  domain: string;
+  detectedAt: number;
+  isSession: boolean;
+}
+
+// ============================================================================
+// Event Sourcing (イベントソーシング)
+// ----------------------------------------------------------------------------
+// サービス利用に関するイベントを時系列で記録する。
+// 監査ログ、コンプライアンスレポート、リスク分析の基盤となる。
+// ============================================================================
+
+/** ログイン検出イベントの詳細 */
+export interface LoginDetectedDetails {
+  hasLoginForm: boolean;
+  hasPasswordInput: boolean;
+  isLoginUrl: boolean;
+  formAction: string | null;
+}
+
+/** プライバシーポリシー発見イベントの詳細 */
+export interface PrivacyPolicyFoundDetails {
+  url: string;
+  method: string;
+}
+
+/** 利用規約発見イベントの詳細 */
+export interface TosFoundDetails {
+  url: string;
+  method: string;
+}
+
+/** Cookie設定イベントの詳細 */
+export interface CookieSetDetails {
+  name: string;
+  isSession: boolean;
+}
+
+/**
+ * イベントログ基底型
+ * - Discriminated Union パターンで型安全なイベント処理を実現
+ */
+export type EventLogBase<T extends string, D> = {
+  id: string;
+  type: T;
+  domain: string;
+  timestamp: number;
+  details: D;
+};
+
+/**
+ * CASBイベントログ
+ * - login_detected: Shadow IT検出
+ * - privacy_policy_found: コンプライアンス監視
+ * - terms_of_service_found: リスク評価
+ * - cookie_set: セッション追跡
+ * - csp_violation: セキュリティ監査
+ * - network_request: トラフィック分析
+ */
+export type EventLog =
+  | EventLogBase<"login_detected", LoginDetectedDetails>
+  | EventLogBase<"privacy_policy_found", PrivacyPolicyFoundDetails>
+  | EventLogBase<"terms_of_service_found", TosFoundDetails>
+  | EventLogBase<"cookie_set", CookieSetDetails>
+  | EventLogBase<"csp_violation", CSPViolationDetails>
+  | EventLogBase<"network_request", NetworkRequestDetails>;
+
+export type EventLogType = EventLog["type"];

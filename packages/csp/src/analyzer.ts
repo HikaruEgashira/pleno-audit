@@ -9,11 +9,8 @@ import type {
   CSPStatistics,
   SecurityRecommendation,
   CSPGenerationOptions,
-} from "@service-policy-auditor/core";
-import {
-  INITIATOR_TO_DIRECTIVE,
-  REQUIRED_DIRECTIVES,
-} from "@service-policy-auditor/core";
+} from "./types.js";
+import { INITIATOR_TO_DIRECTIVE, REQUIRED_DIRECTIVES } from "./constants.js";
 
 export interface DomainCSPPolicy {
   domain: string;

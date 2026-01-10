@@ -1,4 +1,17 @@
-// Types
+// CASB Domain Types
+export type {
+  DetectedService,
+  CookieInfo,
+  LoginDetectedDetails,
+  PrivacyPolicyFoundDetails,
+  TosFoundDetails,
+  CookieSetDetails,
+  EventLogBase,
+  EventLog,
+  EventLogType,
+} from "./casb-types.js";
+
+// Detection Types
 export type {
   DOMAdapter,
   DetectionMethod,
@@ -7,6 +20,41 @@ export type {
   TosResult,
   LoginDetectionResult,
 } from "./types.js";
+
+// Patterns (CASB Domain Knowledge)
+export {
+  // Authentication Detection
+  LOGIN_URL_PATTERNS,
+  isLoginUrl,
+  // Privacy Policy Detection
+  PRIVACY_URL_PATTERNS,
+  PRIVACY_TEXT_PATTERNS,
+  JSONLD_PRIVACY_KEYS,
+  LINK_REL_PRIVACY_VALUES,
+  OG_PRIVACY_PATTERNS,
+  FOOTER_SELECTORS,
+  isPrivacyUrl,
+  isPrivacyText,
+  // Terms of Service Detection
+  TOS_URL_PATTERNS,
+  TOS_TEXT_PATTERNS,
+  TOS_JSONLD_KEYS,
+  TOS_LINK_REL_VALUES,
+  TOS_OG_PATTERNS,
+  isTosUrl,
+  isTosText,
+  // Session Detection
+  SESSION_COOKIE_PATTERNS,
+  isSessionCookie,
+} from "./patterns.js";
+
+// URL Utilities
+export {
+  decodeUrlSafe,
+  getPathFromUrl,
+  extractOrigin,
+  resolveUrl,
+} from "./url-utils.js";
 
 // Detector factories
 export { createPrivacyFinder } from "./privacy-finder.js";

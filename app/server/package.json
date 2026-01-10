@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/core": "workspace:*",
+    "@service-policy-auditor/csp": "workspace:*",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {

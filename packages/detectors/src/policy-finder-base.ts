@@ -1,12 +1,8 @@
 /**
  * プライバシーポリシー/利用規約の共通検出ロジック
  */
-import {
-  FOOTER_SELECTORS,
-  decodeUrlSafe,
-  getPathFromUrl,
-  resolveUrl,
-} from "@service-policy-auditor/core";
+import { FOOTER_SELECTORS } from "./patterns.js";
+import { decodeUrlSafe, getPathFromUrl, resolveUrl } from "./url-utils.js";
 import type { DOMAdapter, DetectionResult, DetectionMethod } from "./types.js";
 
 export interface PolicyFinderConfig {

@@ -4,7 +4,7 @@ import {
   OG_PRIVACY_PATTERNS,
   JSONLD_PRIVACY_KEYS,
   LINK_REL_PRIVACY_VALUES,
-} from "@service-policy-auditor/core";
+} from "./patterns.js";
 import type { DOMAdapter, PrivacyPolicyResult } from "./types.js";
 import { createPolicyFinder } from "./policy-finder-base.js";
 

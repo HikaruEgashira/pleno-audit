@@ -6,7 +6,7 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'node:http'
-import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/core'
+import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/csp'
 import { initDatabase, getAllReports, insertReports, clearAllData, getStats } from './db.js'
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001

@@ -1,4 +1,4 @@
-import type { DetectedService } from "@service-policy-auditor/core";
+import type { DetectedService } from "@service-policy-auditor/detectors";
 import { styles } from "../styles";
 
 interface Props {
