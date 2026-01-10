@@ -1,9 +1,12 @@
 import { useState, useEffect } from "preact/hooks";
 import type { NRDConfig } from "@service-policy-auditor/detectors";
 import { Button, Badge, Card } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 export function NRDSettings() {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const [nrdConfig, setNRDConfig] = useState<NRDConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -64,7 +67,7 @@ export function NRDSettings() {
               })
             }
           />
-          <span>NRD検出を有効化</span>
+          <span style={{ color: colors.textPrimary }}>NRD検出を有効化</span>
         </label>
 
         {nrdConfig.enabled && (
@@ -80,7 +83,7 @@ export function NRDSettings() {
                   })
                 }
               />
-              <span>RDAPルックアップを有効化</span>
+              <span style={{ color: colors.textPrimary }}>RDAPルックアップを有効化</span>
             </label>
 
             <div style={{ marginBottom: "12px" }}>
@@ -100,7 +103,7 @@ export function NRDSettings() {
                 }
                 style={{ width: "100%", marginBottom: "4px" }}
               />
-              <span style={{ fontSize: "11px", color: "#666" }}>
+              <span style={{ fontSize: "11px", color: colors.textSecondary }}>
                 この期間内に登録されたドメインをNRDとして検出
               </span>
             </div>
@@ -122,7 +125,7 @@ export function NRDSettings() {
                 }
                 style={{ width: "100%", marginBottom: "4px" }}
               />
-              <span style={{ fontSize: "11px", color: "#666" }}>
+              <span style={{ fontSize: "11px", color: colors.textSecondary }}>
                 高い値=より厳格なマッチング (0-100)
               </span>
             </div>
@@ -142,7 +145,7 @@ export function NRDSettings() {
             style={{
               marginTop: "12px",
               fontSize: "12px",
-              color: "#0a7227",
+              color: colors.status.success.text,
               textAlign: "center",
             }}
           >

@@ -1,9 +1,12 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig } from "@service-policy-auditor/detectors";
 import { Button, Badge } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 export function CSPSettings() {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const [config, setConfig] = useState<CSPConfig | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [saving, setSaving] = useState(false);
@@ -78,7 +81,7 @@ export function CSPSettings() {
               })
             }
           />
-          <span>CSP監査を有効化</span>
+          <span style={{ color: colors.textPrimary }}>CSP監査を有効化</span>
         </label>
 
         {config.enabled && (
@@ -94,7 +97,7 @@ export function CSPSettings() {
                   })
                 }
               />
-              <span>CSP違反を収集</span>
+              <span style={{ color: colors.textPrimary }}>CSP違反を収集</span>
             </label>
 
             <label style={styles.checkbox}>
@@ -108,7 +111,7 @@ export function CSPSettings() {
                   })
                 }
               />
-              <span>ネットワークリクエストを収集</span>
+              <span style={{ color: colors.textPrimary }}>ネットワークリクエストを収集</span>
             </label>
 
             <div style={{ marginBottom: "16px" }}>
@@ -145,7 +148,7 @@ export function CSPSettings() {
             style={{
               marginTop: "12px",
               fontSize: "12px",
-              color: "#0a7227",
+              color: colors.status.success.text,
               textAlign: "center",
             }}
           >

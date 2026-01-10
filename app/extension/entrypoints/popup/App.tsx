@@ -6,11 +6,12 @@ import type {
 } from "@service-policy-auditor/detectors";
 import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
 import type { StorageData } from "@service-policy-auditor/extension-runtime";
-import { Badge, Button } from "../../components";
+import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
+import { Badge, Button, SettingsMenu } from "../../components";
 import { ShadowITTab } from "./components/ShadowITTab";
 import { PhishingTab } from "./components/PhishingTab";
 import { MalwareTab } from "./components/MalwareTab";
-import { styles } from "./styles";
+import { createStyles } from "./styles";
 
 type Tab = "sessions" | "domains" | "requests";
 
@@ -36,7 +37,9 @@ function getStatus(data: TabData) {
   return { variant: "success" as const, label: "正常", dot: true };
 }
 
-export function App() {
+function PopupContent() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [data, setData] = useState<StorageData>({ services: {}, events: [] });
   const [tab, setTab] = useState<Tab>("sessions");
   const [loading, setLoading] = useState(true);
@@ -151,13 +154,11 @@ export function App() {
           Auditor
           <Badge variant={status.variant} size="sm" dot={status.dot}>{status.label}</Badge>
         </h1>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <Button variant="secondary" size="sm" onClick={openDashboard}>
             Dashboard
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleClearData}>
-            削除
-          </Button>
+          <SettingsMenu onClearData={handleClearData} />
         </div>
       </header>
 
@@ -176,13 +177,8 @@ export function App() {
               {t.label}
               {count > 0 && (
                 <span style={{
-                  marginLeft: "6px",
-                  padding: "1px 6px",
-                  borderRadius: "9999px",
-                  fontSize: "10px",
-                  fontWeight: 500,
-                  background: tab === t.key ? "#000" : "#f0f0f0",
-                  color: tab === t.key ? "#fff" : "#666",
+                  ...styles.tabCount,
+                  ...(tab === t.key ? styles.tabCountActive : styles.tabCountInactive),
                 }}>
                   {count}
                 </span>
@@ -194,5 +190,15 @@ export function App() {
 
       <main style={styles.content}>{renderContent()}</main>
     </div>
+  );
+}
+
+export function App() {
+  const themeState = useThemeState();
+
+  return (
+    <ThemeContext.Provider value={themeState}>
+      <PopupContent />
+    </ThemeContext.Provider>
   );
 }

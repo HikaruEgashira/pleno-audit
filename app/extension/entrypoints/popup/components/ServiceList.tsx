@@ -1,6 +1,6 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
 import { Badge, Card } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
 
 interface Props {
   services: DetectedService[];
@@ -23,6 +23,8 @@ function sanitizeUrl(url: string | null, domain: string): string {
 }
 
 export function ServiceList({ services }: Props) {
+  const styles = usePopupStyles();
+
   if (services.length === 0) {
     return (
       <div style={styles.section}>
@@ -47,7 +49,7 @@ export function ServiceList({ services }: Props) {
           </thead>
           <tbody>
             {sorted.map((service) => (
-              <ServiceRow key={service.domain} service={service} />
+              <ServiceRow key={service.domain} service={service} styles={styles} />
             ))}
           </tbody>
         </table>
@@ -98,7 +100,7 @@ function NRDBadge({
   );
 }
 
-function ServiceRow({ service }: { service: DetectedService }) {
+function ServiceRow({ service, styles }: { service: DetectedService; styles: ReturnType<typeof usePopupStyles> }) {
   return (
     <tr style={styles.tableRow}>
       <td style={styles.tableCell}>

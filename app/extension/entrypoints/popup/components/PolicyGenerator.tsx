@@ -1,7 +1,8 @@
 import { useState } from "preact/hooks";
 import type { GeneratedCSPPolicy } from "@service-policy-auditor/csp";
 import { Badge, Button, Card } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 interface DomainCSPPolicy {
   domain: string;
@@ -15,6 +16,8 @@ interface GeneratedCSPByDomain {
 }
 
 export function PolicyGenerator() {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const [result, setResult] = useState<GeneratedCSPByDomain | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
@@ -104,6 +107,8 @@ export function PolicyGenerator() {
               )
             }
             onCopy={() => handleCopy(item.policy.policyString)}
+            styles={styles}
+            colors={colors}
           />
         ))}
       </div>
@@ -116,11 +121,15 @@ function DomainPolicyCard({
   expanded,
   onToggle,
   onCopy,
+  styles,
+  colors,
 }: {
   item: DomainCSPPolicy;
   expanded: boolean;
   onToggle: () => void;
   onCopy: () => void;
+  styles: ReturnType<typeof usePopupStyles>;
+  colors: any;
 }) {
   return (
     <div style={styles.card}>
@@ -134,7 +143,7 @@ function DomainPolicyCard({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "10px", color: "#666" }}>
+          <span style={{ fontSize: "10px", color: colors.textSecondary }}>
             {expanded ? "▼" : "▶"}
           </span>
           <code style={styles.code}>{item.domain}</code>
@@ -143,16 +152,16 @@ function DomainPolicyCard({
       </div>
 
       {expanded && (
-        <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #eaeaea" }}>
+        <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${colors.border}` }}>
           <div
             style={{
-              backgroundColor: "#fafafa",
+              backgroundColor: colors.bgSecondary,
               padding: "10px",
               borderRadius: "6px",
               marginBottom: "10px",
               maxHeight: "150px",
               overflow: "auto",
-              border: "1px solid #eaeaea",
+              border: `1px solid ${colors.border}`,
             }}
           >
             <pre
@@ -162,7 +171,7 @@ function DomainPolicyCard({
                 fontFamily: "monospace",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all" as const,
-                color: "#333",
+                color: colors.textPrimary,
                 lineHeight: 1.4,
               }}
             >
@@ -187,7 +196,7 @@ function DomainPolicyCard({
                 style={{
                   fontSize: "11px",
                   fontWeight: 500,
-                  color: "#666",
+                  color: colors.textSecondary,
                   marginBottom: "8px",
                 }}
               >
@@ -206,7 +215,7 @@ function DomainPolicyCard({
                     key={i}
                     style={{
                       marginBottom: "4px",
-                      color: rec.severity === "critical" ? "#c00" : "#666",
+                      color: rec.severity === "critical" ? colors.status.danger.text : colors.textSecondary,
                     }}
                   >
                     <Badge variant={rec.severity === "critical" ? "danger" : "warning"} size="sm">

@@ -1,278 +1,312 @@
 /**
  * Vercel-style minimal UI design system
  * Unified with dashboard components
+ * Supports light and dark themes
  */
 
 import type { CSSProperties } from "preact/compat";
+import type { ThemeColors } from "../../lib/theme";
 
-export const styles: Record<string, CSSProperties> = {
-  container: {
-    width: "400px",
-    maxHeight: "600px",
-    backgroundColor: "#fafafa",
-    color: "#111",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
-    fontSize: "13px",
-    lineHeight: 1.5,
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column" as const,
-  },
+export function createStyles(colors: ThemeColors): Record<string, CSSProperties> {
+  return {
+    container: {
+      width: "400px",
+      maxHeight: "600px",
+      backgroundColor: colors.bgSecondary,
+      color: colors.textPrimary,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+      fontSize: "13px",
+      lineHeight: 1.5,
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column" as const,
+    },
 
-  header: {
-    padding: "16px",
-    borderBottom: "1px solid #eaeaea",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "12px",
-    background: "#fff",
-  },
+    header: {
+      padding: "16px",
+      borderBottom: `1px solid ${colors.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "12px",
+      background: colors.bgPrimary,
+    },
 
-  title: {
-    margin: 0,
-    fontSize: "16px",
-    fontWeight: 600,
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
+    title: {
+      margin: 0,
+      fontSize: "16px",
+      fontWeight: 600,
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
 
-  tabNav: {
-    display: "flex",
-    borderBottom: "1px solid #eaeaea",
-    background: "#fff",
-  },
+    tabNav: {
+      display: "flex",
+      borderBottom: `1px solid ${colors.border}`,
+      background: colors.bgPrimary,
+    },
 
-  tabBtn: {
-    flex: 1,
-    padding: "12px 8px",
-    border: "none",
-    background: "transparent",
-    fontSize: "13px",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    borderBottom: "2px solid transparent",
-    textAlign: "center" as const,
-    color: "#666",
-  },
+    tabBtn: {
+      flex: 1,
+      padding: "12px 8px",
+      border: "none",
+      background: "transparent",
+      fontSize: "13px",
+      cursor: "pointer",
+      transition: "all 0.15s",
+      borderBottom: "2px solid transparent",
+      textAlign: "center" as const,
+      color: colors.textSecondary,
+    },
 
-  tabBtnActive: {
-    color: "#000",
-    borderBottomColor: "#000",
-    fontWeight: 500,
-  },
+    tabBtnActive: {
+      color: colors.textPrimary,
+      borderBottomColor: colors.interactive,
+      fontWeight: 500,
+    },
 
-  tabBtnInactive: {
-    color: "#666",
-    borderBottomColor: "transparent",
-  },
+    tabBtnInactive: {
+      color: colors.textSecondary,
+      borderBottomColor: "transparent",
+    },
 
-  content: {
-    flex: 1,
-    overflow: "auto",
-    padding: "16px",
-    background: "#fafafa",
-  },
+    tabCount: {
+      marginLeft: "6px",
+      padding: "1px 6px",
+      borderRadius: "9999px",
+      fontSize: "10px",
+      fontWeight: 500,
+    },
 
-  section: {
-    marginBottom: "16px",
-  },
+    tabCountActive: {
+      background: colors.interactive,
+      color: colors.textInverse,
+    },
 
-  sectionTitle: {
-    fontSize: "12px",
-    fontWeight: 500,
-    color: "#666",
-    marginBottom: "12px",
-    margin: "0 0 12px 0",
-  },
+    tabCountInactive: {
+      background: colors.bgTertiary,
+      color: colors.textSecondary,
+    },
 
-  card: {
-    background: "#fff",
-    border: "1px solid #eaeaea",
-    borderRadius: "8px",
-    padding: "16px",
-    marginBottom: "12px",
-  },
+    content: {
+      flex: 1,
+      overflow: "auto",
+      padding: "16px",
+      background: colors.bgSecondary,
+    },
 
-  table: {
-    width: "100%",
-    borderCollapse: "collapse" as const,
-    fontSize: "12px",
-  },
+    section: {
+      marginBottom: "16px",
+    },
 
-  tableHeader: {
-    backgroundColor: "#fafafa",
-    borderBottom: "1px solid #eaeaea",
-    fontWeight: 500,
-    fontSize: "11px",
-    textAlign: "left" as const,
-    padding: "10px 12px",
-    color: "#666",
-  },
+    sectionTitle: {
+      fontSize: "12px",
+      fontWeight: 500,
+      color: colors.textSecondary,
+      marginBottom: "12px",
+      margin: "0 0 12px 0",
+    },
 
-  tableCell: {
-    padding: "10px 12px",
-    borderBottom: "1px solid #f5f5f5",
-    color: "#333",
-  },
+    card: {
+      background: colors.bgPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "8px",
+      padding: "16px",
+      marginBottom: "12px",
+    },
 
-  tableRow: {
-    transition: "background 0.1s",
-  },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse" as const,
+      fontSize: "12px",
+    },
 
-  stat: {
-    display: "flex",
-    flexDirection: "column" as const,
-    padding: "16px",
-    background: "#fff",
-    border: "1px solid #eaeaea",
-    borderRadius: "8px",
-    minWidth: "80px",
-  },
+    tableHeader: {
+      backgroundColor: colors.bgSecondary,
+      borderBottom: `1px solid ${colors.border}`,
+      fontWeight: 500,
+      fontSize: "11px",
+      textAlign: "left" as const,
+      padding: "10px 12px",
+      color: colors.textSecondary,
+    },
 
-  statValue: {
-    fontSize: "24px",
-    fontWeight: 600,
-    color: "#000",
-    lineHeight: 1,
-  },
+    tableCell: {
+      padding: "10px 12px",
+      borderBottom: `1px solid ${colors.borderLight}`,
+      color: colors.textPrimary,
+    },
 
-  statLabel: {
-    fontSize: "12px",
-    color: "#666",
-    marginTop: "6px",
-  },
+    tableRow: {
+      transition: "background 0.1s",
+    },
 
-  badge: {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "2px 8px",
-    backgroundColor: "#fafafa",
-    border: "1px solid #eaeaea",
-    borderRadius: "9999px",
-    fontSize: "11px",
-    color: "#666",
-    fontWeight: 500,
-  },
+    stat: {
+      display: "flex",
+      flexDirection: "column" as const,
+      padding: "16px",
+      background: colors.bgPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "8px",
+      minWidth: "80px",
+    },
 
-  badgeDanger: {
-    backgroundColor: "#fee",
-    color: "#c00",
-    border: "1px solid #fcc",
-  },
+    statValue: {
+      fontSize: "24px",
+      fontWeight: 600,
+      color: colors.textPrimary,
+      lineHeight: 1,
+    },
 
-  badgeWarning: {
-    backgroundColor: "#fff8e6",
-    color: "#915b00",
-    border: "1px solid #ffe58f",
-  },
+    statLabel: {
+      fontSize: "12px",
+      color: colors.textSecondary,
+      marginTop: "6px",
+    },
 
-  badgeSuccess: {
-    backgroundColor: "#d3f9d8",
-    color: "#0a7227",
-    border: "1px solid #b8f0c0",
-  },
+    badge: {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "2px 8px",
+      backgroundColor: colors.status.default.bg,
+      border: `1px solid ${colors.status.default.border}`,
+      borderRadius: "9999px",
+      fontSize: "11px",
+      color: colors.status.default.text,
+      fontWeight: 500,
+    },
 
-  code: {
-    fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
-    fontSize: "11px",
-    backgroundColor: "#fafafa",
-    padding: "2px 6px",
-    borderRadius: "4px",
-    wordBreak: "break-all" as const,
-  },
+    badgeDanger: {
+      backgroundColor: colors.status.danger.bg,
+      color: colors.status.danger.text,
+      border: `1px solid ${colors.status.danger.border}`,
+    },
 
-  emptyText: {
-    color: "#999",
-    padding: "24px",
-    textAlign: "center" as const,
-    fontSize: "13px",
-  },
+    badgeWarning: {
+      backgroundColor: colors.status.warning.bg,
+      color: colors.status.warning.text,
+      border: `1px solid ${colors.status.warning.border}`,
+    },
 
-  button: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "8px 16px",
-    backgroundColor: "#000",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 500,
-    transition: "all 0.15s",
-  },
+    badgeSuccess: {
+      backgroundColor: colors.status.success.bg,
+      color: colors.status.success.text,
+      border: `1px solid ${colors.status.success.border}`,
+    },
 
-  buttonSecondary: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "6px 12px",
-    backgroundColor: "#fff",
-    color: "#333",
-    border: "1px solid #eaeaea",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 500,
-  },
+    code: {
+      fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+      fontSize: "11px",
+      backgroundColor: colors.bgSecondary,
+      padding: "2px 6px",
+      borderRadius: "4px",
+      wordBreak: "break-all" as const,
+    },
 
-  buttonGhost: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "6px 12px",
-    backgroundColor: "transparent",
-    color: "#666",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 500,
-  },
+    emptyText: {
+      color: colors.textMuted,
+      padding: "24px",
+      textAlign: "center" as const,
+      fontSize: "13px",
+    },
 
-  input: {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: "13px",
-    border: "1px solid #eaeaea",
-    borderRadius: "6px",
-    boxSizing: "border-box" as const,
-    outline: "none",
-    transition: "border-color 0.15s",
-    background: "#fff",
-  },
+    button: {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "8px 16px",
+      backgroundColor: colors.interactive,
+      color: colors.textInverse,
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontSize: "13px",
+      fontWeight: 500,
+      transition: "all 0.15s",
+    },
 
-  label: {
-    display: "block",
-    fontSize: "12px",
-    fontWeight: 500,
-    marginBottom: "6px",
-    color: "#333",
-  },
+    buttonSecondary: {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "6px 12px",
+      backgroundColor: colors.bgPrimary,
+      color: colors.textPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: 500,
+    },
 
-  checkbox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "13px",
-    marginBottom: "12px",
-    cursor: "pointer",
-  },
+    buttonGhost: {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "6px 12px",
+      backgroundColor: "transparent",
+      color: colors.textSecondary,
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: 500,
+    },
 
-  divider: {
-    borderTop: "1px solid #eaeaea",
-    marginTop: "16px",
-    paddingTop: "16px",
-  },
+    input: {
+      width: "100%",
+      padding: "8px 12px",
+      fontSize: "13px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
+      boxSizing: "border-box" as const,
+      outline: "none",
+      transition: "border-color 0.15s",
+      background: colors.bgPrimary,
+      color: colors.textPrimary,
+    },
 
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "8px",
-    marginBottom: "16px",
-  },
-};
+    label: {
+      display: "block",
+      fontSize: "12px",
+      fontWeight: 500,
+      marginBottom: "6px",
+      color: colors.textPrimary,
+    },
+
+    checkbox: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "13px",
+      marginBottom: "12px",
+      cursor: "pointer",
+    },
+
+    divider: {
+      borderTop: `1px solid ${colors.border}`,
+      marginTop: "16px",
+      paddingTop: "16px",
+    },
+
+    statsGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(3, 1fr)",
+      gap: "8px",
+      marginBottom: "16px",
+    },
+  };
+}
+
+// Hook for theme-aware styles
+import { useTheme, lightColors } from "../../lib/theme";
+
+export function usePopupStyles() {
+  const { colors } = useTheme();
+  return createStyles(colors);
+}
+
+// Legacy export for backward compatibility during migration
+export const styles = createStyles(lightColors);

@@ -2,7 +2,7 @@ import type { DetectedService, EventLog } from "@service-policy-auditor/detector
 import { NRDList } from "./NRDList";
 import { EventLogList } from "./EventLog";
 import { NRDSettings } from "./NRDSettings";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
 
 interface Props {
   services: DetectedService[];
@@ -10,6 +10,8 @@ interface Props {
 }
 
 export function PhishingTab({ services, events }: Props) {
+  const styles = usePopupStyles();
+
   return (
     <div>
       <NRDList services={services} />

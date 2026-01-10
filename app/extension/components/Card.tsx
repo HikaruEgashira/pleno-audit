@@ -1,4 +1,5 @@
 import type { CSSProperties } from "preact/compat";
+import { useTheme } from "../lib/theme";
 
 interface CardProps {
   children: preact.ComponentChildren;
@@ -13,9 +14,11 @@ const paddingSizes = {
 };
 
 export function Card({ children, title, padding = "md" }: CardProps) {
+  const { colors } = useTheme();
+
   const style: CSSProperties = {
-    background: "#fff",
-    border: "1px solid #eaeaea",
+    background: colors.bgPrimary,
+    border: `1px solid ${colors.border}`,
     borderRadius: "8px",
     padding: paddingSizes[padding],
   };
@@ -23,7 +26,7 @@ export function Card({ children, title, padding = "md" }: CardProps) {
   const titleStyle: CSSProperties = {
     fontSize: "13px",
     fontWeight: 500,
-    color: "#666",
+    color: colors.textSecondary,
     marginBottom: "12px",
   };
 

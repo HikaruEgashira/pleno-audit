@@ -1,12 +1,16 @@
 import type { CSPViolation } from "@service-policy-auditor/csp";
 import { Badge } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 interface Props {
   violations: CSPViolation[];
 }
 
 export function ViolationList({ violations }: Props) {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
+
   if (violations.length === 0) {
     return (
       <div style={styles.section}>
@@ -31,7 +35,7 @@ export function ViolationList({ violations }: Props) {
             {violations.slice(0, 50).map((v, i) => (
               <tr key={i} style={styles.tableRow}>
                 <td style={styles.tableCell}>
-                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666" }}>
+                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>
                     {formatTime(v.timestamp)}
                   </span>
                 </td>
@@ -54,7 +58,7 @@ export function ViolationList({ violations }: Props) {
         </table>
       </div>
       {violations.length > 50 && (
-        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
           50件中{violations.length}件を表示
         </p>
       )}
