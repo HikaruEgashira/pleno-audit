@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { DatabaseAdapter } from '../db/interface'
-import type { CSPReport } from '@service-policy-auditor/core'
+import type { CSPReport } from '@service-policy-auditor/csp'
 
 export function createReportsRoutes(db: DatabaseAdapter) {
   const app = new Hono()

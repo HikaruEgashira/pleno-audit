@@ -10,7 +10,7 @@
     "./db": "./db/index.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/core": "workspace:*",
+    "@service-policy-auditor/csp": "workspace:*",
     "hono": "^4.7.0"
   },
   "peerDependencies": {
