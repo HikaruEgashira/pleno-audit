@@ -78,7 +78,6 @@ export class EventStore {
     const offset = options?.offset ?? 0;
     const orderBy = options?.orderBy ?? "-timestamp";
 
-    // Get total count first
     const total = await this.count({
       type: options?.type,
       domain: options?.domain,
@@ -89,27 +88,19 @@ export class EventStore {
     return new Promise((resolve, reject) => {
       const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
       const store = tx.objectStore(DB_CONFIG.stores.events.name);
-      const events: EventLog[] = [];
 
-      let index = orderBy === "-timestamp" ? store.index("timestamp") : store.index("timestamp");
+      let index = store.index("timestamp");
       const range = this.buildRange(options?.since, options?.until);
 
-      // Use appropriate index based on filter
-      if (options?.type && options.type.length > 0) {
-        if (options.type.length === 1) {
-          index = store.index("type");
-        }
+      if (options?.type && options.type.length === 1) {
+        index = store.index("type");
       }
 
       let request;
-      if (options?.type && options.type.length > 0) {
-        // Type-specific queries
-        if (options.type.length === 1) {
-          request = index.getAll(options.type[0]);
-        } else {
-          // Multiple types - need to manually filter
-          request = store.getAll();
-        }
+      if (options?.type && options.type.length === 1) {
+        request = index.getAll(options.type[0]);
+      } else if (options?.type && options.type.length > 1) {
+        request = store.getAll();
       } else if (range) {
         request = index.getAll(range);
       } else {
@@ -119,20 +110,14 @@ export class EventStore {
       request.onsuccess = () => {
         let results = request.result as EventLog[];
 
-        // Apply type filter if needed
         if (options?.type && options.type.length > 0) {
           results = results.filter((e) => options.type!.includes(e.type));
         }
-
-        // Apply domain filter
         if (options?.domain) {
           results = results.filter((e) => e.domain === options.domain);
         }
 
-        // Sort by timestamp (descending)
         results.sort((a, b) => b.timestamp - a.timestamp);
-
-        // Apply offset and limit
         const paged = results.slice(offset, offset + limit);
 
         resolve({

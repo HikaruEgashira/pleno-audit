@@ -31,22 +31,15 @@ export async function migrateEventsToIndexedDB(
       return { success: true, migratedCount: 0 };
     }
 
-    // Initialize event store if not already done
     await eventStore.init();
 
-    // Migrate in batches of 100 to avoid overwhelming the transaction
     const batchSize = 100;
     for (let i = 0; i < events.length; i += batchSize) {
       const batch = events.slice(i, i + batchSize);
       await eventStore.addBatch(batch);
     }
 
-    // Set migration flag and remove old storage
-    await chrome.storage.local.set({
-      [MIGRATION_FLAG_KEY]: true,
-    });
-
-    // Remove old events array (optional - keeps storage clean)
+    await chrome.storage.local.set({ [MIGRATION_FLAG_KEY]: true });
     await chrome.storage.local.remove(["events"]);
 
     console.log(`[EventStore] Migrated ${events.length} events to IndexedDB`);
