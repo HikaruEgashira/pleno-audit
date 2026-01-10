@@ -14,6 +14,18 @@ Browserを通してアクセスするWebサービスの利用状況を可視化�
 - Malware
     - CSP Auditor: Content Security Policy違反の検出・レポート・ポリシー生成
 
+## Screenshots
+
+### Dashboard
+
+![Dashboard](./docs/assets/dashboard.png)
+
+### Popup
+
+| Domains | Requests | Sessions |
+|---------|----------|----------|
+| ![Domains](./docs/assets/popup-domains.png) | ![Requests](./docs/assets/popup-requests.png) | ![Sessions](./docs/assets/popup-sessions.png) |
+
 ## Documentation
 
 詳細な設計判断については [ADR (Architecture Decision Records)](./docs/adr/README.md) を参照してください。
