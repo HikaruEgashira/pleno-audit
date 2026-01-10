@@ -957,6 +957,7 @@ export function DashboardApp() {
   const [services, setServices] = useState<DetectedService[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // タブ変更時にURLハッシュを更新
   useEffect(() => {
@@ -977,6 +978,7 @@ export function DashboardApp() {
   }, []);
 
   const loadData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       const [reportsResult, statsResult, configResult, aiPromptsResult, storageResult] = await Promise.all([
         chrome.runtime.sendMessage({ type: "GET_CSP_REPORTS" }),
@@ -1009,6 +1011,7 @@ export function DashboardApp() {
       console.error("Failed to load data:", error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -1336,8 +1339,32 @@ export function DashboardApp() {
       </div>
 
       <div style={dashboardStyles.actions}>
-        <button style={dashboardStyles.btn} onClick={() => loadData()}>
-          更新
+        <button
+          style={{
+            ...dashboardStyles.btn,
+            opacity: isRefreshing ? 0.7 : 1,
+            position: "relative",
+          }}
+          onClick={() => loadData()}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? "更新中..." : "更新"}
+          {isRefreshing && (
+            <span
+              style={{
+                position: "absolute",
+                right: "-20px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "12px",
+                height: "12px",
+                border: "2px solid hsl(0 0% 80%)",
+                borderTopColor: "hsl(0 0% 40%)",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+              }}
+            />
+          )}
         </button>
         <button style={dashboardStyles.btnSecondary} onClick={handleClearData}>
           データ削除
