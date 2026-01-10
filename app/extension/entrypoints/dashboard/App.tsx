@@ -249,7 +249,7 @@ function DashboardContent() {
         chrome.runtime.sendMessage({ type: "GET_CONNECTION_CONFIG" }),
         chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000, offset: 0 } }),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 10000, offset: 0 } }),
       ]);
 
       if (Array.isArray(reportsResult)) setReports(reportsResult);

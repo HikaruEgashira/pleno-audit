@@ -78,7 +78,7 @@ function PopupContent() {
     try {
       const [servicesResult, eventsResult] = await Promise.all([
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000, offset: 0 } }),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 10000, offset: 0 } }),
       ]);
 
       const events = (eventsResult as EventQueryResult | undefined)?.events || [];
