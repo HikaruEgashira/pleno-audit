@@ -243,12 +243,13 @@ function DashboardContent() {
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [reportsResult, statsResult, configResult, aiPromptsResult, storageResult] = await Promise.all([
+      const [reportsResult, statsResult, configResult, aiPromptsResult, storageResult, eventsResult] = await Promise.all([
         chrome.runtime.sendMessage({ type: "GET_CSP_REPORTS" }),
         chrome.runtime.sendMessage({ type: "GET_STATS" }),
         chrome.runtime.sendMessage({ type: "GET_CONNECTION_CONFIG" }),
         chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
-        chrome.storage.local.get(["services", "events"]),
+        chrome.storage.local.get(["services"]),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000, offset: 0 } }),
       ]);
 
       if (Array.isArray(reportsResult)) setReports(reportsResult);
@@ -256,7 +257,7 @@ function DashboardContent() {
       if (configResult) setConnectionMode(configResult.mode);
       if (Array.isArray(aiPromptsResult)) setAIPrompts(aiPromptsResult);
       if (storageResult.services) setServices(Object.values(storageResult.services));
-      if (storageResult.events) setEvents(storageResult.events);
+      if (eventsResult && Array.isArray(eventsResult.events)) setEvents(eventsResult.events);
       setLastUpdated(new Date().toISOString());
     } catch (error) {
       console.error("Failed to load data:", error);

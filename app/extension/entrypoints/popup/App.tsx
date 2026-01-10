@@ -29,6 +29,12 @@ interface TabData {
   networkRequests: NetworkRequest[];
 }
 
+interface EventQueryResult {
+  events: EventLog[];
+  total: number;
+  hasMore: boolean;
+}
+
 function getStatus(data: TabData) {
   const nrdCount = data.services.filter(s => s.nrdResult?.isNRD).length;
   if (nrdCount > 0) return { variant: "danger" as const, label: "警告", dot: false };
@@ -54,7 +60,7 @@ function PopupContent() {
     const listener = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
-      if (changes.services || changes.events) {
+      if (changes.services) {
         loadData();
       }
       if (changes.cspReports) {
@@ -69,12 +75,26 @@ function PopupContent() {
   }, []);
 
   async function loadData() {
-    const result = await chrome.storage.local.get(["services", "events"]);
-    setData({
-      services: result.services || {},
-      events: result.events || [],
-    });
-    setLoading(false);
+    try {
+      const [servicesResult, eventsResult] = await Promise.all([
+        chrome.storage.local.get(["services"]),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000, offset: 0 } }),
+      ]);
+
+      const events = (eventsResult as EventQueryResult | undefined)?.events || [];
+      setData({
+        services: servicesResult.services || {},
+        events,
+      });
+    } catch (error) {
+      console.error("Failed to load data:", error);
+      setData({
+        services: {},
+        events: [],
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadCSPData() {
@@ -108,9 +128,10 @@ function PopupContent() {
   async function handleClearData() {
     if (!confirm("すべてのデータを削除しますか？")) return;
     try {
-      await chrome.storage.local.remove(["services", "events"]);
+      await chrome.storage.local.remove(["services"]);
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
       await chrome.runtime.sendMessage({ type: "CLEAR_AI_DATA" });
+      await chrome.runtime.sendMessage({ type: "CLEAR_EVENTS" });
       setData({ services: {}, events: [] });
       setViolations([]);
       setNetworkRequests([]);

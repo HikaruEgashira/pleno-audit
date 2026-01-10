@@ -44,13 +44,16 @@ import {
   type ConnectionMode,
   type SyncManager,
 } from "@service-policy-auditor/extension-runtime";
+import {
+  EventStore,
+  checkEventsMigrationNeeded,
+  migrateEventsToIndexedDB,
+} from "@service-policy-auditor/storage";
 
-const MAX_EVENTS = 1000;
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
 interface StorageData {
   services: Record<string, DetectedService>;
-  events: EventLog[];
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
 }
@@ -58,6 +61,7 @@ interface StorageData {
 let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
+let eventStore: EventStore | null = null;
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -87,13 +91,11 @@ function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
 async function initStorage(): Promise<StorageData> {
   const result = await chrome.storage.local.get([
     "services",
-    "events",
     "cspReports",
     "cspConfig",
   ]);
   return {
     services: result.services || {},
-    events: result.events || [],
     cspReports: result.cspReports || [],
     cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
   };
@@ -168,19 +170,23 @@ type NewEvent =
       details: AIResponseReceivedDetails;
     };
 
+async function getOrInitEventStore(): Promise<EventStore> {
+  if (!eventStore) {
+    eventStore = new EventStore();
+    await eventStore.init();
+  }
+  return eventStore;
+}
+
 async function addEvent(event: NewEvent): Promise<EventLog> {
-  return queueStorageOperation(async () => {
-    const storage = await initStorage();
-    const newEvent = {
-      ...event,
-      id: generateEventId(),
-    } as EventLog;
-    storage.events.unshift(newEvent);
-    storage.events = storage.events.slice(0, MAX_EVENTS);
-    await saveStorage({ events: storage.events });
-    await updateBadge();
-    return newEvent;
-  });
+  const store = await getOrInitEventStore();
+  const newEvent = {
+    ...event,
+    id: generateEventId(),
+  } as EventLog;
+  await store.add(newEvent);
+  await updateBadge();
+  return newEvent;
 }
 
 // ============================================================================
@@ -753,6 +759,20 @@ export default defineBackground(() => {
     cspReporter = new CSPReporter(endpoint);
   });
 
+  // Migrate events from chrome.storage.local to IndexedDB if needed
+  (async () => {
+    try {
+      const needsMigration = await checkEventsMigrationNeeded();
+      if (needsMigration) {
+        const store = await getOrInitEventStore();
+        const result = await migrateEventsToIndexedDB(store);
+        console.log(`[Service Policy Auditor] Event migration: ${result.success ? "success" : "failed"}`, result);
+      }
+    } catch (error) {
+      console.error("[Service Policy Auditor] Event migration error:", error);
+    }
+  })();
+
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
@@ -935,6 +955,46 @@ export default defineBackground(() => {
       setNRDConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Event handlers
+    if (message.type === "GET_EVENTS") {
+      (async () => {
+        try {
+          const store = await getOrInitEventStore();
+          const result = await store.query(message.data);
+          sendResponse(result);
+        } catch (error) {
+          sendResponse({ events: [], total: 0, hasMore: false });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "GET_EVENTS_COUNT") {
+      (async () => {
+        try {
+          const store = await getOrInitEventStore();
+          const count = await store.count(message.data);
+          sendResponse({ count });
+        } catch (error) {
+          sendResponse({ count: 0 });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "CLEAR_EVENTS") {
+      (async () => {
+        try {
+          const store = await getOrInitEventStore();
+          await store.clear();
+          sendResponse({ success: true });
+        } catch (error) {
+          sendResponse({ success: false });
+        }
+      })();
       return true;
     }
 
