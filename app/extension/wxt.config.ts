@@ -32,10 +32,10 @@ export default defineConfig({
     },
     optimizeDeps: {
       include: [
-        "@service-policy-auditor/core",
         "@service-policy-auditor/csp",
         "@service-policy-auditor/detectors",
         "@service-policy-auditor/api",
+        "@service-policy-auditor/extension-runtime",
       ],
     },
   }),
