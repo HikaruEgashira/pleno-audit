@@ -4,9 +4,10 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   onClearData: () => void;
+  onExport?: () => void;
 }
 
-export function SettingsMenu({ onClearData }: Props) {
+export function SettingsMenu({ onClearData, onExport }: Props) {
   const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,56 @@ export function SettingsMenu({ onClearData }: Props) {
           <div style={{ padding: "4px", borderBottom: `1px solid ${colors.border}` }}>
             <ThemeToggle />
           </div>
+
+          {onExport && (
+            <div style={{ padding: "4px", borderBottom: `1px solid ${colors.border}` }}>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onExport();
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "13px",
+                  color: colors.textPrimary,
+                  borderRadius: "4px",
+                  textAlign: "left",
+                  transition: "background-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+                }}
+              >
+                <span style={{ width: "16px", display: "flex", justifyContent: "center" }}>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </span>
+                エクスポート
+              </button>
+            </div>
+          )}
 
           <div style={{ padding: "4px" }}>
             <button

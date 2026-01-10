@@ -10,7 +10,7 @@ import type {
   EventLog,
 } from "@service-policy-auditor/detectors";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
-import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Tabs, ThemeToggle } from "../../components";
+import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
 
 interface Stats {
   violations: number;
@@ -425,7 +425,6 @@ function DashboardContent() {
             </p>
           </div>
           <div style={styles.controls}>
-            <ThemeToggle />
             <Select
               value={period}
               onChange={(v) => setPeriod(v as Period)}
@@ -434,8 +433,7 @@ function DashboardContent() {
             <Button onClick={() => loadData()} disabled={isRefreshing}>
               {isRefreshing ? "更新中..." : "更新"}
             </Button>
-            <Button variant="ghost" onClick={handleExportJSON}>エクスポート</Button>
-            <Button variant="ghost" onClick={handleClearData}>削除</Button>
+            <SettingsMenu onClearData={handleClearData} onExport={handleExportJSON} />
           </div>
         </div>
 
