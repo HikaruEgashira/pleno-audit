@@ -29,6 +29,12 @@ importers:
       '@service-policy-auditor/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@service-policy-auditor/csp':
+        specifier: workspace:*
+        version: link:../../packages/csp
+      '@service-policy-auditor/detectors':
+        specifier: workspace:*
+        version: link:../../packages/detectors
       preact:
         specifier: ^10.28.2
         version: 10.28.2
@@ -60,6 +66,18 @@ importers:
         version: 5.9.3
 
   packages/core: {}
+
+  packages/csp:
+    dependencies:
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/detectors:
+    dependencies:
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

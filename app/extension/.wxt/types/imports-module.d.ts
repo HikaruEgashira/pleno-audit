@@ -17,9 +17,7 @@ declare module '#imports' {
   export { injectScript, ScriptPublicPath, InjectScriptOptions } from 'wxt/utils/inject-script';
   export { InvalidMatchPattern, MatchPattern } from 'wxt/utils/match-patterns';
   export { fakeBrowser } from 'wxt/testing';
+  export { createBrowserAdapter, browserAdapter } from '../utils/browser-adapter';
   export { startCookieMonitor, onCookieChange, CookieChangeCallback } from '../utils/cookie-monitor';
-  export { CSPAnalyzer, CSPAnalyzer, DomainCSPPolicy, GeneratedCSPByDomain } from '../utils/csp-analyzer';
   export { CSPReporter, CSPReporter, ReportPayload } from '../utils/csp-reporter';
-  export { detectLoginPage, isLoginPage, LoginDetectionResult } from '../utils/login-detector';
-  export { findPrivacyPolicy, PrivacyPolicyResult } from '../utils/privacy-finder';
 }

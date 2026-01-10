@@ -1,14 +1,25 @@
-import { detectLoginPage, isLoginPage } from "@/utils/login-detector";
-import { findPrivacyPolicy } from "@/utils/privacy-finder";
-import { findTermsOfService } from "@/utils/tos-finder";
+import {
+  createLoginDetector,
+  createPrivacyFinder,
+  createTosFinder,
+  type LoginDetectionResult,
+  type PrivacyPolicyResult,
+  type TosResult,
+} from "@service-policy-auditor/detectors";
+import { browserAdapter } from "@/utils/browser-adapter";
+
+// Create detector instances with browser adapter
+const loginDetector = createLoginDetector(browserAdapter);
+const findPrivacyPolicy = createPrivacyFinder(browserAdapter);
+const findTermsOfService = createTosFinder(browserAdapter);
 
 interface PageAnalysis {
   url: string;
   domain: string;
   timestamp: number;
-  login: ReturnType<typeof detectLoginPage>;
-  privacy: ReturnType<typeof findPrivacyPolicy>;
-  tos: ReturnType<typeof findTermsOfService>;
+  login: LoginDetectionResult;
+  privacy: PrivacyPolicyResult;
+  tos: TosResult;
 }
 
 function analyzePage(): PageAnalysis {
@@ -19,7 +30,7 @@ function analyzePage(): PageAnalysis {
     url,
     domain,
     timestamp: Date.now(),
-    login: detectLoginPage(),
+    login: loginDetector.detectLoginPage(),
     privacy: findPrivacyPolicy(),
     tos: findTermsOfService(),
   };
@@ -39,7 +50,7 @@ async function sendToBackground(analysis: PageAnalysis) {
 function runAnalysis() {
   const analysis = analyzePage();
 
-  if (isLoginPage() || analysis.privacy.found || analysis.tos.found) {
+  if (loginDetector.isLoginPage() || analysis.privacy.found || analysis.tos.found) {
     sendToBackground(analysis);
     console.log("[Service Policy Auditor] Page analyzed:", analysis);
   }
