@@ -56,7 +56,7 @@ function PromptCard({
     second: "2-digit",
   });
   const preview = getPreview(prompt);
-  const providerLabel = prompt.provider || "unknown";
+  const showProvider = prompt.provider && prompt.provider !== "unknown";
 
   return (
     <div
@@ -84,8 +84,8 @@ function PromptCard({
             alignItems: "center",
           }}
         >
-          <span style={styles.badge}>{providerLabel}</span>
-          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>{time}</span>
+          {showProvider && <span style={styles.badge}>{prompt.provider}</span>}
+          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: showProvider ? "0" : "auto" }}>{time}</span>
         </div>
         <p
           style={{
