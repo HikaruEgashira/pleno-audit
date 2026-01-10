@@ -1,6 +1,22 @@
 Chrome Extensionとして動作するCASBです。
 サービスを特定しそのプライバシーポリシーなどの情報を整理して提供します。
 
+## プロジェクト構造
+
+```
+service-policy-auditor/
+├── packages/           # 共有パッケージ
+│   ├── detectors/      # CASBドメイン: @service-policy-auditor/detectors
+│   ├── csp/            # CSPドメイン: @service-policy-auditor/csp
+│   └── api/            # API層: @service-policy-auditor/api
+├── app/
+│   ├── extension/      # Chrome拡張機能 (WXT + Preact)
+│   │   └── entrypoints/  # background.ts, content.ts, popup/, dashboard/
+│   ├── server/         # ローカル開発サーバー
+│   └── debugger/       # puppeteerテストツール
+└── docs/adr/           # Architecture Decision Records
+```
+
 ## ドメインアーキテクチャ
 
 このプロジェクトは2つのドメインで構成されています（ADR 008参照）:

@@ -10,3 +10,4 @@
 | [006](./006-tos-detection.md) | 利用規約検出機能 | Accepted |
 | [007](./007-isomorphic-hono-api.md) | Isomorphic Hono API + sql.js によるローカル/リモート両対応 | Accepted |
 | [008](./008-core-domain-model.md) | Coreパッケージの廃止とドメイン分割 | Accepted |
+| [009](./009-explore-agent-optimization.md) | Claude Code Explore Agent最適化 | Accepted |
