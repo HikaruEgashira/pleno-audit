@@ -28,6 +28,7 @@ import type {
  * - privacyPolicyUrl: コンプライアンス評価用
  * - termsOfServiceUrl: リスク評価用
  * - cookies: セッション追跡情報
+ * - nrdResult: NRD判定結果
  */
 export interface DetectedService {
   domain: string;
@@ -36,6 +37,12 @@ export interface DetectedService {
   privacyPolicyUrl: string | null;
   termsOfServiceUrl: string | null;
   cookies: CookieInfo[];
+  nrdResult?: {
+    isNRD: boolean;
+    confidence: "high" | "medium" | "low" | "unknown";
+    domainAge: number | null;
+    checkedAt: number;
+  };
 }
 
 /**
@@ -82,6 +89,16 @@ export interface CookieSetDetails {
   isSession: boolean;
 }
 
+/** NRD検出イベントの詳細 */
+export interface NRDDetectedDetails {
+  isNRD: boolean;
+  confidence: "high" | "medium" | "low" | "unknown";
+  registrationDate: string | null;
+  domainAge: number | null;
+  method: "rdap" | "heuristic" | "cache" | "error";
+  heuristicScore: number;
+}
+
 /**
  * イベントログ基底型
  * - Discriminated Union パターンで型安全なイベント処理を実現
@@ -104,6 +121,7 @@ export type EventLogBase<T extends string, D> = {
  * - network_request: トラフィック分析
  * - ai_prompt_sent: AIプロンプト送信
  * - ai_response_received: AIレスポンス受信
+ * - nrd_detected: NRD判定検出
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
@@ -113,6 +131,7 @@ export type EventLog =
   | EventLogBase<"csp_violation", CSPViolationDetails>
   | EventLogBase<"network_request", NetworkRequestDetails>
   | EventLogBase<"ai_prompt_sent", AIPromptSentDetails>
-  | EventLogBase<"ai_response_received", AIResponseReceivedDetails>;
+  | EventLogBase<"ai_response_received", AIResponseReceivedDetails>
+  | EventLogBase<"nrd_detected", NRDDetectedDetails>;
 
 export type EventLogType = EventLog["type"];

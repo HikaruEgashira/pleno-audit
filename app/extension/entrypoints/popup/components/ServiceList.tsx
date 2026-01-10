@@ -72,6 +72,38 @@ function TagBadge({ tag, url }: { tag: string; url?: string | null }) {
   return <span style={badgeStyle}>{tag}</span>;
 }
 
+function NRDBadge({
+  nrdResult,
+}: {
+  nrdResult: DetectedService["nrdResult"];
+}) {
+  if (!nrdResult?.isNRD) return null;
+
+  const badgeStyle = {
+    ...styles.badge,
+    marginRight: "4px",
+    backgroundColor:
+      nrdResult.confidence === "high"
+        ? "hsl(0 70% 60%)" // Red for high confidence
+        : "hsl(40 70% 50%)", // Orange for medium
+    color: "white",
+    fontWeight: "bold" as const,
+  };
+
+  const label =
+    nrdResult.domainAge !== null ? `NRD (${nrdResult.domainAge}d)` : "NRD?";
+  const title =
+    nrdResult.confidence === "high"
+      ? `Newly Registered Domain (${nrdResult.domainAge} days old)`
+      : "Possibly newly registered domain (heuristic match)";
+
+  return (
+    <span style={badgeStyle} title={title}>
+      {label}
+    </span>
+  );
+}
+
 function ServiceRow({ service }: { service: DetectedService }) {
   return (
     <tr style={styles.tableRow}>
@@ -79,6 +111,7 @@ function ServiceRow({ service }: { service: DetectedService }) {
         <span style={styles.code}>{service.domain}</span>
       </td>
       <td style={styles.tableCell}>
+        <NRDBadge nrdResult={service.nrdResult} />
         {service.hasLoginPage && <TagBadge tag="login" />}
         {service.privacyPolicyUrl && (
           <TagBadge

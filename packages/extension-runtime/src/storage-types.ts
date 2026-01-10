@@ -6,6 +6,7 @@ import type {
   EventLog,
   CapturedAIPrompt,
   AIMonitorConfig,
+  NRDConfig,
 } from "@service-policy-auditor/detectors";
 import type { CSPConfig, CSPReport } from "@service-policy-auditor/csp";
 
@@ -16,6 +17,7 @@ export interface StorageData {
   cspConfig?: CSPConfig;
   aiPrompts?: CapturedAIPrompt[];
   aiMonitorConfig?: AIMonitorConfig;
+  nrdConfig?: NRDConfig;
 }
 
 export type {
@@ -25,4 +27,5 @@ export type {
   CSPReport,
   CapturedAIPrompt,
   AIMonitorConfig,
+  NRDConfig,
 };

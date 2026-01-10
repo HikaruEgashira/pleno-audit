@@ -10,8 +10,14 @@ import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   AIMonitorConfig,
+  NRDConfig,
+  NRDResult,
 } from "@service-policy-auditor/detectors";
-import { DEFAULT_AI_MONITOR_CONFIG } from "@service-policy-auditor/detectors";
+import {
+  DEFAULT_AI_MONITOR_CONFIG,
+  DEFAULT_NRD_CONFIG,
+  createNRDDetector,
+} from "@service-policy-auditor/detectors";
 import type {
   CSPViolation,
   NetworkRequest,
@@ -52,6 +58,22 @@ interface StorageData {
 let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
+
+// NRD Detection
+const nrdCache: Map<string, NRDResult> = new Map();
+let nrdDetector: ReturnType<typeof createNRDDetector> | null = null;
+
+interface NRDCacheAdapter {
+  get(domain: string): NRDResult | null;
+  set(domain: string, result: NRDResult): void;
+  clear(): void;
+}
+
+const nrdCacheAdapter: NRDCacheAdapter = {
+  get: (domain) => nrdCache.get(domain) ?? null,
+  set: (domain, result) => nrdCache.set(domain, result),
+  clear: () => nrdCache.clear(),
+};
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -159,6 +181,79 @@ async function addEvent(event: NewEvent): Promise<EventLog> {
     await updateBadge();
     return newEvent;
   });
+}
+
+// ============================================================================
+// NRD Detection
+// ============================================================================
+
+async function getNRDConfig(): Promise<NRDConfig> {
+  const storage = await getStorage();
+  return storage.nrdConfig || DEFAULT_NRD_CONFIG;
+}
+
+async function initNRDDetector() {
+  const config = await getNRDConfig();
+  nrdDetector = createNRDDetector(config, nrdCacheAdapter);
+}
+
+async function checkNRD(domain: string): Promise<NRDResult> {
+  if (!nrdDetector) {
+    await initNRDDetector();
+  }
+  return nrdDetector!.checkDomain(domain);
+}
+
+async function handleNRDCheck(domain: string): Promise<NRDResult> {
+  try {
+    const result = await checkNRD(domain);
+
+    // Update service with NRD result if it's a positive detection
+    if (result.isNRD) {
+      await updateService(result.domain, {
+        nrdResult: {
+          isNRD: result.isNRD,
+          confidence: result.confidence,
+          domainAge: result.domainAge,
+          checkedAt: result.checkedAt,
+        },
+      });
+
+      // Add event log
+      await addEvent({
+        type: "nrd_detected",
+        domain: result.domain,
+        timestamp: Date.now(),
+        details: {
+          isNRD: result.isNRD,
+          confidence: result.confidence,
+          registrationDate: result.registrationDate,
+          domainAge: result.domainAge,
+          method: result.method,
+          heuristicScore: result.heuristics.totalScore,
+        },
+      });
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[Service Policy Auditor] NRD check failed:", error);
+    throw error;
+  }
+}
+
+async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ nrdConfig: newConfig });
+    // Reinitialize detector with new config
+    await initNRDDetector();
+    // Clear cache on config change
+    nrdCacheAdapter.clear();
+    return { success: true };
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error setting NRD config:", error);
+    return { success: false };
+  }
 }
 
 function createDefaultService(domain: string): DetectedService {
@@ -814,6 +909,28 @@ export default defineBackground(() => {
 
     if (message.type === "CLEAR_AI_DATA") {
       clearAIData()
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // NRD Detection handlers
+    if (message.type === "CHECK_NRD") {
+      handleNRDCheck(message.data.domain)
+        .then(sendResponse)
+        .catch(() => sendResponse({ error: true }));
+      return true;
+    }
+
+    if (message.type === "GET_NRD_CONFIG") {
+      getNRDConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_NRD_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_NRD_CONFIG") {
+      setNRDConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

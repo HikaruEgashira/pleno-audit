@@ -57,10 +57,39 @@ function EventRow({ event }: { event: EventLog }) {
         return "privacy";
       case "terms_of_service_found":
         return "tos";
+      case "nrd_detected":
+        return event.details.isNRD ? "NRD" : "domain verified";
       default:
         return event.type;
     }
   }
+
+  function getBadgeColor(): string {
+    if (event.type === "nrd_detected" && event.details.isNRD) {
+      return event.details.confidence === "high"
+        ? "hsl(0 70% 60%)" // Red
+        : "hsl(40 70% 50%)"; // Orange
+    }
+    return styles.badge.backgroundColor || "";
+  }
+
+  function getTitle(): string {
+    if (event.type === "nrd_detected") {
+      if (event.details.isNRD) {
+        const age = event.details.domainAge !== null ? ` (${event.details.domainAge}d old)` : "";
+        return `Newly Registered Domain${age} - ${event.details.method}`;
+      } else {
+        return `Domain verified - ${event.details.method}`;
+      }
+    }
+    return "";
+  }
+
+  const badgeColor = getBadgeColor();
+  const badgeStyle =
+    badgeColor && event.type === "nrd_detected"
+      ? { ...styles.badge, backgroundColor: badgeColor, color: "white", fontWeight: "bold" as const }
+      : styles.badge;
 
   return (
     <tr style={styles.tableRow}>
@@ -71,7 +100,12 @@ function EventRow({ event }: { event: EventLog }) {
         <span style={styles.code}>{event.domain}</span>
       </td>
       <td style={styles.tableCell}>
-        <span style={styles.badge}>{getLabel()}</span>
+        <span
+          style={badgeStyle}
+          title={getTitle()}
+        >
+          {getLabel()}
+        </span>
       </td>
     </tr>
   );

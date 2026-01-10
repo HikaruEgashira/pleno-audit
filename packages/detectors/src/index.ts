@@ -6,10 +6,47 @@ export type {
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
   CookieSetDetails,
+  NRDDetectedDetails,
   EventLogBase,
   EventLog,
   EventLogType,
 } from "./casb-types.js";
+
+// NRD Detection Types
+export type {
+  HeuristicScores,
+  NRDResult,
+  NRDConfig,
+  NRDDetectionMethod,
+  NRDConfidence,
+  NRDCache,
+} from "./nrd-types.js";
+
+export { DEFAULT_NRD_CONFIG } from "./nrd-types.js";
+
+// NRD Heuristic Detection
+export {
+  SUSPICIOUS_TLDS,
+  calculateEntropy,
+  extractSLD,
+  extractTLD,
+  hasExcessiveHyphens,
+  hasExcessiveNumbers,
+  isRandomLooking,
+  calculateHeuristics,
+  isHighRiskHeuristics,
+} from "./nrd-heuristics.js";
+
+// NRD RDAP Client
+export type { RDAPEvent, RDAPResponse } from "./nrd-rdap.js";
+export {
+  queryRDAP,
+  extractRegistrationDate,
+  extractDomainStatus,
+} from "./nrd-rdap.js";
+
+// NRD Detector Factory
+export { createNRDDetector } from "./nrd-detector.js";
 
 // Detection Types
 export type {

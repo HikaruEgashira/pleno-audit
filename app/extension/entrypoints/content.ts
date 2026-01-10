@@ -47,15 +47,29 @@ async function sendToBackground(analysis: PageAnalysis) {
   }
 }
 
-function runAnalysis() {
+async function checkNRD(domain: string) {
+  try {
+    await chrome.runtime.sendMessage({
+      type: "CHECK_NRD",
+      data: { domain },
+    });
+  } catch (error) {
+    console.error("[Service Policy Auditor] NRD check failed:", error);
+  }
+}
+
+async function runAnalysis() {
   const analysis = analyzePage();
-  const { login, privacy, tos } = analysis;
+  const { login, privacy, tos, domain } = analysis;
 
   // Send to background if any policy-relevant info found
   if (login.hasPasswordInput || login.isLoginUrl || privacy.found || tos.found) {
-    sendToBackground(analysis);
+    await sendToBackground(analysis);
     console.log("[Service Policy Auditor] Page analyzed:", analysis);
   }
+
+  // Check NRD in background (non-blocking)
+  checkNRD(domain);
 }
 
 export default defineContentScript({
@@ -63,9 +77,11 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     if (document.readyState === "complete") {
-      runAnalysis();
+      runAnalysis().catch(console.error);
     } else {
-      window.addEventListener("load", runAnalysis);
+      window.addEventListener("load", () => {
+        runAnalysis().catch(console.error);
+      });
     }
   },
 });
