@@ -41,11 +41,15 @@ export function ThemeToggle() {
       style={{
         ...styles.button,
         color: colors.textSecondary,
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
       }}
       onClick={() => setMode(nextMode)}
       title={`テーマ: ${modeLabels[mode]} → ${modeLabels[nextMode]}`}
     >
       {modeIcons[mode]}
+      <span style={{ fontSize: "12px" }}>{modeLabels[mode]}</span>
     </button>
   );
 }
