@@ -307,6 +307,128 @@ function ActionList({
   );
 }
 
+// 時系列タイムライン表示
+function TimelineChart({
+  events,
+  period,
+}: {
+  events: EventLog[];
+  period: Period;
+}) {
+  const buckets = useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - getPeriodMs(period);
+    const filtered = events.filter((e) => e.timestamp >= cutoff);
+
+    // 時間帯ごとにグループ化
+    let bucketSize: number;
+    let bucketCount: number;
+    if (period === "1h") {
+      bucketSize = 5 * 60 * 1000; // 5分
+      bucketCount = 12;
+    } else if (period === "24h") {
+      bucketSize = 60 * 60 * 1000; // 1時間
+      bucketCount = 24;
+    } else if (period === "7d") {
+      bucketSize = 24 * 60 * 60 * 1000; // 1日
+      bucketCount = 7;
+    } else {
+      bucketSize = 24 * 60 * 60 * 1000;
+      bucketCount = 30;
+    }
+
+    const result: { time: string; critical: number; warning: number; info: number }[] = [];
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const bucketStart = now - (i + 1) * bucketSize;
+      const bucketEnd = now - i * bucketSize;
+      const bucketEvents = filtered.filter((e) => e.timestamp >= bucketStart && e.timestamp < bucketEnd);
+
+      let label: string;
+      if (period === "1h") {
+        label = new Date(bucketEnd).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+      } else if (period === "24h") {
+        label = new Date(bucketEnd).toLocaleTimeString("ja-JP", { hour: "2-digit" }) + "時";
+      } else {
+        label = new Date(bucketEnd).toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
+      }
+
+      result.push({
+        time: label,
+        critical: bucketEvents.filter((e) => e.type.includes("nrd") || e.type.includes("violation")).length,
+        warning: bucketEvents.filter((e) => e.type.includes("ai") || e.type.includes("login")).length,
+        info: bucketEvents.filter((e) => !e.type.includes("nrd") && !e.type.includes("violation") && !e.type.includes("ai") && !e.type.includes("login")).length,
+      });
+    }
+    return result;
+  }, [events, period]);
+
+  const maxValue = Math.max(...buckets.map((b) => b.critical + b.warning + b.info), 1);
+
+  return (
+    <div style={dashboardStyles.card}>
+      <h3 style={dashboardStyles.cardTitle}>イベントタイムライン</h3>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: "2px", height: "100px", padding: "8px 0" }}>
+        {buckets.map((bucket, i) => {
+          const total = bucket.critical + bucket.warning + bucket.info;
+          const height = (total / maxValue) * 100;
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                height: "100%",
+                justifyContent: "flex-end",
+              }}
+              title={`${bucket.time}: 重大${bucket.critical} 注意${bucket.warning} 情報${bucket.info}`}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  height: `${height}%`,
+                  minHeight: total > 0 ? "4px" : "0",
+                }}
+              >
+                {bucket.critical > 0 && (
+                  <div style={{ background: "hsl(0 70% 50%)", flex: bucket.critical }} />
+                )}
+                {bucket.warning > 0 && (
+                  <div style={{ background: "hsl(45 100% 45%)", flex: bucket.warning }} />
+                )}
+                {bucket.info > 0 && (
+                  <div style={{ background: "hsl(210 100% 65%)", flex: bucket.info }} />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "hsl(0 0% 50%)" }}>
+        <span>{buckets[0]?.time}</span>
+        <span>{buckets[buckets.length - 1]?.time}</span>
+      </div>
+      <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "11px" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ width: "10px", height: "10px", background: "hsl(0 70% 50%)", borderRadius: "2px" }} />
+          重大
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ width: "10px", height: "10px", background: "hsl(45 100% 45%)", borderRadius: "2px" }} />
+          注意
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ width: "10px", height: "10px", background: "hsl(210 100% 65%)", borderRadius: "2px" }} />
+          情報
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function HorizontalBarChart({
   data,
   title,
@@ -1235,6 +1357,111 @@ export function DashboardApp() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportOperationReport = () => {
+    const now = new Date();
+    const periodLabel = { "1h": "1時間", "24h": "24時間", "7d": "7日間", "30d": "30日間", all: "全期間" }[period];
+
+    // 期間内のデータを取得
+    const cutoff = Date.now() - getPeriodMs(period);
+    const periodViolations = reports.filter((r) => r.type === "csp-violation" && r.timestamp >= cutoff) as CSPViolation[];
+    const periodEvents = events.filter((e) => e.timestamp >= cutoff);
+    const periodAIPrompts = aiPrompts.filter((p) => p.timestamp >= cutoff);
+    const nrdList = services.filter((s) => s.nrdResult?.isNRD);
+    const loginList = services.filter((s) => s.hasLoginPage);
+
+    // セキュリティスコア計算
+    const score = Math.max(0, 100 - (nrdList.length * 30) - (periodViolations.length * 0.5) - (periodAIPrompts.length * 2));
+
+    const reportContent = `
+================================================================================
+CASB/Browser Security 運用レポート
+================================================================================
+生成日時: ${now.toLocaleString("ja-JP")}
+対象期間: ${periodLabel}
+接続モード: ${connectionMode}
+
+--------------------------------------------------------------------------------
+エグゼクティブサマリー
+--------------------------------------------------------------------------------
+セキュリティスコア: ${score.toFixed(0)}/100
+ステータス: ${nrdList.length > 0 ? "要対応" : periodViolations.length > 50 ? "注意" : periodAIPrompts.length > 0 ? "監視中" : "正常"}
+
+重要指標:
+  - CSP違反: ${periodViolations.length}件
+  - NRD検出: ${nrdList.length}件
+  - AIプロンプト送信: ${periodAIPrompts.length}件
+  - ログインページ検出: ${loginList.length}件
+  - 検出サービス総数: ${services.length}件
+
+--------------------------------------------------------------------------------
+要対応アクション
+--------------------------------------------------------------------------------
+${nrdList.length > 0 ? `[重大] NRD（新規登録ドメイン）検出
+${nrdList.map((s) => `  - ${s.domain} (経過日数: ${s.nrdResult?.domainAge || "不明"}日)`).join("\n")}
+` : ""}
+${periodViolations.filter((v) => ["script-src", "default-src"].includes(v.directive)).length > 0 ? `[高] 重要CSP違反 (${periodViolations.filter((v) => ["script-src", "default-src"].includes(v.directive)).length}件)
+  対象ディレクティブ: script-src, default-src
+` : ""}
+${periodAIPrompts.length > 0 ? `[中] AIプロンプト送信 (${periodAIPrompts.length}件)
+  機密情報の送信がないか確認が必要
+` : ""}
+${!nrdList.length && !periodViolations.filter((v) => ["script-src", "default-src"].includes(v.directive)).length && !periodAIPrompts.length ? "対応が必要なアクションはありません。\n" : ""}
+--------------------------------------------------------------------------------
+CSP違反サマリー
+--------------------------------------------------------------------------------
+総件数: ${periodViolations.length}件
+
+Directive別内訳:
+${Object.entries(periodViolations.reduce((acc, v) => {
+      acc[v.directive] = (acc[v.directive] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>))
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([d, c]) => `  - ${d}: ${c}件`)
+      .join("\n") || "  (データなし)"}
+
+--------------------------------------------------------------------------------
+検出サービス一覧
+--------------------------------------------------------------------------------
+総数: ${services.length}件
+
+NRDサービス:
+${nrdList.map((s) => `  - ${s.domain}`).join("\n") || "  (なし)"}
+
+ログインページ検出:
+${loginList.slice(0, 10).map((s) => `  - ${s.domain}`).join("\n") || "  (なし)"}
+${loginList.length > 10 ? `  ... 他${loginList.length - 10}件` : ""}
+
+--------------------------------------------------------------------------------
+AIプロンプト監視
+--------------------------------------------------------------------------------
+総送信数: ${periodAIPrompts.length}件
+${periodAIPrompts.length > 0 ? `
+プロバイダー別:
+${Object.entries(periodAIPrompts.reduce((acc, p) => {
+      const provider = p.provider || "unknown";
+      acc[provider] = (acc[provider] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>))
+      .sort((a, b) => b[1] - a[1])
+      .map(([p, c]) => `  - ${p}: ${c}件`)
+      .join("\n")}
+` : ""}
+--------------------------------------------------------------------------------
+レポート終了
+================================================================================
+    `.trim();
+
+    const blob = new Blob([reportContent], { type: "text/plain; charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `casb-operation-report-${now.toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredReports = useMemo(() => {
     const cutoff = Date.now() - getPeriodMs(period);
     return reports.filter((r) => r.timestamp >= cutoff);
@@ -1556,6 +1783,76 @@ export function DashboardApp() {
         </div>
       )}
 
+      {/* クイックステータスバー */}
+      <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          padding: "12px 16px",
+          background: "hsl(0 0% 97%)",
+          borderRadius: "8px",
+          marginBottom: "16px",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "12px", color: "hsl(0 0% 50%)" }}>ステータス:</span>
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: "4px",
+              fontSize: "12px",
+              fontWeight: 600,
+              background: securityStatus.color,
+              color: "white",
+            }}
+          >
+            {securityStatus.label}
+          </span>
+        </div>
+        <div style={{ height: "20px", width: "1px", background: "hsl(0 0% 80%)" }} />
+        <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
+          <span
+            style={{
+              cursor: nrdServices.length > 0 ? "pointer" : "default",
+              color: nrdServices.length > 0 ? "hsl(0 70% 50%)" : "hsl(0 0% 50%)",
+              fontWeight: nrdServices.length > 0 ? 600 : 400,
+            }}
+            onClick={() => nrdServices.length > 0 && (setActiveTab("services"), setSearchQuery("nrd"))}
+          >
+            NRD: {nrdServices.length}
+          </span>
+          <span
+            style={{
+              cursor: violations.length > 0 ? "pointer" : "default",
+              color: violations.length > 50 ? "hsl(45 100% 35%)" : "hsl(0 0% 50%)",
+              fontWeight: violations.length > 50 ? 600 : 400,
+            }}
+            onClick={() => violations.length > 0 && setActiveTab("violations")}
+          >
+            CSP違反: {violations.length}
+          </span>
+          <span
+            style={{
+              cursor: aiPrompts.length > 0 ? "pointer" : "default",
+              color: aiPrompts.length > 0 ? "hsl(210 100% 45%)" : "hsl(0 0% 50%)",
+              fontWeight: aiPrompts.length > 0 ? 600 : 400,
+            }}
+            onClick={() => aiPrompts.length > 0 && setActiveTab("ai")}
+          >
+            AI: {aiPrompts.length}
+          </span>
+          <span style={{ color: "hsl(0 0% 50%)" }}>
+            サービス: {services.length}
+          </span>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
+          対象期間: {period === "1h" ? "1時間" : period === "24h" ? "24時間" : period === "7d" ? "7日" : period === "30d" ? "30日" : "全期間"}
+        </div>
+      </div>
+
       <AlertSummary
         violations={violations}
         topDomains={topDomains}
@@ -1608,11 +1905,20 @@ export function DashboardApp() {
         <button style={dashboardStyles.btnSecondary} onClick={handleClearData}>
           データ削除
         </button>
+        <button
+          style={{
+            ...dashboardStyles.btn,
+            background: "hsl(210 100% 45%)",
+          }}
+          onClick={handleExportOperationReport}
+        >
+          運用レポート
+        </button>
         <button style={dashboardStyles.btnSecondary} onClick={handleExportJSON}>
-          JSON出力
+          JSON
         </button>
         <button style={dashboardStyles.btnSecondary} onClick={handleExportCSV}>
-          CSV出力
+          CSV
         </button>
         <span style={dashboardStyles.refreshNote}>5秒ごとに自動更新</span>
       </div>
@@ -1748,6 +2054,11 @@ export function DashboardApp() {
             <div style={dashboardStyles.card}>
               <ActionList items={actionItems} mode={operationMode} />
             </div>
+          </div>
+
+          {/* タイムライン */}
+          <div style={{ marginBottom: "24px" }}>
+            <TimelineChart events={events} period={period} />
           </div>
 
           {/* グラフ */}
