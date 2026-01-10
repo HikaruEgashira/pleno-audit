@@ -7,18 +7,39 @@ import {
   type LegacyDBMessage,
   type LegacyDBResponse,
 } from "../../utils/db-schema";
+import { IndexedDBStorage } from "../../utils/indexeddb-storage";
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: SqlJsAdapter | null = null;
+let indexedDBStorage: IndexedDBStorage | null = null;
+let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function initLocalServer(): Promise<void> {
   if (app) return;
+
+  // Initialize IndexedDB storage
+  indexedDBStorage = new IndexedDBStorage();
+  await indexedDBStorage.init();
+
+  // Load saved database if exists
+  const savedData = await indexedDBStorage.load();
 
   const SQL = await initSqlJs({
     locateFile: () => chrome.runtime.getURL("sql-wasm.wasm"),
   });
 
-  db = new SqlJsAdapter(SQL, {});
+  db = new SqlJsAdapter(SQL, {
+    loadFromBuffer: savedData || undefined,
+    onSave: (data: Uint8Array) => {
+      // Debounce saves to avoid too frequent writes
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+      }
+      saveDebounceTimer = setTimeout(() => {
+        indexedDBStorage?.save(data).catch(console.error);
+      }, 1000);
+    },
+  });
   await db.init();
   app = createApp(db);
 }
@@ -103,6 +124,9 @@ async function handleLegacyMessage(
       case "clear":
         if (!db) throw new Error("Database not initialized");
         await db.clearAll();
+        if (indexedDBStorage) {
+          await indexedDBStorage.clear();
+        }
         return { id: message.id, success: true };
 
       case "stats":

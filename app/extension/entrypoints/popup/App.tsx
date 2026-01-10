@@ -92,6 +92,11 @@ export function App() {
     }
   }
 
+  function openDashboard() {
+    const url = chrome.runtime.getURL("dashboard.html");
+    chrome.tabs.create({ url });
+  }
+
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events as EventLog[];
 
@@ -121,13 +126,22 @@ export function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>Service Policy Auditor</h1>
-        <button
-          onClick={handleClearData}
-          style={styles.clearBtn}
-          title="Clear all data"
-        >
-          Clear
-        </button>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button
+            onClick={openDashboard}
+            style={styles.clearBtn}
+            title="Open Dashboard"
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={handleClearData}
+            style={styles.clearBtn}
+            title="Clear all data"
+          >
+            Clear
+          </button>
+        </div>
       </header>
 
       <nav style={styles.tabNav}>
