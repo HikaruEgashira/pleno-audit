@@ -12,17 +12,18 @@ export class SyncManager {
   private remoteEndpoint: string | null = null;
   private alarmListenerRegistered = false;
 
+  private async initClients(endpoint: string): Promise<void> {
+    this.localClient = await getApiClient();
+    this.remoteClient = new ApiClient({ mode: "remote", remoteEndpoint: endpoint });
+  }
+
   async init(): Promise<void> {
     const config = await chrome.storage.local.get([SYNC_ENABLED_KEY, "remoteEndpoint"]);
     this.enabled = config[SYNC_ENABLED_KEY] || false;
     this.remoteEndpoint = config.remoteEndpoint || null;
 
     if (this.enabled && this.remoteEndpoint) {
-      this.localClient = await getApiClient();
-      this.remoteClient = new ApiClient({
-        mode: "remote",
-        remoteEndpoint: this.remoteEndpoint,
-      });
+      await this.initClients(this.remoteEndpoint);
     }
   }
 
@@ -78,11 +79,7 @@ export class SyncManager {
     });
 
     if (enabled && endpoint) {
-      this.localClient = await getApiClient();
-      this.remoteClient = new ApiClient({
-        mode: "remote",
-        remoteEndpoint: endpoint,
-      });
+      await this.initClients(endpoint);
       await this.startSync();
     } else {
       await this.stopSync();
