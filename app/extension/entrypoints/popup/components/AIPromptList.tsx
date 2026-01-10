@@ -80,12 +80,11 @@ function PromptCard({
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
           }}
         >
           {showProvider && <span style={styles.badge}>{prompt.provider}</span>}
-          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: showProvider ? "0" : "auto" }}>{time}</span>
+          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: "auto" }}>{time}</span>
         </div>
         <p
           style={{
