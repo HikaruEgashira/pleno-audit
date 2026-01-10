@@ -10,9 +10,9 @@ importers:
 
   app/debugger:
     dependencies:
-      '@service-policy-auditor/detectors':
+      '@service-policy-auditor/core':
         specifier: workspace:*
-        version: link:../../packages/detectors
+        version: link:../../packages/core
       puppeteer:
         specifier: ^24.34.0
         version: 24.34.0(typescript@5.9.3)
@@ -26,12 +26,21 @@ importers:
 
   app/extension:
     dependencies:
+      '@service-policy-auditor/api':
+        specifier: workspace:*
+        version: link:../../packages/api
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@service-policy-auditor/csp':
         specifier: workspace:*
         version: link:../../packages/csp
       '@service-policy-auditor/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
+      hono:
+        specifier: ^4.7.0
+        version: 4.11.3
       preact:
         specifier: ^10.28.2
         version: 10.28.2
@@ -51,9 +60,18 @@ importers:
 
   app/server:
     dependencies:
-      '@service-policy-auditor/csp':
+      '@hono/node-server':
+        specifier: ^1.14.0
+        version: 1.19.8(hono@4.11.3)
+      '@service-policy-auditor/api':
         specifier: workspace:*
-        version: link:../../packages/csp
+        version: link:../../packages/api
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      hono:
+        specifier: ^4.7.0
+        version: 4.11.3
       sql.js:
         specifier: ^1.13.0
         version: 1.13.0
@@ -65,13 +83,31 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/csp: {}
+  packages/api:
+    dependencies:
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../core
+      hono:
+        specifier: ^4.7.0
+        version: 4.11.3
+      sql.js:
+        specifier: ^1.13.0
+        version: 1.13.0
+
+  packages/core: {}
+
+  packages/csp:
+    dependencies:
+      '@service-policy-auditor/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/detectors:
     dependencies:
-      '@service-policy-auditor/csp':
+      '@service-policy-auditor/core':
         specifier: workspace:*
-        version: link:../csp
+        version: link:../core
 
 packages:
 
@@ -353,6 +389,12 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@hono/node-server@1.19.8':
+    resolution: {integrity: sha512-0/g2lIOPzX8f3vzW1ggQgvG5mjtFBDBHFAzI5SFAi2DzSqS9luJwqg9T6O/gKYLi+inS7eNxBeIFkkghIPvrMA==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
 
   '@isaacs/balanced-match@4.0.1':
     resolution: {integrity: sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ==}
@@ -1198,6 +1240,10 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
+
+  hono@4.11.3:
+    resolution: {integrity: sha512-PmQi306+M/ct/m5s66Hrg+adPnkD5jiO6IjA7WhWw0gSBSo1EcRegwuI1deZ+wd5pzCGynCcn2DprnE4/yEV4w==}
+    engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
@@ -2418,6 +2464,10 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
+  '@hono/node-server@1.19.8(hono@4.11.3)':
+    dependencies:
+      hono: 4.11.3
+
   '@isaacs/balanced-match@4.0.1': {}
 
   '@isaacs/brace-expansion@5.0.0':
@@ -3203,6 +3253,8 @@ snapshots:
   growly@1.3.0: {}
 
   he@1.2.0: {}
+
+  hono@4.11.3: {}
 
   hookable@5.5.3: {}
 

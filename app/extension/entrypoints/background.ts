@@ -479,7 +479,24 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
   }
 }
 
+async function registerMainWorldScript() {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
+    await chrome.scripting.registerContentScripts([{
+      id: "api-hooks",
+      js: ["api-hooks.js"],
+      matches: ["<all_urls>"],
+      runAt: "document_start",
+      world: "MAIN",
+      persistAcrossSessions: true,
+    }]);
+  } catch (error) {
+    console.error("[Service Policy Auditor] Failed to register main world script:", error);
+  }
+}
+
 export default defineBackground(() => {
+  registerMainWorldScript();
   getApiClient()
     .then(async (client) => {
       apiClient = client;

@@ -8,7 +8,7 @@ export default defineConfig({
     version: "0.0.1",
     description:
       "Detect and visualize login pages, privacy policies, session cookies, and CSP violations",
-    permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen"],
+    permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting"],
     host_permissions: ["<all_urls>"],
     content_security_policy: {
       extension_pages:
@@ -29,6 +29,14 @@ export default defineConfig({
     },
     build: {
       target: "esnext",
+    },
+    optimizeDeps: {
+      include: [
+        "@service-policy-auditor/core",
+        "@service-policy-auditor/csp",
+        "@service-policy-auditor/detectors",
+        "@service-policy-auditor/api",
+      ],
     },
   }),
 });

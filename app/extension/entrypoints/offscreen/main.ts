@@ -126,9 +126,23 @@ async function handleLegacyMessage(
   }
 }
 
+// Only handle messages intended for offscreen document
+const OFFSCREEN_MESSAGE_TYPES = new Set([
+  "LOCAL_API_REQUEST",
+  "init",
+  "insert",
+  "query",
+  "clear",
+  "export",
+  "stats",
+]);
+
 chrome.runtime.onMessage.addListener(
   (message: DBMessage, _sender, sendResponse) => {
-    if (!message.type) return false;
+    // Only process messages intended for offscreen
+    if (!message.type || !OFFSCREEN_MESSAGE_TYPES.has(message.type)) {
+      return false;
+    }
 
     if (isLocalApiRequest(message)) {
       handleLocalApiRequest(message.request)
@@ -164,4 +178,9 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-initLocalServer().catch(console.error);
+initLocalServer()
+  .then(() => {
+    // Notify background that offscreen is ready
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
+  })
+  .catch(console.error);

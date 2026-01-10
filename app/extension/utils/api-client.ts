@@ -9,32 +9,78 @@ export interface ApiClientConfig {
 }
 
 let offscreenCreated = false;
+let offscreenReady = false;
+let offscreenCreating: Promise<void> | null = null;
+let offscreenReadyResolvers: (() => void)[] = [];
+
+// Listen for offscreen ready message
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "OFFSCREEN_READY") {
+      offscreenReady = true;
+      offscreenReadyResolvers.forEach(resolve => resolve());
+      offscreenReadyResolvers = [];
+    }
+    return false;
+  });
+}
+
+async function waitForOffscreenReady(timeout = 5000): Promise<void> {
+  if (offscreenReady) return;
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Offscreen ready timeout"));
+    }, timeout);
+
+    offscreenReadyResolvers.push(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
 
 async function ensureOffscreenDocument(): Promise<void> {
-  if (offscreenCreated) return;
+  if (offscreenReady) return;
 
-  const contexts = await chrome.runtime.getContexts({
-    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
-  });
-
-  if (contexts.length > 0) {
-    offscreenCreated = true;
+  if (offscreenCreating) {
+    await offscreenCreating;
+    await waitForOffscreenReady();
     return;
   }
 
-  try {
-    await chrome.offscreen.createDocument({
-      url: "offscreen/index.html",
-      reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
-      justification: "Running local SQL database with sql.js WASM",
-    });
-    offscreenCreated = true;
-  } catch (error) {
-    if (!(error instanceof Error && error.message.includes("already exists"))) {
-      throw error;
+  offscreenCreating = (async () => {
+    try {
+      const contexts = await chrome.runtime.getContexts({
+        contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+      });
+
+      if (contexts.length > 0) {
+        offscreenCreated = true;
+        await waitForOffscreenReady();
+        return;
+      }
+
+      await chrome.offscreen.createDocument({
+        url: "offscreen.html",
+        reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
+        justification: "Running local SQL database with sql.js WASM",
+      });
+      offscreenCreated = true;
+      await waitForOffscreenReady();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("already exists")) {
+        offscreenCreated = true;
+        await waitForOffscreenReady();
+      } else {
+        throw error;
+      }
+    } finally {
+      offscreenCreating = null;
     }
-    offscreenCreated = true;
-  }
+  })();
+
+  return offscreenCreating;
 }
 
 function generateId(): string {

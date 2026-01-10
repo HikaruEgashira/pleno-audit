@@ -41,10 +41,8 @@ export default defineContentScript({
       true
     );
 
-    // Inject main world script for API hooking
-    injectMainWorldScript();
-
     // Listen for network events from main world
+    // Note: api-hooks.js is registered via chrome.scripting.registerContentScripts in background.ts
     window.addEventListener(
       "__SERVICE_DETECTION_NETWORK__",
       ((event: CustomEvent) => {
@@ -75,15 +73,6 @@ export default defineContentScript({
     );
   },
 });
-
-function injectMainWorldScript() {
-  const script = document.createElement("script");
-  script.src = chrome.runtime.getURL("/api-hooks.js");
-  script.onload = () => {
-    script.remove();
-  };
-  (document.head || document.documentElement).appendChild(script);
-}
 
 function extractDomain(url: string): string {
   try {
