@@ -1332,7 +1332,47 @@ export function DashboardApp() {
         <section style={dashboardStyles.section}>
           <div style={dashboardStyles.sectionHeader}>
             <h2 style={dashboardStyles.sectionTitle}>ドメイン分析</h2>
+            <button
+              style={dashboardStyles.btnSecondary}
+              onClick={async () => {
+                try {
+                  const policy = await chrome.runtime.sendMessage({ type: "GENERATE_CSP" });
+                  if (policy?.policyString) {
+                    const blob = new Blob([policy.policyString], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `csp-policy-${new Date().toISOString().slice(0, 10)}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }
+                } catch (e) {
+                  console.error("CSP生成エラー:", e);
+                }
+              }}
+            >
+              CSPポリシー生成
+            </button>
           </div>
+
+          {/* CSP推奨事項 */}
+          {violations.length > 0 && (
+            <div style={{ ...dashboardStyles.alertCard, marginBottom: "16px" }}>
+              <div style={dashboardStyles.alertTitle}>CSPポリシー推奨事項</div>
+              <ul style={dashboardStyles.alertList}>
+                {directiveStats.slice(0, 3).map((d) => (
+                  <li key={d.label}>
+                    <strong>{d.label}</strong>: {d.value}件の違反 -
+                    許可リストの見直しを推奨
+                  </li>
+                ))}
+                <li>
+                  「CSPポリシー生成」ボタンで推奨ポリシーをダウンロードできます
+                </li>
+              </ul>
+            </div>
+          )}
+
           <DomainSummary violations={violations} requests={networkRequests} />
         </section>
       )}
@@ -1475,6 +1515,35 @@ export function DashboardApp() {
             <h2 style={dashboardStyles.sectionTitle}>イベントログ</h2>
             <span style={dashboardStyles.sectionCount}>{events.length}件</span>
           </div>
+
+          {/* イベントタイプ別統計 */}
+          {events.length > 0 && (
+            <div style={{ ...dashboardStyles.statsGrid, marginBottom: "16px" }}>
+              {Object.entries(
+                events.reduce((acc, e) => {
+                  acc[e.type] = (acc[e.type] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              )
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([type, count]) => (
+                  <div
+                    key={type}
+                    style={{
+                      ...dashboardStyles.statCard,
+                      cursor: "pointer",
+                      border: searchQuery === type ? "2px solid hsl(0 0% 30%)" : "none",
+                    }}
+                    onClick={() => setSearchQuery(searchQuery === type ? "" : type)}
+                  >
+                    <div style={dashboardStyles.statValue}>{count}</div>
+                    <div style={{ ...dashboardStyles.statLabel, fontSize: "10px" }}>{type}</div>
+                  </div>
+                ))}
+            </div>
+          )}
+
           <div style={dashboardStyles.filterBar}>
             <div style={dashboardStyles.filterGroup}>
               <label style={dashboardStyles.filterLabel}>検索:</label>
@@ -1485,6 +1554,22 @@ export function DashboardApp() {
                 value={searchQuery}
                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
               />
+            </div>
+            <div style={dashboardStyles.filterGroup}>
+              <label style={dashboardStyles.filterLabel}>タイプ:</label>
+              <select
+                style={dashboardStyles.filterSelect}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery((e.target as HTMLSelectElement).value)}
+              >
+                <option value="">すべて</option>
+                <option value="csp_violation">CSP違反</option>
+                <option value="login_detected">ログイン検出</option>
+                <option value="ai_prompt_sent">AIプロンプト</option>
+                <option value="nrd_detected">NRD検出</option>
+                <option value="privacy_policy_found">プライバシーポリシー</option>
+                <option value="cookie_set">Cookie設定</option>
+              </select>
             </div>
           </div>
           <EventLogTable events={events} searchQuery={searchQuery} />
