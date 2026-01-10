@@ -148,63 +148,67 @@ export function Settings() {
         <span>Enable NRD Detection</span>
       </label>
 
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={nrdConfig.enableRDAP}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              enableRDAP: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span>Enable RDAP Lookup (API queries)</span>
-      </label>
+      {nrdConfig.enabled && (
+        <>
+          <label style={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={nrdConfig.enableRDAP}
+              onChange={(e) =>
+                setNRDConfig({
+                  ...nrdConfig,
+                  enableRDAP: (e.target as HTMLInputElement).checked,
+                })
+              }
+            />
+            <span>Enable RDAP Lookup (API queries)</span>
+          </label>
 
-      <div style={{ marginBottom: "12px" }}>
-        <label style={styles.label}>
-          Age Threshold (days): {nrdConfig.thresholdDays}
-        </label>
-        <input
-          type="range"
-          min="1"
-          max="365"
-          value={nrdConfig.thresholdDays}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-            })
-          }
-          style={{ width: "100%", marginBottom: "4px" }}
-        />
-        <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
-          Domains registered within this period are flagged as NRD
-        </span>
-      </div>
+          <div style={{ marginBottom: "12px" }}>
+            <label style={styles.label}>
+              Age Threshold (days): {nrdConfig.thresholdDays}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="365"
+              value={nrdConfig.thresholdDays}
+              onChange={(e) =>
+                setNRDConfig({
+                  ...nrdConfig,
+                  thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+                })
+              }
+              style={{ width: "100%", marginBottom: "4px" }}
+            />
+            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
+              Domains registered within this period are flagged as NRD
+            </span>
+          </div>
 
-      <div style={{ marginBottom: "12px" }}>
-        <label style={styles.label}>
-          Heuristic Sensitivity: {nrdConfig.heuristicThreshold}
-        </label>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={nrdConfig.heuristicThreshold}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
-            })
-          }
-          style={{ width: "100%", marginBottom: "4px" }}
-        />
-        <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
-          Higher = stricter heuristic matching (0-100)
-        </span>
-      </div>
+          <div style={{ marginBottom: "12px" }}>
+            <label style={styles.label}>
+              Heuristic Sensitivity: {nrdConfig.heuristicThreshold}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={nrdConfig.heuristicThreshold}
+              onChange={(e) =>
+                setNRDConfig({
+                  ...nrdConfig,
+                  heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
+                })
+              }
+              style={{ width: "100%", marginBottom: "4px" }}
+            />
+            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
+              Higher = stricter heuristic matching (0-100)
+            </span>
+          </div>
+        </>
+      )}
 
       <div style={{ display: "flex", gap: "8px" }}>
         <button
