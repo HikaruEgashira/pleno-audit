@@ -11,32 +11,19 @@ import {
 import type { DOMAdapter, TosResult } from "./types.js";
 import { createPolicyFinder } from "./policy-finder-base.js";
 
-// Patterns that should NOT be detected as ToS (privacy pages, etc.)
-const TOS_EXCLUSION_PATTERNS = [
-  /privacy/i,
-  /プライバシー/,
-  /datenschutz/i,
-  /개인정보/,
-  /隐私/,
-  /隱私/,
-];
-
-function isExcludedUrl(url: string): boolean {
-  const decoded = decodeUrlSafe(url);
-  return TOS_EXCLUSION_PATTERNS.some(
-    (pattern) => pattern.test(url) || pattern.test(decoded)
-  );
-}
-
+/**
+ * プライバシー関連のリンクを除外（ToS検出時にprivacyを誤検知しないため）
+ */
 function shouldExcludePrivacy(text: string, url: string): boolean {
   const pathname = getPathFromUrl(url);
   const decodedPath = decodeUrlSafe(pathname);
   const decodedText = decodeUrlSafe(text);
 
+  // isPrivacyTextはPRIVACY_TEXT_PATTERNSを使用（多言語対応済み）
   return (
     isPrivacyText(text) ||
     isPrivacyText(decodedText) ||
-    isExcludedUrl(pathname) ||
+    isPrivacyText(pathname) ||
     isPrivacyText(decodedPath)
   );
 }
