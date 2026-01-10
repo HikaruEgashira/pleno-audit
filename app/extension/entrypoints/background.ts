@@ -40,13 +40,15 @@ import {
   getStorage,
   setStorage,
   clearAIPrompts,
-  EventStore,
-  checkEventsMigrationNeeded,
-  migrateEventsToIndexedDB,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
 } from "@service-policy-auditor/extension-runtime";
+import {
+  EventStore,
+  checkEventsMigrationNeeded,
+  migrateEventsToIndexedDB,
+} from "@service-policy-auditor/storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 

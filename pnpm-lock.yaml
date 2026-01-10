@@ -38,6 +38,9 @@ importers:
       '@service-policy-auditor/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
+      '@service-policy-auditor/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       hono:
         specifier: ^4.7.0
         version: 4.11.3
@@ -108,6 +111,12 @@ importers:
       '@service-policy-auditor/csp':
         specifier: workspace:*
         version: link:../csp
+      '@service-policy-auditor/detectors':
+        specifier: workspace:*
+        version: link:../detectors
+
+  packages/storage:
+    dependencies:
       '@service-policy-auditor/detectors':
         specifier: workspace:*
         version: link:../detectors

@@ -38,15 +38,6 @@ export { createMessageRouter, fireAndForget } from "./message-handler.js";
 // Browser Adapter
 export { createBrowserAdapter, browserAdapter } from "./browser-adapter.js";
 
-// Event Store
-export { EventStore } from "./event-store/index.js";
-export type { EventQueryOptions, EventQueryResult } from "./event-store/index.js";
-export {
-  checkEventsMigrationNeeded,
-  migrateEventsToIndexedDB,
-  resetEventsMigration,
-} from "./event-store/index.js";
-
 // Re-export types from storage-types
 export type {
   DetectedService,
