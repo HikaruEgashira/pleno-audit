@@ -8,9 +8,8 @@ import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
 import type { StorageData } from "@service-policy-auditor/extension-runtime";
 import { ServiceList } from "./components/ServiceList";
 import { EventLogList } from "./components/EventLog";
-import { ViolationList } from "./components/ViolationList";
+import { CspPanel } from "./components/CspPanel";
 import { NetworkList } from "./components/NetworkList";
-import { PolicyGenerator } from "./components/PolicyGenerator";
 import { Settings } from "./components/Settings";
 import { AIPromptList } from "./components/AIPromptList";
 import { styles } from "./styles";
@@ -19,18 +18,16 @@ type Tab =
   | "services"
   | "events"
   | "ai_prompts"
-  | "violations"
+  | "csp"
   | "network"
-  | "policy"
   | "settings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "services", label: "Services" },
-  { key: "events", label: "Events" },
   { key: "ai_prompts", label: "AI" },
-  { key: "violations", label: "CSP" },
+  { key: "events", label: "Events" },
   { key: "network", label: "Network" },
-  { key: "policy", label: "Policy" },
+  { key: "csp", label: "CSP" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -134,12 +131,10 @@ export function App() {
         return <EventLogList events={events} />;
       case "ai_prompts":
         return <AIPromptList prompts={aiPrompts} />;
-      case "violations":
-        return <ViolationList violations={violations} />;
+      case "csp":
+        return <CspPanel violations={violations} />;
       case "network":
         return <NetworkList requests={networkRequests} />;
-      case "policy":
-        return <PolicyGenerator />;
       case "settings":
         return <Settings />;
       default:
