@@ -24,11 +24,12 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
   });
 }
 
-async function waitForOffscreenReady(timeout = 5000): Promise<void> {
+async function waitForOffscreenReady(timeout = 15000): Promise<void> {
   if (offscreenReady) return;
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
+      console.error("[Service Policy Auditor] Offscreen document did not respond within timeout");
       reject(new Error("Offscreen ready timeout"));
     }, timeout);
 
