@@ -3,12 +3,9 @@ import type { CSPViolation } from "@service-policy-auditor/csp";
 import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
+import type { ViolationProps } from "../types";
 
-interface Props {
-  violations: CSPViolation[];
-}
-
-export function ViolationList({ violations }: Props) {
+export function ViolationList({ violations }: ViolationProps) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
   const [expandedId, setExpandedId] = useState<string | null>(null);

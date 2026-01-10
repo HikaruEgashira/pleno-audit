@@ -1,12 +1,8 @@
-import type { CSPViolation } from "@service-policy-auditor/csp";
 import { ViolationList } from "./ViolationList";
 import { PolicyGenerator } from "./PolicyGenerator";
+import type { ViolationProps } from "../types";
 
-interface Props {
-  violations: CSPViolation[];
-}
-
-export function CspPanel({ violations }: Props) {
+export function CspPanel({ violations }: ViolationProps) {
   return (
     <>
       <ViolationList violations={violations} />

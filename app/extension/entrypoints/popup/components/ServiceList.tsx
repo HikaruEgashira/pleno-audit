@@ -1,10 +1,7 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
 import { Badge, Card } from "../../../components";
 import { usePopupStyles } from "../styles";
-
-interface Props {
-  services: DetectedService[];
-}
+import type { ServiceProps } from "../types";
 
 function sanitizeUrl(url: string | null, domain: string): string {
   if (!url) {
@@ -22,7 +19,7 @@ function sanitizeUrl(url: string | null, domain: string): string {
   }
 }
 
-export function ServiceList({ services }: Props) {
+export function ServiceList({ services }: ServiceProps) {
   const styles = usePopupStyles();
 
   if (services.length === 0) {

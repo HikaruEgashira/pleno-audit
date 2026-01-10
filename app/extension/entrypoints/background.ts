@@ -12,9 +12,12 @@ import type {
   AIMonitorConfig,
   NRDConfig,
   NRDResult,
+  NRDCache,
   TyposquatConfig,
   TyposquatResult,
   TyposquatDetectedDetails,
+  TyposquatCache,
+  DetectionResult,
 } from "@service-policy-auditor/detectors";
 import {
   DEFAULT_AI_MONITOR_CONFIG,
@@ -72,13 +75,7 @@ let eventStore: EventStore | null = null;
 const nrdCache: Map<string, NRDResult> = new Map();
 let nrdDetector: ReturnType<typeof createNRDDetector> | null = null;
 
-interface NRDCacheAdapter {
-  get(domain: string): NRDResult | null;
-  set(domain: string, result: NRDResult): void;
-  clear(): void;
-}
-
-const nrdCacheAdapter: NRDCacheAdapter = {
+const nrdCacheAdapter: NRDCache = {
   get: (domain) => nrdCache.get(domain) ?? null,
   set: (domain, result) => nrdCache.set(domain, result),
   clear: () => nrdCache.clear(),
@@ -88,13 +85,7 @@ const nrdCacheAdapter: NRDCacheAdapter = {
 const typosquatCache: Map<string, TyposquatResult> = new Map();
 let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
 
-interface TyposquatCacheAdapter {
-  get(domain: string): TyposquatResult | null;
-  set(domain: string, result: TyposquatResult): void;
-  clear(): void;
-}
-
-const typosquatCacheAdapter: TyposquatCacheAdapter = {
+const typosquatCacheAdapter: TyposquatCache = {
   get: (domain) => typosquatCache.get(domain) ?? null,
   set: (domain, result) => typosquatCache.set(domain, result),
   clear: () => typosquatCache.clear(),
@@ -419,16 +410,8 @@ interface PageAnalysis {
   domain: string;
   timestamp: number;
   login: LoginDetectedDetails;
-  privacy: {
-    found: boolean;
-    url: string | null;
-    method: string;
-  };
-  tos: {
-    found: boolean;
-    url: string | null;
-    method: string;
-  };
+  privacy: DetectionResult;
+  tos: DetectionResult;
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {

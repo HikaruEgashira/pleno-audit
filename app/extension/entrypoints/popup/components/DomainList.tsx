@@ -1,12 +1,9 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
 import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
+import type { ServiceProps } from "../types";
 
-interface Props {
-  services: DetectedService[];
-}
-
-export function DomainList({ services }: Props) {
+export function DomainList({ services }: ServiceProps) {
   const styles = usePopupStyles();
 
   // NRDまたはTyposquatが検出されたサービスのみフィルタ

@@ -1,14 +1,8 @@
-import type { DetectedService, EventLog, CapturedAIPrompt } from "@service-policy-auditor/detectors";
 import { ServiceList } from "./ServiceList";
 import { AIPromptList } from "./AIPromptList";
 import { EventLogList } from "./EventLog";
 import { usePopupStyles } from "../styles";
-
-interface Props {
-  services: DetectedService[];
-  aiPrompts: CapturedAIPrompt[];
-  events: EventLog[];
-}
+import type { ShadowITTabProps } from "../types";
 
 const SHADOW_IT_EVENT_TYPES = [
   "cookie_set",
@@ -17,7 +11,7 @@ const SHADOW_IT_EVENT_TYPES = [
   "terms_of_service_found",
 ];
 
-export function ShadowITTab({ services, aiPrompts, events }: Props) {
+export function ShadowITTab({ services, aiPrompts, events }: ShadowITTabProps) {
   const styles = usePopupStyles();
 
   return (

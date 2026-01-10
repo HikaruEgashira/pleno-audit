@@ -1,15 +1,10 @@
-import type { DetectedService, EventLog } from "@service-policy-auditor/detectors";
 import { DomainList } from "./DomainList";
 import { EventLogList } from "./EventLog";
 import { NRDSettings } from "./NRDSettings";
 import { usePopupStyles } from "../styles";
+import type { PhishingTabProps } from "../types";
 
-interface Props {
-  services: DetectedService[];
-  events: EventLog[];
-}
-
-export function PhishingTab({ services, events }: Props) {
+export function PhishingTab({ services, events }: PhishingTabProps) {
   const styles = usePopupStyles();
 
   return (
