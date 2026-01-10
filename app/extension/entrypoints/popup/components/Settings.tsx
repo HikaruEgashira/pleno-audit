@@ -1,8 +1,11 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@service-policy-auditor/detectors";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 export function Settings() {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const [config, setConfig] = useState<CSPConfig | null>(null);
   const [nrdConfig, setNRDConfig] = useState<NRDConfig | null>(null);
   const [endpoint, setEndpoint] = useState("");
@@ -88,7 +91,7 @@ export function Settings() {
             })
           }
         />
-        <span>Enable CSP Auditing</span>
+        <span style={{ color: colors.textPrimary }}>Enable CSP Auditing</span>
       </label>
 
       {config.enabled && (
@@ -104,7 +107,7 @@ export function Settings() {
                 })
               }
             />
-            <span>Collect CSP Violations</span>
+            <span style={{ color: colors.textPrimary }}>Collect CSP Violations</span>
           </label>
 
           <label style={styles.checkbox}>
@@ -118,7 +121,7 @@ export function Settings() {
                 })
               }
             />
-            <span>Collect Network Requests</span>
+            <span style={{ color: colors.textPrimary }}>Collect Network Requests</span>
           </label>
 
           <div style={{ marginBottom: "16px" }}>
@@ -134,7 +137,7 @@ export function Settings() {
         </>
       )}
 
-      <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid hsl(0 0% 80%)" }} />
+      <hr style={{ margin: "16px 0", border: "none", borderTop: `1px solid ${colors.border}` }} />
 
       <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
 
@@ -149,7 +152,7 @@ export function Settings() {
             })
           }
         />
-        <span>Enable NRD Detection</span>
+        <span style={{ color: colors.textPrimary }}>Enable NRD Detection</span>
       </label>
 
       {nrdConfig.enabled && (
@@ -165,7 +168,7 @@ export function Settings() {
                 })
               }
             />
-            <span>Enable RDAP Lookup (API queries)</span>
+            <span style={{ color: colors.textPrimary }}>Enable RDAP Lookup (API queries)</span>
           </label>
 
           <div style={{ marginBottom: "12px" }}>
@@ -185,7 +188,7 @@ export function Settings() {
               }
               style={{ width: "100%", marginBottom: "4px" }}
             />
-            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
+            <span style={{ fontSize: "11px", color: colors.textSecondary }}>
               Domains registered within this period are flagged as NRD
             </span>
           </div>
@@ -207,7 +210,7 @@ export function Settings() {
               }
               style={{ width: "100%", marginBottom: "4px" }}
             />
-            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
+            <span style={{ fontSize: "11px", color: colors.textSecondary }}>
               Higher = stricter heuristic matching (0-100)
             </span>
           </div>
@@ -231,8 +234,8 @@ export function Settings() {
           onClick={handleClearData}
           style={{
             ...styles.buttonSecondary,
-            color: "hsl(0 70% 50%)",
-            borderColor: "hsl(0 70% 50%)",
+            color: colors.status.danger.text,
+            borderColor: colors.status.danger.border,
           }}
         >
           Clear Data
@@ -244,7 +247,7 @@ export function Settings() {
           style={{
             marginTop: "12px",
             fontSize: "12px",
-            color: "hsl(120 50% 40%)",
+            color: colors.status.success.text,
             textAlign: "center",
           }}
         >

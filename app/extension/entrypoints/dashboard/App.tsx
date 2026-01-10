@@ -9,7 +9,8 @@ import type {
   DetectedService,
   EventLog,
 } from "@service-policy-auditor/detectors";
-import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Tabs } from "../../components";
+import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
+import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Tabs, ThemeToggle } from "../../components";
 
 interface Stats {
   violations: number;
@@ -34,96 +35,126 @@ function getPeriodMs(period: Period): number {
   }
 }
 
-const styles = {
-  container: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "24px",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
-    color: "#111",
-    background: "#fafafa",
-    minHeight: "100vh",
-  },
-  header: {
-    marginBottom: "32px",
-  },
-  headerTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "24px",
-  },
-  title: {
-    fontSize: "20px",
-    fontWeight: 600,
-    margin: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  subtitle: {
-    color: "#666",
-    fontSize: "13px",
-    marginTop: "4px",
-  },
-  controls: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: "12px",
-    marginBottom: "24px",
-  },
-  filterBar: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "center",
-    marginBottom: "16px",
-    flexWrap: "wrap" as const,
-  },
-  section: {
-    marginBottom: "32px",
-  },
-  twoColumn: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "16px",
-    marginBottom: "24px",
-  },
-  chartContainer: {
-    height: "200px",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "6px",
-  },
-  chartBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  chartLabel: {
-    fontSize: "12px",
-    color: "#666",
-    width: "100px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
-  chartBarInner: {
-    height: "20px",
-    background: "#000",
-    borderRadius: "4px",
-    minWidth: "4px",
-  },
-  chartValue: {
-    fontSize: "12px",
-    color: "#666",
-    minWidth: "40px",
-  },
-};
+function createStyles(colors: ThemeColors, isDark: boolean) {
+  return {
+    container: {
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "24px",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+      color: colors.textPrimary,
+      background: colors.bgSecondary,
+      minHeight: "100vh",
+    },
+    header: {
+      marginBottom: "32px",
+    },
+    headerTop: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "24px",
+    },
+    title: {
+      fontSize: "20px",
+      fontWeight: 600,
+      margin: 0,
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: "13px",
+      marginTop: "4px",
+    },
+    controls: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+    },
+    statsGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+      gap: "12px",
+      marginBottom: "24px",
+    },
+    filterBar: {
+      display: "flex",
+      gap: "12px",
+      alignItems: "center",
+      marginBottom: "16px",
+      flexWrap: "wrap" as const,
+    },
+    section: {
+      marginBottom: "32px",
+    },
+    twoColumn: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "16px",
+      marginBottom: "24px",
+    },
+    chartContainer: {
+      height: "200px",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "6px",
+    },
+    chartBar: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    chartLabel: {
+      fontSize: "12px",
+      color: colors.textSecondary,
+      width: "100px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap" as const,
+    },
+    chartBarInner: {
+      height: "20px",
+      background: colors.interactive,
+      borderRadius: "4px",
+      minWidth: "4px",
+    },
+    chartValue: {
+      fontSize: "12px",
+      color: colors.textSecondary,
+      minWidth: "40px",
+    },
+    eventItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "10px 12px",
+      background: colors.bgSecondary,
+      borderRadius: "6px",
+    },
+    eventTime: {
+      fontSize: "12px",
+      color: colors.textSecondary,
+      minWidth: "70px",
+    },
+    code: {
+      fontSize: "12px",
+      fontFamily: "monospace",
+      flex: 1,
+      color: colors.textPrimary,
+    },
+    link: {
+      color: isDark ? "#60a5fa" : "#0070f3",
+      fontSize: "12px",
+    },
+    emptyText: {
+      color: colors.textMuted,
+      textAlign: "center" as const,
+      padding: "24px",
+    },
+  };
+}
 
 const periodOptions = [
   { value: "1h", label: "1時間" },
@@ -140,14 +171,15 @@ function getStatusBadge(nrdCount: number, violationCount: number, aiCount: numbe
   return { variant: "success" as const, label: "正常", dot: true };
 }
 
-function HorizontalBarChart({ data, title }: { data: { label: string; value: number }[]; title: string }) {
+function HorizontalBarChart({ data, title, colors, isDark }: { data: { label: string; value: number }[]; title: string; colors: ThemeColors; isDark: boolean }) {
+  const styles = createStyles(colors, isDark);
   const maxValue = Math.max(...data.map((d) => d.value), 1);
   const displayData = data.slice(0, 8);
 
   return (
     <Card title={title}>
       {displayData.length === 0 ? (
-        <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>データなし</p>
+        <p style={styles.emptyText}>データなし</p>
       ) : (
         <div style={styles.chartContainer}>
           {displayData.map((item, i) => (
@@ -169,7 +201,10 @@ function HorizontalBarChart({ data, title }: { data: { label: string; value: num
   );
 }
 
-export function DashboardApp() {
+function DashboardContent() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+
   const [reports, setReports] = useState<CSPReport[]>([]);
   const [, setStats] = useState<Stats>({ violations: 0, requests: 0, uniqueDomains: 0 });
   const [lastUpdated, setLastUpdated] = useState<string>("");
@@ -316,7 +351,7 @@ export function DashboardApp() {
   if (loading) {
     return (
       <div style={styles.container}>
-        <p style={{ textAlign: "center", padding: "48px", color: "#666" }}>読み込み中...</p>
+        <p style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>読み込み中...</p>
       </div>
     );
   }
@@ -390,6 +425,7 @@ export function DashboardApp() {
             </p>
           </div>
           <div style={styles.controls}>
+            <ThemeToggle />
             <Select
               value={period}
               onChange={(v) => setPeriod(v as Period)}
@@ -418,28 +454,18 @@ export function DashboardApp() {
       {activeTab === "overview" && (
         <>
           <div style={styles.twoColumn}>
-            <HorizontalBarChart data={directiveStats} title="Directive別違反数" />
-            <HorizontalBarChart data={domainStats} title="ドメイン別違反数" />
+            <HorizontalBarChart data={directiveStats} title="Directive別違反数" colors={colors} isDark={isDark} />
+            <HorizontalBarChart data={domainStats} title="ドメイン別違反数" colors={colors} isDark={isDark} />
           </div>
 
           <Card title="最近のイベント">
             {events.slice(0, 10).length === 0 ? (
-              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>イベントなし</p>
+              <p style={styles.emptyText}>イベントなし</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {events.slice(0, 10).map((e) => (
-                  <div
-                    key={e.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      padding: "10px 12px",
-                      background: "#fafafa",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    <span style={{ fontSize: "12px", color: "#666", minWidth: "70px" }}>
+                  <div key={e.id} style={styles.eventItem}>
+                    <span style={styles.eventTime}>
                       {new Date(e.timestamp).toLocaleTimeString("ja-JP")}
                     </span>
                     <Badge
@@ -453,7 +479,7 @@ export function DashboardApp() {
                     >
                       {e.type}
                     </Badge>
-                    <code style={{ fontSize: "12px", fontFamily: "monospace", flex: 1 }}>{e.domain}</code>
+                    <code style={styles.code}>{e.domain}</code>
                   </div>
                 ))}
               </div>
@@ -595,8 +621,8 @@ export function DashboardApp() {
             columns={[
               { key: "domain", header: "ドメイン", render: (s) => <code style={{ fontSize: "12px" }}>{s.domain}</code> },
               { key: "login", header: "ログイン", width: "80px", render: (s) => s.hasLoginPage ? <Badge variant="warning">検出</Badge> : "-" },
-              { key: "privacy", header: "プライバシーポリシー", width: "160px", render: (s) => s.privacyPolicyUrl ? <a href={s.privacyPolicyUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3", fontSize: "12px" }}>{truncate(s.privacyPolicyUrl, 25)}</a> : "-" },
-              { key: "tos", header: "利用規約", width: "140px", render: (s) => s.termsOfServiceUrl ? <a href={s.termsOfServiceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3", fontSize: "12px" }}>{truncate(s.termsOfServiceUrl, 20)}</a> : "-" },
+              { key: "privacy", header: "プライバシーポリシー", width: "160px", render: (s) => s.privacyPolicyUrl ? <a href={s.privacyPolicyUrl} target="_blank" rel="noopener noreferrer" style={styles.link}>{truncate(s.privacyPolicyUrl, 25)}</a> : "-" },
+              { key: "tos", header: "利用規約", width: "140px", render: (s) => s.termsOfServiceUrl ? <a href={s.termsOfServiceUrl} target="_blank" rel="noopener noreferrer" style={styles.link}>{truncate(s.termsOfServiceUrl, 20)}</a> : "-" },
               { key: "nrd", header: "NRD", width: "100px", render: (s) => s.nrdResult?.isNRD ? <Badge variant="danger">NRD</Badge> : "-" },
               { key: "detected", header: "検出日時", width: "140px", render: (s) => new Date(s.detectedAt).toLocaleDateString("ja-JP") },
             ]}
@@ -642,5 +668,15 @@ export function DashboardApp() {
         </div>
       )}
     </div>
+  );
+}
+
+export function DashboardApp() {
+  const themeState = useThemeState();
+
+  return (
+    <ThemeContext.Provider value={themeState}>
+      <DashboardContent />
+    </ThemeContext.Provider>
   );
 }

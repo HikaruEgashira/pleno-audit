@@ -1,12 +1,16 @@
 import type { NetworkRequest } from "@service-policy-auditor/csp";
 import { Badge } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 interface Props {
   requests: NetworkRequest[];
 }
 
 export function NetworkList({ requests }: Props) {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
+
   if (requests.length === 0) {
     return (
       <div style={styles.section}>
@@ -31,7 +35,7 @@ export function NetworkList({ requests }: Props) {
             {requests.slice(0, 50).map((r, i) => (
               <tr key={i} style={styles.tableRow}>
                 <td style={styles.tableCell}>
-                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666" }}>
+                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>
                     {formatTime(r.timestamp)}
                   </span>
                 </td>
@@ -47,7 +51,7 @@ export function NetworkList({ requests }: Props) {
         </table>
       </div>
       {requests.length > 50 && (
-        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
           50件中{requests.length}件を表示
         </p>
       )}

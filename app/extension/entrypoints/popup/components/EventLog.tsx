@@ -1,6 +1,7 @@
 import type { EventLog } from "@service-policy-auditor/detectors";
 import { Badge } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 interface Props {
   events: EventLog[];
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export function EventLogList({ events, filterTypes, title = "イベント" }: Props) {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const filteredEvents = filterTypes
     ? events.filter((event) => filterTypes.includes(event.type))
     : events;
@@ -35,13 +38,13 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
           </thead>
           <tbody>
             {filteredEvents.slice(0, 50).map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow key={event.id} event={event} styles={styles} colors={colors} />
             ))}
           </tbody>
         </table>
       </div>
       {filteredEvents.length > 50 && (
-        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
           50件中{filteredEvents.length}件を表示
         </p>
       )}
@@ -49,7 +52,7 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
   );
 }
 
-function EventRow({ event }: { event: EventLog }) {
+function EventRow({ event, styles, colors }: { event: EventLog; styles: ReturnType<typeof usePopupStyles>; colors: any }) {
   const time = new Date(event.timestamp).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
@@ -98,7 +101,7 @@ function EventRow({ event }: { event: EventLog }) {
   return (
     <tr style={styles.tableRow}>
       <td style={styles.tableCell}>
-        <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666" }}>{time}</span>
+        <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>{time}</span>
       </td>
       <td style={styles.tableCell}>
         <code style={styles.code}>{event.domain}</code>

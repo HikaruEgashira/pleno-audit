@@ -1,12 +1,13 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
 import { Badge } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
 
 interface Props {
   services: DetectedService[];
 }
 
 export function NRDList({ services }: Props) {
+  const styles = usePopupStyles();
   const nrdServices = services.filter((s) => s.nrdResult?.isNRD);
 
   if (nrdServices.length === 0) {
@@ -33,7 +34,7 @@ export function NRDList({ services }: Props) {
           </thead>
           <tbody>
             {sorted.map((service) => (
-              <NRDRow key={service.domain} service={service} />
+              <NRDRow key={service.domain} service={service} styles={styles} />
             ))}
           </tbody>
         </table>
@@ -42,7 +43,7 @@ export function NRDList({ services }: Props) {
   );
 }
 
-function NRDRow({ service }: { service: DetectedService }) {
+function NRDRow({ service, styles }: { service: DetectedService; styles: ReturnType<typeof usePopupStyles> }) {
   const nrdResult = service.nrdResult;
 
   if (!nrdResult?.isNRD) return null;

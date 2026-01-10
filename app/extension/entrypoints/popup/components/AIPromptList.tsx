@@ -1,13 +1,16 @@
 import { useState } from "preact/hooks";
 import type { CapturedAIPrompt } from "@service-policy-auditor/detectors";
 import { Badge, Card } from "../../../components";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
+import { useTheme } from "../../../lib/theme";
 
 interface Props {
   prompts: CapturedAIPrompt[];
 }
 
 export function AIPromptList({ prompts }: Props) {
+  const styles = usePopupStyles();
+  const { colors } = useTheme();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (prompts.length === 0) {
@@ -30,11 +33,13 @@ export function AIPromptList({ prompts }: Props) {
             onToggle={() =>
               setExpandedId(expandedId === prompt.id ? null : prompt.id)
             }
+            styles={styles}
+            colors={colors}
           />
         ))}
       </div>
       {prompts.length > 50 && (
-        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
           50件中{prompts.length}件を表示
         </p>
       )}
@@ -46,10 +51,14 @@ function PromptCard({
   prompt,
   expanded,
   onToggle,
+  styles,
+  colors,
 }: {
   prompt: CapturedAIPrompt;
   expanded: boolean;
   onToggle: () => void;
+  styles: ReturnType<typeof usePopupStyles>;
+  colors: any;
 }) {
   const time = new Date(prompt.timestamp).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -77,7 +86,7 @@ function PromptCard({
             {prompt.model && (
               <code style={{ ...styles.code, marginLeft: "8px" }}>{prompt.model}</code>
             )}
-            <span style={{ fontSize: "11px", color: "#666", marginLeft: "auto" }}>{time}</span>
+            <span style={{ fontSize: "11px", color: colors.textSecondary, marginLeft: "auto" }}>{time}</span>
           </div>
         )}
         <p
@@ -87,14 +96,14 @@ function PromptCard({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            color: "#333",
+            color: colors.textPrimary,
             flex: showProvider ? undefined : 1,
           }}
         >
           {preview}
         </p>
         {!showProvider && (
-          <span style={{ fontSize: "11px", color: "#666", flexShrink: 0 }}>{time}</span>
+          <span style={{ fontSize: "11px", color: colors.textSecondary, flexShrink: 0 }}>{time}</span>
         )}
       </div>
 
@@ -103,19 +112,19 @@ function PromptCard({
           style={{
             marginTop: "12px",
             paddingTop: "12px",
-            borderTop: "1px solid #eaeaea",
+            borderTop: `1px solid ${colors.border}`,
             fontSize: "12px",
           }}
         >
           <div style={{ marginBottom: "8px" }}>
-            <strong style={{ color: "#666" }}>エンドポイント:</strong>{" "}
+            <strong style={{ color: colors.textSecondary }}>エンドポイント:</strong>{" "}
             <code style={styles.code}>{prompt.apiEndpoint}</code>
           </div>
           <div style={{ marginBottom: "8px" }}>
-            <strong style={{ color: "#666" }}>プロンプト:</strong>
+            <strong style={{ color: colors.textSecondary }}>プロンプト:</strong>
             <pre
               style={{
-                backgroundColor: "#fafafa",
+                backgroundColor: colors.bgSecondary,
                 padding: "10px",
                 borderRadius: "6px",
                 whiteSpace: "pre-wrap",
@@ -124,7 +133,8 @@ function PromptCard({
                 fontSize: "11px",
                 fontFamily: "monospace",
                 margin: "6px 0 0",
-                border: "1px solid #eaeaea",
+                border: `1px solid ${colors.border}`,
+                color: colors.textPrimary,
               }}
             >
               {formatPrompt(prompt)}
@@ -132,7 +142,7 @@ function PromptCard({
           </div>
           {prompt.response && (
             <div>
-              <strong style={{ color: "#666" }}>
+              <strong style={{ color: colors.textSecondary }}>
                 レスポンス{" "}
                 {prompt.response.latencyMs && (
                   <Badge variant="success">{prompt.response.latencyMs}ms</Badge>
@@ -140,7 +150,7 @@ function PromptCard({
               </strong>
               <pre
                 style={{
-                  backgroundColor: "#fafafa",
+                  backgroundColor: colors.bgSecondary,
                   padding: "10px",
                   borderRadius: "6px",
                   whiteSpace: "pre-wrap",
@@ -149,7 +159,8 @@ function PromptCard({
                   fontSize: "11px",
                   fontFamily: "monospace",
                   margin: "6px 0 0",
-                  border: "1px solid #eaeaea",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.textPrimary,
                 }}
               >
                 {prompt.response.text || "(テキストなし)"}

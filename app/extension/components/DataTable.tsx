@@ -1,5 +1,6 @@
 import type { CSSProperties } from "preact/compat";
 import { useState, useMemo } from "preact/hooks";
+import { useTheme, type ThemeColors } from "../lib/theme";
 
 interface Column<T> {
   key: string;
@@ -17,79 +18,81 @@ interface DataTableProps<T> {
   rowHighlight?: (item: T) => boolean;
 }
 
-const styles: Record<string, CSSProperties> = {
-  container: {
-    background: "#fff",
-    border: "1px solid #eaeaea",
-    borderRadius: "8px",
-    overflow: "hidden",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "13px",
-  },
-  th: {
-    background: "#fafafa",
-    borderBottom: "1px solid #eaeaea",
-    padding: "12px 16px",
-    textAlign: "left",
-    fontSize: "12px",
-    fontWeight: 500,
-    color: "#666",
-  },
-  td: {
-    padding: "12px 16px",
-    borderBottom: "1px solid #f5f5f5",
-    color: "#333",
-  },
-  row: {
-    transition: "background 0.1s",
-  },
-  rowHighlight: {
-    background: "#fffbe6",
-  },
-  empty: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#999",
-    fontSize: "14px",
-  },
-  pagination: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "12px 16px",
-    borderTop: "1px solid #eaeaea",
-    background: "#fafafa",
-  },
-  pageInfo: {
-    fontSize: "13px",
-    color: "#666",
-  },
-  pageButtons: {
-    display: "flex",
-    gap: "8px",
-  },
-  pageBtn: {
-    padding: "6px 12px",
-    border: "1px solid #eaeaea",
-    borderRadius: "6px",
-    background: "#fff",
-    fontSize: "12px",
-    color: "#333",
-    cursor: "pointer",
-  },
-  pageBtnDisabled: {
-    padding: "6px 12px",
-    border: "1px solid #eaeaea",
-    borderRadius: "6px",
-    background: "#fafafa",
-    fontSize: "12px",
-    color: "#ccc",
-    cursor: "not-allowed",
-  },
-};
+function getStyles(colors: ThemeColors, isDark: boolean): Record<string, CSSProperties> {
+  return {
+    container: {
+      background: colors.bgPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "8px",
+      overflow: "hidden",
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: "13px",
+    },
+    th: {
+      background: colors.bgSecondary,
+      borderBottom: `1px solid ${colors.border}`,
+      padding: "12px 16px",
+      textAlign: "left",
+      fontSize: "12px",
+      fontWeight: 500,
+      color: colors.textSecondary,
+    },
+    td: {
+      padding: "12px 16px",
+      borderBottom: `1px solid ${colors.borderLight}`,
+      color: colors.textPrimary,
+    },
+    row: {
+      transition: "background 0.1s",
+    },
+    rowHighlight: {
+      background: isDark ? "#3d3a0a" : "#fffbe6",
+    },
+    empty: {
+      padding: "48px",
+      textAlign: "center",
+      color: colors.textMuted,
+      fontSize: "14px",
+    },
+    pagination: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "12px 16px",
+      borderTop: `1px solid ${colors.border}`,
+      background: colors.bgSecondary,
+    },
+    pageInfo: {
+      fontSize: "13px",
+      color: colors.textSecondary,
+    },
+    pageButtons: {
+      display: "flex",
+      gap: "8px",
+    },
+    pageBtn: {
+      padding: "6px 12px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
+      background: colors.bgPrimary,
+      fontSize: "12px",
+      color: colors.textPrimary,
+      cursor: "pointer",
+    },
+    pageBtnDisabled: {
+      padding: "6px 12px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
+      background: colors.bgSecondary,
+      fontSize: "12px",
+      color: colors.textMuted,
+      cursor: "not-allowed",
+    },
+  };
+}
 
 export function DataTable<T>({
   data,
@@ -99,6 +102,8 @@ export function DataTable<T>({
   rowKey,
   rowHighlight,
 }: DataTableProps<T>) {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
   const [page, setPage] = useState(0);
 
   const totalPages = Math.ceil(data.length / pageSize);

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "preact/compat";
+import { useTheme, type ThemeColors } from "../lib/theme";
 
 interface StatCardProps {
   value: number | string;
@@ -10,48 +11,52 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-const styles: Record<string, CSSProperties> = {
-  card: {
-    background: "#fff",
-    border: "1px solid #eaeaea",
-    borderRadius: "8px",
-    padding: "20px",
-  },
-  cardClickable: {
-    background: "#fff",
-    border: "1px solid #eaeaea",
-    borderRadius: "8px",
-    padding: "20px",
-    cursor: "pointer",
-    transition: "border-color 0.15s",
-  },
-  value: {
-    fontSize: "32px",
-    fontWeight: 600,
-    color: "#000",
-    lineHeight: 1,
-  },
-  label: {
-    fontSize: "13px",
-    color: "#666",
-    marginTop: "8px",
-  },
-  trend: {
-    fontSize: "12px",
-    marginTop: "8px",
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  },
-  trendUp: {
-    color: "#c00",
-  },
-  trendDown: {
-    color: "#0a7227",
-  },
-};
+function getStyles(colors: ThemeColors, isDark: boolean): Record<string, CSSProperties> {
+  return {
+    card: {
+      background: colors.bgPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "8px",
+      padding: "20px",
+    },
+    cardClickable: {
+      background: colors.bgPrimary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "8px",
+      padding: "20px",
+      cursor: "pointer",
+      transition: "border-color 0.15s",
+    },
+    value: {
+      fontSize: "32px",
+      fontWeight: 600,
+      color: colors.textPrimary,
+      lineHeight: 1,
+    },
+    label: {
+      fontSize: "13px",
+      color: colors.textSecondary,
+      marginTop: "8px",
+    },
+    trend: {
+      fontSize: "12px",
+      marginTop: "8px",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+    },
+    trendUp: {
+      color: isDark ? "#f87171" : "#c00",
+    },
+    trendDown: {
+      color: isDark ? "#4ade80" : "#0a7227",
+    },
+  };
+}
 
 export function StatCard({ value, label, trend, onClick }: StatCardProps) {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
   const displayValue = typeof value === "number" ? value.toLocaleString() : value;
 
   return (
@@ -59,10 +64,10 @@ export function StatCard({ value, label, trend, onClick }: StatCardProps) {
       style={onClick ? styles.cardClickable : styles.card}
       onClick={onClick}
       onMouseEnter={(e) => {
-        if (onClick) (e.currentTarget as HTMLElement).style.borderColor = "#999";
+        if (onClick) (e.currentTarget as HTMLElement).style.borderColor = colors.textMuted;
       }}
       onMouseLeave={(e) => {
-        if (onClick) (e.currentTarget as HTMLElement).style.borderColor = "#eaeaea";
+        if (onClick) (e.currentTarget as HTMLElement).style.borderColor = colors.border;
       }}
     >
       <div style={styles.value}>{displayValue}</div>

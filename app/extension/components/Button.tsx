@@ -1,4 +1,5 @@
 import type { CSSProperties } from "preact/compat";
+import { useTheme, type ThemeColors } from "../lib/theme";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 type ButtonSize = "sm" | "md";
@@ -23,21 +24,23 @@ const baseStyle: CSSProperties = {
   transition: "all 0.15s",
 };
 
-const variantStyles: Record<ButtonVariant, CSSProperties> = {
-  primary: {
-    background: "#000",
-    color: "#fff",
-  },
-  secondary: {
-    background: "#fff",
-    color: "#333",
-    border: "1px solid #eaeaea",
-  },
-  ghost: {
-    background: "transparent",
-    color: "#666",
-  },
-};
+function getVariantStyles(colors: ThemeColors): Record<ButtonVariant, CSSProperties> {
+  return {
+    primary: {
+      background: colors.interactive,
+      color: colors.textInverse,
+    },
+    secondary: {
+      background: colors.bgPrimary,
+      color: colors.textPrimary,
+      border: `1px solid ${colors.border}`,
+    },
+    ghost: {
+      background: "transparent",
+      color: colors.textSecondary,
+    },
+  };
+}
 
 const sizeStyles: Record<ButtonSize, CSSProperties> = {
   sm: {
@@ -57,6 +60,9 @@ export function Button({
   size = "md",
   disabled = false,
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const variantStyles = getVariantStyles(colors);
+
   return (
     <button
       style={{

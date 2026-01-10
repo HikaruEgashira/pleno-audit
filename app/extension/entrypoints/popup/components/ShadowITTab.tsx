@@ -2,7 +2,7 @@ import type { DetectedService, EventLog, CapturedAIPrompt } from "@service-polic
 import { ServiceList } from "./ServiceList";
 import { AIPromptList } from "./AIPromptList";
 import { EventLogList } from "./EventLog";
-import { styles } from "../styles";
+import { usePopupStyles } from "../styles";
 
 interface Props {
   services: DetectedService[];
@@ -18,6 +18,8 @@ const SHADOW_IT_EVENT_TYPES = [
 ];
 
 export function ShadowITTab({ services, aiPrompts, events }: Props) {
+  const styles = usePopupStyles();
+
   return (
     <div>
       <ServiceList services={services} />
