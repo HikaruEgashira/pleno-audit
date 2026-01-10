@@ -73,19 +73,17 @@ function PromptCard({
           padding: "8px 12px",
           cursor: "pointer",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: showProvider ? "column" : "row",
           gap: "4px",
+          alignItems: showProvider ? "stretch" : "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          {showProvider && <span style={styles.badge}>{prompt.provider}</span>}
-          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: "auto" }}>{time}</span>
-        </div>
+        {showProvider && (
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <span style={styles.badge}>{prompt.provider}</span>
+            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: "auto" }}>{time}</span>
+          </div>
+        )}
         <p
           style={{
             fontSize: "12px",
@@ -94,10 +92,14 @@ function PromptCard({
             overflow: "hidden",
             textOverflow: "ellipsis",
             color: "hsl(0 0% 30%)",
+            flex: showProvider ? undefined : 1,
           }}
         >
           {preview}
         </p>
+        {!showProvider && (
+          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", flexShrink: 0 }}>{time}</span>
+        )}
       </div>
 
       {expanded && (
