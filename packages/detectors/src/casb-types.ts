@@ -13,6 +13,7 @@ import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
 } from "./ai-types.js";
+import type { TyposquatDetectedDetails } from "./typosquat-types.js";
 
 // ============================================================================
 // SaaS Visibility (サービス可視性)
@@ -41,6 +42,12 @@ export interface DetectedService {
     isNRD: boolean;
     confidence: "high" | "medium" | "low" | "unknown";
     domainAge: number | null;
+    checkedAt: number;
+  };
+  typosquatResult?: {
+    isTyposquat: boolean;
+    confidence: "high" | "medium" | "low" | "none";
+    totalScore: number;
     checkedAt: number;
   };
 }
@@ -122,6 +129,7 @@ export type EventLogBase<T extends string, D> = {
  * - ai_prompt_sent: AIプロンプト送信
  * - ai_response_received: AIレスポンス受信
  * - nrd_detected: NRD判定検出
+ * - typosquat_detected: タイポスクワッティング検出
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
@@ -132,6 +140,7 @@ export type EventLog =
   | EventLogBase<"network_request", NetworkRequestDetails>
   | EventLogBase<"ai_prompt_sent", AIPromptSentDetails>
   | EventLogBase<"ai_response_received", AIResponseReceivedDetails>
-  | EventLogBase<"nrd_detected", NRDDetectedDetails>;
+  | EventLogBase<"nrd_detected", NRDDetectedDetails>
+  | EventLogBase<"typosquat_detected", TyposquatDetectedDetails>;
 
 export type EventLogType = EventLog["type"];

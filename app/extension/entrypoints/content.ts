@@ -58,6 +58,17 @@ async function checkNRD(domain: string) {
   }
 }
 
+async function checkTyposquat(domain: string) {
+  try {
+    await chrome.runtime.sendMessage({
+      type: "CHECK_TYPOSQUAT",
+      data: { domain },
+    });
+  } catch (error) {
+    console.error("[Service Policy Auditor] Typosquat check failed:", error);
+  }
+}
+
 async function runAnalysis() {
   const analysis = analyzePage();
   const { login, privacy, tos, domain } = analysis;
@@ -70,6 +81,9 @@ async function runAnalysis() {
 
   // Check NRD in background (non-blocking)
   checkNRD(domain);
+
+  // Check Typosquatting in background (non-blocking)
+  checkTyposquat(domain);
 }
 
 export default defineContentScript({

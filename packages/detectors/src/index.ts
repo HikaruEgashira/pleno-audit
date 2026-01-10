@@ -120,3 +120,40 @@ export {
   extractResponseContent,
   inferProviderFromResponse,
 } from "./ai-detector.js";
+
+// Typosquatting Detection Types
+export type {
+  HomoglyphType,
+  HomoglyphMatch,
+  ScriptType,
+  ScoreBreakdown,
+  TyposquatScores,
+  TyposquatDetectionMethod,
+  TyposquatConfidence,
+  TyposquatResult,
+  TyposquatConfig,
+  TyposquatDetectedDetails,
+} from "./typosquat-types.js";
+
+export { DEFAULT_TYPOSQUAT_CONFIG } from "./typosquat-types.js";
+
+// Typosquatting Heuristic Detection
+export {
+  LATIN_HOMOGLYPHS,
+  CYRILLIC_TO_LATIN,
+  JAPANESE_HOMOGLYPHS,
+  getCharacterScript,
+  detectScripts,
+  isSuspiciousMixedScript,
+  detectLatinHomoglyphs,
+  detectCyrillicHomoglyphs,
+  detectJapaneseHomoglyphs,
+  isPunycodeDomain,
+  decodePunycode,
+  calculateTyposquatHeuristics,
+  isHighRiskTyposquat,
+} from "./typosquat-heuristics.js";
+
+// Typosquatting Detector Factory
+export type { TyposquatCache } from "./typosquat-detector.js";
+export { createTyposquatDetector } from "./typosquat-detector.js";

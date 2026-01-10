@@ -12,11 +12,16 @@ import type {
   AIMonitorConfig,
   NRDConfig,
   NRDResult,
+  TyposquatConfig,
+  TyposquatResult,
+  TyposquatDetectedDetails,
 } from "@service-policy-auditor/detectors";
 import {
   DEFAULT_AI_MONITOR_CONFIG,
   DEFAULT_NRD_CONFIG,
+  DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
+  createTyposquatDetector,
 } from "@service-policy-auditor/detectors";
 import type {
   CSPViolation,
@@ -77,6 +82,22 @@ const nrdCacheAdapter: NRDCacheAdapter = {
   get: (domain) => nrdCache.get(domain) ?? null,
   set: (domain, result) => nrdCache.set(domain, result),
   clear: () => nrdCache.clear(),
+};
+
+// Typosquatting Detection
+const typosquatCache: Map<string, TyposquatResult> = new Map();
+let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
+
+interface TyposquatCacheAdapter {
+  get(domain: string): TyposquatResult | null;
+  set(domain: string, result: TyposquatResult): void;
+  clear(): void;
+}
+
+const typosquatCacheAdapter: TyposquatCacheAdapter = {
+  get: (domain) => typosquatCache.get(domain) ?? null,
+  set: (domain, result) => typosquatCache.set(domain, result),
+  clear: () => typosquatCache.clear(),
 };
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -168,6 +189,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: AIResponseReceivedDetails;
+    }
+  | {
+      type: "typosquat_detected";
+      domain: string;
+      timestamp: number;
+      details: TyposquatDetectedDetails;
     };
 
 async function getOrInitEventStore(): Promise<EventStore> {
@@ -258,6 +285,86 @@ async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }>
     return { success: true };
   } catch (error) {
     console.error("[Service Policy Auditor] Error setting NRD config:", error);
+    return { success: false };
+  }
+}
+
+// ============================================================================
+// Typosquatting Detection
+// ============================================================================
+
+async function getTyposquatConfig(): Promise<TyposquatConfig> {
+  const storage = await getStorage();
+  return storage.typosquatConfig || DEFAULT_TYPOSQUAT_CONFIG;
+}
+
+async function initTyposquatDetector() {
+  const config = await getTyposquatConfig();
+  typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
+}
+
+function checkTyposquat(domain: string): TyposquatResult {
+  if (!typosquatDetector) {
+    // Sync init since detector creation is synchronous
+    const config = DEFAULT_TYPOSQUAT_CONFIG;
+    typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
+  }
+  return typosquatDetector.checkDomain(domain);
+}
+
+async function handleTyposquatCheck(domain: string): Promise<TyposquatResult> {
+  try {
+    // Ensure detector is initialized with latest config
+    if (!typosquatDetector) {
+      await initTyposquatDetector();
+    }
+
+    const result = checkTyposquat(domain);
+
+    // Update service with typosquat result if it's a positive detection
+    if (result.isTyposquat) {
+      await updateService(result.domain, {
+        typosquatResult: {
+          isTyposquat: result.isTyposquat,
+          confidence: result.confidence,
+          totalScore: result.heuristics.totalScore,
+          checkedAt: result.checkedAt,
+        },
+      });
+
+      // Add event log
+      await addEvent({
+        type: "typosquat_detected",
+        domain: result.domain,
+        timestamp: Date.now(),
+        details: {
+          isTyposquat: result.isTyposquat,
+          confidence: result.confidence,
+          totalScore: result.heuristics.totalScore,
+          homoglyphCount: result.heuristics.homoglyphs.length,
+          hasMixedScript: result.heuristics.hasMixedScript,
+          detectedScripts: result.heuristics.detectedScripts,
+        },
+      });
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[Service Policy Auditor] Typosquat check failed:", error);
+    throw error;
+  }
+}
+
+async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ typosquatConfig: newConfig });
+    // Reinitialize detector with new config
+    await initTyposquatDetector();
+    // Clear cache on config change
+    typosquatCacheAdapter.clear();
+    return { success: true };
+  } catch (error) {
+    console.error("[Service Policy Auditor] Error setting Typosquat config:", error);
     return { success: false };
   }
 }
@@ -953,6 +1060,28 @@ export default defineBackground(() => {
 
     if (message.type === "SET_NRD_CONFIG") {
       setNRDConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Typosquatting Detection handlers
+    if (message.type === "CHECK_TYPOSQUAT") {
+      handleTyposquatCheck(message.data.domain)
+        .then(sendResponse)
+        .catch(() => sendResponse({ error: true }));
+      return true;
+    }
+
+    if (message.type === "GET_TYPOSQUAT_CONFIG") {
+      getTyposquatConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_TYPOSQUAT_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_TYPOSQUAT_CONFIG") {
+      setTyposquatConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
