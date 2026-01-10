@@ -942,14 +942,39 @@ export function DashboardApp() {
   const [connectionMode, setConnectionMode] = useState<"local" | "remote">(
     "local"
   );
+  // URLハッシュから初期タブを取得
+  const getInitialTab = (): TabType => {
+    const hash = window.location.hash.slice(1);
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events"];
+    return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
+  };
+
   const [period, setPeriod] = useState<Period>("24h");
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>(getInitialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [directiveFilter, setDirectiveFilter] = useState("");
   const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
   const [services, setServices] = useState<DetectedService[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+
+  // タブ変更時にURLハッシュを更新
+  useEffect(() => {
+    window.location.hash = activeTab;
+  }, [activeTab]);
+
+  // ブラウザの戻る/進むボタン対応
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1) as TabType;
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events"];
+      if (validTabs.includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
