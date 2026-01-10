@@ -3,10 +3,15 @@ import { styles } from "../styles";
 
 interface Props {
   events: EventLog[];
+  filterTypes?: string[];
 }
 
-export function EventLogList({ events }: Props) {
-  if (events.length === 0) {
+export function EventLogList({ events, filterTypes }: Props) {
+  const filteredEvents = filterTypes
+    ? events.filter((event) => filterTypes.includes(event.type))
+    : events;
+
+  if (filteredEvents.length === 0) {
     return (
       <div style={styles.section}>
         <p style={styles.emptyText}>No events yet</p>
@@ -16,7 +21,7 @@ export function EventLogList({ events }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>Events ({events.length})</h3>
+      <h3 style={styles.sectionTitle}>Events ({filteredEvents.length})</h3>
       <table style={styles.table}>
         <thead>
           <tr>
@@ -26,14 +31,14 @@ export function EventLogList({ events }: Props) {
           </tr>
         </thead>
         <tbody>
-          {events.slice(0, 50).map((event) => (
+          {filteredEvents.slice(0, 50).map((event) => (
             <EventRow key={event.id} event={event} />
           ))}
         </tbody>
       </table>
-      {events.length > 50 && (
+      {filteredEvents.length > 50 && (
         <p style={{ color: "hsl(0 0% 60%)", fontSize: "11px", marginTop: "8px" }}>
-          Showing 50 of {events.length} events
+          Showing 50 of {filteredEvents.length} events
         </p>
       )}
     </div>

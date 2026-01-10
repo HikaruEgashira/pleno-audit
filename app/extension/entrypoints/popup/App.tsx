@@ -6,34 +6,22 @@ import type {
 } from "@service-policy-auditor/detectors";
 import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
 import type { StorageData } from "@service-policy-auditor/extension-runtime";
-import { ServiceList } from "./components/ServiceList";
-import { EventLogList } from "./components/EventLog";
-import { CspPanel } from "./components/CspPanel";
-import { NetworkList } from "./components/NetworkList";
-import { Settings } from "./components/Settings";
-import { AIPromptList } from "./components/AIPromptList";
+import { ShadowITTab } from "./components/ShadowITTab";
+import { PhishingTab } from "./components/PhishingTab";
+import { MalwareTab } from "./components/MalwareTab";
 import { styles } from "./styles";
 
-type Tab =
-  | "services"
-  | "events"
-  | "ai_prompts"
-  | "csp"
-  | "network"
-  | "settings";
+type Tab = "shadow-it" | "phishing" | "malware";
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "services", label: "Services" },
-  { key: "ai_prompts", label: "AI" },
-  { key: "events", label: "Events" },
-  { key: "network", label: "Network" },
-  { key: "csp", label: "CSP" },
-  { key: "settings", label: "Settings" },
+  { key: "shadow-it", label: "Shadow IT" },
+  { key: "phishing", label: "Phishing" },
+  { key: "malware", label: "Malware" },
 ];
 
 export function App() {
   const [data, setData] = useState<StorageData>({ services: {}, events: [] });
-  const [tab, setTab] = useState<Tab>("services");
+  const [tab, setTab] = useState<Tab>("shadow-it");
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
@@ -125,18 +113,12 @@ export function App() {
       return <p style={styles.emptyText}>Loading...</p>;
     }
     switch (tab) {
-      case "services":
-        return <ServiceList services={services} />;
-      case "events":
-        return <EventLogList events={events} />;
-      case "ai_prompts":
-        return <AIPromptList prompts={aiPrompts} />;
-      case "csp":
-        return <CspPanel violations={violations} />;
-      case "network":
-        return <NetworkList requests={networkRequests} />;
-      case "settings":
-        return <Settings />;
+      case "shadow-it":
+        return <ShadowITTab services={services} aiPrompts={aiPrompts} events={events} />;
+      case "phishing":
+        return <PhishingTab services={services} events={events} />;
+      case "malware":
+        return <MalwareTab violations={violations} networkRequests={networkRequests} />;
       default:
         return null;
     }
