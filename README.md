@@ -11,6 +11,7 @@ Browserを通してアクセスするWebサービスの利用状況を可視化�
     - AIプロンプト検出
 - Phishing
     - NRD(Newly Registered Domain)検出
+    - Typosquatting検出
 - Malware
     - CSP Auditor: Content Security Policy違反の検出・レポート・ポリシー生成
 
