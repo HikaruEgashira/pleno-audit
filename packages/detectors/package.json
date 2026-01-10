@@ -1,0 +1,14 @@
+{
+  "name": "@service-policy-auditor/detectors",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "@service-policy-auditor/core": "workspace:*"
+  }
+}

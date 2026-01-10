@@ -3,6 +3,7 @@ export interface DetectedService {
   detectedAt: number;
   hasLoginPage: boolean;
   privacyPolicyUrl: string | null;
+  termsOfServiceUrl: string | null;
   cookies: CookieInfo[];
 }
 
@@ -25,6 +26,11 @@ export interface PrivacyPolicyFoundDetails {
   method: string;
 }
 
+export interface TosFoundDetails {
+  url: string;
+  method: string;
+}
+
 export interface CookieSetDetails {
   name: string;
   isSession: boolean;
@@ -41,6 +47,7 @@ export type EventLogBase<T extends string, D> = {
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
   | EventLogBase<"privacy_policy_found", PrivacyPolicyFoundDetails>
+  | EventLogBase<"terms_of_service_found", TosFoundDetails>
   | EventLogBase<"cookie_set", CookieSetDetails>
   | EventLogBase<"csp_violation", CSPViolationDetails>
   | EventLogBase<"network_request", NetworkRequestDetails>;

@@ -5,6 +5,7 @@ import type {
   CookieInfo,
   LoginDetectedDetails,
   PrivacyPolicyFoundDetails,
+  TosFoundDetails,
   CookieSetDetails,
   CSPViolation,
   NetworkRequest,
@@ -16,8 +17,8 @@ import type {
   CSPGenerationOptions,
 } from "@service-policy-auditor/core";
 import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/core";
+import { CSPAnalyzer, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
 import { startCookieMonitor, onCookieChange } from "@/utils/cookie-monitor";
-import { CSPAnalyzer, type GeneratedCSPByDomain } from "@/utils/csp-analyzer";
 import { CSPReporter } from "@/utils/csp-reporter";
 
 const MAX_EVENTS = 1000;
@@ -82,6 +83,12 @@ type NewEvent =
       details: PrivacyPolicyFoundDetails;
     }
   | {
+      type: "terms_of_service_found";
+      domain: string;
+      timestamp: number;
+      details: TosFoundDetails;
+    }
+  | {
       type: "cookie_set";
       domain: string;
       timestamp: number;
@@ -121,6 +128,7 @@ function createDefaultService(domain: string): DetectedService {
     detectedAt: Date.now(),
     hasLoginPage: false,
     privacyPolicyUrl: null,
+    termsOfServiceUrl: null,
     cookies: [],
   };
 }
@@ -169,10 +177,15 @@ interface PageAnalysis {
     url: string | null;
     method: string;
   };
+  tos: {
+    found: boolean;
+    url: string | null;
+    method: string;
+  };
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, timestamp } = analysis;
+  const { domain, login, privacy, tos, timestamp } = analysis;
 
   if (login.hasPasswordInput || login.isLoginUrl) {
     await updateService(domain, { hasLoginPage: true });
@@ -191,6 +204,16 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       domain,
       timestamp,
       details: { url: privacy.url, method: privacy.method },
+    });
+  }
+
+  if (tos.found && tos.url) {
+    await updateService(domain, { termsOfServiceUrl: tos.url });
+    await addEvent({
+      type: "terms_of_service_found",
+      domain,
+      timestamp,
+      details: { url: tos.url, method: tos.method },
     });
   }
 }

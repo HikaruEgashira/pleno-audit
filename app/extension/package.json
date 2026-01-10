@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@service-policy-auditor/core": "workspace:*",
+    "@service-policy-auditor/detectors": "workspace:*",
+    "@service-policy-auditor/csp": "workspace:*",
     "preact": "^10.28.2"
   },
   "devDependencies": {

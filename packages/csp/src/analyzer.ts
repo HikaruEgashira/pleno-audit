@@ -4,8 +4,6 @@
  */
 
 import type {
-  CSPViolation,
-  NetworkRequest,
   CSPReport,
   GeneratedCSPPolicy,
   CSPStatistics,

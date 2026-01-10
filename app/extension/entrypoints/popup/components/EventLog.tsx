@@ -55,6 +55,8 @@ function EventRow({ event }: { event: EventLog }) {
         return "login";
       case "privacy_policy_found":
         return "privacy";
+      case "terms_of_service_found":
+        return "tos";
       default:
         return event.type;
     }
