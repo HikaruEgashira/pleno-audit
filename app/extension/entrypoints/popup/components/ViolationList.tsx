@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import type { CSPViolation } from "@service-policy-auditor/csp";
 import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
@@ -10,6 +11,7 @@ interface Props {
 export function ViolationList({ violations }: Props) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (violations.length === 0) {
     return (
@@ -22,46 +24,165 @@ export function ViolationList({ violations }: Props) {
   return (
     <div style={styles.section}>
       <h3 style={styles.sectionTitle}>CSP違反 ({violations.length})</h3>
-      <div style={styles.card}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.tableHeader}>時間</th>
-              <th style={styles.tableHeader}>Directive</th>
-              <th style={styles.tableHeader}>ブロックURL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {violations.slice(0, 50).map((v, i) => (
-              <tr key={i} style={styles.tableRow}>
-                <td style={styles.tableCell}>
-                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>
-                    {formatTime(v.timestamp)}
-                  </span>
-                </td>
-                <td style={styles.tableCell}>
-                  <Badge variant={["script-src", "default-src"].includes(v.directive) ? "danger" : "default"}>
-                    {v.directive}
-                  </Badge>
-                </td>
-                <td
-                  style={{ ...styles.tableCell, wordBreak: "break-all" }}
-                  title={v.blockedURL}
-                >
-                  <code style={styles.code}>
-                    {truncateUrl(v.blockedURL, 30)}
-                  </code>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {violations.slice(0, 50).map((v, i) => {
+          const id = `${v.timestamp}-${i}`;
+          return (
+            <ViolationCard
+              key={id}
+              violation={v}
+              expanded={expandedId === id}
+              onToggle={() => setExpandedId(expandedId === id ? null : id)}
+              styles={styles}
+              colors={colors}
+            />
+          );
+        })}
       </div>
       {violations.length > 50 && (
         <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
           50件中{violations.length}件を表示
         </p>
       )}
+    </div>
+  );
+}
+
+function ViolationCard({
+  violation,
+  expanded,
+  onToggle,
+  styles,
+  colors,
+}: {
+  violation: CSPViolation;
+  expanded: boolean;
+  onToggle: () => void;
+  styles: ReturnType<typeof usePopupStyles>;
+  colors: ReturnType<typeof useTheme>["colors"];
+}) {
+  const time = formatTime(violation.timestamp);
+
+  return (
+    <div style={styles.card}>
+      <div
+        onClick={onToggle}
+        style={{
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>
+          {time}
+        </span>
+        <Badge variant={["script-src", "default-src"].includes(violation.directive) ? "danger" : "default"}>
+          {violation.directive}
+        </Badge>
+        <code
+          style={{ ...styles.code, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          title={violation.blockedURL}
+        >
+          {truncateUrl(violation.blockedURL, 25)}
+        </code>
+        <span style={{ fontSize: "10px", color: colors.textMuted }}>
+          {expanded ? "▼" : "▶"}
+        </span>
+      </div>
+
+      {expanded && (
+        <div
+          style={{
+            marginTop: "12px",
+            paddingTop: "12px",
+            borderTop: `1px solid ${colors.border}`,
+            fontSize: "12px",
+          }}
+        >
+          <DetailRow label="ブロックURL" colors={colors}>
+            <code style={{ ...styles.code, wordBreak: "break-all" }}>
+              {violation.blockedURL}
+            </code>
+          </DetailRow>
+
+          {violation.sourceFile && (
+            <DetailRow label="ソース" colors={colors}>
+              <a
+                href={violation.sourceFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                style={{
+                  ...styles.code,
+                  color: colors.linkColor || "#3b82f6",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  wordBreak: "break-all",
+                }}
+              >
+                {violation.sourceFile}
+                {violation.lineNumber != null && `:${violation.lineNumber}`}
+                {violation.columnNumber != null && `:${violation.columnNumber}`}
+              </a>
+            </DetailRow>
+          )}
+
+          <DetailRow label="ページ" colors={colors}>
+            <code style={{ ...styles.code, wordBreak: "break-all" }}>
+              {violation.pageUrl}
+            </code>
+          </DetailRow>
+
+          <DetailRow label="アクション" colors={colors}>
+            <Badge variant={violation.disposition === "enforce" ? "danger" : "warning"}>
+              {violation.disposition === "enforce" ? "ブロック" : "レポートのみ"}
+            </Badge>
+          </DetailRow>
+
+          {violation.originalPolicy && (
+            <DetailRow label="ポリシー" colors={colors}>
+              <pre
+                style={{
+                  backgroundColor: colors.bgSecondary,
+                  padding: "8px",
+                  borderRadius: "4px",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  maxHeight: "100px",
+                  overflow: "auto",
+                  fontSize: "10px",
+                  fontFamily: "monospace",
+                  margin: "4px 0 0",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.textPrimary,
+                }}
+              >
+                {violation.originalPolicy}
+              </pre>
+            </DetailRow>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  children,
+  colors,
+}: {
+  label: string;
+  children: preact.ComponentChildren;
+  colors: ReturnType<typeof useTheme>["colors"];
+}) {
+  return (
+    <div style={{ marginBottom: "8px" }}>
+      <strong style={{ color: colors.textSecondary, fontSize: "11px" }}>{label}: </strong>
+      {children}
     </div>
   );
 }
