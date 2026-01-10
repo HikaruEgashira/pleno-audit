@@ -1,91 +1,123 @@
-# ADR-005: グレースケール・ミニマルデザインシステム
+# ADR-005: Vercel風ミニマルデザインシステム
 
 ## Status
-Accepted
+Accepted (Updated)
 
 ## Context
-拡張機能のPopup UIは400px幅という制約がある。限られたスペースで情報を効率的に表示する必要がある。
-
-### デザインの選択肢
-1. **リッチUI**: カード、カラフルなバッジ、アイコン多用
-2. **ミニマルUI**: テキスト主体、グレースケール、余白重視
-3. **ターミナル風**: モノスペース、コマンドライン風
+拡張機能のUIは一貫したデザイン言語を必要とする。PopupとDashboardで同じコンポーネントを共有し、統一されたUXを提供する。
 
 ### 参考にしたプロダクト
-- Linear: グレースケール、余白、タイポグラフィ重視
-- Raycast: リスト表示、キーボード操作
-- shadcn/ui: ボーダー控えめ、HSLカラー
+- **Vercel**: 黒/白のコントラスト、丸みを帯びた角、ミニマルなボーダー
+- **Linear**: グレースケール、余白、タイポグラフィ重視
+- **shadcn/ui**: コンポーネント構造、variant パターン
 
 ## Decision
-**shadcn/ui風のグレースケール・ミニマルデザイン**を採用し、テーブルベースのレイアウトで統一する。
+**Vercel風のモダン・ミニマルデザイン**を採用し、共通コンポーネントライブラリで統一する。
 
 ### デザイン原則
-1. **枠線は最小限**: カードの枠は使わず、区切り線のみ
-2. **グレースケール**: `hsl(0 0% X%)`で統一
-3. **余白で区切る**: 要素間は余白で分離
-4. **テーブルベース**: ヘッダー付きテーブルで一覧表示
+1. **黒/白コントラスト**: プライマリは`#000`、背景は`#fafafa`
+2. **丸みを帯びた角**: `border-radius: 6-8px`で統一
+3. **ミニマルなボーダー**: `#eaeaea`の薄いボーダー
+4. **余白で区切る**: 要素間は余白で分離
+5. **セマンティックカラー**: バッジでのみアクセントカラーを使用
 
 ### フォントファミリー
 ```typescript
+const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif";
 const FONT_MONO = "'Menlo', 'Monaco', 'Courier New', monospace";
-const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 ```
-
-- **ベースフォント**: FONT_SANS（UIテキスト）
-- **コード/ドメイン**: FONT_MONO（技術情報）
 
 ### カラーパレット
 ```
-Text Primary:   hsl(0 0% 10%)
-Text Secondary: hsl(0 0% 50%)
-Text Muted:     hsl(0 0% 60%)
-Border:         hsl(0 0% 92%)
-Background:     hsl(0 0% 100%)
-Badge BG:       hsl(0 0% 95%)
+// ベース
+Text Primary:   #111
+Text Secondary: #666
+Text Muted:     #999
+Border:         #eaeaea
+Background:     #fafafa
+Surface:        #fff
+
+// バッジバリアント
+Default:  bg:#fafafa  text:#666   border:#eaeaea
+Success:  bg:#d3f9d8  text:#0a7227 border:#b8f0c0
+Warning:  bg:#fff8e6  text:#915b00 border:#ffe58f
+Danger:   bg:#fee     text:#c00    border:#fcc
+Info:     bg:#e6f4ff  text:#0050b3 border:#91caff
 ```
+
+### 共有コンポーネント (`app/extension/components/`)
+
+| Component | 説明 | バリアント |
+|-----------|------|-----------|
+| Badge | ステータス表示 | default, success, warning, danger, info |
+| Button | アクションボタン | primary, secondary, ghost |
+| Card | コンテナ | padding: sm, md, lg |
+| DataTable | テーブル | ページネーション付き |
+| SearchInput | 検索入力 | - |
+| Select | ドロップダウン | - |
+| StatCard | 統計カード | クリック可能、トレンド表示 |
+| Tabs | タブナビゲーション | カウント表示対応 |
 
 ### コンポーネント構造
 ```
-Section
-├── SectionTitle (h3)
-└── Table
-    ├── thead > tr > th (tableHeader)
-    └── tbody > tr (tableRow) > td (tableCell)
+app/extension/
+├── components/           # 共有コンポーネント
+│   ├── Badge.tsx
+│   ├── Button.tsx
+│   ├── Card.tsx
+│   ├── DataTable.tsx
+│   ├── SearchInput.tsx
+│   ├── Select.tsx
+│   ├── StatCard.tsx
+│   ├── Tabs.tsx
+│   └── index.ts
+├── entrypoints/
+│   ├── popup/            # Popup UI
+│   │   ├── App.tsx
+│   │   ├── styles.ts     # Popup固有スタイル
+│   │   └── components/   # Popup専用コンポーネント
+│   └── dashboard/        # Dashboard UI
+│       └── App.tsx
 ```
 
-### 共有スタイル (styles.ts)
+### スタイル設計
+
 ```typescript
-export const styles = {
-  // フォント定義
-  fontMono: FONT_MONO,
-  fontSans: FONT_SANS,
-
-  // テーブルスタイル
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
-  tableHeader: { backgroundColor: "hsl(0 0% 95%)", ... },
-  tableCell: { padding: "6px 8px", ... },
-
-  // 汎用コンポーネント
-  badge: { ... },  // タグ表示
-  code: { ... },   // コード/ドメイン表示
+// 共有スタイル定義
+const styles = {
+  container: {
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+    color: "#111",
+    background: "#fafafa",
+  },
+  card: {
+    background: "#fff",
+    border: "1px solid #eaeaea",
+    borderRadius: "8px",
+    padding: "16px",
+  },
+  button: {
+    borderRadius: "6px",
+    fontWeight: 500,
+    transition: "all 0.15s",
+  },
 };
 ```
 
 ## Consequences
 
 ### Positive
-- **一貫性**: 全タブで同じ視覚言語
-- **保守性**: 共有stylesによるDRY原則
-- **可読性**: テーブルヘッダーで項目が明確
-- **情報密度**: 一覧性が良い
-- **ビルドサイズ**: CSSフレームワーク不要
+- **一貫性**: Popup/Dashboardで同じビジュアル言語
+- **再利用性**: 共有コンポーネントによるDRY原則
+- **保守性**: 変更が全体に反映
+- **モダンなUX**: Vercel風の洗練されたデザイン
+- **セマンティック**: バッジカラーで状態が一目で分かる
 
 ### Negative
-- 初見での訴求力が弱い（地味に見える）
-- カラーコードによる状態表現ができない（危険=赤など）
-- テーブルは行ベースより縦に長くなる場合がある
+- コンポーネント変更時の影響範囲が広い
+- 初見でのインパクトはカラフルなUIより弱い
 
 ### Evolution
-1. v1: テキストのみのミニマル
-2. v2: 必要に応じてサブタルなアクセントカラー追加
-3. v3: ダークモード対応
+1. v1: グレースケール・テキストベース (廃止)
+2. **v2: Vercel風・コンポーネントベース (現行)**
+3. v3: ダークモード対応 (予定)

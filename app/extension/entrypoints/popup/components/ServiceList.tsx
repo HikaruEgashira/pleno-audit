@@ -1,4 +1,5 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
+import { Badge, Card } from "../../../components";
 import { styles } from "../styles";
 
 interface Props {
@@ -25,7 +26,7 @@ export function ServiceList({ services }: Props) {
   if (services.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No services detected yet</p>
+        <p style={styles.emptyText}>サービスはまだ検出されていません</p>
       </div>
     );
   }
@@ -34,42 +35,46 @@ export function ServiceList({ services }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>Detected Services ({services.length})</h3>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.tableHeader}>Domain</th>
-            <th style={styles.tableHeader}>Tags</th>
-            <th style={styles.tableHeader}>Cookies</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((service) => (
-            <ServiceRow key={service.domain} service={service} />
-          ))}
-        </tbody>
-      </table>
+      <h3 style={styles.sectionTitle}>検出サービス ({services.length})</h3>
+      <div style={styles.card}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.tableHeader}>ドメイン</th>
+              <th style={styles.tableHeader}>タグ</th>
+              <th style={styles.tableHeader}>Cookie</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((service) => (
+              <ServiceRow key={service.domain} service={service} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function TagBadge({ tag, url }: { tag: string; url?: string | null }) {
-  const badgeStyle = { ...styles.badge, marginRight: "4px" };
-
+function TagBadge({ tag, url, variant = "default" }: { tag: string; url?: string | null; variant?: "default" | "warning" }) {
   if (url) {
     return (
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        style={{ textDecoration: "none" }}
+        style={{ textDecoration: "none", marginRight: "4px" }}
       >
-        <span style={{ ...badgeStyle, cursor: "pointer" }}>{tag}</span>
+        <Badge variant={variant}>{tag}</Badge>
       </a>
     );
   }
 
-  return <span style={badgeStyle}>{tag}</span>;
+  return (
+    <span style={{ marginRight: "4px" }}>
+      <Badge variant={variant}>{tag}</Badge>
+    </span>
+  );
 }
 
 function NRDBadge({
@@ -79,27 +84,16 @@ function NRDBadge({
 }) {
   if (!nrdResult?.isNRD) return null;
 
-  const badgeStyle = {
-    ...styles.badge,
-    marginRight: "4px",
-    backgroundColor:
-      nrdResult.confidence === "high"
-        ? "hsl(0 70% 60%)" // Red for high confidence
-        : "hsl(40 70% 50%)", // Orange for medium
-    color: "white",
-    fontWeight: "bold" as const,
-  };
-
   const label =
     nrdResult.domainAge !== null ? `NRD (${nrdResult.domainAge}d)` : "NRD?";
   const title =
     nrdResult.confidence === "high"
-      ? `Newly Registered Domain (${nrdResult.domainAge} days old)`
-      : "Possibly newly registered domain (heuristic match)";
+      ? `新規登録ドメイン (${nrdResult.domainAge}日)`
+      : "新規登録ドメインの可能性";
 
   return (
-    <span style={badgeStyle} title={title}>
-      {label}
+    <span style={{ marginRight: "4px" }} title={title}>
+      <Badge variant="danger">{label}</Badge>
     </span>
   );
 }
@@ -108,11 +102,11 @@ function ServiceRow({ service }: { service: DetectedService }) {
   return (
     <tr style={styles.tableRow}>
       <td style={styles.tableCell}>
-        <span style={styles.code}>{service.domain}</span>
+        <code style={styles.code}>{service.domain}</code>
       </td>
       <td style={styles.tableCell}>
         <NRDBadge nrdResult={service.nrdResult} />
-        {service.hasLoginPage && <TagBadge tag="login" />}
+        {service.hasLoginPage && <TagBadge tag="login" variant="warning" />}
         {service.privacyPolicyUrl && (
           <TagBadge
             tag="privacy"
@@ -128,7 +122,7 @@ function ServiceRow({ service }: { service: DetectedService }) {
       </td>
       <td style={{ ...styles.tableCell, textAlign: "right" }}>
         {service.cookies.length > 0 && (
-          <span style={styles.badge}>{service.cookies.length}</span>
+          <Badge>{service.cookies.length}</Badge>
         )}
       </td>
     </tr>

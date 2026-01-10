@@ -1,4 +1,5 @@
 import type { DetectedService } from "@service-policy-auditor/detectors";
+import { Badge } from "../../../components";
 import { styles } from "../styles";
 
 interface Props {
@@ -11,7 +12,7 @@ export function NRDList({ services }: Props) {
   if (nrdServices.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No newly registered domains detected</p>
+        <p style={styles.emptyText}>新規登録ドメインは検出されていません</p>
       </div>
     );
   }
@@ -20,21 +21,23 @@ export function NRDList({ services }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>Newly Registered Domains ({nrdServices.length})</h3>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.tableHeader}>Domain</th>
-            <th style={styles.tableHeader}>Age (days)</th>
-            <th style={styles.tableHeader}>Confidence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((service) => (
-            <NRDRow key={service.domain} service={service} />
-          ))}
-        </tbody>
-      </table>
+      <h3 style={styles.sectionTitle}>新規登録ドメイン ({nrdServices.length})</h3>
+      <div style={styles.card}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.tableHeader}>ドメイン</th>
+              <th style={styles.tableHeader}>経過日数</th>
+              <th style={styles.tableHeader}>信頼度</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((service) => (
+              <NRDRow key={service.domain} service={service} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -44,33 +47,18 @@ function NRDRow({ service }: { service: DetectedService }) {
 
   if (!nrdResult?.isNRD) return null;
 
-  const confidenceColor =
-    nrdResult.confidence === "high"
-      ? "hsl(0 70% 60%)" // Red
-      : "hsl(40 70% 50%)"; // Orange
-
-  const confidenceLabel =
-    nrdResult.confidence === "high" ? "High" : "Medium";
-
   return (
     <tr style={styles.tableRow}>
       <td style={styles.tableCell}>
-        <span style={styles.code}>{service.domain}</span>
+        <code style={styles.code}>{service.domain}</code>
       </td>
       <td style={styles.tableCell}>
-        <span>{nrdResult.domainAge !== null ? nrdResult.domainAge : "?"}</span>
+        <span>{nrdResult.domainAge !== null ? `${nrdResult.domainAge}日` : "?"}</span>
       </td>
       <td style={styles.tableCell}>
-        <span
-          style={{
-            ...styles.badge,
-            backgroundColor: confidenceColor,
-            color: "white",
-            fontWeight: "bold",
-          }}
-        >
-          {confidenceLabel}
-        </span>
+        <Badge variant={nrdResult.confidence === "high" ? "danger" : "warning"}>
+          {nrdResult.confidence === "high" ? "高" : "中"}
+        </Badge>
       </td>
     </tr>
   );

@@ -1,4 +1,5 @@
 import type { NetworkRequest } from "@service-policy-auditor/csp";
+import { Badge } from "../../../components";
 import { styles } from "../styles";
 
 interface Props {
@@ -9,45 +10,45 @@ export function NetworkList({ requests }: Props) {
   if (requests.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No network requests detected yet</p>
+        <p style={styles.emptyText}>ネットワークリクエストはまだ検出されていません</p>
       </div>
     );
   }
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>Network Requests ({requests.length})</h3>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.tableHeader}>Time</th>
-            <th style={styles.tableHeader}>Type</th>
-            <th style={styles.tableHeader}>Method</th>
-            <th style={styles.tableHeader}>From</th>
-            <th style={styles.tableHeader}>Domain</th>
-          </tr>
-        </thead>
-        <tbody>
-          {requests.slice(0, 50).map((r, i) => (
-            <tr key={i} style={styles.tableRow}>
-              <td style={styles.tableCell}>{formatTime(r.timestamp)}</td>
-              <td style={styles.tableCell}>
-                <span style={styles.badge}>{r.initiator}</span>
-              </td>
-              <td style={styles.tableCell}>
-                <span style={styles.code}>{r.method}</span>
-              </td>
-              <td style={{ ...styles.tableCell, maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.pageUrl}>
-                {r.pageUrl}
-              </td>
-              <td style={styles.tableCell}>{r.domain}</td>
+      <h3 style={styles.sectionTitle}>ネットワーク ({requests.length})</h3>
+      <div style={styles.card}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.tableHeader}>時間</th>
+              <th style={styles.tableHeader}>Type</th>
+              <th style={styles.tableHeader}>ドメイン</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {requests.slice(0, 50).map((r, i) => (
+              <tr key={i} style={styles.tableRow}>
+                <td style={styles.tableCell}>
+                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666" }}>
+                    {formatTime(r.timestamp)}
+                  </span>
+                </td>
+                <td style={styles.tableCell}>
+                  <Badge>{r.initiator}</Badge>
+                </td>
+                <td style={styles.tableCell}>
+                  <code style={styles.code}>{r.domain}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {requests.length > 50 && (
-        <p style={{ color: "hsl(0 0% 60%)", fontSize: "11px", marginTop: "8px" }}>
-          Showing 50 of {requests.length} requests
+        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+          50件中{requests.length}件を表示
         </p>
       )}
     </div>
@@ -57,5 +58,5 @@ export function NetworkList({ requests }: Props) {
 function formatTime(timestamp: string | number): string {
   const ms =
     typeof timestamp === "string" ? new Date(timestamp).getTime() : timestamp;
-  return new Date(ms).toLocaleTimeString();
+  return new Date(ms).toLocaleTimeString("ja-JP");
 }

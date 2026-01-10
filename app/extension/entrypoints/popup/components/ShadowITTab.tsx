@@ -23,14 +23,14 @@ export function ShadowITTab({ services, aiPrompts, events }: Props) {
       <ServiceList services={services} />
 
       {aiPrompts.length > 0 && (
-        <div style={{ borderTop: "1px solid hsl(0 0% 80%)", marginTop: "16px", paddingTop: "16px" }}>
+        <div style={styles.divider}>
           <AIPromptList prompts={aiPrompts} />
         </div>
       )}
 
       {events.length > 0 && (
-        <div style={{ borderTop: "1px solid hsl(0 0% 80%)", marginTop: "16px", paddingTop: "16px" }}>
-          <EventLogList events={events} filterTypes={SHADOW_IT_EVENT_TYPES} title="Activity" />
+        <div style={styles.divider}>
+          <EventLogList events={events} filterTypes={SHADOW_IT_EVENT_TYPES} title="アクティビティ" />
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import type { EventLog } from "@service-policy-auditor/detectors";
+import { Badge } from "../../../components";
 import { styles } from "../styles";
 
 interface Props {
@@ -7,7 +8,7 @@ interface Props {
   title?: string;
 }
 
-export function EventLogList({ events, filterTypes, title = "Events" }: Props) {
+export function EventLogList({ events, filterTypes, title = "イベント" }: Props) {
   const filteredEvents = filterTypes
     ? events.filter((event) => filterTypes.includes(event.type))
     : events;
@@ -15,7 +16,7 @@ export function EventLogList({ events, filterTypes, title = "Events" }: Props) {
   if (filteredEvents.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No events yet</p>
+        <p style={styles.emptyText}>イベントはまだありません</p>
       </div>
     );
   }
@@ -23,23 +24,25 @@ export function EventLogList({ events, filterTypes, title = "Events" }: Props) {
   return (
     <div style={styles.section}>
       <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length})</h3>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.tableHeader}>Time</th>
-            <th style={styles.tableHeader}>Domain</th>
-            <th style={styles.tableHeader}>Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredEvents.slice(0, 50).map((event) => (
-            <EventRow key={event.id} event={event} />
-          ))}
-        </tbody>
-      </table>
+      <div style={styles.card}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.tableHeader}>時間</th>
+              <th style={styles.tableHeader}>ドメイン</th>
+              <th style={styles.tableHeader}>タイプ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEvents.slice(0, 50).map((event) => (
+              <EventRow key={event.id} event={event} />
+            ))}
+          </tbody>
+        </table>
+      </div>
       {filteredEvents.length > 50 && (
-        <p style={{ color: "hsl(0 0% 60%)", fontSize: "11px", marginTop: "8px" }}>
-          Showing 50 of {filteredEvents.length} events
+        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+          50件中{filteredEvents.length}件を表示
         </p>
       )}
     </div>
@@ -47,7 +50,7 @@ export function EventLogList({ events, filterTypes, title = "Events" }: Props) {
 }
 
 function EventRow({ event }: { event: EventLog }) {
-  const time = new Date(event.timestamp).toLocaleTimeString([], {
+  const time = new Date(event.timestamp).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -64,53 +67,45 @@ function EventRow({ event }: { event: EventLog }) {
       case "terms_of_service_found":
         return "tos";
       case "nrd_detected":
-        return event.details.isNRD ? "NRD" : "domain verified";
+        return event.details.isNRD ? "NRD" : "verified";
       default:
         return event.type;
     }
   }
 
-  function getBadgeColor(): string {
+  function getBadgeVariant(): "default" | "danger" | "warning" | "success" {
     if (event.type === "nrd_detected" && event.details.isNRD) {
-      return event.details.confidence === "high"
-        ? "hsl(0 70% 60%)" // Red
-        : "hsl(40 70% 50%)"; // Orange
+      return "danger";
     }
-    return styles.badge.backgroundColor || "";
+    if (event.type === "login_detected") {
+      return "warning";
+    }
+    return "default";
   }
 
   function getTitle(): string {
     if (event.type === "nrd_detected") {
       if (event.details.isNRD) {
-        const age = event.details.domainAge !== null ? ` (${event.details.domainAge}d old)` : "";
-        return `Newly Registered Domain${age} - ${event.details.method}`;
+        const age = event.details.domainAge !== null ? ` (${event.details.domainAge}日)` : "";
+        return `新規登録ドメイン${age} - ${event.details.method}`;
       } else {
-        return `Domain verified - ${event.details.method}`;
+        return `確認済みドメイン - ${event.details.method}`;
       }
     }
     return "";
   }
 
-  const badgeColor = getBadgeColor();
-  const badgeStyle =
-    badgeColor && event.type === "nrd_detected"
-      ? { ...styles.badge, backgroundColor: badgeColor, color: "white", fontWeight: "bold" as const }
-      : styles.badge;
-
   return (
     <tr style={styles.tableRow}>
       <td style={styles.tableCell}>
-        <span style={{ fontFamily: styles.fontMono, fontSize: "11px" }}>{time}</span>
+        <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666" }}>{time}</span>
       </td>
       <td style={styles.tableCell}>
-        <span style={styles.code}>{event.domain}</span>
+        <code style={styles.code}>{event.domain}</code>
       </td>
       <td style={styles.tableCell}>
-        <span
-          style={badgeStyle}
-          title={getTitle()}
-        >
-          {getLabel()}
+        <span title={getTitle()}>
+          <Badge variant={getBadgeVariant()}>{getLabel()}</Badge>
         </span>
       </td>
     </tr>

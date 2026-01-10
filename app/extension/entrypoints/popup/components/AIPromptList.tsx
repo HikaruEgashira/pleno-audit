@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import type { CapturedAIPrompt } from "@service-policy-auditor/detectors";
+import { Badge, Card } from "../../../components";
 import { styles } from "../styles";
 
 interface Props {
@@ -12,15 +13,15 @@ export function AIPromptList({ prompts }: Props) {
   if (prompts.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No AI prompts captured yet</p>
+        <p style={styles.emptyText}>AIプロンプトはまだキャプチャされていません</p>
       </div>
     );
   }
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>AI Prompts ({prompts.length})</h3>
-      <div style={{ marginTop: "8px" }}>
+      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length})</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {prompts.slice(0, 50).map((prompt) => (
           <PromptCard
             key={prompt.id}
@@ -33,8 +34,8 @@ export function AIPromptList({ prompts }: Props) {
         ))}
       </div>
       {prompts.length > 50 && (
-        <p style={{ color: "hsl(0 0% 60%)", fontSize: "11px", marginTop: "8px" }}>
-          Showing 50 of {prompts.length} prompts
+        <p style={{ color: "#999", fontSize: "11px", marginTop: "8px" }}>
+          50件中{prompts.length}件を表示
         </p>
       )}
     </div>
@@ -50,7 +51,7 @@ function PromptCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const time = new Date(prompt.timestamp).toLocaleTimeString([], {
+  const time = new Date(prompt.timestamp).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -59,29 +60,24 @@ function PromptCard({
   const showProvider = prompt.provider && prompt.provider !== "unknown";
 
   return (
-    <div
-      style={{
-        border: "1px solid hsl(0 0% 90%)",
-        borderRadius: "4px",
-        marginBottom: "8px",
-        backgroundColor: "hsl(0 0% 100%)",
-      }}
-    >
+    <div style={styles.card}>
       <div
         onClick={onToggle}
         style={{
-          padding: "8px 12px",
           cursor: "pointer",
           display: "flex",
           flexDirection: showProvider ? "column" : "row",
-          gap: "4px",
+          gap: "6px",
           alignItems: showProvider ? "stretch" : "center",
         }}
       >
         {showProvider && (
           <div style={{ display: "flex", alignItems: "center" }}>
-            <span style={styles.badge}>{prompt.provider}</span>
-            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", marginLeft: "auto" }}>{time}</span>
+            <Badge variant="info">{prompt.provider}</Badge>
+            {prompt.model && (
+              <code style={{ ...styles.code, marginLeft: "8px" }}>{prompt.model}</code>
+            )}
+            <span style={{ fontSize: "11px", color: "#666", marginLeft: "auto" }}>{time}</span>
           </div>
         )}
         <p
@@ -91,45 +87,44 @@ function PromptCard({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            color: "hsl(0 0% 30%)",
+            color: "#333",
             flex: showProvider ? undefined : 1,
           }}
         >
           {preview}
         </p>
         {!showProvider && (
-          <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)", flexShrink: 0 }}>{time}</span>
+          <span style={{ fontSize: "11px", color: "#666", flexShrink: 0 }}>{time}</span>
         )}
       </div>
 
       {expanded && (
         <div
           style={{
-            padding: "12px",
-            borderTop: "1px solid hsl(0 0% 90%)",
-            fontSize: "11px",
+            marginTop: "12px",
+            paddingTop: "12px",
+            borderTop: "1px solid #eaeaea",
+            fontSize: "12px",
           }}
         >
           <div style={{ marginBottom: "8px" }}>
-            <strong>Model:</strong> {prompt.model || "N/A"}
+            <strong style={{ color: "#666" }}>エンドポイント:</strong>{" "}
+            <code style={styles.code}>{prompt.apiEndpoint}</code>
           </div>
           <div style={{ marginBottom: "8px" }}>
-            <strong>Endpoint:</strong>{" "}
-            <span style={styles.code}>{prompt.apiEndpoint}</span>
-          </div>
-          <div style={{ marginBottom: "8px" }}>
-            <strong>Prompt:</strong>
+            <strong style={{ color: "#666" }}>プロンプト:</strong>
             <pre
               style={{
-                backgroundColor: "hsl(0 0% 95%)",
-                padding: "8px",
-                borderRadius: "4px",
+                backgroundColor: "#fafafa",
+                padding: "10px",
+                borderRadius: "6px",
                 whiteSpace: "pre-wrap",
                 maxHeight: "150px",
                 overflow: "auto",
                 fontSize: "11px",
-                fontFamily: styles.fontMono,
-                margin: "4px 0 0",
+                fontFamily: "monospace",
+                margin: "6px 0 0",
+                border: "1px solid #eaeaea",
               }}
             >
               {formatPrompt(prompt)}
@@ -137,24 +132,27 @@ function PromptCard({
           </div>
           {prompt.response && (
             <div>
-              <strong>
-                Response{" "}
-                {prompt.response.latencyMs && `(${prompt.response.latencyMs}ms)`}:
+              <strong style={{ color: "#666" }}>
+                レスポンス{" "}
+                {prompt.response.latencyMs && (
+                  <Badge variant="success">{prompt.response.latencyMs}ms</Badge>
+                )}
               </strong>
               <pre
                 style={{
-                  backgroundColor: "hsl(0 0% 95%)",
-                  padding: "8px",
-                  borderRadius: "4px",
+                  backgroundColor: "#fafafa",
+                  padding: "10px",
+                  borderRadius: "6px",
                   whiteSpace: "pre-wrap",
                   maxHeight: "150px",
                   overflow: "auto",
                   fontSize: "11px",
-                  fontFamily: styles.fontMono,
-                  margin: "4px 0 0",
+                  fontFamily: "monospace",
+                  margin: "6px 0 0",
+                  border: "1px solid #eaeaea",
                 }}
               >
-                {prompt.response.text || "(No text)"}
+                {prompt.response.text || "(テキストなし)"}
               </pre>
             </div>
           )}

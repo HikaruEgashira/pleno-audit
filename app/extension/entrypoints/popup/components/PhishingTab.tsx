@@ -15,12 +15,12 @@ export function PhishingTab({ services, events }: Props) {
       <NRDList services={services} />
 
       {events.length > 0 && (
-        <div style={{ borderTop: "1px solid hsl(0 0% 80%)", marginTop: "16px", paddingTop: "16px" }}>
-          <EventLogList events={events} filterTypes={["nrd_detected"]} title="Alerts" />
+        <div style={styles.divider}>
+          <EventLogList events={events} filterTypes={["nrd_detected"]} title="アラート" />
         </div>
       )}
 
-      <div style={{ borderTop: "1px solid hsl(0 0% 80%)", marginTop: "16px", paddingTop: "16px" }}>
+      <div style={styles.divider}>
         <NRDSettings />
       </div>
     </div>

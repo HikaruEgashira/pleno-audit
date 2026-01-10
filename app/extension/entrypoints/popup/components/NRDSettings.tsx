@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import type { NRDConfig } from "@service-policy-auditor/detectors";
+import { Button, Badge, Card } from "../../../components";
 import { styles } from "../styles";
 
 export function NRDSettings() {
@@ -31,11 +32,11 @@ export function NRDSettings() {
         data: nrdConfig,
       });
 
-      setMessage("Settings saved!");
+      setMessage("保存しました");
       setTimeout(() => setMessage(""), 2000);
     } catch (error) {
       console.error("Failed to save config:", error);
-      setMessage("Failed to save");
+      setMessage("保存に失敗しました");
     }
     setSaving(false);
   }
@@ -43,116 +44,112 @@ export function NRDSettings() {
   if (!nrdConfig) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>Loading...</p>
+        <p style={styles.emptyText}>読み込み中...</p>
       </div>
     );
   }
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
+      <h3 style={styles.sectionTitle}>NRD検出設定</h3>
+      <div style={styles.card}>
+        <label style={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={nrdConfig.enabled}
+            onChange={(e) =>
+              setNRDConfig({
+                ...nrdConfig,
+                enabled: (e.target as HTMLInputElement).checked,
+              })
+            }
+          />
+          <span>NRD検出を有効化</span>
+        </label>
 
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={nrdConfig.enabled}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              enabled: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span>Enable NRD Detection</span>
-      </label>
-
-      {nrdConfig.enabled && (
-        <>
-          <label style={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={nrdConfig.enableRDAP}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  enableRDAP: (e.target as HTMLInputElement).checked,
-                })
-              }
-            />
-            <span>Enable RDAP Lookup (API queries)</span>
-          </label>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={styles.label}>
-              Age Threshold (days): {nrdConfig.thresholdDays}
+        {nrdConfig.enabled && (
+          <>
+            <label style={styles.checkbox}>
+              <input
+                type="checkbox"
+                checked={nrdConfig.enableRDAP}
+                onChange={(e) =>
+                  setNRDConfig({
+                    ...nrdConfig,
+                    enableRDAP: (e.target as HTMLInputElement).checked,
+                  })
+                }
+              />
+              <span>RDAPルックアップを有効化</span>
             </label>
-            <input
-              type="range"
-              min="1"
-              max="365"
-              value={nrdConfig.thresholdDays}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-                })
-              }
-              style={{ width: "100%", marginBottom: "4px" }}
-            />
-            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
-              Domains registered within this period are flagged as NRD
-            </span>
-          </div>
 
-          <div style={{ marginBottom: "12px" }}>
-            <label style={styles.label}>
-              Heuristic Sensitivity: {nrdConfig.heuristicThreshold}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={nrdConfig.heuristicThreshold}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
-                })
-              }
-              style={{ width: "100%", marginBottom: "4px" }}
-            />
-            <span style={{ fontSize: "11px", color: "hsl(0 0% 60%)" }}>
-              Higher = stricter heuristic matching (0-100)
-            </span>
-          </div>
-        </>
-      )}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={styles.label}>
+                経過日数しきい値: <Badge>{nrdConfig.thresholdDays}日</Badge>
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="365"
+                value={nrdConfig.thresholdDays}
+                onChange={(e) =>
+                  setNRDConfig({
+                    ...nrdConfig,
+                    thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+                  })
+                }
+                style={{ width: "100%", marginBottom: "4px" }}
+              />
+              <span style={{ fontSize: "11px", color: "#666" }}>
+                この期間内に登録されたドメインをNRDとして検出
+              </span>
+            </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          ...styles.button,
-          width: "100%",
-          cursor: saving ? "not-allowed" : "pointer",
-          opacity: saving ? 0.6 : 1,
-        }}
-      >
-        {saving ? "Saving..." : "Save Settings"}
-      </button>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={styles.label}>
+                ヒューリスティック感度: <Badge>{nrdConfig.heuristicThreshold}</Badge>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={nrdConfig.heuristicThreshold}
+                onChange={(e) =>
+                  setNRDConfig({
+                    ...nrdConfig,
+                    heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
+                  })
+                }
+                style={{ width: "100%", marginBottom: "4px" }}
+              />
+              <span style={{ fontSize: "11px", color: "#666" }}>
+                高い値=より厳格なマッチング (0-100)
+              </span>
+            </div>
+          </>
+        )}
 
-      {message && (
-        <p
-          style={{
-            marginTop: "12px",
-            fontSize: "12px",
-            color: "hsl(120 50% 40%)",
-            textAlign: "center",
-          }}
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          variant="primary"
         >
-          {message}
-        </p>
-      )}
+          {saving ? "保存中..." : "設定を保存"}
+        </Button>
+
+        {message && (
+          <p
+            style={{
+              marginTop: "12px",
+              fontSize: "12px",
+              color: "#0a7227",
+              textAlign: "center",
+            }}
+          >
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

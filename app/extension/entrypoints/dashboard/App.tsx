@@ -9,7 +9,7 @@ import type {
   DetectedService,
   EventLog,
 } from "@service-policy-auditor/detectors";
-import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Tabs } from "./components";
+import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Tabs } from "../../components";
 
 interface Stats {
   violations: number;

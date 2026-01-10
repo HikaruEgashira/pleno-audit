@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import type { GeneratedCSPPolicy } from "@service-policy-auditor/csp";
+import { Badge, Button, Card } from "../../../components";
 import { styles } from "../styles";
 
 interface DomainCSPPolicy {
@@ -39,7 +40,7 @@ export function PolicyGenerator() {
   async function handleCopy(policyString: string) {
     try {
       await navigator.clipboard.writeText(policyString);
-      alert("Copied to clipboard!");
+      alert("クリップボードにコピーしました");
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -49,19 +50,15 @@ export function PolicyGenerator() {
     return (
       <div style={styles.section}>
         <p style={{ ...styles.emptyText, marginBottom: "12px" }}>
-          Generate CSP policies grouped by source domain
+          ドメイン別にCSPポリシーを生成
         </p>
-        <button
+        <Button
           onClick={handleGenerate}
           disabled={loading}
-          style={{
-            ...styles.button,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-          }}
+          variant="primary"
         >
-          {loading ? "Generating..." : "Generate CSP Policy"}
-        </button>
+          {loading ? "生成中..." : "CSPポリシーを生成"}
+        </Button>
       </div>
     );
   }
@@ -69,10 +66,10 @@ export function PolicyGenerator() {
   if (result.policies.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>No data collected yet</p>
-        <button onClick={() => setResult(null)} style={styles.buttonSecondary}>
-          Clear
-        </button>
+        <p style={styles.emptyText}>データがまだ収集されていません</p>
+        <Button onClick={() => setResult(null)} variant="secondary">
+          クリア
+        </Button>
       </div>
     );
   }
@@ -88,26 +85,28 @@ export function PolicyGenerator() {
         }}
       >
         <h3 style={{ ...styles.sectionTitle, margin: 0 }}>
-          CSP ({result.totalDomains})
+          CSPポリシー ({result.totalDomains})
         </h3>
-        <button onClick={() => setResult(null)} style={styles.buttonSecondary}>
-          Clear
-        </button>
+        <Button onClick={() => setResult(null)} variant="ghost" size="sm">
+          クリア
+        </Button>
       </div>
 
-      {result.policies.map((item) => (
-        <DomainPolicyCard
-          key={item.domain}
-          item={item}
-          expanded={expandedDomain === item.domain}
-          onToggle={() =>
-            setExpandedDomain(
-              expandedDomain === item.domain ? null : item.domain
-            )
-          }
-          onCopy={() => handleCopy(item.policy.policyString)}
-        />
-      ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {result.policies.map((item) => (
+          <DomainPolicyCard
+            key={item.domain}
+            item={item}
+            expanded={expandedDomain === item.domain}
+            onToggle={() =>
+              setExpandedDomain(
+                expandedDomain === item.domain ? null : item.domain
+              )
+            }
+            onCopy={() => handleCopy(item.policy.policyString)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -124,73 +123,46 @@ function DomainPolicyCard({
   onCopy: () => void;
 }) {
   return (
-    <div
-      style={{
-        border: "1px solid hsl(0 0% 85%)",
-        borderRadius: "4px",
-        marginBottom: "8px",
-        overflow: "hidden",
-      }}
-    >
+    <div style={styles.card}>
       <div
         onClick={onToggle}
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "10px 12px",
-          backgroundColor: expanded ? "hsl(0 0% 95%)" : "hsl(0 0% 98%)",
           cursor: "pointer",
-          borderBottom: expanded ? "1px solid hsl(0 0% 85%)" : "none",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "10px", color: "hsl(0 0% 50%)" }}>
+          <span style={{ fontSize: "10px", color: "#666" }}>
             {expanded ? "▼" : "▶"}
           </span>
-          <span
-            style={{
-              fontFamily: "'Menlo', monospace",
-              fontSize: "12px",
-              fontWeight: 500,
-            }}
-          >
-            {item.domain}
-          </span>
+          <code style={styles.code}>{item.domain}</code>
         </div>
-        <span
-          style={{
-            fontSize: "11px",
-            color: "hsl(0 0% 50%)",
-            backgroundColor: "hsl(0 0% 90%)",
-            padding: "2px 6px",
-            borderRadius: "10px",
-          }}
-        >
-          {item.reportCount} requests
-        </span>
+        <Badge>{item.reportCount}件</Badge>
       </div>
 
       {expanded && (
-        <div style={{ padding: "12px" }}>
+        <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #eaeaea" }}>
           <div
             style={{
-              backgroundColor: "hsl(0 0% 95%)",
+              backgroundColor: "#fafafa",
               padding: "10px",
-              borderRadius: "3px",
+              borderRadius: "6px",
               marginBottom: "10px",
               maxHeight: "150px",
               overflow: "auto",
+              border: "1px solid #eaeaea",
             }}
           >
             <pre
               style={{
                 margin: 0,
                 fontSize: "10px",
-                fontFamily: "'Menlo', monospace",
+                fontFamily: "monospace",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all" as const,
-                color: "hsl(0 0% 20%)",
+                color: "#333",
                 lineHeight: 1.4,
               }}
             >
@@ -198,37 +170,34 @@ function DomainPolicyCard({
             </pre>
           </div>
 
-          <button
-            onClick={(e) => {
+          <Button
+            onClick={(e: Event) => {
               e.stopPropagation();
               onCopy();
             }}
-            style={{
-              ...styles.button,
-              padding: "4px 10px",
-              fontSize: "11px",
-            }}
+            variant="secondary"
+            size="sm"
           >
-            Copy
-          </button>
+            コピー
+          </Button>
 
           {item.policy.recommendations.length > 0 && (
-            <div style={{ marginTop: "10px" }}>
+            <div style={{ marginTop: "12px" }}>
               <h4
                 style={{
                   fontSize: "11px",
-                  fontWeight: 600,
-                  color: "hsl(0 0% 30%)",
-                  marginBottom: "6px",
+                  fontWeight: 500,
+                  color: "#666",
+                  marginBottom: "8px",
                 }}
               >
-                Recommendations ({item.policy.recommendations.length})
+                推奨事項 ({item.policy.recommendations.length})
               </h4>
               <ul
                 style={{
                   margin: 0,
                   paddingLeft: "14px",
-                  fontSize: "10px",
+                  fontSize: "11px",
                   lineHeight: 1.6,
                 }}
               >
@@ -237,21 +206,13 @@ function DomainPolicyCard({
                     key={i}
                     style={{
                       marginBottom: "4px",
-                      color:
-                        rec.severity === "critical"
-                          ? "hsl(0 70% 50%)"
-                          : "hsl(0 0% 40%)",
+                      color: rec.severity === "critical" ? "#c00" : "#666",
                     }}
                   >
-                    <strong
-                      style={{ textTransform: "uppercase", fontSize: "9px" }}
-                    >
-                      {rec.severity}
-                    </strong>{" "}
-                    <span style={{ fontFamily: "'Menlo', monospace" }}>
-                      {rec.directive}
-                    </span>
-                    : {rec.message}
+                    <Badge variant={rec.severity === "critical" ? "danger" : "warning"} size="sm">
+                      {rec.severity === "critical" ? "重要" : "警告"}
+                    </Badge>{" "}
+                    <code style={{ fontSize: "10px" }}>{rec.directive}</code>: {rec.message}
                   </li>
                 ))}
               </ul>
