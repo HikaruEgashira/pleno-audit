@@ -768,7 +768,9 @@ export default defineBackground(() => {
     }
 
     if (message.type === "PAGE_ANALYZED") {
-      handlePageAnalysis(message.payload).catch(console.error);
+      handlePageAnalysis(message.payload)
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 
