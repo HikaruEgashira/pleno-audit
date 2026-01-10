@@ -12,7 +12,7 @@ import type {
   ScriptType,
   ScoreBreakdown,
   TyposquatConfig,
-} from "./typosquat-types.js";
+} from "./types.js";
 
 // ============================================================================
 // ホモグリフマッピング

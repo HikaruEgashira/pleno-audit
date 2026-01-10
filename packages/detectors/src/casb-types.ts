@@ -13,7 +13,7 @@ import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
 } from "./ai-types.js";
-import type { TyposquatDetectedDetails } from "./typosquat-types.js";
+import type { TyposquatDetectedDetails } from "@service-policy-auditor/typosquat";
 
 // ============================================================================
 // SaaS Visibility (サービス可視性)

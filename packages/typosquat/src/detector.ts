@@ -9,12 +9,12 @@ import type {
   TyposquatResult,
   TyposquatConfig,
   TyposquatConfidence,
-} from "./typosquat-types.js";
+} from "./types.js";
 import {
   calculateTyposquatHeuristics,
   decodePunycode,
   isPunycodeDomain,
-} from "./typosquat-heuristics.js";
+} from "./heuristics.js";
 
 /**
  * キャッシュインターフェース

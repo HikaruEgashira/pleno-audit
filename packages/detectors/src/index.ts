@@ -121,7 +121,7 @@ export {
   inferProviderFromResponse,
 } from "./ai-detector.js";
 
-// Typosquatting Detection Types
+// Typosquatting Detection (re-export from @service-policy-auditor/typosquat)
 export type {
   HomoglyphType,
   HomoglyphMatch,
@@ -133,12 +133,11 @@ export type {
   TyposquatResult,
   TyposquatConfig,
   TyposquatDetectedDetails,
-} from "./typosquat-types.js";
+  TyposquatCache,
+} from "@service-policy-auditor/typosquat";
 
-export { DEFAULT_TYPOSQUAT_CONFIG } from "./typosquat-types.js";
-
-// Typosquatting Heuristic Detection
 export {
+  DEFAULT_TYPOSQUAT_CONFIG,
   LATIN_HOMOGLYPHS,
   CYRILLIC_TO_LATIN,
   JAPANESE_HOMOGLYPHS,
@@ -152,8 +151,5 @@ export {
   decodePunycode,
   calculateTyposquatHeuristics,
   isHighRiskTyposquat,
-} from "./typosquat-heuristics.js";
-
-// Typosquatting Detector Factory
-export type { TyposquatCache } from "./typosquat-detector.js";
-export { createTyposquatDetector } from "./typosquat-detector.js";
+  createTyposquatDetector,
+} from "@service-policy-auditor/typosquat";

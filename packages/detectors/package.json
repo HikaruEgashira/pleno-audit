@@ -10,6 +10,7 @@
     "./patterns": "./src/patterns.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/csp": "workspace:*"
+    "@service-policy-auditor/csp": "workspace:*",
+    "@service-policy-auditor/typosquat": "workspace:*"
   }
 }
