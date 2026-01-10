@@ -4,11 +4,10 @@ Browserを通してアクセスするWebサービスの利用状況を可視化�
 
 ## Features
 
-- Local First: すべてのデータ処理はブラウザ内で完結します。外部DBも用いません。
+- Local First: すべてのデータ処理はブラウザ内で完結します。外部DBも用いません
 - Service Detection: ドメイン・Cookie・ネットワークリクエストからサービスを特定
-- Privacy Policy Detection: 独自アルゴリズムでプライバシーポリシーを特定
-- CSP Auditor: Content Security Policy違反の検出・レポート
-- Policy Generator: 検出された通信先から推奨CSPを生成
+- Service Policy Detection: 独自アルゴリズムでプライバシーポリシー／利用規約を特定
+- CSP Auditor: Content Security Policy違反の検出・レポート・ポリシー生成
 
 ## Documentation
 
