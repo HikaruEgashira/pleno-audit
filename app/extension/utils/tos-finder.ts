@@ -55,6 +55,20 @@ function isExcludedUrl(url: string): boolean {
   );
 }
 
+function isPrivacyLink(text: string, url: string): boolean {
+  const pathname = getPathFromUrl(url);
+  const decodedPath = decodeUrlSafe(pathname);
+  const decodedText = decodeUrlSafe(text);
+
+  // Check if text or URL indicates privacy content
+  return (
+    isPrivacyText(text) ||
+    isPrivacyText(decodedText) ||
+    isExcludedUrl(pathname) ||
+    isPrivacyText(decodedPath)
+  );
+}
+
 function isTosUrlWithDecode(url: string): boolean {
   // Extract pathname to avoid matching domain parts
   const pathname = getPathFromUrl(url);
@@ -152,6 +166,9 @@ export function findTermsOfService(): TosResult {
       const text = link.textContent?.trim() || "";
       const href = link.href;
 
+      // Skip privacy-related links
+      if (isPrivacyLink(text, href)) continue;
+
       if (isTosText(text)) {
         return { found: true, url: href, method: "link_text" };
       }
@@ -171,6 +188,9 @@ export function findTermsOfService(): TosResult {
   for (const link of allLinks) {
     const text = link.textContent?.trim() || "";
     const href = link.href;
+
+    // Skip privacy-related links
+    if (isPrivacyLink(text, href)) continue;
 
     if (isTosText(text) || isTosUrlWithDecode(href)) {
       return { found: true, url: href, method: "link_text" };
