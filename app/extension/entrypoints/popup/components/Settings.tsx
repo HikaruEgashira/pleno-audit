@@ -91,44 +91,48 @@ export function Settings() {
         <span>Enable CSP Auditing</span>
       </label>
 
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={config.collectCSPViolations}
-          onChange={(e) =>
-            setConfig({
-              ...config,
-              collectCSPViolations: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span>Collect CSP Violations</span>
-      </label>
+      {config.enabled && (
+        <>
+          <label style={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={config.collectCSPViolations}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  collectCSPViolations: (e.target as HTMLInputElement).checked,
+                })
+              }
+            />
+            <span>Collect CSP Violations</span>
+          </label>
 
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={config.collectNetworkRequests}
-          onChange={(e) =>
-            setConfig({
-              ...config,
-              collectNetworkRequests: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span>Collect Network Requests</span>
-      </label>
+          <label style={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={config.collectNetworkRequests}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  collectNetworkRequests: (e.target as HTMLInputElement).checked,
+                })
+              }
+            />
+            <span>Collect Network Requests</span>
+          </label>
 
-      <div style={{ marginBottom: "16px" }}>
-        <label style={styles.label}>Report Endpoint (optional)</label>
-        <input
-          type="url"
-          style={styles.input}
-          value={endpoint}
-          onChange={(e) => setEndpoint((e.target as HTMLInputElement).value)}
-          placeholder="https://your-server.com/api/reports"
-        />
-      </div>
+          <div style={{ marginBottom: "16px" }}>
+            <label style={styles.label}>Report Endpoint (optional)</label>
+            <input
+              type="url"
+              style={styles.input}
+              value={endpoint}
+              onChange={(e) => setEndpoint((e.target as HTMLInputElement).value)}
+              placeholder="https://your-server.com/api/reports"
+            />
+          </div>
+        </>
+      )}
 
       <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid hsl(0 0% 80%)" }} />
 
