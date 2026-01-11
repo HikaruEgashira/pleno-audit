@@ -20,7 +20,7 @@ const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
   { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.aiPrompts.length },
   { key: "domains", label: "Domains", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length },
-  { key: "extensions", label: "Ext" },
+  { key: "extensions", label: "Extensions" },
 ];
 
 interface TabData {
