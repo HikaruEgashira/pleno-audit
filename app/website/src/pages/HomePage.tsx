@@ -89,7 +89,7 @@ const HeroSection = () => (
       >
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#eaeaea] dark:border-[#333] bg-white dark:bg-[#171717] px-4 py-2 text-sm">
           <Shield className="h-4 w-4 text-[#171717] dark:text-[#ededed]" />
-          <span className="text-[#171717] dark:text-[#ededed]">Browser Security & CASB</span>
+          <span className="text-[#171717] dark:text-[#ededed]">Personal Browser Security</span>
         </div>
 
         <h1 className="mx-auto mb-6 max-w-4xl text-5xl font-normal tracking-tight text-[#171717] dark:text-[#ededed] md:text-6xl lg:text-7xl">
@@ -99,8 +99,8 @@ const HeroSection = () => (
         </h1>
 
         <p className="mx-auto mb-10 max-w-2xl text-lg text-[#666] dark:text-[#8f8f8f] md:text-xl">
-          リアルタイムでShadow ITを検出し、CSP違反を監視、悪意あるドメインから保護する
-          ブラウザセキュリティ拡張機能
+          フィッシングサイトやプライバシーリスクをリアルタイムで検出し、
+          あなたのブラウジングを守るセキュリティ拡張機能
         </p>
 
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -147,7 +147,7 @@ const FeaturesSection = () => (
           主要機能
         </h2>
         <p className="mx-auto max-w-2xl text-[#666] dark:text-[#8f8f8f]">
-          ブラウザセキュリティを包括的に監視・可視化
+          あなたのブラウジングを守る機能を搭載
         </p>
       </motion.div>
 
@@ -160,8 +160,8 @@ const FeaturesSection = () => (
         >
           <FeatureCard
             icon={Eye}
-            title="Shadow IT検出"
-            description="未許可のSaaSサービスへのアクセスをリアルタイムで検出し、可視化します"
+            title="サービス利用可視化"
+            description="どのWebサービスを利用しているか一目で把握し、利用状況を可視化します"
           />
         </motion.div>
         <motion.div
@@ -172,8 +172,8 @@ const FeaturesSection = () => (
         >
           <FeatureCard
             icon={Shield}
-            title="CSP監視"
-            description="Content Security Policy違反を検出し、セキュリティポリシーの遵守状況を監視"
+            title="セキュリティ監視"
+            description="Webサイトのセキュリティ設定を自動チェックし、潜在的なリスクを検出"
           />
         </motion.div>
         <motion.div
@@ -197,7 +197,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Zap}
             title="AIプロンプト監視"
-            description="AIサービスへの機密情報漏洩リスクを検出・監視"
+            description="ChatGPTなどのAIサービスへの個人情報送信リスクを検出"
           />
         </motion.div>
         <motion.div
@@ -208,8 +208,8 @@ const FeaturesSection = () => (
         >
           <FeatureCard
             icon={Lock}
-            title="認証フロー検出"
-            description="OAuth/SAMLなどの認証フローを検出し、セキュリティ状態を把握"
+            title="ログイン追跡"
+            description="どのサービスにどの認証方法でログインしているか把握できます"
           />
         </motion.div>
         <motion.div
@@ -221,7 +221,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Eye}
             title="ダッシュボード"
-            description="検出した全てのセキュリティイベントを一元管理・可視化"
+            description="セキュリティ状況を一目で把握できるシンプルな管理画面"
           />
         </motion.div>
       </div>
