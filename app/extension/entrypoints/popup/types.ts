@@ -2,7 +2,7 @@ import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type {
   DetectedService,
   EventLog,
-  CapturedAIPrompt,
+  CapturedInput,
 } from "@pleno-audit/detectors";
 
 export interface ViolationProps {
@@ -20,7 +20,7 @@ export interface EventProps {
 export interface PhishingTabProps extends ServiceProps, EventProps {}
 
 export interface ShadowITTabProps extends ServiceProps, EventProps {
-  aiPrompts: CapturedAIPrompt[];
+  inputs: CapturedInput[];
 }
 
 export interface MalwareTabProps extends ViolationProps {

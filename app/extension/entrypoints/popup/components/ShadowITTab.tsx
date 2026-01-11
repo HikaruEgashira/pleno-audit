@@ -1,5 +1,5 @@
 import { ServiceList } from "./ServiceList";
-import { AIPromptList } from "./AIPromptList";
+import { InputList } from "./InputList";
 import { EventLogList } from "./EventLog";
 import { usePopupStyles } from "../styles";
 import type { ShadowITTabProps } from "../types";
@@ -9,18 +9,19 @@ const SHADOW_IT_EVENT_TYPES = [
   "login_detected",
   "privacy_policy_found",
   "terms_of_service_found",
+  "input_captured",
 ];
 
-export function ShadowITTab({ services, aiPrompts, events }: ShadowITTabProps) {
+export function ShadowITTab({ services, inputs, events }: ShadowITTabProps) {
   const styles = usePopupStyles();
 
   return (
     <div>
       <ServiceList services={services} />
 
-      {aiPrompts.length > 0 && (
+      {inputs.length > 0 && (
         <div style={styles.divider}>
-          <AIPromptList prompts={aiPrompts} />
+          <InputList inputs={inputs} />
         </div>
       )}
 

@@ -29,7 +29,7 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm"],
+        resources: ["input-hooks.js", "sql-wasm.wasm"],
         matches: ["<all_urls>"],
       },
     ],

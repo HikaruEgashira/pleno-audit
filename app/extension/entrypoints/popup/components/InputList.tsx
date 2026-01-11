@@ -1,71 +1,71 @@
 import { useState } from "preact/hooks";
-import type { CapturedAIPrompt } from "@pleno-audit/detectors";
+import type { CapturedInput } from "@pleno-audit/detectors";
 import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
 interface Props {
-  prompts: CapturedAIPrompt[];
+  inputs: CapturedInput[];
 }
 
-export function AIPromptList({ prompts }: Props) {
+export function InputList({ inputs }: Props) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (prompts.length === 0) {
+  if (inputs.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>AIプロンプトはまだキャプチャされていません</p>
+        <p style={styles.emptyText}>Inputsはまだキャプチャされていません</p>
       </div>
     );
   }
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length})</h3>
+      <h3 style={styles.sectionTitle}>Inputs ({inputs.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {prompts.slice(0, 50).map((prompt) => (
-          <PromptCard
-            key={prompt.id}
-            prompt={prompt}
-            expanded={expandedId === prompt.id}
+        {inputs.slice(0, 50).map((input) => (
+          <InputCard
+            key={input.id}
+            input={input}
+            expanded={expandedId === input.id}
             onToggle={() =>
-              setExpandedId(expandedId === prompt.id ? null : prompt.id)
+              setExpandedId(expandedId === input.id ? null : input.id)
             }
             styles={styles}
             colors={colors}
           />
         ))}
       </div>
-      {prompts.length > 50 && (
+      {inputs.length > 50 && (
         <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
-          50件中{prompts.length}件を表示
+          50件中{inputs.length}件を表示
         </p>
       )}
     </div>
   );
 }
 
-function PromptCard({
-  prompt,
+function InputCard({
+  input,
   expanded,
   onToggle,
   styles,
   colors,
 }: {
-  prompt: CapturedAIPrompt;
+  input: CapturedInput;
   expanded: boolean;
   onToggle: () => void;
   styles: ReturnType<typeof usePopupStyles>;
-  colors: any;
+  colors: ReturnType<typeof useTheme>["colors"];
 }) {
-  const time = new Date(prompt.timestamp).toLocaleTimeString("ja-JP", {
+  const time = new Date(input.timestamp).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
-  const preview = getPreview(prompt);
+  const preview = getPreview(input);
 
   return (
     <div style={styles.card}>
@@ -79,6 +79,9 @@ function PromptCard({
           alignItems: "center",
         }}
       >
+        {input.isAI && (
+          <Badge variant="info" size="sm">AI</Badge>
+        )}
         <p
           style={{
             fontSize: "12px",
@@ -106,10 +109,10 @@ function PromptCard({
         >
           <div style={{ marginBottom: "8px" }}>
             <strong style={{ color: colors.textSecondary }}>エンドポイント:</strong>{" "}
-            <code style={styles.code}>{prompt.apiEndpoint}</code>
+            <code style={styles.code}>{input.apiEndpoint}</code>
           </div>
           <div style={{ marginBottom: "8px" }}>
-            <strong style={{ color: colors.textSecondary }}>プロンプト:</strong>
+            <strong style={{ color: colors.textSecondary }}>コンテンツ:</strong>
             <pre
               style={{
                 backgroundColor: colors.bgSecondary,
@@ -125,15 +128,15 @@ function PromptCard({
                 color: colors.textPrimary,
               }}
             >
-              {formatPrompt(prompt)}
+              {formatContent(input)}
             </pre>
           </div>
-          {prompt.response && (
+          {input.response && (
             <div>
               <strong style={{ color: colors.textSecondary }}>
                 レスポンス{" "}
-                {prompt.response.latencyMs && (
-                  <Badge variant="success">{prompt.response.latencyMs}ms</Badge>
+                {input.response.latencyMs && (
+                  <Badge variant="success">{input.response.latencyMs}ms</Badge>
                 )}
               </strong>
               <pre
@@ -151,7 +154,7 @@ function PromptCard({
                   color: colors.textPrimary,
                 }}
               >
-                {prompt.response.text || "(テキストなし)"}
+                {input.response.text || "(テキストなし)"}
               </pre>
             </div>
           )}
@@ -161,25 +164,25 @@ function PromptCard({
   );
 }
 
-function getPreview(prompt: CapturedAIPrompt): string {
-  if (prompt.prompt.messages?.length) {
-    const last = [...prompt.prompt.messages]
+function getPreview(input: CapturedInput): string {
+  if (input.content.messages?.length) {
+    const last = [...input.content.messages]
       .reverse()
       .find((m) => m.role === "user");
     return last?.content.substring(0, 100) || "";
   }
   return (
-    prompt.prompt.text?.substring(0, 100) ||
-    prompt.prompt.rawBody?.substring(0, 100) ||
+    input.content.text?.substring(0, 100) ||
+    input.content.rawBody?.substring(0, 100) ||
     ""
   );
 }
 
-function formatPrompt(prompt: CapturedAIPrompt): string {
-  if (prompt.prompt.messages) {
-    return prompt.prompt.messages
+function formatContent(input: CapturedInput): string {
+  if (input.content.messages) {
+    return input.content.messages
       .map((m) => `[${m.role}] ${m.content}`)
       .join("\n\n");
   }
-  return prompt.prompt.text || prompt.prompt.rawBody || "";
+  return input.content.text || input.content.rawBody || "";
 }

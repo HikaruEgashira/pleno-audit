@@ -98,18 +98,27 @@ export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
 export { createLoginDetector } from "./login-detector.js";
 
-// AI Prompt Detection (re-export from @pleno-audit/ai-detector)
+// Input Detection (re-export from @pleno-audit/ai-detector)
 export type {
   AIDetectionMethod,
+  // 新しい型
+  CapturedInput,
+  InputContent,
+  InputResponseContent,
+  InputMonitorConfig,
+  InputCapturedDetails,
+  // 後方互換エイリアス
   CapturedAIPrompt,
   AIPromptContent,
   AIResponseContent,
+  AIMonitorConfig,
+  // イベント詳細
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-  AIMonitorConfig,
 } from "@pleno-audit/ai-detector";
 
 export {
+  DEFAULT_INPUT_MONITOR_CONFIG,
   DEFAULT_AI_MONITOR_CONFIG,
   isAIRequestBody,
   extractPromptContent,

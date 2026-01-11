@@ -4,7 +4,9 @@
 import type {
   DetectedService,
   EventLog,
+  CapturedInput,
   CapturedAIPrompt,
+  InputMonitorConfig,
   AIMonitorConfig,
   NRDConfig,
 } from "@pleno-audit/detectors";
@@ -46,6 +48,10 @@ export interface StorageData {
   events: EventLog[];
   cspReports?: CSPReport[];
   cspConfig?: CSPConfig;
+  // 入力監視（新）
+  inputs?: CapturedInput[];
+  inputMonitorConfig?: InputMonitorConfig;
+  // 後方互換（旧AI監視）
   aiPrompts?: CapturedAIPrompt[];
   aiMonitorConfig?: AIMonitorConfig;
   nrdConfig?: NRDConfig;
@@ -59,7 +65,9 @@ export type {
   EventLog,
   CSPConfig,
   CSPReport,
+  CapturedInput,
   CapturedAIPrompt,
+  InputMonitorConfig,
   AIMonitorConfig,
   NRDConfig,
   DataRetentionConfig,

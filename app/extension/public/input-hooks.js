@@ -1,14 +1,14 @@
 /**
- * AI Prompt Capture Script (Main World)
- * リクエスト構造による汎用AIサービス検出とプロンプト/レスポンスキャプチャ
+ * Input Capture Script (Main World)
+ * すべてのPOSTリクエストをキャプチャし、AI検知シグネチャがあればフラグを付与
  */
 
 ;(function() {
   'use strict'
 
   // Prevent double initialization
-  if (window.__AI_PROMPT_CAPTURE_INITIALIZED__) return
-  window.__AI_PROMPT_CAPTURE_INITIALIZED__ = true
+  if (window.__INPUT_CAPTURE_INITIALIZED__) return
+  window.__INPUT_CAPTURE_INITIALIZED__ = true
 
   // Configuration
   const MAX_CONTENT_SIZE = 50000  // 50KB max capture
@@ -18,6 +18,10 @@
   const originalFetch = window.fetch
   const originalXHROpen = XMLHttpRequest.prototype.open
   const originalXHRSend = XMLHttpRequest.prototype.send
+
+  // ============================================================================
+  // AI Detection（AIリクエスト検出）
+  // ============================================================================
 
   function isAIRequestBody(body) {
     if (!body) return false
@@ -91,7 +95,11 @@
     )
   }
 
-  function extractPrompt(body) {
+  // ============================================================================
+  // Content Extraction（コンテンツ抽出）
+  // ============================================================================
+
+  function extractContent(body, isAI) {
     if (!body) return null
 
     try {
@@ -100,59 +108,56 @@
       const contentSize = bodyStr.length
       const truncated = contentSize > TRUNCATE_SIZE
 
-      // Chat Completion format (including ChatGPT internal format)
-      if (isMessagesArray(obj.messages)) {
-        return {
-          messages: obj.messages.map(m => ({
-            role: m.role || m.author?.role || 'user',
-            content: truncateString(extractMessageContent(m), TRUNCATE_SIZE),
-          })),
-          contentSize,
-          truncated,
-          model: obj.model,
+      // AIリクエストの場合は詳細抽出
+      if (isAI) {
+        // Chat Completion format (including ChatGPT internal format)
+        if (isMessagesArray(obj.messages)) {
+          return {
+            messages: obj.messages.map(m => ({
+              role: m.role || m.author?.role || 'user',
+              content: truncateString(extractMessageContent(m), TRUNCATE_SIZE),
+            })),
+            contentSize,
+            truncated,
+          }
+        }
+
+        // Completion format
+        if (typeof obj.prompt === 'string') {
+          return {
+            text: truncateString(obj.prompt, TRUNCATE_SIZE),
+            contentSize,
+            truncated,
+          }
+        }
+
+        // Gemini format
+        if (isGeminiContents(obj.contents)) {
+          const messages = obj.contents.map(c => ({
+            role: c.role || 'user',
+            content: truncateString(
+              c.parts.map(p => p.text || '').join(''),
+              TRUNCATE_SIZE
+            ),
+          }))
+          return {
+            messages,
+            contentSize,
+            truncated,
+          }
+        }
+
+        // ChatGPT conversation format (action-based)
+        if (isChatGPTConversation(obj)) {
+          return {
+            rawBody: truncateString(bodyStr, TRUNCATE_SIZE),
+            contentSize,
+            truncated,
+          }
         }
       }
 
-      // Completion format
-      if (typeof obj.prompt === 'string') {
-        return {
-          text: truncateString(obj.prompt, TRUNCATE_SIZE),
-          contentSize,
-          truncated,
-          model: obj.model,
-        }
-      }
-
-      // Gemini format
-      if (isGeminiContents(obj.contents)) {
-        const messages = obj.contents.map(c => ({
-          role: c.role || 'user',
-          content: truncateString(
-            c.parts.map(p => p.text || '').join(''),
-            TRUNCATE_SIZE
-          ),
-        }))
-        return {
-          messages,
-          contentSize,
-          truncated,
-          model: obj.model,
-        }
-      }
-
-      // ChatGPT conversation format (action-based)
-      if (isChatGPTConversation(obj)) {
-        return {
-          chatgptAction: obj.action,
-          conversationId: obj.conversation_id,
-          parentMessageId: obj.parent_message_id,
-          contentSize,
-          truncated,
-          model: obj.model,
-        }
-      }
-
-      // Raw body
+      // 非AIまたはフォールバック: 生のボディを保存
       return {
         rawBody: truncateString(bodyStr, TRUNCATE_SIZE),
         contentSize,
@@ -290,29 +295,39 @@
     return crypto.randomUUID()
   }
 
-  function sendAICapture(data) {
+  // ============================================================================
+  // Event Dispatch（イベント送信）
+  // ============================================================================
+
+  function sendInputCapture(data) {
     window.dispatchEvent(
-      new CustomEvent('__AI_PROMPT_CAPTURED__', { detail: data })
+      new CustomEvent('__INPUT_CAPTURED__', { detail: data })
     )
+    // 後方互換: AIの場合は旧イベントも発火
+    if (data.isAI) {
+      window.dispatchEvent(
+        new CustomEvent('__AI_PROMPT_CAPTURED__', { detail: data })
+      )
+    }
   }
+
+  // ============================================================================
+  // Fetch Hook
+  // ============================================================================
 
   window.fetch = async function(input, init) {
     const url = typeof input === 'string' ? input : input?.url
     const method = init?.method || (typeof input === 'object' ? input.method : 'GET') || 'GET'
     const body = init?.body
 
-    // Only check POST/PUT requests with body
-    if (!body || method === 'GET') {
-      return originalFetch.apply(this, arguments)
-    }
-
-    // Check if this is an AI request by body structure
-    if (!isAIRequestBody(body)) {
+    // Only capture POST/PUT requests with body
+    if (!body || method.toUpperCase() === 'GET') {
       return originalFetch.apply(this, arguments)
     }
 
     const startTime = Date.now()
-    const promptContent = extractPrompt(body)
+    const isAI = isAIRequestBody(body)
+    const contentData = extractContent(body, isAI)
 
     const captureData = {
       id: generateId(),
@@ -320,8 +335,8 @@
       pageUrl: window.location.href,
       apiEndpoint: url ? new URL(url, window.location.origin).href : window.location.href,
       method: method.toUpperCase(),
-      prompt: promptContent,
-      model: promptContent?.model,
+      isAI: isAI,
+      content: contentData,
     }
 
     try {
@@ -339,7 +354,7 @@
       clonedResponse.text().then(text => {
         if (text.length > MAX_CONTENT_SIZE) {
           // Still send capture but without response
-          sendAICapture(captureData)
+          sendInputCapture(captureData)
           return
         }
 
@@ -347,40 +362,42 @@
         captureData.responseTimestamp = Date.now()
         captureData.response.latencyMs = Date.now() - startTime
 
-        sendAICapture(captureData)
+        sendInputCapture(captureData)
       }).catch(() => {
         // Send without response on error
-        sendAICapture(captureData)
+        sendInputCapture(captureData)
       })
 
       return response
     } catch (error) {
       // Send capture even on error
-      sendAICapture(captureData)
+      sendInputCapture(captureData)
       throw error
     }
   }
 
+  // ============================================================================
+  // XHR Hook
+  // ============================================================================
+
   XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-    this.__aiCaptureUrl = url
-    this.__aiCaptureMethod = method
+    this.__inputCaptureUrl = url
+    this.__inputCaptureMethod = method
     return originalXHROpen.call(this, method, url, ...rest)
   }
 
   XMLHttpRequest.prototype.send = function(body) {
-    const url = this.__aiCaptureUrl
-    const method = this.__aiCaptureMethod
+    const url = this.__inputCaptureUrl
+    const method = this.__inputCaptureMethod
 
-    if (!body || method === 'GET') {
-      return originalXHRSend.call(this, body)
-    }
-
-    if (!isAIRequestBody(body)) {
+    // Only capture POST/PUT requests with body
+    if (!body || (method || '').toUpperCase() === 'GET') {
       return originalXHRSend.call(this, body)
     }
 
     const startTime = Date.now()
-    const promptContent = extractPrompt(body)
+    const isAI = isAIRequestBody(body)
+    const contentData = extractContent(body, isAI)
 
     const captureData = {
       id: generateId(),
@@ -388,8 +405,8 @@
       pageUrl: window.location.href,
       apiEndpoint: url ? new URL(url, window.location.origin).href : window.location.href,
       method: (method || 'POST').toUpperCase(),
-      prompt: promptContent,
-      model: promptContent?.model,
+      isAI: isAI,
+      content: contentData,
     }
 
     const xhr = this
@@ -411,7 +428,7 @@
           // ignore
         }
 
-        sendAICapture(captureData)
+        sendInputCapture(captureData)
       }
 
       if (originalOnReadyStateChange) {
@@ -422,5 +439,5 @@
     return originalXHRSend.call(this, body)
   }
 
-  console.log('[AI Prompt Capture] Initialized')
+  console.log('[Input Capture] Initialized')
 })()

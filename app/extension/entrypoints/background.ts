@@ -6,10 +6,12 @@ import type {
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
   CookieSetDetails,
+  CapturedInput,
   CapturedAIPrompt,
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-  AIMonitorConfig,
+  InputMonitorConfig,
+  InputCapturedDetails,
   NRDConfig,
   NRDResult,
   NRDCache,
@@ -20,7 +22,7 @@ import type {
   DetectionResult,
 } from "@pleno-audit/detectors";
 import {
-  DEFAULT_AI_MONITOR_CONFIG,
+  DEFAULT_INPUT_MONITOR_CONFIG,
   DEFAULT_NRD_CONFIG,
   DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
@@ -47,7 +49,6 @@ import {
   getSyncManager,
   getStorage,
   setStorage,
-  clearAIPrompts,
   createExtensionMonitor,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
@@ -211,6 +212,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: ExtensionRequestDetails;
+    }
+  | {
+      type: "input_captured";
+      domain: string;
+      timestamp: number;
+      details: InputCapturedDetails;
     };
 
 async function getOrInitEventStore(): Promise<EventStore> {
@@ -561,12 +568,12 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     const cutoffMs = cutoffDate.getTime();
     await store.deleteOldEvents(cutoffMs);
 
-    // Delete old AI prompts from storage
+    // Delete old inputs from storage
     const storage = await getStorage();
-    const aiPrompts = storage.aiPrompts || [];
-    const filteredPrompts = aiPrompts.filter(p => p.timestamp >= cutoffMs);
-    if (filteredPrompts.length < aiPrompts.length) {
-      await setStorage({ aiPrompts: filteredPrompts });
+    const inputs = storage.inputs || [];
+    const filteredInputs = inputs.filter(p => p.timestamp >= cutoffMs);
+    if (filteredInputs.length < inputs.length) {
+      await setStorage({ inputs: filteredInputs });
     }
 
     // Delete old extension requests
@@ -902,22 +909,22 @@ async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: 
   };
 }
 
-// ===== AI Prompt Monitor Functions =====
+// ===== Input Monitor Functions =====
 
-const MAX_AI_PROMPTS = 500;
+const MAX_INPUTS = 500;
 
-async function handleAIPromptCaptured(
-  data: CapturedAIPrompt
+async function handleInputCaptured(
+  data: CapturedInput
 ): Promise<{ success: boolean }> {
   const storage = await getStorage();
-  const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
+  const config = storage.inputMonitorConfig || DEFAULT_INPUT_MONITOR_CONFIG;
 
   if (!config.enabled) {
     return { success: false };
   }
 
-  // Store AI prompt
-  await storeAIPrompt(data);
+  // Store input
+  await storeInput(data);
 
   // Extract domain from API endpoint
   let domain = "unknown";
@@ -927,29 +934,42 @@ async function handleAIPromptCaptured(
     // ignore
   }
 
-  // Add prompt sent event
-  await addEvent({
-    type: "ai_prompt_sent",
-    domain,
-    timestamp: data.timestamp,
-    details: {
-      promptPreview: getPromptPreview(data.prompt),
-      contentSize: data.prompt.contentSize,
-      messageCount: data.prompt.messages?.length,
-    },
-  });
-
-  // Add response received event if available
-  if (data.response) {
+  // AIの場合はAIイベントを記録
+  if (data.isAI) {
     await addEvent({
-      type: "ai_response_received",
+      type: "ai_prompt_sent",
       domain,
-      timestamp: data.responseTimestamp || Date.now(),
+      timestamp: data.timestamp,
       details: {
-        responsePreview: data.response.text?.substring(0, 100) || "",
-        contentSize: data.response.contentSize,
-        latencyMs: data.response.latencyMs,
-        isStreaming: data.response.isStreaming,
+        promptPreview: getContentPreview(data.content),
+        contentSize: data.content.contentSize,
+        messageCount: data.content.messages?.length,
+      },
+    });
+
+    if (data.response) {
+      await addEvent({
+        type: "ai_response_received",
+        domain,
+        timestamp: data.responseTimestamp || Date.now(),
+        details: {
+          responsePreview: data.response.text?.substring(0, 100) || "",
+          contentSize: data.response.contentSize,
+          latencyMs: data.response.latencyMs,
+          isStreaming: data.response.isStreaming,
+        },
+      });
+    }
+  } else {
+    // 非AIの場合は入力キャプチャイベントを記録
+    await addEvent({
+      type: "input_captured",
+      domain,
+      timestamp: data.timestamp,
+      details: {
+        inputPreview: data.content.rawBody?.substring(0, 100) || "",
+        contentSize: data.content.contentSize,
+        endpoint: data.apiEndpoint,
       },
     });
   }
@@ -957,62 +977,77 @@ async function handleAIPromptCaptured(
   return { success: true };
 }
 
-function getPromptPreview(prompt: CapturedAIPrompt["prompt"]): string {
-  if (prompt.messages?.length) {
-    const lastUserMsg = [...prompt.messages]
+function getContentPreview(content: CapturedInput["content"]): string {
+  if (content.messages?.length) {
+    const lastUserMsg = [...content.messages]
       .reverse()
       .find((m) => m.role === "user");
     return lastUserMsg?.content.substring(0, 100) || "";
   }
   return (
-    prompt.text?.substring(0, 100) || prompt.rawBody?.substring(0, 100) || ""
+    content.text?.substring(0, 100) || content.rawBody?.substring(0, 100) || ""
   );
 }
 
-async function storeAIPrompt(prompt: CapturedAIPrompt) {
+async function storeInput(input: CapturedInput) {
   return queueStorageOperation(async () => {
     const storage = await getStorage();
-    const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-    const maxPrompts = config.maxStoredRecords || MAX_AI_PROMPTS;
+    const config = storage.inputMonitorConfig || DEFAULT_INPUT_MONITOR_CONFIG;
+    const maxInputs = config.maxStoredRecords || MAX_INPUTS;
 
-    const aiPrompts = storage.aiPrompts || [];
-    aiPrompts.unshift(prompt);
+    const inputs = storage.inputs || [];
+    inputs.unshift(input);
 
-    if (aiPrompts.length > maxPrompts) {
-      aiPrompts.splice(maxPrompts);
+    if (inputs.length > maxInputs) {
+      inputs.splice(maxInputs);
     }
 
-    await setStorage({ aiPrompts });
+    await setStorage({ inputs });
   });
 }
 
-async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
+async function getInputs(options?: { isAI?: boolean }): Promise<CapturedInput[]> {
   const storage = await getStorage();
-  return storage.aiPrompts || [];
+  const inputs = storage.inputs || [];
+
+  if (options?.isAI !== undefined) {
+    return inputs.filter(i => i.isAI === options.isAI);
+  }
+  return inputs;
+}
+
+async function getInputsCount(): Promise<number> {
+  const storage = await getStorage();
+  return (storage.inputs || []).length;
+}
+
+async function getInputMonitorConfig(): Promise<InputMonitorConfig> {
+  const storage = await getStorage();
+  return storage.inputMonitorConfig || DEFAULT_INPUT_MONITOR_CONFIG;
+}
+
+async function setInputMonitorConfig(
+  newConfig: Partial<InputMonitorConfig>
+): Promise<{ success: boolean }> {
+  const current = await getInputMonitorConfig();
+  const updated = { ...current, ...newConfig };
+  await setStorage({ inputMonitorConfig: updated });
+  return { success: true };
+}
+
+async function clearInputData(): Promise<{ success: boolean }> {
+  await setStorage({ inputs: [] });
+  return { success: true };
+}
+
+// 後方互換関数
+async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
+  return getInputs({ isAI: true });
 }
 
 async function getAIPromptsCount(): Promise<number> {
-  const storage = await getStorage();
-  return (storage.aiPrompts || []).length;
-}
-
-async function getAIMonitorConfig(): Promise<AIMonitorConfig> {
-  const storage = await getStorage();
-  return storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-}
-
-async function setAIMonitorConfig(
-  newConfig: Partial<AIMonitorConfig>
-): Promise<{ success: boolean }> {
-  const current = await getAIMonitorConfig();
-  const updated = { ...current, ...newConfig };
-  await setStorage({ aiMonitorConfig: updated });
-  return { success: true };
-}
-
-async function clearAIData(): Promise<{ success: boolean }> {
-  await clearAIPrompts();
-  return { success: true };
+  const inputs = await getInputs({ isAI: true });
+  return inputs.length;
 }
 
 async function setConnectionConfig(
@@ -1069,10 +1104,10 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 
 async function registerMainWorldScript() {
   try {
-    await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
+    await chrome.scripting.unregisterContentScripts({ ids: ["input-hooks"] }).catch(() => {});
     await chrome.scripting.registerContentScripts([{
-      id: "api-hooks",
-      js: ["api-hooks.js"],
+      id: "input-hooks",
+      js: ["input-hooks.js"],
       matches: ["<all_urls>"],
       runAt: "document_start",
       world: "MAIN",
@@ -1275,14 +1310,39 @@ export default defineBackground(() => {
       return true;
     }
 
-    // AI Prompt handlers
-    if (message.type === "AI_PROMPT_CAPTURED") {
-      handleAIPromptCaptured(message.data)
+    // Input Monitor handlers
+    if (message.type === "INPUT_CAPTURED") {
+      handleInputCaptured(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
     }
 
+    // 後方互換: AI_PROMPT_CAPTUREDもサポート
+    if (message.type === "AI_PROMPT_CAPTURED") {
+      // isAIフラグがない場合は追加
+      const inputData = { ...message.data, isAI: message.data.isAI ?? true };
+      handleInputCaptured(inputData)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_INPUTS") {
+      getInputs(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    }
+
+    if (message.type === "GET_INPUTS_COUNT") {
+      getInputsCount()
+        .then((count) => sendResponse({ count }))
+        .catch(() => sendResponse({ count: 0 }));
+      return true;
+    }
+
+    // 後方互換: GET_AI_PROMPTSもサポート
     if (message.type === "GET_AI_PROMPTS") {
       getAIPrompts()
         .then(sendResponse)
@@ -1297,22 +1357,46 @@ export default defineBackground(() => {
       return true;
     }
 
-    if (message.type === "GET_AI_MONITOR_CONFIG") {
-      getAIMonitorConfig()
+    if (message.type === "GET_INPUT_MONITOR_CONFIG") {
+      getInputMonitorConfig()
         .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_AI_MONITOR_CONFIG));
+        .catch(() => sendResponse(DEFAULT_INPUT_MONITOR_CONFIG));
       return true;
     }
 
-    if (message.type === "SET_AI_MONITOR_CONFIG") {
-      setAIMonitorConfig(message.data)
+    // 後方互換
+    if (message.type === "GET_AI_MONITOR_CONFIG") {
+      getInputMonitorConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_INPUT_MONITOR_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_INPUT_MONITOR_CONFIG") {
+      setInputMonitorConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
     }
 
+    // 後方互換
+    if (message.type === "SET_AI_MONITOR_CONFIG") {
+      setInputMonitorConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CLEAR_INPUT_DATA") {
+      clearInputData()
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // 後方互換
     if (message.type === "CLEAR_AI_DATA") {
-      clearAIData()
+      clearInputData()
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

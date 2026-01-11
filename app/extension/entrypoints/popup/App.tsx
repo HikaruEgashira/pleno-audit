@@ -2,7 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 import type {
   DetectedService,
   EventLog,
-  CapturedAIPrompt,
+  CapturedInput,
 } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { StorageData } from "@pleno-audit/extension-runtime";
@@ -18,7 +18,7 @@ import { createStyles } from "./styles";
 type Tab = "sessions" | "domains" | "requests" | "extensions";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.aiPrompts.length },
+  { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.inputs.length },
   { key: "domains", label: "Domains", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length },
   { key: "extensions", label: "Extensions" },
@@ -26,7 +26,7 @@ const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
 
 interface TabData {
   services: DetectedService[];
-  aiPrompts: CapturedAIPrompt[];
+  inputs: CapturedInput[];
   events: EventLog[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
@@ -42,7 +42,8 @@ function getStatus(data: TabData) {
   const nrdCount = data.services.filter(s => s.nrdResult?.isNRD).length;
   if (nrdCount > 0) return { variant: "danger" as const, label: "警告", dot: false };
   if (data.violations.length > 10) return { variant: "warning" as const, label: "注意", dot: false };
-  if (data.aiPrompts.length > 0) return { variant: "info" as const, label: "監視", dot: false };
+  // AIの入力がある場合は監視状態
+  if (data.inputs.some(i => i.isAI)) return { variant: "info" as const, label: "監視", dot: false };
   return { variant: "success" as const, label: "正常", dot: true };
 }
 
@@ -54,12 +55,12 @@ function PopupContent() {
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
-  const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [inputs, setInputs] = useState<CapturedInput[]>([]);
 
   useEffect(() => {
     loadData();
     loadCSPData();
-    loadAIData();
+    loadInputData();
     const listener = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
@@ -69,8 +70,8 @@ function PopupContent() {
       if (changes.cspReports) {
         loadCSPData();
       }
-      if (changes.aiPrompts) {
-        loadAIData();
+      if (changes.inputs) {
+        loadInputData();
       }
     };
     chrome.storage.onChanged.addListener(listener);
@@ -119,12 +120,12 @@ function PopupContent() {
     }
   }
 
-  async function loadAIData() {
+  async function loadInputData() {
     try {
-      const data = await chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" });
-      if (Array.isArray(data)) setAIPrompts(data);
+      const data = await chrome.runtime.sendMessage({ type: "GET_INPUTS" });
+      if (Array.isArray(data)) setInputs(data);
     } catch (error) {
-      console.error("Failed to load AI data:", error);
+      console.error("Failed to load input data:", error);
     }
   }
 
@@ -133,12 +134,12 @@ function PopupContent() {
     try {
       await chrome.storage.local.remove(["services"]);
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
-      await chrome.runtime.sendMessage({ type: "CLEAR_AI_DATA" });
+      await chrome.runtime.sendMessage({ type: "CLEAR_INPUT_DATA" });
       await chrome.runtime.sendMessage({ type: "CLEAR_EVENTS" });
       setData({ services: {}, events: [] });
       setViolations([]);
       setNetworkRequests([]);
-      setAIPrompts([]);
+      setInputs([]);
     } catch (err) {
       console.error("Failed to clear data:", err);
     }
@@ -152,7 +153,7 @@ function PopupContent() {
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events;
 
-  const tabData: TabData = { services, aiPrompts, events, violations, networkRequests };
+  const tabData: TabData = { services, inputs, events, violations, networkRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
@@ -161,7 +162,7 @@ function PopupContent() {
     }
     switch (tab) {
       case "sessions":
-        return <ShadowITTab services={services} aiPrompts={aiPrompts} events={events} />;
+        return <ShadowITTab services={services} inputs={inputs} events={events} />;
       case "domains":
         return <PhishingTab services={services} events={events} />;
       case "requests":
