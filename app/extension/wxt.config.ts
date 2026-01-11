@@ -7,8 +7,20 @@ export default defineConfig({
   manifest: {
     name: "Pleno Audit",
     version: "0.0.1",
-    description:
-      "Personal Browser Security",
+    description: "Personal Browser Security",
+    icons: {
+      16: "icon.svg",
+      32: "icon.svg",
+      48: "icon.svg",
+      128: "icon.svg",
+    },
+    action: {
+      default_icon: {
+        16: "icon.svg",
+        32: "icon.svg",
+        48: "icon.svg",
+      },
+    },
     permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting"],
     host_permissions: ["<all_urls>"],
     content_security_policy: {

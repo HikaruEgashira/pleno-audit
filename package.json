@@ -7,6 +7,8 @@
     "dev": "pnpm -C app/extension dev",
     "build": "pnpm -C app/extension build",
     "server": "pnpm -C app/server start",
-    "server:dev": "pnpm -C app/server dev"
+    "server:dev": "pnpm -C app/server dev",
+    "website": "pnpm -C app/website dev",
+    "website:build": "pnpm -C app/website build"
   }
 }
