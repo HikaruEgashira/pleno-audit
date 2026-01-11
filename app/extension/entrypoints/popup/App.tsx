@@ -11,14 +11,16 @@ import { Badge, Button, SettingsMenu } from "../../components";
 import { ShadowITTab } from "./components/ShadowITTab";
 import { PhishingTab } from "./components/PhishingTab";
 import { MalwareTab } from "./components/MalwareTab";
+import { ExtensionsTab } from "./components/ExtensionsTab";
 import { createStyles } from "./styles";
 
-type Tab = "sessions" | "domains" | "requests";
+type Tab = "sessions" | "domains" | "requests" | "extensions";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
   { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.aiPrompts.length },
   { key: "domains", label: "Domains", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length },
+  { key: "extensions", label: "Ext" },
 ];
 
 interface TabData {
@@ -163,6 +165,8 @@ function PopupContent() {
         return <PhishingTab services={services} events={events} />;
       case "requests":
         return <MalwareTab violations={violations} networkRequests={networkRequests} />;
+      case "extensions":
+        return <ExtensionsTab />;
       default:
         return null;
     }
