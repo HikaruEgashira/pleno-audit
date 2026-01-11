@@ -1,4 +1,4 @@
-import { isSessionCookie, type CookieInfo } from "@service-policy-auditor/detectors";
+import { isSessionCookie, type CookieInfo } from "@pleno-audit/detectors";
 
 export type CookieChangeCallback = (cookie: CookieInfo, removed: boolean) => void;
 

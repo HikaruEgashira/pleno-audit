@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/ai-detector",
+  "name": "@pleno-audit/ai-detector",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",

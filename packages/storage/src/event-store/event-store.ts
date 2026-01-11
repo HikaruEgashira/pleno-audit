@@ -9,7 +9,7 @@
  * - Cursor direction for sorting (no memory sort)
  */
 
-import type { EventLog, EventLogType } from "@service-policy-auditor/detectors";
+import type { EventLog, EventLogType } from "@pleno-audit/detectors";
 import { DB_CONFIG, initializeDatabase } from "./schema.js";
 
 export interface EventQueryOptions {

@@ -80,11 +80,10 @@ const FOOTER_SELECTORS = [
 - 非標準的なURL構造のサイトは検出できない
 - 多言語対応が不完全（英語・日本語のみ）
 
-### Future Work
-将来のintelligence機能で以下を追加：
+### 未実装機能
 1. **サーバーキャッシュ**: 同じドメインを訪れた他ユーザーの結果を共有
 2. **AI Agent**: 検出できなかったサイトのみLLMで解析
-3. **Well-known**: `/.well-known/privacy-policy`の標準化を待つ
+3. **Well-known**: `/.well-known/privacy-policy`対応
 
 ---
 

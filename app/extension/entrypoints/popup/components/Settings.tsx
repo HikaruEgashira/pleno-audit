@@ -1,5 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
-import type { CSPConfig, NRDConfig } from "@service-policy-auditor/detectors";
+import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 

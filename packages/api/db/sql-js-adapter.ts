@@ -1,5 +1,5 @@
 import type { Database, SqlJsStatic } from 'sql.js'
-import type { CSPViolation, NetworkRequest, CSPReport } from '@service-policy-auditor/csp'
+import type { CSPViolation, NetworkRequest, CSPReport } from '@pleno-audit/csp'
 import type { DatabaseAdapter, DatabaseStats, QueryOptions, PaginatedResult } from './interface'
 
 export interface SqlJsAdapterOptions {

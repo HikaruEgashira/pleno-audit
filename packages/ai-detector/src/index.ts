@@ -1,5 +1,5 @@
 /**
- * @service-policy-auditor/ai-detector
+ * @pleno-audit/ai-detector
  *
  * AIプロンプト検出パッケージ
  * AIサービスへのリクエスト/レスポンスを検出・解析

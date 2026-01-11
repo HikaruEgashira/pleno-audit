@@ -8,12 +8,12 @@
 import type {
   CSPViolationDetails,
   NetworkRequestDetails,
-} from "@service-policy-auditor/csp";
+} from "@pleno-audit/csp";
 import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
 } from "./ai-types.js";
-import type { TyposquatDetectedDetails } from "@service-policy-auditor/typosquat";
+import type { TyposquatDetectedDetails } from "@pleno-audit/typosquat";
 
 // ============================================================================
 // SaaS Visibility (サービス可視性)

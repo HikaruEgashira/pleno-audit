@@ -1,5 +1,5 @@
 /**
- * @service-policy-auditor/typosquat
+ * @pleno-audit/typosquat
  *
  * タイポスクワッティング検出パッケージ
  * ホモグリフ（視覚的に類似した文字）を検出し、IDN Homograph Attack等を判定

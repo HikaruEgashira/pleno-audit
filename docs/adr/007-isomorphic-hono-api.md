@@ -1,4 +1,4 @@
-# ADR-006: sql.js (SQLite WASM) によるクライアントサイドデータベース
+# ADR-007: sql.js (SQLite WASM) によるクライアントサイドデータベース
 
 ## Status
 Accepted
@@ -24,7 +24,7 @@ sql.js (SQLite WASM インメモリDB)
 ```
 
 - **Offscreen Document**: Service WorkerからWASMを直接実行できないため、Offscreen Documentを中間レイヤーとして使用
-- **インメモリDB**: sql.jsはインメモリで動作（将来的にIndexedDBへの永続化を検討）
+- **IndexedDB永続化**: sql.jsのDBはIndexedDBに永続化される
 - **ローカルWASM**: Chrome拡張機能のCSP制約のため、WASMファイルはextension内にバンドル
 
 ### データモデル
@@ -61,13 +61,12 @@ sql.js (SQLite WASM インメモリDB)
 - サーバーなしで高度な分析クエリが実行可能
 - ADR-001のサーバーレス方針に完全に沿った実装
 - サーバー側と同じsql.jsを使用するため、コードの一貫性が高い
-- 将来的なデータエクスポート機能の基盤
+- SQLクエリによるデータエクスポートが可能
 
 ### Negative
 - 拡張機能のサイズが約1MB増加
 - Offscreen Documentの管理が必要
-- データはインメモリのため、拡張機能の再起動でリセットされる（将来的に永続化を検討）
 
-### Migration Path
-- 既存の`chrome.storage.local.cspReports`データは自動的にsql.jsへ移行
-- マイグレーション完了後、旧データは削除
+### 永続化
+- IndexedDBにDBファイルを永続化
+- 既存の`chrome.storage.local.cspReports`データは自動的にsql.jsへ移行済み

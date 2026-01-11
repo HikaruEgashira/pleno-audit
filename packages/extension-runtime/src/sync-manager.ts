@@ -1,4 +1,4 @@
-import type { CSPReport } from "@service-policy-auditor/csp";
+import type { CSPReport } from "@pleno-audit/csp";
 import { ApiClient, getApiClient } from "./api-client.js";
 
 const SYNC_ALARM_NAME = "syncReports";

@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/csp",
+  "name": "@pleno-audit/csp",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",

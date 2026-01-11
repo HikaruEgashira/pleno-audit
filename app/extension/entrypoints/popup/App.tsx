@@ -3,9 +3,9 @@ import type {
   DetectedService,
   EventLog,
   CapturedAIPrompt,
-} from "@service-policy-auditor/detectors";
-import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
-import type { StorageData } from "@service-policy-auditor/extension-runtime";
+} from "@pleno-audit/detectors";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { StorageData } from "@pleno-audit/extension-runtime";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, SettingsMenu } from "../../components";
 import { ShadowITTab } from "./components/ShadowITTab";

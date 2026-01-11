@@ -61,9 +61,9 @@ packages/extension-runtime/
 ### 依存関係
 
 ```
-@service-policy-auditor/extension-runtime
-├── @service-policy-auditor/detectors (CookieInfo, DOMAdapter)
-└── @service-policy-auditor/csp (CSPReport, CSPConfig)
+@pleno-audit/extension-runtime
+├── @pleno-audit/detectors (CookieInfo, DOMAdapter)
+└── @pleno-audit/csp (CSPReport, CSPConfig)
 ```
 
 ## 結果
@@ -83,8 +83,8 @@ import { getApiClient } from "@/utils/api-client";
 import { browserAdapter } from "@/utils/browser-adapter";
 
 // After
-import { getApiClient, browserAdapter } from "@service-policy-auditor/extension-runtime";
-import { IndexedDBStorage, isLocalApiRequest } from "@service-policy-auditor/extension-runtime/offscreen";
+import { getApiClient, browserAdapter } from "@pleno-audit/extension-runtime";
+import { IndexedDBStorage, isLocalApiRequest } from "@pleno-audit/extension-runtime/offscreen";
 ```
 
 ## 関連 ADR

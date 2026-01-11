@@ -3,7 +3,7 @@
  * ai-hooks.jsからのイベントを受信しBackgroundへ転送
  */
 
-import type { CapturedAIPrompt } from "@service-policy-auditor/detectors";
+import type { CapturedAIPrompt } from "@pleno-audit/detectors";
 
 function isExtensionContextValid(): boolean {
   try {

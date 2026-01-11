@@ -1,7 +1,7 @@
 import puppeteer, { type Browser } from "puppeteer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { DetectedService, EventLog } from "@service-policy-auditor/detectors";
+import type { DetectedService, EventLog } from "@pleno-audit/detectors";
 
 interface StorageData {
   services: Record<string, DetectedService>;

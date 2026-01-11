@@ -42,8 +42,11 @@ MVPは**端末完結型のブラウザ拡張機能**として実装する。サ�
 - サービス情報の共有（同じサービスを使う他ユーザーとの情報共有）ができない
 - Cookie名からサービスを推定するintelligence機能が使えない
 
-### Migration Path
-将来のサーバー連携に備え、以下の構成とする：
-- `packages/core`: 共通ロジック（型定義、パターンマッチング）
+### 現在の構成
+サーバー連携オプション付きのローカルファースト構成：
+- `packages/detectors`: CASBドメイン（サービス検出、認証検出）
+- `packages/csp`: CSP監査
+- `packages/api`: Isomorphic Hono API（ローカル/リモート両対応）
+- `packages/extension-runtime`: 拡張機能ランタイム
 - `app/extension`: ブラウザ拡張機能
-- `app/server`: 将来追加予定のintelligenceサーバー
+- `app/server`: オプショナルなリモートサーバー（未使用時はローカルDBで動作）

@@ -10,7 +10,7 @@ importers:
 
   app/debugger:
     dependencies:
-      '@service-policy-auditor/detectors':
+      '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
       puppeteer:
@@ -26,19 +26,19 @@ importers:
 
   app/extension:
     dependencies:
-      '@service-policy-auditor/api':
+      '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@service-policy-auditor/csp':
+      '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
-      '@service-policy-auditor/detectors':
+      '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
-      '@service-policy-auditor/extension-runtime':
+      '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
-      '@service-policy-auditor/storage':
+      '@pleno-audit/storage':
         specifier: workspace:*
         version: link:../../packages/storage
       hono:
@@ -53,23 +53,23 @@ importers:
     devDependencies:
       '@preact/preset-vite':
         specifier: ^2.10.2
-        version: 2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0))
+        version: 2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       wxt:
         specifier: ^0.20.13
-        version: 0.20.13(@types/node@25.0.3)(jiti@2.6.1)(rollup@4.55.1)(tsx@4.21.0)
+        version: 0.20.13(@types/node@25.0.6)(jiti@2.6.1)(rollup@4.55.1)(tsx@4.21.0)
 
   app/server:
     dependencies:
       '@hono/node-server':
         specifier: ^1.14.0
         version: 1.19.8(hono@4.11.3)
-      '@service-policy-auditor/api':
+      '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@service-policy-auditor/csp':
+      '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
       hono:
@@ -90,7 +90,7 @@ importers:
 
   packages/api:
     dependencies:
-      '@service-policy-auditor/csp':
+      '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
       hono:
@@ -104,25 +104,25 @@ importers:
 
   packages/detectors:
     dependencies:
-      '@service-policy-auditor/ai-detector':
+      '@pleno-audit/ai-detector':
         specifier: workspace:*
         version: link:../ai-detector
-      '@service-policy-auditor/csp':
+      '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
-      '@service-policy-auditor/nrd':
+      '@pleno-audit/nrd':
         specifier: workspace:*
         version: link:../nrd
-      '@service-policy-auditor/typosquat':
+      '@pleno-audit/typosquat':
         specifier: workspace:*
         version: link:../typosquat
 
   packages/extension-runtime:
     dependencies:
-      '@service-policy-auditor/csp':
+      '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
-      '@service-policy-auditor/detectors':
+      '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
 
@@ -130,7 +130,7 @@ importers:
 
   packages/storage:
     dependencies:
-      '@service-policy-auditor/detectors':
+      '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
 
@@ -646,8 +646,8 @@ packages:
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
 
-  '@types/node@25.0.3':
-    resolution: {integrity: sha512-W609buLVRVmeW693xKfzHeIV6nJGGz98uCPfeXI1ELMLXVeKYZ9m15fAMSaUPBHYLGFsVRcMmSCksQOrZV9BYA==}
+  '@types/node@25.0.6':
+    resolution: {integrity: sha512-NNu0sjyNxpoiW3YuVFfNz7mxSQ+S4X2G28uqg2s+CzoqoQjLPsWSbsFFyztIAqt2vb8kfEAsJNepMGPTxFDx3Q==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -785,8 +785,8 @@ packages:
   bare-url@2.3.2:
     resolution: {integrity: sha512-ZMq4gd9ngV5aTMa5p9+UfY0b3skwhHELaDkhEHetMdX0LRkW9kzaym4oo/Eh+Ghm0CCDuMTsRIGM/ytUc1ZYmw==}
 
-  baseline-browser-mapping@2.9.13:
-    resolution: {integrity: sha512-WhtvB2NG2wjr04+h77sg3klAIwrgOqnjS49GGudnUPGFFgg7G17y7Qecqp+2Dr5kUDxNRBca0SK7cG8JwzkWDQ==}
+  baseline-browser-mapping@2.9.14:
+    resolution: {integrity: sha512-B0xUquLkiGLgHhpPBqvl7GWegWBUNuujQ6kXd/r1U38ElPT6Ok8KZ8e+FpUGEc2ZoRQUzq/aUnaKFc/svWUGSg==}
     hasBin: true
 
   basic-ftp@5.1.0:
@@ -845,8 +845,8 @@ packages:
     resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
     engines: {node: '>=16'}
 
-  caniuse-lite@1.0.30001763:
-    resolution: {integrity: sha512-mh/dGtq56uN98LlNX9qdbKnzINhX0QzhiWBFEkFfsFO4QyCvL8YegrJAazCwXIeqkIob8BlZPGM3xdnY+sgmvQ==}
+  caniuse-lite@1.0.30001764:
+    resolution: {integrity: sha512-9JGuzl2M+vPL+pz70gtMF9sHdMFbY9FJaQBi186cHKH3pSzDvzoUJUPV6fqiKIMyXbud9ZLg4F3Yza1vJ1+93g==}
 
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
@@ -2544,18 +2544,18 @@ snapshots:
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
 
-  '@preact/preset-vite@2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0))':
+  '@preact/preset-vite@2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/plugin-transform-react-jsx': 7.27.1(@babel/core@7.28.5)
       '@babel/plugin-transform-react-jsx-development': 7.27.1(@babel/core@7.28.5)
-      '@prefresh/vite': 2.4.11(preact@10.28.2)(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0))
+      '@prefresh/vite': 2.4.11(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0))
       '@rollup/pluginutils': 4.2.1
       babel-plugin-transform-hook-names: 1.0.2(@babel/core@7.28.5)
       debug: 4.4.3
       picocolors: 1.1.1
-      vite: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
-      vite-prerender-plugin: 0.5.12(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0))
+      vite: 7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
+      vite-prerender-plugin: 0.5.12(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0))
     transitivePeerDependencies:
       - preact
       - supports-color
@@ -2568,7 +2568,7 @@ snapshots:
 
   '@prefresh/utils@1.2.1': {}
 
-  '@prefresh/vite@2.4.11(preact@10.28.2)(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0))':
+  '@prefresh/vite@2.4.11(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0))':
     dependencies:
       '@babel/core': 7.28.5
       '@prefresh/babel-plugin': 0.5.2
@@ -2576,7 +2576,7 @@ snapshots:
       '@prefresh/utils': 1.2.1
       '@rollup/pluginutils': 4.2.1
       preact: 10.28.2
-      vite: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
+      vite: 7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -2689,13 +2689,13 @@ snapshots:
 
   '@types/minimatch@3.0.5': {}
 
-  '@types/node@25.0.3':
+  '@types/node@25.0.6':
     dependencies:
       undici-types: 7.16.0
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.6
     optional: true
 
   '@webext-core/fake-browser@1.3.4':
@@ -2811,7 +2811,7 @@ snapshots:
       bare-path: 3.0.0
     optional: true
 
-  baseline-browser-mapping@2.9.13: {}
+  baseline-browser-mapping@2.9.14: {}
 
   basic-ftp@5.1.0: {}
 
@@ -2841,8 +2841,8 @@ snapshots:
 
   browserslist@4.28.1:
     dependencies:
-      baseline-browser-mapping: 2.9.13
-      caniuse-lite: 1.0.30001763
+      baseline-browser-mapping: 2.9.14
+      caniuse-lite: 1.0.30001764
       electron-to-chromium: 1.5.267
       node-releases: 2.0.27
       update-browserslist-db: 1.2.3(browserslist@4.28.1)
@@ -2878,7 +2878,7 @@ snapshots:
 
   camelcase@8.0.0: {}
 
-  caniuse-lite@1.0.30001763: {}
+  caniuse-lite@1.0.30001764: {}
 
   chalk@5.6.2: {}
 
@@ -2892,7 +2892,7 @@ snapshots:
 
   chrome-launcher@1.2.0:
     dependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.6
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 2.0.2
@@ -4180,13 +4180,13 @@ snapshots:
 
   uuid@8.3.2: {}
 
-  vite-node@5.2.0(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0):
+  vite-node@5.2.0(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0):
     dependencies:
       cac: 6.7.14
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pathe: 2.0.3
-      vite: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
+      vite: 7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -4200,7 +4200,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite-prerender-plugin@0.5.12(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)):
+  vite-prerender-plugin@0.5.12(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)):
     dependencies:
       kolorist: 1.8.0
       magic-string: 0.30.21
@@ -4208,9 +4208,9 @@ snapshots:
       simple-code-frame: 1.3.0
       source-map: 0.7.6
       stack-trace: 1.0.0-pre2
-      vite: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
+      vite: 7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
 
-  vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0):
+  vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -4219,7 +4219,7 @@ snapshots:
       rollup: 4.55.1
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 25.0.3
+      '@types/node': 25.0.6
       fsevents: 2.3.3
       jiti: 2.6.1
       tsx: 4.21.0
@@ -4297,7 +4297,7 @@ snapshots:
     dependencies:
       is-wsl: 3.1.0
 
-  wxt@0.20.13(@types/node@25.0.3)(jiti@2.6.1)(rollup@4.55.1)(tsx@4.21.0):
+  wxt@0.20.13(@types/node@25.0.6)(jiti@2.6.1)(rollup@4.55.1)(tsx@4.21.0):
     dependencies:
       '@1natsu/wait-element': 4.1.2
       '@aklinker1/rollup-plugin-visualizer': 5.12.0(rollup@4.55.1)
@@ -4341,8 +4341,8 @@ snapshots:
       publish-browser-extension: 3.0.3
       scule: 1.3.0
       unimport: 5.6.0
-      vite: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
-      vite-node: 5.2.0(@types/node@25.0.3)(jiti@2.6.1)(tsx@4.21.0)
+      vite: 7.3.1(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
+      vite-node: 5.2.0(@types/node@25.0.6)(jiti@2.6.1)(tsx@4.21.0)
       web-ext-run: 0.2.4
     transitivePeerDependencies:
       - '@types/node'

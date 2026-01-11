@@ -6,7 +6,7 @@ Accepted
 
 ## コンテキスト
 
-`@service-policy-auditor/core` パッケージは現在、以下の4つの責務を担っている：
+`@pleno-audit/core` パッケージは現在、以下の4つの責務を担っている：
 
 1. **型定義（types.ts）**: データ構造の定義
 2. **検出パターン（patterns.ts）**: URL/テキスト判定用正規表現
@@ -46,7 +46,7 @@ CSP（Content Security Policy）はブラウザのセキュリティ機構であ
 
 ## 決定
 
-`@service-policy-auditor/core` パッケージを廃止し、ドメインごとに分割する。
+`@pleno-audit/core` パッケージを廃止し、ドメインごとに分割する。
 
 ### 分割後の構造
 
@@ -81,7 +81,7 @@ packages/
 
 #### Phase 3: coreパッケージの削除
 - 依存パッケージのimportを更新
-- `@service-policy-auditor/core` を削除
+- `@pleno-audit/core` を削除
 
 ### 依存関係の変更
 

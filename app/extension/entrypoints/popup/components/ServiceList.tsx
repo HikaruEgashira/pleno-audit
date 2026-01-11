@@ -1,4 +1,4 @@
-import type { DetectedService } from "@service-policy-auditor/detectors";
+import type { DetectedService } from "@pleno-audit/detectors";
 import { Badge, Card } from "../../../components";
 import { usePopupStyles } from "../styles";
 import type { ServiceProps } from "../types";

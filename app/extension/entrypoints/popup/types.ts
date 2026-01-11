@@ -1,9 +1,9 @@
-import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type {
   DetectedService,
   EventLog,
   CapturedAIPrompt,
-} from "@service-policy-auditor/detectors";
+} from "@pleno-audit/detectors";
 
 export interface ViolationProps {
   violations: CSPViolation[];

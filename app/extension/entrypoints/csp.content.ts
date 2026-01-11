@@ -4,7 +4,7 @@
  * Runs at document_start to catch all violations
  */
 
-import type { CSPViolation, NetworkRequest } from "@service-policy-auditor/csp";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 
 function isExtensionContextValid(): boolean {
   try {

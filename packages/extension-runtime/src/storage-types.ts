@@ -7,8 +7,8 @@ import type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
-} from "@service-policy-auditor/detectors";
-import type { CSPConfig, CSPReport } from "@service-policy-auditor/csp";
+} from "@pleno-audit/detectors";
+import type { CSPConfig, CSPReport } from "@pleno-audit/csp";
 
 export interface StorageData {
   services: Record<string, DetectedService>;

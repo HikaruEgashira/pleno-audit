@@ -3,12 +3,12 @@ import type {
   CSPViolation,
   NetworkRequest,
   CSPReport,
-} from "@service-policy-auditor/csp";
+} from "@pleno-audit/csp";
 import type {
   CapturedAIPrompt,
   DetectedService,
   EventLog,
-} from "@service-policy-auditor/detectors";
+} from "@pleno-audit/detectors";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
 

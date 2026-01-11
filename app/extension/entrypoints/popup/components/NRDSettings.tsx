@@ -1,5 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
-import type { NRDConfig } from "@service-policy-auditor/detectors";
+import type { NRDConfig } from "@pleno-audit/detectors";
 import { Button, Badge, Card } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";

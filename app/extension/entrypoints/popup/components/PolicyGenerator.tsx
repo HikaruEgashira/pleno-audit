@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import type { GeneratedCSPPolicy } from "@service-policy-auditor/csp";
+import type { GeneratedCSPPolicy } from "@pleno-audit/csp";
 import { Badge, Button, Card } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";

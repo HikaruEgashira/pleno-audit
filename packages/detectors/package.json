@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/detectors",
+  "name": "@pleno-audit/detectors",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",
@@ -10,9 +10,9 @@
     "./patterns": "./src/patterns.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/ai-detector": "workspace:*",
-    "@service-policy-auditor/csp": "workspace:*",
-    "@service-policy-auditor/nrd": "workspace:*",
-    "@service-policy-auditor/typosquat": "workspace:*"
+    "@pleno-audit/ai-detector": "workspace:*",
+    "@pleno-audit/csp": "workspace:*",
+    "@pleno-audit/nrd": "workspace:*",
+    "@pleno-audit/typosquat": "workspace:*"
   }
 }

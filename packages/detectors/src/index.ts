@@ -12,7 +12,7 @@ export type {
   EventLogType,
 } from "./casb-types.js";
 
-// NRD Detection (re-export from @service-policy-auditor/nrd)
+// NRD Detection (re-export from @pleno-audit/nrd)
 export type {
   HeuristicScores,
   NRDResult,
@@ -22,7 +22,7 @@ export type {
   NRDCache,
   RDAPEvent,
   RDAPResponse,
-} from "@service-policy-auditor/nrd";
+} from "@pleno-audit/nrd";
 
 export {
   DEFAULT_NRD_CONFIG,
@@ -39,7 +39,7 @@ export {
   extractRegistrationDate,
   extractDomainStatus,
   createNRDDetector,
-} from "@service-policy-auditor/nrd";
+} from "@pleno-audit/nrd";
 
 // Detection Types
 export type {
@@ -91,7 +91,7 @@ export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
 export { createLoginDetector } from "./login-detector.js";
 
-// AI Prompt Detection (re-export from @service-policy-auditor/ai-detector)
+// AI Prompt Detection (re-export from @pleno-audit/ai-detector)
 export type {
   InferredProvider,
   AIDetectionMethod,
@@ -101,7 +101,7 @@ export type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   AIMonitorConfig,
-} from "@service-policy-auditor/ai-detector";
+} from "@pleno-audit/ai-detector";
 
 export {
   DEFAULT_AI_MONITOR_CONFIG,
@@ -110,9 +110,9 @@ export {
   extractModel,
   extractResponseContent,
   inferProviderFromResponse,
-} from "@service-policy-auditor/ai-detector";
+} from "@pleno-audit/ai-detector";
 
-// Typosquatting Detection (re-export from @service-policy-auditor/typosquat)
+// Typosquatting Detection (re-export from @pleno-audit/typosquat)
 export type {
   HomoglyphType,
   HomoglyphMatch,
@@ -125,7 +125,7 @@ export type {
   TyposquatConfig,
   TyposquatDetectedDetails,
   TyposquatCache,
-} from "@service-policy-auditor/typosquat";
+} from "@pleno-audit/typosquat";
 
 export {
   DEFAULT_TYPOSQUAT_CONFIG,
@@ -143,4 +143,4 @@ export {
   calculateTyposquatHeuristics,
   isHighRiskTyposquat,
   createTyposquatDetector,
-} from "@service-policy-auditor/typosquat";
+} from "@pleno-audit/typosquat";

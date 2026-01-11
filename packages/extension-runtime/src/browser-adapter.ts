@@ -1,4 +1,4 @@
-import type { DOMAdapter } from "@service-policy-auditor/detectors";
+import type { DOMAdapter } from "@pleno-audit/detectors";
 
 /**
  * Browser DOM adapter implementation

@@ -10,8 +10,8 @@ import type {
   CapturedAIPrompt,
   AIMonitorConfig,
 } from "./storage-types.js";
-import { DEFAULT_CSP_CONFIG } from "@service-policy-auditor/csp";
-import { DEFAULT_AI_MONITOR_CONFIG } from "@service-policy-auditor/detectors";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
+import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
 
 const STORAGE_KEYS = [
   "services",

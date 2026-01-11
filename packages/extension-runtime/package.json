@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/extension-runtime",
+  "name": "@pleno-audit/extension-runtime",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",
@@ -9,7 +9,7 @@
     "./offscreen": "./src/offscreen/index.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/detectors": "workspace:*",
-    "@service-policy-auditor/csp": "workspace:*"
+    "@pleno-audit/detectors": "workspace:*",
+    "@pleno-audit/csp": "workspace:*"
   }
 }

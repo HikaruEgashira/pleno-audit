@@ -1,4 +1,4 @@
-import type { CSPReport } from "@service-policy-auditor/csp";
+import type { CSPReport } from "@pleno-audit/csp";
 import { getApiClient } from "./api-client.js";
 
 const MIGRATION_KEY = "duckdbMigrationCompleted";

@@ -1,4 +1,4 @@
-import type { CSPViolation, NetworkRequest, CSPReport } from '@service-policy-auditor/csp'
+import type { CSPViolation, NetworkRequest, CSPReport } from '@pleno-audit/csp'
 
 export interface DatabaseStats {
   violations: number

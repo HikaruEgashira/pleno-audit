@@ -2,7 +2,7 @@
  * Migration utilities to move events from chrome.storage.local to IndexedDB
  */
 
-import type { EventLog } from "@service-policy-auditor/detectors";
+import type { EventLog } from "@pleno-audit/detectors";
 import { EventStore } from "./event-store.js";
 
 const MIGRATION_FLAG_KEY = "events_indexeddb_migration_completed";

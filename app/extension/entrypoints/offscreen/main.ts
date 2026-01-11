@@ -1,5 +1,5 @@
 import initSqlJs from "sql.js";
-import { createApp, SqlJsAdapter } from "@service-policy-auditor/api";
+import { createApp, SqlJsAdapter } from "@pleno-audit/api";
 import {
   isLocalApiRequest,
   IndexedDBStorage,
@@ -7,7 +7,7 @@ import {
   type LocalApiResponse,
   type LegacyDBMessage,
   type LegacyDBResponse,
-} from "@service-policy-auditor/extension-runtime/offscreen";
+} from "@pleno-audit/extension-runtime/offscreen";
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: SqlJsAdapter | null = null;

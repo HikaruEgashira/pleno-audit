@@ -33,10 +33,10 @@ export default defineConfig({
     },
     optimizeDeps: {
       include: [
-        "@service-policy-auditor/csp",
-        "@service-policy-auditor/detectors",
-        "@service-policy-auditor/api",
-        "@service-policy-auditor/extension-runtime",
+        "@pleno-audit/csp",
+        "@pleno-audit/detectors",
+        "@pleno-audit/api",
+        "@pleno-audit/extension-runtime",
       ],
     },
   }),

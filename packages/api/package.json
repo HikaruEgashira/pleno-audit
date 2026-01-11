@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/api",
+  "name": "@pleno-audit/api",
   "version": "0.0.1",
   "type": "module",
   "main": "./index.ts",
@@ -10,7 +10,7 @@
     "./db": "./db/index.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/csp": "workspace:*",
+    "@pleno-audit/csp": "workspace:*",
     "hono": "^4.7.0"
   },
   "peerDependencies": {

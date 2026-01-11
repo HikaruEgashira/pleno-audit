@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { DatabaseAdapter, QueryOptions } from '../db/interface'
-import type { CSPReport } from '@service-policy-auditor/csp'
+import type { CSPReport } from '@pleno-audit/csp'
 
 function parseQueryOptions(c: { req: { query: (key: string) => string | undefined } }): QueryOptions {
   const limit = c.req.query('limit')

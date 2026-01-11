@@ -18,14 +18,14 @@ import type {
   TyposquatDetectedDetails,
   TyposquatCache,
   DetectionResult,
-} from "@service-policy-auditor/detectors";
+} from "@pleno-audit/detectors";
 import {
   DEFAULT_AI_MONITOR_CONFIG,
   DEFAULT_NRD_CONFIG,
   DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
   createTyposquatDetector,
-} from "@service-policy-auditor/detectors";
+} from "@pleno-audit/detectors";
 import type {
   CSPViolation,
   NetworkRequest,
@@ -35,8 +35,8 @@ import type {
   NetworkRequestDetails,
   GeneratedCSPPolicy,
   CSPGenerationOptions,
-} from "@service-policy-auditor/csp";
-import { DEFAULT_CSP_CONFIG, CSPAnalyzer, CSPReporter, type GeneratedCSPByDomain } from "@service-policy-auditor/csp";
+} from "@pleno-audit/csp";
+import { DEFAULT_CSP_CONFIG, CSPAnalyzer, CSPReporter, type GeneratedCSPByDomain } from "@pleno-audit/csp";
 import {
   startCookieMonitor,
   onCookieChange,
@@ -52,12 +52,12 @@ import {
   type ConnectionMode,
   type SyncManager,
   type QueryOptions,
-} from "@service-policy-auditor/extension-runtime";
+} from "@pleno-audit/extension-runtime";
 import {
   EventStore,
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
-} from "@service-policy-auditor/storage";
+} from "@pleno-audit/storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 

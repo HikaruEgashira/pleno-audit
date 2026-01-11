@@ -1,5 +1,5 @@
 /**
- * @service-policy-auditor/nrd
+ * @pleno-audit/nrd
  *
  * NRD (Newly Registered Domain) 検出パッケージ
  * RDAP APIとヒューリスティック分析を組み合わせて、新規登録ドメインを検出

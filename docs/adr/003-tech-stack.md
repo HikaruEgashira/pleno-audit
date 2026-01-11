@@ -38,16 +38,19 @@ Accepted (Updated: CRXJSからWXTへ移行)
 - CRXJSはメンテナンスが停滞（issueの対応遅延）
 - WXTは活発に開発されており、ドキュメントも充実
 - ファイルベースのエントリーポイント（popup/, background/, content/）で構成が明確
-- 将来的なFirefox/Safari対応が容易
+- WXTの`wxt build -b firefox`でFirefox対応可能（未実装）
 
 ### モノレポ構成
 ```
 /
-├── app/extension/       # ブラウザ拡張機能
-│   ├── entrypoints/     # WXTエントリーポイント（popup, background等）
-│   ├── utils/           # 拡張機能内ユーティリティ
-│   └── wxt.config.ts    # WXT設定
-├── packages/core/       # 共通ロジック
+├── app/extension/           # ブラウザ拡張機能
+│   ├── entrypoints/         # WXTエントリーポイント（popup, background等）
+│   └── wxt.config.ts        # WXT設定
+├── packages/
+│   ├── detectors/           # CASBドメイン（サービス検出）
+│   ├── csp/                 # CSP監査
+│   ├── api/                 # Isomorphic Hono API
+│   └── extension-runtime/   # 拡張機能ランタイム
 ├── pnpm-workspace.yaml
 ```
 
@@ -58,11 +61,11 @@ Accepted (Updated: CRXJSからWXTへ移行)
 - WXTでビルド設定がシンプルかつ標準的
 - ファイルベースルーティングで構成が直感的
 - Preactで拡張機能のサイズを最小化
-- モノレポで将来のサーバー連携時にコード共有可能
+- モノレポでパッケージ間のコード共有が可能
 - WXTの`wxt build -b firefox`でFirefox対応可能
 
 ### Negative
-- Firefox/Safariユーザーは現状対象外（WXTで対応容易）
+- Firefox/Safariは未対応（WXTの機能で対応可能だが未実装）
 - Manifest V3のService Workerは5分でアンロードされる制限あり
 - Preactの一部React機能（Suspense等）は未サポート
 

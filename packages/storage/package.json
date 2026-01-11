@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/storage",
+  "name": "@pleno-audit/storage",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,6 +8,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@service-policy-auditor/detectors": "workspace:*"
+    "@pleno-audit/detectors": "workspace:*"
   }
 }

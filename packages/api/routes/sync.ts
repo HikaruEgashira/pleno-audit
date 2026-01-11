@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { DatabaseAdapter } from '../db/interface'
-import type { CSPReport } from '@service-policy-auditor/csp'
+import type { CSPReport } from '@pleno-audit/csp'
 
 const DEFAULT_BATCH_SIZE = 500
 

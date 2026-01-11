@@ -6,9 +6,9 @@
 | [002](./002-detection-only.md) | MVPではブロック機能を実装せず検出・可視化のみとする | Accepted |
 | [003](./003-tech-stack.md) | Chrome Manifest V3 + WXT + Preactで実装する | Accepted |
 | [004](./004-privacy-policy-detection.md) | プライバシーポリシーはURLパターンとリンクテキストで特定する | Accepted |
-| [005](./005-design-system.md) | グレースケール・ミニマルデザインシステム | Accepted |
+| [005](./005-design-system.md) | Vercel風ミニマルデザインシステム | Accepted |
 | [006](./006-tos-detection.md) | 利用規約検出機能 | Accepted |
-| [007](./007-isomorphic-hono-api.md) | Isomorphic Hono API + sql.js によるローカル/リモート両対応 | Accepted |
+| [007](./007-isomorphic-hono-api.md) | sql.js (SQLite WASM) によるクライアントサイドDB | Accepted |
 | [008](./008-core-domain-model.md) | Coreパッケージの廃止とドメイン分割 | Accepted |
 | [009](./009-explore-agent-optimization.md) | Claude Code Explore Agent最適化 | Accepted |
 | [010](./010-extension-runtime-package.md) | Extension Runtimeパッケージの分離 | Accepted |

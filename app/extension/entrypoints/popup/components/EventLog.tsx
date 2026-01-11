@@ -1,4 +1,4 @@
-import type { EventLog } from "@service-policy-auditor/detectors";
+import type { EventLog } from "@pleno-audit/detectors";
 import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";

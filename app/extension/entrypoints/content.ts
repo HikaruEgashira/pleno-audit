@@ -5,8 +5,8 @@ import {
   type LoginDetectionResult,
   type PrivacyPolicyResult,
   type TosResult,
-} from "@service-policy-auditor/detectors";
-import { browserAdapter } from "@service-policy-auditor/extension-runtime";
+} from "@pleno-audit/detectors";
+import { browserAdapter } from "@pleno-audit/extension-runtime";
 
 // Create detector instances with browser adapter
 const loginDetector = createLoginDetector(browserAdapter);

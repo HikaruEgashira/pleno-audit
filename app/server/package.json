@@ -1,5 +1,5 @@
 {
-  "name": "@service-policy-auditor/server",
+  "name": "@pleno-audit/server",
   "version": "0.0.1",
   "description": "Local development server for Service Policy Auditor reports",
   "type": "module",
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "@service-policy-auditor/api": "workspace:*",
-    "@service-policy-auditor/csp": "workspace:*",
+    "@pleno-audit/api": "workspace:*",
+    "@pleno-audit/csp": "workspace:*",
     "hono": "^4.7.0",
     "sql.js": "^1.13.0"
   },

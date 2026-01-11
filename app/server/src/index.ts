@@ -3,8 +3,8 @@ import initSqlJs from 'sql.js'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp, SqlJsAdapter } from '@service-policy-auditor/api'
-import type { CSPViolation, NetworkRequest } from '@service-policy-auditor/csp'
+import { createApp, SqlJsAdapter } from '@pleno-audit/api'
+import type { CSPViolation, NetworkRequest } from '@pleno-audit/csp'
 import { Hono } from 'hono'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
