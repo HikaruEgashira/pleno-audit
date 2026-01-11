@@ -155,27 +155,29 @@ export function Settings() {
         <span style={{ color: colors.textPrimary }}>Enable RDAP Lookup (API queries)</span>
       </label>
 
-      <div style={{ marginBottom: "12px" }}>
-        <label style={styles.label}>
-          Age Threshold (days): {nrdConfig.thresholdDays}
-        </label>
-        <input
-          type="range"
-          min="1"
-          max="365"
-          value={nrdConfig.thresholdDays}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-            })
-          }
-          style={{ width: "100%", marginBottom: "4px" }}
-        />
-        <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-          Domains registered within this period are flagged as NRD
-        </span>
-      </div>
+      {nrdConfig.enableRDAP && (
+        <div style={{ marginBottom: "12px" }}>
+          <label style={styles.label}>
+            Age Threshold (days): {nrdConfig.thresholdDays}
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="365"
+            value={nrdConfig.thresholdDays}
+            onChange={(e) =>
+              setNRDConfig({
+                ...nrdConfig,
+                thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+              })
+            }
+            style={{ width: "100%", marginBottom: "4px" }}
+          />
+          <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+            Domains registered within this period are flagged as NRD
+          </span>
+        </div>
+      )}
 
       <div style={{ marginBottom: "12px" }}>
         <label style={styles.label}>

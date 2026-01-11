@@ -70,27 +70,29 @@ export function NRDSettings() {
           <span style={{ color: colors.textPrimary }}>RDAPルックアップを有効化</span>
         </label>
 
-        <div style={{ marginBottom: "12px" }}>
-          <label style={styles.label}>
-            経過日数しきい値: <Badge>{nrdConfig.thresholdDays}日</Badge>
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="365"
-            value={nrdConfig.thresholdDays}
-            onChange={(e) =>
-              setNRDConfig({
-                ...nrdConfig,
-                thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-              })
-            }
-            style={{ width: "100%", marginBottom: "4px" }}
-          />
-          <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-            この期間内に登録されたドメインをNRDとして検出
-          </span>
-        </div>
+        {nrdConfig.enableRDAP && (
+          <div style={{ marginBottom: "12px" }}>
+            <label style={styles.label}>
+              経過日数しきい値: <Badge>{nrdConfig.thresholdDays}日</Badge>
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="365"
+              value={nrdConfig.thresholdDays}
+              onChange={(e) =>
+                setNRDConfig({
+                  ...nrdConfig,
+                  thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+                })
+              }
+              style={{ width: "100%", marginBottom: "4px" }}
+            />
+            <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+              この期間内に登録されたドメインをNRDとして検出
+            </span>
+          </div>
+        )}
 
         <div style={{ marginBottom: "12px" }}>
           <label style={styles.label}>
