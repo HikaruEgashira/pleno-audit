@@ -206,7 +206,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Eye}
             title="サービス利用可視化"
-            description="どのWebサービスを利用しているか一目で把握し、利用状況を可視化します"
+            description="利用中のWebサービスを一覧表示"
           />
         </motion.div>
         <motion.div
@@ -218,7 +218,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Shield}
             title="セキュリティ監視"
-            description="Webサイトのセキュリティ設定を自動チェックし、潜在的なリスクを検出"
+            description="CSP違反やセキュリティヘッダーの欠如を検出"
           />
         </motion.div>
         <motion.div
@@ -230,7 +230,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={AlertTriangle}
             title="フィッシング検出"
-            description="複数のアルゴリズムを用いて悪意あるドメインを特定"
+            description="NRD・Typosquatting検出で不審ドメインを特定"
           />
         </motion.div>
         <motion.div
@@ -242,7 +242,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Zap}
             title="AIプロンプト監視"
-            description="ChatGPTなどのAIサービスへの個人情報送信リスクを検出"
+            description="ChatGPT等へのプロンプト送信を記録"
           />
         </motion.div>
         <motion.div
@@ -254,7 +254,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Lock}
             title="ログイン追跡"
-            description="どのサービスにどの認証方法でログインしているか把握できます"
+            description="OAuth/SAMLなどの認証イベントを記録"
           />
         </motion.div>
         <motion.div
@@ -266,7 +266,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={Eye}
             title="ダッシュボード"
-            description="セキュリティ状況を一目で把握できるシンプルな管理画面"
+            description="検出イベントの一覧とフィルタリング"
           />
         </motion.div>
       </div>
