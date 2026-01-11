@@ -1,14 +1,17 @@
 /**
  * NRD (Newly Registered Domain) Detection Types
  *
- * Defines types for detecting domains registered within a threshold period,
- * combining RDAP API queries with heuristic analysis.
+ * Defines types for detecting domains registered within a threshold period.
+ * RDAP API queries provide actual registration dates for NRD detection.
+ * Suspicious domain analysis detects potentially malicious domain patterns.
  */
 
 /**
- * Heuristic score components for NRD detection
+ * Suspicious domain score components
+ * Detects potentially malicious domain patterns (DGA, typosquatting, etc.)
+ * Note: This is NOT NRD detection - it detects suspicious patterns regardless of age
  */
-export interface HeuristicScores {
+export interface SuspiciousDomainScores {
   /** Shannon entropy of domain name (0-1) */
   entropy: number;
   /** Whether domain uses suspicious TLD */
@@ -19,19 +22,33 @@ export interface HeuristicScores {
   hasExcessiveNumbers: boolean;
   /** Whether domain name looks randomly generated */
   isRandomLooking: boolean;
-  /** Total heuristic score (0-100) */
+  /** Total suspicious score (0-100) */
   totalScore: number;
 }
 
 /**
  * Detection method used for NRD determination
+ * - rdap: Actual registration date from RDAP API (true NRD detection)
+ * - suspicious: Domain pattern analysis (not actual NRD, just suspicious patterns)
+ * - cache: Cached result from previous detection
+ * - error: Detection failed
  */
-export type NRDDetectionMethod = 'rdap' | 'heuristic' | 'cache' | 'error';
+export type NRDDetectionMethod = 'rdap' | 'suspicious' | 'cache' | 'error';
 
 /**
  * Confidence level of NRD detection result
  */
 export type NRDConfidence = 'high' | 'medium' | 'low' | 'unknown';
+
+/**
+ * DDNS detection result
+ */
+export interface DDNSInfo {
+  /** Whether domain uses a DDNS service */
+  isDDNS: boolean;
+  /** DDNS provider name if detected */
+  provider: string | null;
+}
 
 /**
  * Result of NRD detection for a domain
@@ -48,8 +65,10 @@ export interface NRDResult {
   domainAge: number | null;
   /** Method used to determine result */
   method: NRDDetectionMethod;
-  /** Heuristic analysis scores */
-  heuristics: HeuristicScores;
+  /** Suspicious domain analysis scores */
+  suspiciousScores: SuspiciousDomainScores;
+  /** DDNS detection result */
+  ddns: DDNSInfo;
   /** Timestamp when this result was generated */
   checkedAt: number;
 }
@@ -62,24 +81,25 @@ export interface NRDConfig {
   enabled: boolean;
   /** Threshold in days (domain age <= this is considered NRD) */
   thresholdDays: number;
-  /** Whether to enable RDAP API queries */
+  /** Whether to enable RDAP API queries (true NRD detection) */
   enableRDAP: boolean;
   /** Timeout for RDAP queries in milliseconds */
   rdapTimeout: number;
-  /** Heuristic score threshold (0-100) to flag as potential NRD */
-  heuristicThreshold: number;
+  /** Suspicious score threshold (0-100) to flag domain */
+  suspiciousThreshold: number;
   /** Cache expiry time in milliseconds */
   cacheExpiry: number;
 }
 
 /**
  * Default NRD configuration
+ * Note: RDAP is disabled by default to avoid external API calls
  */
 export const DEFAULT_NRD_CONFIG: NRDConfig = {
   enabled: true,
   thresholdDays: 30,
-  enableRDAP: true,
+  enableRDAP: false,
   rdapTimeout: 5000,
-  heuristicThreshold: 60,
+  suspiciousThreshold: 60,
   cacheExpiry: 86400000, // 24 hours
 };

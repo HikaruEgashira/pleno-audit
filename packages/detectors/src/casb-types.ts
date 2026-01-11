@@ -102,8 +102,10 @@ export interface NRDDetectedDetails {
   confidence: "high" | "medium" | "low" | "unknown";
   registrationDate: string | null;
   domainAge: number | null;
-  method: "rdap" | "heuristic" | "cache" | "error";
-  heuristicScore: number;
+  method: "rdap" | "suspicious" | "cache" | "error";
+  suspiciousScore: number;
+  isDDNS: boolean;
+  ddnsProvider: string | null;
 }
 
 /** 拡張機能リクエストイベントの詳細 */

@@ -277,7 +277,9 @@ async function handleNRDCheck(domain: string): Promise<NRDResult> {
           registrationDate: result.registrationDate,
           domainAge: result.domainAge,
           method: result.method,
-          heuristicScore: result.heuristics.totalScore,
+          suspiciousScore: result.suspiciousScores.totalScore,
+          isDDNS: result.ddns.isDDNS,
+          ddnsProvider: result.ddns.provider,
         },
       });
     }

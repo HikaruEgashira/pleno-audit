@@ -1,11 +1,14 @@
 /**
- * NRD Heuristic Detection
+ * Suspicious Domain Detection
  *
  * Analyzes domain names using entropy, pattern recognition, and domain characteristics
- * to identify potentially malicious newly registered domains without external databases.
+ * to identify potentially malicious domains (DGA, typosquatting, etc.).
+ *
+ * Note: This is NOT NRD detection - these patterns indicate suspicious domains
+ * regardless of when they were registered.
  */
 
-import type { HeuristicScores } from './types.js';
+import type { SuspiciousDomainScores } from './types.js';
 
 /**
  * Suspicious TLDs commonly used for phishing, malware, or abuse
@@ -181,7 +184,7 @@ export function isRandomLooking(sld: string): boolean {
 }
 
 /**
- * Calculate comprehensive heuristic score for a domain
+ * Calculate suspicious domain score
  * Scores individual risk factors and combines them into 0-100 range
  *
  * Scoring breakdown:
@@ -193,9 +196,9 @@ export function isRandomLooking(sld: string): boolean {
  * - Very short SLD (2 chars): 10 points
  *
  * @param domain - Full domain name
- * @returns Heuristic scores breakdown
+ * @returns Suspicious domain scores breakdown
  */
-export function calculateHeuristics(domain: string): HeuristicScores {
+export function calculateSuspiciousScore(domain: string): SuspiciousDomainScores {
   const sld = extractSLD(domain);
   const tld = extractTLD(domain);
 
@@ -237,15 +240,16 @@ export function calculateHeuristics(domain: string): HeuristicScores {
 }
 
 /**
- * Check if heuristic scores indicate high risk
+ * Check if suspicious scores indicate high risk
  *
- * @param scores - Calculated heuristic scores
+ * @param scores - Calculated suspicious domain scores
  * @param threshold - Risk threshold (0-100)
  * @returns True if total score exceeds threshold
  */
-export function isHighRiskHeuristics(
-  scores: HeuristicScores,
+export function isHighRiskDomain(
+  scores: SuspiciousDomainScores,
   threshold: number
 ): boolean {
   return scores.totalScore >= threshold;
 }
+

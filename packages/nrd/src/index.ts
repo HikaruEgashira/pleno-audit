@@ -2,12 +2,14 @@
  * @pleno-audit/nrd
  *
  * NRD (Newly Registered Domain) 検出パッケージ
- * RDAP APIとヒューリスティック分析を組み合わせて、新規登録ドメインを検出
+ * - RDAP API: 真のNRD検出（登録日ベース）
+ * - Suspicious Domain Analysis: 悪性ドメインパターン検出
  */
 
 // Types
 export type {
-  HeuristicScores,
+  SuspiciousDomainScores,
+  DDNSInfo,
   NRDResult,
   NRDConfig,
   NRDDetectionMethod,
@@ -16,7 +18,7 @@ export type {
 
 export { DEFAULT_NRD_CONFIG } from "./types.js";
 
-// Heuristics
+// Suspicious Domain Analysis
 export {
   SUSPICIOUS_TLDS,
   calculateEntropy,
@@ -25,17 +27,26 @@ export {
   hasExcessiveHyphens,
   hasExcessiveNumbers,
   isRandomLooking,
-  calculateHeuristics,
-  isHighRiskHeuristics,
-} from "./heuristics.js";
+  calculateSuspiciousScore,
+  isHighRiskDomain,
+} from "./suspicious.js";
 
-// RDAP Client
+// RDAP Client (true NRD detection)
 export type { RDAPEvent, RDAPResponse } from "./rdap.js";
 export {
   queryRDAP,
   extractRegistrationDate,
   extractDomainStatus,
 } from "./rdap.js";
+
+// DDNS Detection
+export type { DDNSResult } from "./ddns.js";
+export {
+  DDNS_PROVIDERS,
+  checkDDNS,
+  getDDNSProviderDomains,
+  getDDNSProviderNames,
+} from "./ddns.js";
 
 // Detector
 export type { NRDCache } from "./detector.js";

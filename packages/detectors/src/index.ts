@@ -15,7 +15,9 @@ export type {
 
 // NRD Detection (re-export from @pleno-audit/nrd)
 export type {
-  HeuristicScores,
+  SuspiciousDomainScores,
+  DDNSInfo,
+  DDNSResult,
   NRDResult,
   NRDConfig,
   NRDDetectionMethod,
@@ -34,11 +36,15 @@ export {
   hasExcessiveHyphens,
   hasExcessiveNumbers,
   isRandomLooking,
-  calculateHeuristics,
-  isHighRiskHeuristics,
+  calculateSuspiciousScore,
+  isHighRiskDomain,
   queryRDAP,
   extractRegistrationDate,
   extractDomainStatus,
+  DDNS_PROVIDERS,
+  checkDDNS,
+  getDDNSProviderDomains,
+  getDDNSProviderNames,
   createNRDDetector,
 } from "@pleno-audit/nrd";
 
