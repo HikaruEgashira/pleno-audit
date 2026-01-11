@@ -1,6 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
-import type { DataRetentionConfig } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
@@ -9,7 +8,7 @@ export function Settings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<CSPConfig | null>(null);
   const [nrdConfig, setNRDConfig] = useState<NRDConfig | null>(null);
-  const [retentionConfig, setRetentionConfig] = useState<DataRetentionConfig | null>(null);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,14 +31,33 @@ export function Settings() {
       const retCfg = await chrome.runtime.sendMessage({
         type: "GET_DATA_RETENTION_CONFIG",
       });
-      setRetentionConfig(retCfg);
+      setRetentionDays(retCfg?.retentionDays ?? 180);
     } catch (error) {
       console.error("Failed to load config:", error);
     }
   }
 
+  function handleRetentionChange(days: number) {
+    setRetentionDays(days);
+    chrome.runtime.sendMessage({
+      type: "SET_DATA_RETENTION_CONFIG",
+      data: {
+        retentionDays: days,
+        autoCleanupEnabled: days !== 0,
+        lastCleanupTimestamp: 0,
+      },
+    }).catch(console.error);
+  }
+
+  function formatRetentionDays(days: number): string {
+    if (days === 0) return "No expiration";
+    if (days < 30) return `${days} days`;
+    const months = Math.round(days / 30);
+    return months === 1 ? "1 month" : `${months} months`;
+  }
+
   async function handleSave() {
-    if (!config || !nrdConfig || !retentionConfig) return;
+    if (!config || !nrdConfig) return;
     setSaving(true);
     try {
       await chrome.runtime.sendMessage({
@@ -53,11 +71,6 @@ export function Settings() {
       await chrome.runtime.sendMessage({
         type: "SET_NRD_CONFIG",
         data: nrdConfig,
-      });
-
-      await chrome.runtime.sendMessage({
-        type: "SET_DATA_RETENTION_CONFIG",
-        data: retentionConfig,
       });
 
       setMessage("Settings saved!");
@@ -80,18 +93,12 @@ export function Settings() {
     }
   }
 
-  if (!config || !nrdConfig || !retentionConfig) {
+  if (!config || !nrdConfig || retentionDays === null) {
     return (
       <div style={styles.section}>
         <p style={styles.emptyText}>Loading...</p>
       </div>
     );
-  }
-
-  function formatRetentionDays(days: number): string {
-    if (days < 30) return `${days} days`;
-    const months = Math.round(days / 30);
-    return months === 1 ? "1 month" : `${months} months`;
   }
 
   return (
@@ -221,43 +228,25 @@ export function Settings() {
 
       <hr style={{ margin: "16px 0", border: "none", borderTop: `1px solid ${colors.border}` }} />
 
-      <h3 style={styles.sectionTitle}>Data Retention Settings</h3>
-
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={retentionConfig.autoCleanupEnabled}
-          onChange={(e) =>
-            setRetentionConfig({
-              ...retentionConfig,
-              autoCleanupEnabled: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span style={{ color: colors.textPrimary }}>Auto cleanup old data</span>
-      </label>
+      <h3 style={styles.sectionTitle}>Data Retention</h3>
 
       <div style={{ marginBottom: "12px" }}>
         <label style={styles.label}>
-          Retention Period: {formatRetentionDays(retentionConfig.retentionDays)}
+          {formatRetentionDays(retentionDays)}
         </label>
         <input
           type="range"
-          min="7"
+          min="0"
           max="365"
-          step="7"
-          value={retentionConfig.retentionDays}
-          onChange={(e) =>
-            setRetentionConfig({
-              ...retentionConfig,
-              retentionDays: parseInt((e.target as HTMLInputElement).value, 10),
-            })
-          }
+          step="1"
+          value={retentionDays}
+          onChange={(e) => handleRetentionChange(parseInt((e.target as HTMLInputElement).value, 10))}
           style={{ width: "100%", marginBottom: "4px" }}
         />
-        <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-          Data older than this will be automatically deleted (default: 6 months)
-        </span>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: colors.textSecondary }}>
+          <span>No expiration</span>
+          <span>1 year</span>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: "8px" }}>

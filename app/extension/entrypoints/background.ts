@@ -540,7 +540,8 @@ async function setDataRetentionConfig(newConfig: DataRetentionConfig): Promise<{
 async function cleanupOldData(): Promise<{ deleted: number }> {
   try {
     const config = await getDataRetentionConfig();
-    if (!config.autoCleanupEnabled) {
+    // retentionDays === 0 means no expiration
+    if (!config.autoCleanupEnabled || config.retentionDays === 0) {
       return { deleted: 0 };
     }
 

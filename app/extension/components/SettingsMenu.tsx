@@ -9,6 +9,7 @@ interface Props {
 }
 
 function formatRetentionDays(days: number): string {
+  if (days === 0) return "無期限";
   if (days < 30) return `${days}日`;
   const months = Math.round(days / 30);
   return months === 1 ? "1ヶ月" : `${months}ヶ月`;
@@ -17,8 +18,7 @@ function formatRetentionDays(days: number): string {
 export function SettingsMenu({ onClearData, onExport }: Props) {
   const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [retentionConfig, setRetentionConfig] = useState<DataRetentionConfig | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,41 +32,27 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   }, []);
 
   useEffect(() => {
-    if (isOpen && !retentionConfig) {
+    if (isOpen && retentionDays === null) {
       chrome.runtime.sendMessage({ type: "GET_DATA_RETENTION_CONFIG" })
         .then((config) => {
-          if (config) {
-            setRetentionConfig(config);
-          } else {
-            setRetentionConfig({
-              retentionDays: 180,
-              autoCleanupEnabled: true,
-              lastCleanupTimestamp: 0,
-            });
-          }
+          setRetentionDays(config?.retentionDays ?? 180);
         })
         .catch(() => {
-          setRetentionConfig({
-            retentionDays: 180,
-            autoCleanupEnabled: true,
-            lastCleanupTimestamp: 0,
-          });
+          setRetentionDays(180);
         });
     }
-  }, [isOpen, retentionConfig]);
+  }, [isOpen, retentionDays]);
 
-  async function handleSaveRetention() {
-    if (!retentionConfig) return;
-    setSaving(true);
-    try {
-      await chrome.runtime.sendMessage({
-        type: "SET_DATA_RETENTION_CONFIG",
-        data: retentionConfig,
-      });
-    } catch (error) {
-      console.error("Failed to save retention config:", error);
-    }
-    setSaving(false);
+  function handleRetentionChange(days: number) {
+    setRetentionDays(days);
+    chrome.runtime.sendMessage({
+      type: "SET_DATA_RETENTION_CONFIG",
+      data: {
+        retentionDays: days,
+        autoCleanupEnabled: days !== 0,
+        lastCleanupTimestamp: 0,
+      },
+    }).catch(console.error);
   }
 
   return (
@@ -133,54 +119,25 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
             <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
               データ保持期間
             </div>
-            {retentionConfig ? (
-              <>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: colors.textPrimary, marginBottom: "8px", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={retentionConfig.autoCleanupEnabled}
-                    onChange={(e) => setRetentionConfig({
-                      ...retentionConfig,
-                      autoCleanupEnabled: (e.target as HTMLInputElement).checked,
-                    })}
-                  />
-                  自動クリーンアップ
-                </label>
-                <div style={{ marginBottom: "8px" }}>
-                  <div style={{ fontSize: "12px", color: colors.textPrimary, marginBottom: "4px" }}>
-                    保持: {formatRetentionDays(retentionConfig.retentionDays)}
-                  </div>
-                  <input
-                    type="range"
-                    min="7"
-                    max="365"
-                    step="7"
-                    value={retentionConfig.retentionDays}
-                    onChange={(e) => setRetentionConfig({
-                      ...retentionConfig,
-                      retentionDays: parseInt((e.target as HTMLInputElement).value, 10),
-                    })}
-                    style={{ width: "100%" }}
-                  />
+            {retentionDays !== null ? (
+              <div>
+                <div style={{ fontSize: "12px", color: colors.textPrimary, marginBottom: "4px" }}>
+                  {formatRetentionDays(retentionDays)}
                 </div>
-                <button
-                  onClick={handleSaveRetention}
-                  disabled={saving}
-                  style={{
-                    width: "100%",
-                    padding: "6px 12px",
-                    background: colors.interactive,
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  {saving ? "保存中..." : "保存"}
-                </button>
-              </>
+                <input
+                  type="range"
+                  min="0"
+                  max="365"
+                  step="1"
+                  value={retentionDays}
+                  onChange={(e) => handleRetentionChange(parseInt((e.target as HTMLInputElement).value, 10))}
+                  style={{ width: "100%" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: colors.textMuted, marginTop: "2px" }}>
+                  <span>無期限</span>
+                  <span>1年</span>
+                </div>
+              </div>
             ) : (
               <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
             )}
