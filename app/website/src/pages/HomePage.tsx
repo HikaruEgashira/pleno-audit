@@ -84,7 +84,7 @@ const Header = () => {
           setStarCount(data.stargazers_count);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (
@@ -231,7 +231,7 @@ const FeaturesSection = () => (
           <FeatureCard
             icon={AlertTriangle}
             title="フィッシング検出"
-            description="NRDアルゴリズムとTyposquatting検出で悪意あるドメインを特定"
+            description="複数のアルゴリズムを用いて悪意あるドメインを特定"
           />
         </motion.div>
         <motion.div

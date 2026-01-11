@@ -161,10 +161,9 @@ const Sidebar = ({
                     }}
                     className={`
                       w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors
-                      ${
-                        isActive
-                          ? 'bg-[#f5f5f5] dark:bg-[#2a2a2a] text-[#171717] dark:text-[#ededed]'
-                          : 'text-[#666] dark:text-[#8f8f8f] hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a] hover:text-[#171717] dark:hover:text-[#ededed]'
+                      ${isActive
+                        ? 'bg-[#f5f5f5] dark:bg-[#2a2a2a] text-[#171717] dark:text-[#ededed]'
+                        : 'text-[#666] dark:text-[#8f8f8f] hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a] hover:text-[#171717] dark:hover:text-[#ededed]'
                       }
                     `}
                   >
@@ -174,9 +173,8 @@ const Sidebar = ({
                     </div>
                     {section.subsections && (
                       <ChevronRight
-                        className={`h-4 w-4 transition-transform ${
-                          isExpanded ? 'rotate-90' : ''
-                        }`}
+                        className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''
+                          }`}
                       />
                     )}
                   </button>
@@ -190,10 +188,9 @@ const Sidebar = ({
                             onClick={() => onSectionChange(sub.id)}
                             className={`
                               w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
-                              ${
-                                activeSection === sub.id
-                                  ? 'bg-[#f5f5f5] dark:bg-[#2a2a2a] text-[#171717] dark:text-[#ededed]'
-                                  : 'text-[#666] dark:text-[#8f8f8f] hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]'
+                              ${activeSection === sub.id
+                                ? 'bg-[#f5f5f5] dark:bg-[#2a2a2a] text-[#171717] dark:text-[#ededed]'
+                                : 'text-[#666] dark:text-[#8f8f8f] hover:bg-[#f5f5f5] dark:hover:bg-[#2a2a2a]'
                               }
                             `}
                           >
@@ -391,7 +388,7 @@ const FeaturesSection = () => (
       <FeatureDocCard
         icon={AlertTriangle}
         title="フィッシング検出"
-        description="NRDアルゴリズムとTyposquatting検出で悪意あるドメインを特定します。"
+        description="複数のアルゴリズムを用いて悪意あるドメインを特定します。"
         details={[
           'NRD（Newly Registered Domain）アルゴリズムによる新規ドメイン検出',
           'Typosquatting検出（有名サービスの類似ドメイン）',
