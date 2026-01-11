@@ -13,12 +13,14 @@ import { ShadowITTab } from "./components/ShadowITTab";
 import { PhishingTab } from "./components/PhishingTab";
 import { MalwareTab } from "./components/MalwareTab";
 import { ExtensionsTab } from "./components/ExtensionsTab";
+import { InputsTab } from "./components/InputsTab";
 import { createStyles } from "./styles";
 
-type Tab = "sessions" | "domains" | "requests" | "extensions";
+type Tab = "sessions" | "inputs" | "domains" | "requests" | "extensions";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.inputs.length },
+  { key: "sessions", label: "Sessions", count: (d) => d.services.length },
+  { key: "inputs", label: "Inputs", count: (d) => d.inputs.length },
   { key: "domains", label: "Domains", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length },
   { key: "extensions", label: "Extensions" },
@@ -162,7 +164,9 @@ function PopupContent() {
     }
     switch (tab) {
       case "sessions":
-        return <ShadowITTab services={services} inputs={inputs} events={events} />;
+        return <ShadowITTab services={services} events={events} />;
+      case "inputs":
+        return <InputsTab inputs={inputs} />;
       case "domains":
         return <PhishingTab services={services} events={events} />;
       case "requests":
