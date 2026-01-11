@@ -250,8 +250,8 @@ const OverviewSection = () => (
       概要
     </h1>
     <p className="text-lg text-[#666] dark:text-[#8f8f8f]">
-      Pleno Auditは、ブラウザセキュリティを包括的に監視・可視化するChrome拡張機能です。
-      サーバーレスで動作し、すべてのデータは端末内に保存されるため、プライバシーが保護されます。
+      ブラウザのセキュリティ状態を可視化するChrome拡張機能。
+      サーバー不要で、データは端末内に保存される。
     </p>
 
     <div className="grid gap-4 md:grid-cols-2">
@@ -372,7 +372,7 @@ const FeaturesSection = () => (
         id="shadow-it"
         icon={Eye}
         title="Shadow IT検出"
-        description="未許可のSaaSサービスへのアクセスをリアルタイムで検出し、可視化します。"
+        description="IT部門が把握していないSaaSの利用状況を可視化。"
         details={[
           'ログインページの検出（URLパターン、フォーム構造）',
           'セッションCookieの検出',
@@ -385,7 +385,7 @@ const FeaturesSection = () => (
         id="csp"
         icon={Shield}
         title="CSP監視"
-        description="Content Security Policy違反を検出し、セキュリティポリシーの遵守状況を監視します。"
+        description="CSP違反イベントを記録し、ポリシー改善に役立てる。"
         details={[
           'CSP違反イベントのリアルタイム検出',
           '違反タイプ別の分類（script-src、img-src等）',
@@ -398,11 +398,11 @@ const FeaturesSection = () => (
         id="phishing"
         icon={AlertTriangle}
         title="フィッシング検出"
-        description="複数のアルゴリズムを用いて悪意あるドメインを特定します。"
+        description="新規登録ドメインやTyposquattingを検出。"
         details={[
-          'NRD（Newly Registered Domain）アルゴリズムによる新規ドメイン検出',
+          'NRD（Newly Registered Domain）検出',
           'Typosquatting検出（有名サービスの類似ドメイン）',
-          'URLパターンマッチングによる不審サイト検出',
+          'URLパターンマッチング',
         ]}
       />
 
@@ -410,12 +410,11 @@ const FeaturesSection = () => (
         id="ai-prompt"
         icon={Zap}
         title="AIプロンプト監視"
-        description="AIサービスへの機密情報漏洩リスクを検出・監視します。"
+        description="ChatGPT等へのプロンプト送信を記録。機密情報の流出リスクを把握。"
         details={[
           'ChatGPT、Claude、Gemini等のAIサービスを自動検出',
           'リクエスト構造による汎用検出（URLパターン非依存）',
           'プロンプト送信・レスポンス受信のログ記録',
-          '将来的にはDLP（Data Loss Prevention）ルールの追加を予定',
         ]}
       />
 
@@ -423,7 +422,7 @@ const FeaturesSection = () => (
         id="auth"
         icon={Lock}
         title="認証フロー検出"
-        description="OAuth/SAMLなどの認証フローを検出し、セキュリティ状態を把握します。"
+        description="OAuth/SAML等の認証イベントを記録。"
         details={[
           'OAuthフローの検出（authorization_code、implicit等）',
           'SAMLアサーションの検出',
@@ -435,7 +434,7 @@ const FeaturesSection = () => (
         id="dashboard"
         icon={LayoutDashboard}
         title="ダッシュボード"
-        description="検出した全てのセキュリティイベントを一元管理・可視化します。"
+        description="検出イベントの一覧表示とフィルタリング。"
         details={[
           'リアルタイムのイベント表示',
           'フィルタリング・検索機能',
@@ -458,47 +457,20 @@ const ArchitectureSection = () => (
         <h2 className="text-xl font-medium text-[#171717] dark:text-[#ededed] mb-4">
           ブラウザ完結型設計
         </h2>
-        <p className="text-[#666] dark:text-[#8f8f8f] mb-4">
-          MVPは端末完結型のブラウザ拡張機能として実装されています。サーバー連携は行わず、
-          すべてのデータはユーザーの端末内で処理・保存されます。
+        <p className="text-[#666] dark:text-[#8f8f8f]">
+          サーバー連携不要のため、インストールするだけで使い始められる。
+          データは端末のIndexedDB/SQLiteに保存され、外部に送信されない。
         </p>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="p-4 rounded-lg bg-[#fafafa] dark:bg-[#111]">
-            <h4 className="font-medium text-[#171717] dark:text-[#ededed] mb-2">利点</h4>
-            <ul className="text-sm text-[#666] dark:text-[#8f8f8f] space-y-1">
-              <li>• 即座に利用開始可能</li>
-              <li>• プライバシー保護</li>
-              <li>• 無料で提供可能</li>
-            </ul>
-          </div>
-          <div className="p-4 rounded-lg bg-[#fafafa] dark:bg-[#111]">
-            <h4 className="font-medium text-[#171717] dark:text-[#ededed] mb-2">制約</h4>
-            <ul className="text-sm text-[#666] dark:text-[#8f8f8f] space-y-1">
-              <li>• 高度な分析に限界</li>
-              <li>• ブラウザ依存</li>
-              <li>• 情報共有不可</li>
-            </ul>
-          </div>
-          <div className="p-4 rounded-lg bg-[#fafafa] dark:bg-[#111]">
-            <h4 className="font-medium text-[#171717] dark:text-[#ededed] mb-2">将来</h4>
-            <ul className="text-sm text-[#666] dark:text-[#8f8f8f] space-y-1">
-              <li>• オプショナルサーバー</li>
-              <li>• 企業向けダッシュボード</li>
-              <li>• 脅威インテリジェンス</li>
-            </ul>
-          </div>
-        </div>
       </div>
 
       <div id="detection-only" className="rounded-xl border border-[#eaeaea] dark:border-[#333] bg-white dark:bg-[#171717] p-6">
         <h2 className="text-xl font-medium text-[#171717] dark:text-[#ededed] mb-4">
-          検出のみアプローチ
+          検出のみ
         </h2>
         <p className="text-[#666] dark:text-[#8f8f8f] mb-4">
-          MVPではブロック機能を実装せず、検出・可視化のみを行います。
-          これにより、ユーザー体験を損なうことなくセキュリティ可視化を実現します。
+          デフォルトではブロックしないため、誤検知を気にせずに気軽に導入できます。
         </p>
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-center py-6">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-center py-4">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#e6f4ff] dark:bg-[#0a2a3d] text-[#0050b3] dark:text-[#60a5fa]">
             <Eye className="h-4 w-4" />
             <span className="text-sm font-medium">検出</span>
@@ -511,7 +483,7 @@ const ArchitectureSection = () => (
           <ChevronRight className="h-5 w-5 text-[#666] dark:text-[#8f8f8f] rotate-90 md:rotate-0" />
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#fff8e6] dark:bg-[#3d2e0a] text-[#915b00] dark:text-[#fbbf24]">
             <FileText className="h-4 w-4" />
-            <span className="text-sm font-medium">ポリシー生成</span>
+            <span className="text-sm font-medium">レポート</span>
           </div>
         </div>
       </div>
@@ -526,34 +498,28 @@ const ArchitectureSection = () => (
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
                 <th className="text-left py-3 px-4 font-medium text-[#171717] dark:text-[#ededed]">項目</th>
                 <th className="text-left py-3 px-4 font-medium text-[#171717] dark:text-[#ededed]">選択</th>
-                <th className="text-left py-3 px-4 font-medium text-[#171717] dark:text-[#ededed]">理由</th>
               </tr>
             </thead>
             <tbody className="text-[#666] dark:text-[#8f8f8f]">
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
-                <td className="py-3 px-4">ブラウザ</td>
-                <td className="py-3 px-4">Chrome</td>
-                <td className="py-3 px-4">シェア最大、Manifest V3が標準</td>
+                <td className="py-3 px-4">拡張機能</td>
+                <td className="py-3 px-4">Chrome Manifest V3</td>
               </tr>
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
                 <td className="py-3 px-4">ビルド</td>
                 <td className="py-3 px-4">WXT</td>
-                <td className="py-3 px-4">HMR対応、ファイルベースルーティング</td>
               </tr>
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
                 <td className="py-3 px-4">UI</td>
                 <td className="py-3 px-4">Preact</td>
-                <td className="py-3 px-4">軽量（3KB）、React互換</td>
               </tr>
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
                 <td className="py-3 px-4">DB</td>
                 <td className="py-3 px-4">sql.js (SQLite WASM)</td>
-                <td className="py-3 px-4">クライアントサイドでSQLクエリ実行可能</td>
               </tr>
               <tr>
                 <td className="py-3 px-4">言語</td>
                 <td className="py-3 px-4">TypeScript</td>
-                <td className="py-3 px-4">型安全、Chrome API型定義あり</td>
               </tr>
             </tbody>
           </table>
@@ -633,8 +599,7 @@ const PrivacySection = () => (
               端末内完結
             </h4>
             <p className="text-sm text-[#666] dark:text-[#8f8f8f]">
-              すべてのブラウジングデータは端末内のIndexedDB/SQLiteに保存されます。
-              外部サーバーへの送信は一切行いません。
+              データは端末内のIndexedDB/SQLiteに保存。外部送信なし。
             </p>
           </div>
         </div>
@@ -648,8 +613,7 @@ const PrivacySection = () => (
               ユーザー管理
             </h4>
             <p className="text-sm text-[#666] dark:text-[#8f8f8f]">
-              データの閲覧・削除はすべてユーザー自身が管理できます。
-              拡張機能をアンインストールすると、すべてのデータが削除されます。
+              アンインストール時にデータ削除。
             </p>
           </div>
         </div>
@@ -660,11 +624,10 @@ const PrivacySection = () => (
           </div>
           <div>
             <h4 className="font-medium text-[#171717] dark:text-[#ededed]">
-              オプショナルなサーバー連携
+              サーバー連携（予定）
             </h4>
             <p className="text-sm text-[#666] dark:text-[#8f8f8f]">
-              将来的には、企業向けに任意でサーバー連携を追加する予定です。
-              この場合も、送信するデータは明示的にユーザーに確認を取ります。
+              企業向けにオプションで提供予定。送信データはユーザー確認を経る。
             </p>
           </div>
         </div>
