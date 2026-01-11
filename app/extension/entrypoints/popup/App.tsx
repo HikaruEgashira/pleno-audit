@@ -78,7 +78,7 @@ function PopupContent() {
     try {
       const [servicesResult, eventsResult] = await Promise.all([
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 100, offset: 0 } }),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: {} }),
       ]);
 
       const events = (eventsResult as EventQueryResult | undefined)?.events || [];
@@ -147,7 +147,7 @@ function PopupContent() {
   }
 
   const services = Object.values(data.services) as DetectedService[];
-  const events = data.events as EventLog[];
+  const events = data.events;
 
   const tabData: TabData = { services, aiPrompts, events, violations, networkRequests };
   const status = getStatus(tabData);

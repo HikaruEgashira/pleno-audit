@@ -12,10 +12,11 @@ import type {
 import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
 
-interface Stats {
+interface TotalCounts {
   violations: number;
-  requests: number;
-  uniqueDomains: number;
+  networkRequests: number;
+  events: number;
+  aiPrompts: number;
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
@@ -206,7 +207,7 @@ function DashboardContent() {
   const styles = createStyles(colors, isDark);
 
   const [reports, setReports] = useState<CSPReport[]>([]);
-  const [, setStats] = useState<Stats>({ violations: 0, requests: 0, uniqueDomains: 0 });
+  const [totalCounts, setTotalCounts] = useState<TotalCounts>({ violations: 0, networkRequests: 0, events: 0, aiPrompts: 0 });
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [connectionMode, setConnectionMode] = useState<"local" | "remote">("local");
@@ -243,23 +244,55 @@ function DashboardContent() {
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const cutoff = new Date(Date.now() - getPeriodMs(period)).toISOString();
-      const [reportsResult, statsResult, configResult, aiPromptsResult, storageResult, eventsResult] = await Promise.all([
-        chrome.runtime.sendMessage({ type: "GET_CSP_REPORTS", data: { since: period !== "all" ? cutoff : undefined, limit: 1000 } }),
-        chrome.runtime.sendMessage({ type: "GET_STATS" }),
-        chrome.runtime.sendMessage({ type: "GET_CONNECTION_CONFIG" }),
-        chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
+      const cutoffMs = Date.now() - getPeriodMs(period);
+      // CSP API用はISO文字列、EventStore用は数値タイムスタンプ
+      const sinceISO = period !== "all" ? new Date(cutoffMs).toISOString() : undefined;
+      const sinceTs = period !== "all" ? cutoffMs : undefined;
+
+      // 各API呼び出しを個別にエラーハンドリング
+      const safeMessage = async <T,>(msg: object, fallback: T): Promise<T> => {
+        try {
+          return await chrome.runtime.sendMessage(msg) ?? fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const [violationsResult, networkResult, configResult, aiPromptsResult, storageResult, eventsResult, eventsCountResult, aiPromptsCountResult] = await Promise.all([
+        safeMessage({ type: "GET_CSP_REPORTS", data: { type: "csp-violation", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
+        safeMessage({ type: "GET_CSP_REPORTS", data: { type: "network-request", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
+        safeMessage({ type: "GET_CONNECTION_CONFIG" }, { mode: "local" }),
+        safeMessage({ type: "GET_AI_PROMPTS" }, []),
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 500, offset: 0 } }),
+        safeMessage({ type: "GET_EVENTS", data: { since: sinceTs, limit: 500 } }, { events: [], total: 0 }),
+        safeMessage({ type: "GET_EVENTS_COUNT", data: { since: sinceTs } }, { count: 0 }),
+        safeMessage({ type: "GET_AI_PROMPTS_COUNT" }, { count: 0 }),
       ]);
 
-      if (Array.isArray(reportsResult)) setReports(reportsResult);
-      if (reportsResult?.reports) setReports(reportsResult.reports);
-      if (statsResult) setStats(statsResult);
-      if (configResult) setConnectionMode(configResult.mode);
+      // Combine violations and network into reports
+      const violationsData = Array.isArray(violationsResult) ? violationsResult : (violationsResult?.reports ?? []);
+      const networkData = Array.isArray(networkResult) ? networkResult : (networkResult?.reports ?? []);
+      setReports([...violationsData, ...networkData]);
+
+      // Get totals from API response
+      const violationsTotal = violationsResult?.total ?? violationsData.length;
+      const networkTotal = networkResult?.total ?? networkData.length;
+      setTotalCounts((prev) => ({
+        ...prev,
+        violations: violationsTotal,
+        networkRequests: networkTotal,
+      }));
+
+      if (configResult) setConnectionMode(configResult.mode as "local" | "remote");
       if (Array.isArray(aiPromptsResult)) setAIPrompts(aiPromptsResult);
       if (storageResult.services) setServices(Object.values(storageResult.services));
       if (eventsResult && Array.isArray(eventsResult.events)) setEvents(eventsResult.events);
+      if (eventsCountResult) {
+        setTotalCounts((prev) => ({ ...prev, events: eventsCountResult.count ?? 0 }));
+      }
+      if (aiPromptsCountResult) {
+        setTotalCounts((prev) => ({ ...prev, aiPrompts: aiPromptsCountResult.count ?? 0 }));
+      }
       setLastUpdated(new Date().toISOString());
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -279,7 +312,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "7") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -317,10 +350,8 @@ function DashboardContent() {
     URL.revokeObjectURL(url);
   };
 
-  const filteredReports = useMemo(() => {
-    const cutoff = new Date(Date.now() - getPeriodMs(period)).toISOString();
-    return reports.filter((r) => r.timestamp >= cutoff);
-  }, [reports, period]);
+  // データはサーバー側で期間フィルタリング済み
+  const filteredReports = reports;
 
   const violations = useMemo(
     () => filteredReports.filter((r) => r.type === "csp-violation") as CSPViolation[],
@@ -365,12 +396,12 @@ function DashboardContent() {
 
   const tabs = [
     { id: "overview", label: "概要" },
-    { id: "violations", label: "CSP違反", count: violations.length },
-    { id: "network", label: "ネットワーク", count: networkRequests.length },
+    { id: "violations", label: "CSP違反", count: totalCounts.violations },
     { id: "domains", label: "ドメイン" },
-    { id: "ai", label: "AI監視", count: aiPrompts.length },
+    { id: "ai", label: "AI監視", count: totalCounts.aiPrompts },
     { id: "services", label: "サービス", count: services.length },
-    { id: "events", label: "イベント", count: events.length },
+    { id: "network", label: "ネットワーク", count: totalCounts.networkRequests },
+    { id: "events", label: "イベント", count: totalCounts.events },
   ];
 
   const filteredViolations = useMemo(() => {
@@ -441,12 +472,12 @@ function DashboardContent() {
         </div>
 
         <div style={styles.statsGrid}>
-          <StatCard value={violations.length} label="CSP違反" onClick={() => setActiveTab("violations")} />
+          <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
           <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
-          <StatCard value={aiPrompts.length} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
+          <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
           <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
           <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
-          <StatCard value={events.length} label="イベント" onClick={() => setActiveTab("events")} />
+          <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
         </div>
       </header>
 

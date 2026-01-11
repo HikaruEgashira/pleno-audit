@@ -12,6 +12,7 @@ interface Props {
 export function EventLogList({ events, filterTypes, title = "イベント" }: Props) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
+
   const filteredEvents = filterTypes
     ? events.filter((event) => filterTypes.includes(event.type))
     : events;

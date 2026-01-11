@@ -241,38 +241,58 @@ export class SqlJsAdapter implements DatabaseAdapter {
     const params: (string | number)[] = []
 
     if (options.since) {
+      // sinceが数値（timestamp）の場合はISO文字列に変換
+      const sinceValue = typeof options.since === 'number'
+        ? new Date(options.since).toISOString()
+        : options.since
       conditions.push(`${timestampColumn} >= ?`)
-      params.push(options.since)
+      params.push(sinceValue)
     }
     if (options.until) {
+      const untilValue = typeof options.until === 'number'
+        ? new Date(options.until).toISOString()
+        : options.until
       conditions.push(`${timestampColumn} <= ?`)
-      params.push(options.until)
+      params.push(untilValue)
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
     return { where, params }
   }
 
+  private buildLimitClause(options: QueryOptions): { limitClause: string; params: number[] } {
+    // limitが指定されていない場合は無制限
+    if (options.limit === undefined && options.offset === undefined) {
+      return { limitClause: '', params: [] }
+    }
+
+    const offset = options.offset ?? 0
+    if (options.limit === undefined) {
+      // offsetのみ指定: LIMIT -1 OFFSET n（SQLiteでは-1は無制限）
+      return { limitClause: 'LIMIT -1 OFFSET ?', params: [offset] }
+    }
+
+    return { limitClause: 'LIMIT ? OFFSET ?', params: [options.limit, offset] }
+  }
+
   async getViolations(options: QueryOptions = {}): Promise<PaginatedResult<CSPViolation>> {
     const db = this.getDb()
-    const { where, params } = this.buildWhereClause(options, 'timestamp')
+    const { where, params: whereParams } = this.buildWhereClause(options, 'timestamp')
 
-    const countResult = db.exec(`SELECT COUNT(*) as count FROM csp_violations ${where}`, params)
+    const countResult = db.exec(`SELECT COUNT(*) as count FROM csp_violations ${where}`, whereParams)
     const total = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0
 
-    const limit = options.limit ?? 100
-    const offset = options.offset ?? 0
+    const { limitClause, params: limitParams } = this.buildLimitClause(options)
+    const queryParams = [...whereParams, ...limitParams]
 
-    const queryParams = [...params, limit, offset]
-    const results = db.exec(
-      `SELECT * FROM csp_violations ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-      queryParams
-    )
+    const query = `SELECT * FROM csp_violations ${where} ORDER BY timestamp DESC ${limitClause}`
+    const results = db.exec(query, queryParams)
 
     const data = results.length > 0
       ? results[0].values.map((row) => mapViolation(rowToObject(results[0].columns, row)))
       : []
 
+    const offset = options.offset ?? 0
     return {
       data,
       total,
@@ -282,24 +302,22 @@ export class SqlJsAdapter implements DatabaseAdapter {
 
   async getNetworkRequests(options: QueryOptions = {}): Promise<PaginatedResult<NetworkRequest>> {
     const db = this.getDb()
-    const { where, params } = this.buildWhereClause(options, 'timestamp')
+    const { where, params: whereParams } = this.buildWhereClause(options, 'timestamp')
 
-    const countResult = db.exec(`SELECT COUNT(*) as count FROM network_requests ${where}`, params)
+    const countResult = db.exec(`SELECT COUNT(*) as count FROM network_requests ${where}`, whereParams)
     const total = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0
 
-    const limit = options.limit ?? 100
-    const offset = options.offset ?? 0
+    const { limitClause, params: limitParams } = this.buildLimitClause(options)
+    const queryParams = [...whereParams, ...limitParams]
 
-    const queryParams = [...params, limit, offset]
-    const results = db.exec(
-      `SELECT * FROM network_requests ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-      queryParams
-    )
+    const query = `SELECT * FROM network_requests ${where} ORDER BY timestamp DESC ${limitClause}`
+    const results = db.exec(query, queryParams)
 
     const data = results.length > 0
       ? results[0].values.map((row) => mapNetworkRequest(rowToObject(results[0].columns, row)))
       : []
 
+    const offset = options.offset ?? 0
     return {
       data,
       total,
@@ -318,20 +336,15 @@ export class SqlJsAdapter implements DatabaseAdapter {
     const rTotal = rCountResult.length > 0 ? (rCountResult[0].values[0][0] as number) : 0
     const total = vTotal + rTotal
 
-    const limit = options.limit ?? 100
-    const offset = options.offset ?? 0
+    const { limitClause, params: limitParams } = this.buildLimitClause(options)
+    const vQueryParams = [...vParams, ...limitParams]
+    const rQueryParams = [...rParams, ...limitParams]
 
-    const vQueryParams = [...vParams, limit, offset]
-    const rQueryParams = [...rParams, limit, offset]
+    const vQuery = `SELECT *, 'csp-violation' as report_type FROM csp_violations ${vWhere} ORDER BY timestamp DESC ${limitClause}`
+    const rQuery = `SELECT *, 'network-request' as report_type FROM network_requests ${rWhere} ORDER BY timestamp DESC ${limitClause}`
 
-    const vResults = db.exec(
-      `SELECT *, 'csp-violation' as report_type FROM csp_violations ${vWhere} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-      vQueryParams
-    )
-    const rResults = db.exec(
-      `SELECT *, 'network-request' as report_type FROM network_requests ${rWhere} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-      rQueryParams
-    )
+    const vResults = db.exec(vQuery, vQueryParams)
+    const rResults = db.exec(rQuery, rQueryParams)
 
     const violations = vResults.length > 0
       ? vResults[0].values.map((row) => mapViolation(rowToObject(vResults[0].columns, row)))
@@ -340,14 +353,19 @@ export class SqlJsAdapter implements DatabaseAdapter {
       ? rResults[0].values.map((row) => mapNetworkRequest(rowToObject(rResults[0].columns, row)))
       : []
 
-    const data = [...violations, ...requests]
+    let data = [...violations, ...requests]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, limit)
 
+    // limitが指定されている場合のみスライス
+    if (options.limit !== undefined) {
+      data = data.slice(0, options.limit)
+    }
+
+    const offset = options.offset ?? 0
     return {
       data,
       total,
-      hasMore: offset + limit < total,
+      hasMore: offset + data.length < total,
     }
   }
 }

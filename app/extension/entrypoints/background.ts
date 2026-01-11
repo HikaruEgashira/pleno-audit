@@ -764,6 +764,11 @@ async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
   return storage.aiPrompts || [];
 }
 
+async function getAIPromptsCount(): Promise<number> {
+  const storage = await getStorage();
+  return (storage.aiPrompts || []).length;
+}
+
 async function getAIMonitorConfig(): Promise<AIMonitorConfig> {
   const storage = await getStorage();
   return storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
@@ -853,6 +858,12 @@ async function registerMainWorldScript() {
 
 export default defineBackground(() => {
   registerMainWorldScript();
+
+  // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
+  getOrInitEventStore()
+    .then(() => console.log("[Service Policy Auditor] EventStore initialized"))
+    .catch((error) => console.error("[Service Policy Auditor] EventStore init failed:", error));
+
   getApiClient()
     .then(async (client) => {
       apiClient = client;
@@ -892,9 +903,15 @@ export default defineBackground(() => {
     }
   })();
 
+  // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
+  chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "keepAlive") {
+      // ServiceWorkerをアクティブに保つ（何もしない）
+      return;
+    }
     if (alarm.name === "flushCSPReports") {
       flushReportQueue().catch(console.error);
     }
@@ -1034,6 +1051,13 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (message.type === "GET_AI_PROMPTS_COUNT") {
+      getAIPromptsCount()
+        .then((count) => sendResponse({ count }))
+        .catch(() => sendResponse({ count: 0 }));
+      return true;
+    }
+
     if (message.type === "GET_AI_MONITOR_CONFIG") {
       getAIMonitorConfig()
         .then(sendResponse)
@@ -1139,7 +1163,9 @@ export default defineBackground(() => {
       return true;
     }
 
-    return true;
+    // 未知のメッセージタイプはレスポンスを返さず同期的に処理
+    console.warn("[Service Policy Auditor] Unknown message type:", message.type);
+    return false;
   });
 
   startCookieMonitor();

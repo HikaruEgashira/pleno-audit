@@ -1,5 +1,12 @@
 /**
- * EventStore - IndexedDB-backed event storage
+ * EventStore - IndexedDB-backed event storage (optimized)
+ *
+ * Performance optimizations:
+ * - Cursor-based queries with early termination
+ * - cursor.advance() for fast offset skipping
+ * - Index-based count() for O(1) counting
+ * - Set-based filtering for O(1) lookups
+ * - Cursor direction for sorting (no memory sort)
  */
 
 import type { EventLog, EventLogType } from "@service-policy-auditor/detectors";
@@ -71,63 +78,159 @@ export class EventStore {
     });
   }
 
+  /**
+   * 高速クエリ - カーソルベースでインデックスを活用
+   * limit: Infinity で全データ取得可能
+   */
   async query(options?: EventQueryOptions): Promise<EventQueryResult> {
     await this.init();
 
-    const limit = options?.limit ?? 50;
+    const limit = options?.limit ?? Infinity;
     const offset = options?.offset ?? 0;
-    const orderBy = options?.orderBy ?? "-timestamp";
+    const descending = (options?.orderBy ?? "-timestamp") === "-timestamp";
+    const hasTypeFilter = !!(options?.type?.length);
+    const hasDomainFilter = !!options?.domain;
 
-    const total = await this.count({
-      type: options?.type,
-      domain: options?.domain,
-      since: options?.since,
-      until: options?.until,
-    });
+    // フィルタなし: 高速パス（timestampインデックス直接使用）
+    if (!hasTypeFilter && !hasDomainFilter) {
+      return this.queryByTimestampOnly(options?.since, options?.until, limit, offset, descending);
+    }
 
+    // フィルタあり: カーソルベースで処理
+    return this.queryWithFilters(options, limit, offset, descending);
+  }
+
+  /**
+   * 期間フィルタのみ - timestampインデックスを直接使用（最速）
+   */
+  private async queryByTimestampOnly(
+    since: number | undefined,
+    until: number | undefined,
+    limit: number,
+    offset: number,
+    descending: boolean
+  ): Promise<EventQueryResult> {
     return new Promise((resolve, reject) => {
       const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
       const store = tx.objectStore(DB_CONFIG.stores.events.name);
+      const index = store.index("timestamp");
+      const range = this.buildRange(since, until);
+      const direction: IDBCursorDirection = descending ? "prev" : "next";
 
-      let index = store.index("timestamp");
-      const range = this.buildRange(options?.since, options?.until);
+      const results: EventLog[] = [];
+      let total = 0;
+      let skipped = false;
 
-      if (options?.type && options.type.length === 1) {
-        index = store.index("type");
-      }
-
-      let request;
-      if (options?.type && options.type.length === 1) {
-        request = index.getAll(options.type[0]);
-      } else if (options?.type && options.type.length > 1) {
-        request = store.getAll();
-      } else if (range) {
-        request = index.getAll(range);
-      } else {
-        request = index.getAll();
-      }
-
-      request.onsuccess = () => {
-        let results = request.result as EventLog[];
-
-        if (options?.type && options.type.length > 0) {
-          results = results.filter((e) => options.type!.includes(e.type));
-        }
-        if (options?.domain) {
-          results = results.filter((e) => e.domain === options.domain);
-        }
-
-        results.sort((a, b) => b.timestamp - a.timestamp);
-        const paged = results.slice(offset, offset + limit);
-
-        resolve({
-          events: paged,
-          total,
-          hasMore: offset + limit < results.length,
-        });
+      // totalを並列でカウント（高速）
+      const countRequest = range ? index.count(range) : index.count();
+      countRequest.onsuccess = () => {
+        total = countRequest.result;
       };
 
-      request.onerror = () => reject(request.error);
+      const cursorRequest = index.openCursor(range, direction);
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          resolve({
+            events: results,
+            total,
+            hasMore: offset + results.length < total,
+          });
+          return;
+        }
+
+        // offsetをadvance()で高速スキップ（1回だけ）
+        if (!skipped && offset > 0) {
+          skipped = true;
+          cursor.advance(offset);
+          return;
+        }
+        skipped = true;
+
+        // limitに達したら終了
+        if (limit !== Infinity && results.length >= limit) {
+          resolve({
+            events: results,
+            total,
+            hasMore: offset + results.length < total,
+          });
+          return;
+        }
+
+        results.push(cursor.value);
+        cursor.continue();
+      };
+
+      cursorRequest.onerror = () => reject(cursorRequest.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /**
+   * フィルタありクエリ - カーソルで逐次フィルタリング
+   */
+  private async queryWithFilters(
+    options: EventQueryOptions | undefined,
+    limit: number,
+    offset: number,
+    descending: boolean
+  ): Promise<EventQueryResult> {
+    return new Promise((resolve, reject) => {
+      const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
+      const store = tx.objectStore(DB_CONFIG.stores.events.name);
+      const index = store.index("timestamp");
+      const range = this.buildRange(options?.since, options?.until);
+      const direction: IDBCursorDirection = descending ? "prev" : "next";
+
+      const typeSet = options?.type ? new Set(options.type) : null;
+      const domain = options?.domain;
+
+      const results: EventLog[] = [];
+      let matchedCount = 0;
+
+      const cursorRequest = index.openCursor(range, direction);
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          resolve({
+            events: results,
+            total: matchedCount,
+            hasMore: false,
+          });
+          return;
+        }
+
+        const event = cursor.value as EventLog;
+
+        // フィルタ適用（Set.has()でO(1)）
+        const matchesType = !typeSet || typeSet.has(event.type);
+        const matchesDomain = !domain || event.domain === domain;
+
+        if (matchesType && matchesDomain) {
+          matchedCount++;
+
+          // offsetをスキップした後、limitまで取得
+          if (matchedCount > offset && (limit === Infinity || results.length < limit)) {
+            results.push(event);
+          }
+
+          // limitに達したら即座に終了（全件カウント不要の場合）
+          if (limit !== Infinity && results.length >= limit) {
+            resolve({
+              events: results,
+              total: matchedCount,
+              hasMore: true, // まだデータがある可能性
+            });
+            return;
+          }
+        }
+
+        cursor.continue();
+      };
+
+      cursorRequest.onerror = () => reject(cursorRequest.error);
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -171,6 +274,9 @@ export class EventStore {
     });
   }
 
+  /**
+   * 高速count - インデックスのcount()を使用
+   */
   async count(options?: {
     type?: EventLogType[];
     domain?: string;
@@ -179,44 +285,102 @@ export class EventStore {
   }): Promise<number> {
     await this.init();
 
+    const hasFilters = !!(options?.type?.length || options?.domain);
+
+    // フィルタなし: インデックスのcount()を使用（O(1)）
+    if (!hasFilters) {
+      return new Promise((resolve, reject) => {
+        const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
+        const store = tx.objectStore(DB_CONFIG.stores.events.name);
+        const index = store.index("timestamp");
+        const range = this.buildRange(options?.since, options?.until);
+
+        const request = range ? index.count(range) : index.count();
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // フィルタあり: カーソルでカウント
     return new Promise((resolve, reject) => {
       const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
       const store = tx.objectStore(DB_CONFIG.stores.events.name);
-      const request = store.getAll();
+      const index = store.index("timestamp");
+      const range = this.buildRange(options?.since, options?.until);
 
-      request.onsuccess = () => {
-        let results = request.result as EventLog[];
+      const typeSet = options?.type ? new Set(options.type) : null;
+      const domain = options?.domain;
 
-        if (options?.type && options.type.length > 0) {
-          results = results.filter((e) => options.type!.includes(e.type));
-        }
-        if (options?.domain) {
-          results = results.filter((e) => e.domain === options.domain);
-        }
-        if (options?.since) {
-          results = results.filter((e) => e.timestamp >= options.since!);
-        }
-        if (options?.until) {
-          results = results.filter((e) => e.timestamp <= options.until!);
+      let count = 0;
+      const cursorRequest = index.openCursor(range);
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          resolve(count);
+          return;
         }
 
-        resolve(results.length);
+        const event = cursor.value as EventLog;
+        const matchesType = !typeSet || typeSet.has(event.type);
+        const matchesDomain = !domain || event.domain === domain;
+
+        if (matchesType && matchesDomain) {
+          count++;
+        }
+
+        cursor.continue();
       };
 
-      request.onerror = () => reject(request.error);
+      cursorRequest.onerror = () => reject(cursorRequest.error);
       tx.onerror = () => reject(tx.error);
     });
   }
 
+  /**
+   * 全データエクスポート（制限なし）
+   */
   async exportAll(): Promise<EventLog[]> {
+    await this.init();
+    const result = await this.query({ limit: Infinity, orderBy: "-timestamp" });
+    return result.events;
+  }
+
+  /**
+   * 期間指定で全データ取得（制限なし・高速）
+   */
+  async queryAll(options?: {
+    since?: number;
+    until?: number;
+    type?: EventLogType[];
+    domain?: string;
+  }): Promise<EventLog[]> {
+    const result = await this.query({
+      ...options,
+      limit: Infinity,
+      orderBy: "-timestamp",
+    });
+    return result.events;
+  }
+
+  /**
+   * getAll()を使った高速一括取得（フィルタなし専用）
+   */
+  async getAllByRange(since?: number, until?: number): Promise<EventLog[]> {
     await this.init();
     return new Promise((resolve, reject) => {
       const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readonly");
       const store = tx.objectStore(DB_CONFIG.stores.events.name);
-      const request = store.getAll();
+      const index = store.index("timestamp");
+      const range = this.buildRange(since, until);
+
+      const request = range ? index.getAll(range) : index.getAll();
 
       request.onsuccess = () => {
         const results = request.result as EventLog[];
+        // 降順ソート（timestampインデックスは昇順）
         results.sort((a, b) => b.timestamp - a.timestamp);
         resolve(results);
       };
