@@ -150,7 +150,7 @@ const HeroSection = () => (
         </p>
 
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button variant="primary" size="large" suffix={<Chrome className="h-4 w-4" />}>
+          <Button variant="primary" size="large" suffix={<Chrome className="h-4 w-4" />} to="https://github.com/HikaruEgashira/pleno-audit/releases">
             Chrome拡張をインストール
           </Button>
           <Button variant="secondary" size="large" suffix={<ArrowRight className="h-4 w-4" />} to="/docs">

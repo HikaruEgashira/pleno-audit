@@ -315,10 +315,15 @@ const GettingStartedSection = () => (
         <p className="text-[#666] dark:text-[#8f8f8f] mb-4">
           Chrome Web Storeから拡張機能をインストールします。
         </p>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#171717] dark:bg-[#ededed] text-white dark:text-[#0a0a0a] text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#cccccc] transition-colors">
+        <a
+          href="https://github.com/HikaruEgashira/pleno-audit/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#171717] dark:bg-[#ededed] text-white dark:text-[#0a0a0a] text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#cccccc] transition-colors whitespace-nowrap"
+        >
           <Chrome className="h-4 w-4" />
           <span>Chrome Web Storeを開く</span>
-        </button>
+        </a>
       </div>
 
       <div className="rounded-xl border border-[#eaeaea] dark:border-[#333] bg-white dark:bg-[#171717] p-6">
