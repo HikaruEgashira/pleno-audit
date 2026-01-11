@@ -54,7 +54,7 @@ export function NRDSettings() {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>NRD検出設定</h3>
+      <h3 style={styles.sectionTitle}>不審なドメイン検出設定</h3>
       <div style={styles.card}>
         <label style={styles.checkbox}>
           <input

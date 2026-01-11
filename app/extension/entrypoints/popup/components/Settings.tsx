@@ -139,7 +139,7 @@ export function Settings() {
 
       <hr style={{ margin: "16px 0", border: "none", borderTop: `1px solid ${colors.border}` }} />
 
-      <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
+      <h3 style={styles.sectionTitle}>Suspicious Domain Detection Settings</h3>
 
       <label style={styles.checkbox}>
         <input
