@@ -5,7 +5,7 @@ import type {
   CSPReport,
 } from "@pleno-audit/csp";
 import type {
-  CapturedAIPrompt,
+  CapturedInput,
   DetectedService,
   EventLog,
 } from "@pleno-audit/detectors";
@@ -18,11 +18,11 @@ interface TotalCounts {
   violations: number;
   networkRequests: number;
   events: number;
-  aiPrompts: number;
+  inputs: number;
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions";
+type TabType = "overview" | "violations" | "network" | "domains" | "inputs" | "services" | "events" | "extensions";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -167,10 +167,10 @@ const periodOptions = [
   { value: "all", label: "全期間" },
 ];
 
-function getStatusBadge(nrdCount: number, violationCount: number, aiCount: number) {
+function getStatusBadge(nrdCount: number, violationCount: number, inputCount: number) {
   if (nrdCount > 0) return { variant: "danger" as const, label: "要対応", dot: false };
   if (violationCount > 50) return { variant: "warning" as const, label: "注意", dot: false };
-  if (aiCount > 0) return { variant: "info" as const, label: "監視中", dot: false };
+  if (inputCount > 0) return { variant: "info" as const, label: "監視中", dot: false };
   return { variant: "success" as const, label: "正常", dot: true };
 }
 
@@ -209,14 +209,14 @@ function DashboardContent() {
   const styles = createStyles(colors, isDark);
 
   const [reports, setReports] = useState<CSPReport[]>([]);
-  const [totalCounts, setTotalCounts] = useState<TotalCounts>({ violations: 0, networkRequests: 0, events: 0, aiPrompts: 0 });
+  const [totalCounts, setTotalCounts] = useState<TotalCounts>({ violations: 0, networkRequests: 0, events: 0, inputs: 0 });
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [connectionMode, setConnectionMode] = useState<"local" | "remote">("local");
 
   const getInitialTab = (): TabType => {
     const hash = window.location.hash.slice(1);
-    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions"];
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "inputs", "services", "events", "extensions"];
     return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
   };
 
@@ -224,7 +224,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>(getInitialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [directiveFilter, setDirectiveFilter] = useState("");
-  const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [inputs, setInputs] = useState<CapturedInput[]>([]);
   const [services, setServices] = useState<DetectedService[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -236,7 +236,7 @@ function DashboardContent() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) as TabType;
-      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions"];
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "inputs", "services", "events", "extensions"];
       if (validTabs.includes(hash)) setActiveTab(hash);
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -260,15 +260,15 @@ function DashboardContent() {
         }
       };
 
-      const [violationsResult, networkResult, configResult, aiPromptsResult, storageResult, eventsResult, eventsCountResult, aiPromptsCountResult] = await Promise.all([
+      const [violationsResult, networkResult, configResult, inputsResult, storageResult, eventsResult, eventsCountResult, inputsCountResult] = await Promise.all([
         safeMessage({ type: "GET_CSP_REPORTS", data: { type: "csp-violation", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
         safeMessage({ type: "GET_CSP_REPORTS", data: { type: "network-request", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
         safeMessage({ type: "GET_CONNECTION_CONFIG" }, { mode: "local" }),
-        safeMessage({ type: "GET_AI_PROMPTS" }, []),
+        safeMessage({ type: "GET_INPUTS" }, []),
         chrome.storage.local.get(["services"]),
         safeMessage({ type: "GET_EVENTS", data: { since: sinceTs, limit: 500 } }, { events: [], total: 0 }),
         safeMessage({ type: "GET_EVENTS_COUNT", data: { since: sinceTs } }, { count: 0 }),
-        safeMessage({ type: "GET_AI_PROMPTS_COUNT" }, { count: 0 }),
+        safeMessage({ type: "GET_INPUTS_COUNT" }, { count: 0 }),
       ]);
 
       // Combine violations and network into reports
@@ -286,14 +286,14 @@ function DashboardContent() {
       }));
 
       if (configResult) setConnectionMode(configResult.mode as "local" | "remote");
-      if (Array.isArray(aiPromptsResult)) setAIPrompts(aiPromptsResult);
+      if (Array.isArray(inputsResult)) setInputs(inputsResult);
       if (storageResult.services) setServices(Object.values(storageResult.services));
       if (eventsResult && Array.isArray(eventsResult.events)) setEvents(eventsResult.events);
       if (eventsCountResult) {
         setTotalCounts((prev) => ({ ...prev, events: eventsCountResult.count ?? 0 }));
       }
-      if (aiPromptsCountResult) {
-        setTotalCounts((prev) => ({ ...prev, aiPrompts: aiPromptsCountResult.count ?? 0 }));
+      if (inputsCountResult) {
+        setTotalCounts((prev) => ({ ...prev, inputs: inputsCountResult.count ?? 0 }));
       }
       setLastUpdated(new Date().toISOString());
     } catch (error) {
@@ -314,7 +314,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "8") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "inputs", "services", "network", "events", "extensions"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -343,7 +343,7 @@ function DashboardContent() {
   };
 
   const handleExportJSON = () => {
-    const blob = new Blob([JSON.stringify({ reports, services, events, aiPrompts }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ reports, services, events, inputs }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -394,13 +394,13 @@ function DashboardContent() {
 
   const nrdServices = services.filter((s) => s.nrdResult?.isNRD);
   const loginServices = services.filter((s) => s.hasLoginPage);
-  const status = getStatusBadge(nrdServices.length, violations.length, aiPrompts.length);
+  const status = getStatusBadge(nrdServices.length, violations.length, inputs.length);
 
   const tabs = [
     { id: "overview", label: "概要" },
     { id: "violations", label: "CSP違反", count: totalCounts.violations },
     { id: "domains", label: "ドメイン" },
-    { id: "ai", label: "AI監視", count: totalCounts.aiPrompts },
+    { id: "inputs", label: "入力監視", count: totalCounts.inputs },
     { id: "services", label: "サービス", count: services.length },
     { id: "network", label: "ネットワーク", count: totalCounts.networkRequests },
     { id: "events", label: "イベント", count: totalCounts.events },
@@ -424,11 +424,11 @@ function DashboardContent() {
     return networkRequests.filter((r) => r.url.toLowerCase().includes(q) || r.domain.toLowerCase().includes(q));
   }, [networkRequests, searchQuery]);
 
-  const filteredAIPrompts = useMemo(() => {
-    if (!searchQuery) return aiPrompts;
+  const filteredInputs = useMemo(() => {
+    if (!searchQuery) return inputs;
     const q = searchQuery.toLowerCase();
-    return aiPrompts.filter((p) => p.apiEndpoint.toLowerCase().includes(q));
-  }, [aiPrompts, searchQuery]);
+    return inputs.filter((p) => p.apiEndpoint.toLowerCase().includes(q));
+  }, [inputs, searchQuery]);
 
   const filteredServices = useMemo(() => {
     if (!searchQuery) return services;
@@ -474,7 +474,7 @@ function DashboardContent() {
         <div style={styles.statsGrid}>
           <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
           <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
-          <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
+          <StatCard value={totalCounts.inputs} label="入力監視" onClick={() => setActiveTab("inputs")} />
           <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
           <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
           <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
@@ -504,7 +504,7 @@ function DashboardContent() {
                       variant={
                         e.type.includes("violation") || e.type.includes("nrd")
                           ? "danger"
-                          : e.type.includes("ai") || e.type.includes("login")
+                          : e.type.includes("input") || e.type.includes("login")
                             ? "warning"
                             : "default"
                       }
@@ -616,19 +616,20 @@ function DashboardContent() {
         </div>
       )}
 
-      {activeTab === "ai" && (
+      {activeTab === "inputs" && (
         <div style={styles.section}>
           <div style={styles.filterBar}>
             <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="エンドポイントで検索..." />
           </div>
           <DataTable
-            data={filteredAIPrompts}
+            data={filteredInputs}
             rowKey={(p) => p.id}
-            emptyMessage="AIプロンプトは記録されていません"
+            emptyMessage="入力は記録されていません"
             columns={[
               { key: "timestamp", header: "日時", width: "160px", render: (p) => new Date(p.timestamp).toLocaleString("ja-JP") },
+              { key: "ai", header: "AI", width: "60px", render: (p) => p.isAI ? <Badge variant="info">AI</Badge> : "-" },
               { key: "endpoint", header: "エンドポイント", width: "200px", render: (p) => <code style={{ fontSize: "11px" }}>{truncate(p.apiEndpoint, 30)}</code> },
-              { key: "prompt", header: "プロンプト", render: (p) => truncate(p.prompt.messages?.[0]?.content || p.prompt.text || "", 50) },
+              { key: "content", header: "コンテンツ", render: (p) => truncate(p.content.messages?.[0]?.content || p.content.text || "", 50) },
               { key: "latency", header: "レスポンス", width: "100px", render: (p) => p.response ? <Badge>{p.response.latencyMs}ms</Badge> : "-" },
             ]}
           />
@@ -673,7 +674,7 @@ function DashboardContent() {
               options={[
                 { value: "csp_violation", label: "CSP違反" },
                 { value: "login_detected", label: "ログイン検出" },
-                { value: "ai_prompt_sent", label: "AIプロンプト" },
+                { value: "input_captured", label: "入力キャプチャ" },
                 { value: "nrd_detected", label: "NRD検出" },
               ]}
               placeholder="タイプ"
@@ -685,14 +686,14 @@ function DashboardContent() {
             emptyMessage="イベントは記録されていません"
             columns={[
               { key: "timestamp", header: "日時", width: "160px", render: (e) => new Date(e.timestamp).toLocaleString("ja-JP") },
-              { key: "type", header: "タイプ", width: "140px", render: (e) => <Badge variant={e.type.includes("violation") || e.type.includes("nrd") ? "danger" : e.type.includes("ai") || e.type.includes("login") ? "warning" : "default"}>{e.type}</Badge> },
+              { key: "type", header: "タイプ", width: "140px", render: (e) => <Badge variant={e.type.includes("violation") || e.type.includes("nrd") ? "danger" : e.type.includes("input") || e.type.includes("login") ? "warning" : "default"}>{e.type}</Badge> },
               { key: "domain", header: "ドメイン", width: "200px", render: (e) => <code style={{ fontSize: "12px" }}>{e.domain}</code> },
               {
                 key: "details", header: "詳細", render: (e) => {
                   const d = e.details as Record<string, unknown>;
                   if (!d) return "-";
                   if (e.type === "csp_violation") return `${d.directive}: ${truncate(String(d.blockedURL || ""), 30)}`;
-                  if (e.type === "ai_prompt_sent") return truncate(String(d.promptPreview || ""), 40);
+                  if (e.type === "input_captured") return truncate(String(d.contentPreview || ""), 40);
                   return JSON.stringify(d).substring(0, 50);
                 }
               },
