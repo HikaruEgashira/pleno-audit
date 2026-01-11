@@ -38,7 +38,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
           if (config) {
             setRetentionConfig(config);
           } else {
-            // デフォルト値を設定
             setRetentionConfig({
               retentionDays: 180,
               autoCleanupEnabled: true,
@@ -46,9 +45,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
             });
           }
         })
-        .catch((error) => {
-          console.error("Failed to load retention config:", error);
-          // エラー時もデフォルト値を設定
+        .catch(() => {
           setRetentionConfig({
             retentionDays: 180,
             autoCleanupEnabled: true,
