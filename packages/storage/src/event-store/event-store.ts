@@ -402,4 +402,35 @@ export class EventStore {
     }
     return null;
   }
+
+  /**
+   * 指定タイムスタンプより古いイベントを削除
+   */
+  async deleteOldEvents(beforeTimestamp: number): Promise<number> {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.getDb().transaction([DB_CONFIG.stores.events.name], "readwrite");
+      const store = tx.objectStore(DB_CONFIG.stores.events.name);
+      const index = store.index("timestamp");
+      const range = IDBKeyRange.upperBound(beforeTimestamp, true);
+
+      let deletedCount = 0;
+      const cursorRequest = index.openCursor(range);
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          resolve(deletedCount);
+          return;
+        }
+
+        cursor.delete();
+        deletedCount++;
+        cursor.continue();
+      };
+
+      cursorRequest.onerror = () => reject(cursorRequest.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
 }

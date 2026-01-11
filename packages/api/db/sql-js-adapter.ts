@@ -201,6 +201,23 @@ export class SqlJsAdapter implements DatabaseAdapter {
     this.save()
   }
 
+  async deleteOldReports(beforeTimestamp: string): Promise<number> {
+    const db = this.getDb()
+    db.run('BEGIN TRANSACTION')
+    try {
+      db.run('DELETE FROM csp_violations WHERE timestamp < ?', [beforeTimestamp])
+      const vChanges = db.getRowsModified()
+      db.run('DELETE FROM network_requests WHERE timestamp < ?', [beforeTimestamp])
+      const rChanges = db.getRowsModified()
+      db.run('COMMIT')
+      this.save()
+      return vChanges + rChanges
+    } catch (error) {
+      db.run('ROLLBACK')
+      throw error
+    }
+  }
+
   async close(): Promise<void> {
     if (this.db) {
       this.save()

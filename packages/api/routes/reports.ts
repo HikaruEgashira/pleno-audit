@@ -72,5 +72,14 @@ export function createReportsRoutes(db: DatabaseAdapter) {
     return c.json({ success: true })
   })
 
+  app.delete('/old', async (c) => {
+    const before = c.req.query('before')
+    if (!before) {
+      return c.json({ success: false, error: 'Missing "before" query parameter' }, 400)
+    }
+    const deleted = await db.deleteOldReports(before)
+    return c.json({ success: true, deleted })
+  })
+
   return app
 }

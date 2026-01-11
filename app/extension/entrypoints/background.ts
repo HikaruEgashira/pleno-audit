@@ -50,6 +50,7 @@ import {
   clearAIPrompts,
   createExtensionMonitor,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
+  DEFAULT_DATA_RETENTION_CONFIG,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
@@ -57,6 +58,7 @@ import {
   type ExtensionMonitor,
   type ExtensionMonitorConfig,
   type ExtensionRequestRecord,
+  type DataRetentionConfig,
 } from "@pleno-audit/extension-runtime";
 import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
@@ -514,6 +516,79 @@ async function getExtensionStats(): Promise<ExtensionStats> {
   }
 
   return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
+}
+
+// ============================================================================
+// Data Retention
+// ============================================================================
+
+async function getDataRetentionConfig(): Promise<DataRetentionConfig> {
+  const storage = await getStorage();
+  return storage.dataRetentionConfig || DEFAULT_DATA_RETENTION_CONFIG;
+}
+
+async function setDataRetentionConfig(newConfig: DataRetentionConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ dataRetentionConfig: newConfig });
+    return { success: true };
+  } catch (error) {
+    console.error("[Pleno Audit] Error setting data retention config:", error);
+    return { success: false };
+  }
+}
+
+async function cleanupOldData(): Promise<{ deleted: number }> {
+  try {
+    const config = await getDataRetentionConfig();
+    if (!config.autoCleanupEnabled) {
+      return { deleted: 0 };
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
+    const cutoffTimestamp = cutoffDate.toISOString();
+
+    if (!apiClient) {
+      apiClient = await getApiClient();
+    }
+
+    // Delete old CSP reports from database
+    const deleted = await apiClient.deleteOldReports(cutoffTimestamp);
+
+    // Delete old events from EventStore
+    const store = await getOrInitEventStore();
+    const cutoffMs = cutoffDate.getTime();
+    await store.deleteOldEvents(cutoffMs);
+
+    // Delete old AI prompts from storage
+    const storage = await getStorage();
+    const aiPrompts = storage.aiPrompts || [];
+    const filteredPrompts = aiPrompts.filter(p => p.timestamp >= cutoffMs);
+    if (filteredPrompts.length < aiPrompts.length) {
+      await setStorage({ aiPrompts: filteredPrompts });
+    }
+
+    // Delete old extension requests
+    const extensionRequests = storage.extensionRequests || [];
+    const filteredRequests = extensionRequests.filter(r => r.timestamp >= cutoffMs);
+    if (filteredRequests.length < extensionRequests.length) {
+      await setStorage({ extensionRequests: filteredRequests });
+    }
+
+    // Update last cleanup timestamp
+    await setStorage({
+      dataRetentionConfig: {
+        ...config,
+        lastCleanupTimestamp: Date.now(),
+      },
+    });
+
+    console.log(`[Pleno Audit] Data cleanup completed. Deleted ${deleted} CSP reports.`);
+    return { deleted };
+  } catch (error) {
+    console.error("[Pleno Audit] Error during data cleanup:", error);
+    return { deleted: 0 };
+  }
 }
 
 function createDefaultService(domain: string): DetectedService {
@@ -1065,6 +1140,8 @@ export default defineBackground(() => {
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
   chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  // Data cleanup alarm (runs once per day)
+  chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "keepAlive") {
@@ -1076,6 +1153,9 @@ export default defineBackground(() => {
     }
     if (alarm.name === "flushExtensionRequests") {
       flushExtensionRequestBuffer().catch(console.error);
+    }
+    if (alarm.name === "dataCleanup") {
+      cleanupOldData().catch(console.error);
     }
   });
 
@@ -1356,6 +1436,28 @@ export default defineBackground(() => {
       setExtensionMonitorConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Data Retention handlers
+    if (message.type === "GET_DATA_RETENTION_CONFIG") {
+      getDataRetentionConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_DATA_RETENTION_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_DATA_RETENTION_CONFIG") {
+      setDataRetentionConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "TRIGGER_DATA_CLEANUP") {
+      cleanupOldData()
+        .then(sendResponse)
+        .catch(() => sendResponse({ deleted: 0 }));
       return true;
     }
 

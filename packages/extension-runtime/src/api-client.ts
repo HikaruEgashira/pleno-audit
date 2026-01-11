@@ -229,6 +229,13 @@ export class ApiClient {
       body: { reports, clientTime },
     });
   }
+
+  async deleteOldReports(beforeTimestamp: string): Promise<number> {
+    const result = await this.request<{ deleted: number }>(`/api/v1/reports/old?before=${encodeURIComponent(beforeTimestamp)}`, {
+      method: "DELETE",
+    });
+    return result.deleted;
+  }
 }
 
 let apiClientInstance: ApiClient | null = null;

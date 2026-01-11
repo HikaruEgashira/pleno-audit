@@ -17,6 +17,18 @@ export interface ExtensionMonitorConfig {
   maxStoredRequests: number;
 }
 
+export interface DataRetentionConfig {
+  retentionDays: number;
+  autoCleanupEnabled: boolean;
+  lastCleanupTimestamp: number;
+}
+
+export const DEFAULT_DATA_RETENTION_CONFIG: DataRetentionConfig = {
+  retentionDays: 180, // 6ヶ月
+  autoCleanupEnabled: true,
+  lastCleanupTimestamp: 0,
+};
+
 export interface ExtensionRequestRecord {
   id: string;
   extensionId: string;
@@ -39,6 +51,7 @@ export interface StorageData {
   nrdConfig?: NRDConfig;
   extensionRequests?: ExtensionRequestRecord[];
   extensionMonitorConfig?: ExtensionMonitorConfig;
+  dataRetentionConfig?: DataRetentionConfig;
 }
 
 export type {
@@ -49,4 +62,5 @@ export type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
+  DataRetentionConfig,
 };

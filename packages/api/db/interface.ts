@@ -32,4 +32,5 @@ export interface DatabaseAdapter {
   getReports(options?: QueryOptions): Promise<PaginatedResult<CSPReport>>
   getViolations(options?: QueryOptions): Promise<PaginatedResult<CSPViolation>>
   getNetworkRequests(options?: QueryOptions): Promise<PaginatedResult<NetworkRequest>>
+  deleteOldReports(beforeTimestamp: string): Promise<number>
 }

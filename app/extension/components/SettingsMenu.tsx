@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "preact/hooks";
+import type { DataRetentionConfig } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../lib/theme";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -7,9 +8,17 @@ interface Props {
   onExport?: () => void;
 }
 
+function formatRetentionDays(days: number): string {
+  if (days < 30) return `${days}日`;
+  const months = Math.round(days / 30);
+  return months === 1 ? "1ヶ月" : `${months}ヶ月`;
+}
+
 export function SettingsMenu({ onClearData, onExport }: Props) {
   const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [retentionConfig, setRetentionConfig] = useState<DataRetentionConfig | null>(null);
+  const [saving, setSaving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,6 +30,28 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen && !retentionConfig) {
+      chrome.runtime.sendMessage({ type: "GET_DATA_RETENTION_CONFIG" })
+        .then((config) => setRetentionConfig(config))
+        .catch(console.error);
+    }
+  }, [isOpen, retentionConfig]);
+
+  async function handleSaveRetention() {
+    if (!retentionConfig) return;
+    setSaving(true);
+    try {
+      await chrome.runtime.sendMessage({
+        type: "SET_DATA_RETENTION_CONFIG",
+        data: retentionConfig,
+      });
+    } catch (error) {
+      console.error("Failed to save retention config:", error);
+    }
+    setSaving(false);
+  }
 
   return (
     <div ref={menuRef} style={{ position: "relative" }}>
@@ -80,6 +111,63 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         >
           <div style={{ padding: "4px", borderBottom: `1px solid ${colors.border}` }}>
             <ThemeToggle />
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              データ保持期間
+            </div>
+            {retentionConfig ? (
+              <>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: colors.textPrimary, marginBottom: "8px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={retentionConfig.autoCleanupEnabled}
+                    onChange={(e) => setRetentionConfig({
+                      ...retentionConfig,
+                      autoCleanupEnabled: (e.target as HTMLInputElement).checked,
+                    })}
+                  />
+                  自動クリーンアップ
+                </label>
+                <div style={{ marginBottom: "8px" }}>
+                  <div style={{ fontSize: "12px", color: colors.textPrimary, marginBottom: "4px" }}>
+                    保持: {formatRetentionDays(retentionConfig.retentionDays)}
+                  </div>
+                  <input
+                    type="range"
+                    min="7"
+                    max="365"
+                    step="7"
+                    value={retentionConfig.retentionDays}
+                    onChange={(e) => setRetentionConfig({
+                      ...retentionConfig,
+                      retentionDays: parseInt((e.target as HTMLInputElement).value, 10),
+                    })}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <button
+                  onClick={handleSaveRetention}
+                  disabled={saving}
+                  style={{
+                    width: "100%",
+                    padding: "6px 12px",
+                    background: colors.interactive,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    cursor: saving ? "not-allowed" : "pointer",
+                    opacity: saving ? 0.6 : 1,
+                  }}
+                >
+                  {saving ? "保存中..." : "保存"}
+                </button>
+              </>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
           </div>
 
           {onExport && (

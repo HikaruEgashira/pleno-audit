@@ -50,7 +50,9 @@ export type {
   AIMonitorConfig,
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
+  DataRetentionConfig,
 } from "./storage-types.js";
+export { DEFAULT_DATA_RETENTION_CONFIG } from "./storage-types.js";
 
 // Extension Monitor
 export {
