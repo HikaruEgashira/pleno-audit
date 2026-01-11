@@ -7,6 +7,7 @@ export type {
   TosFoundDetails,
   CookieSetDetails,
   NRDDetectedDetails,
+  ExtensionRequestDetails,
   EventLogBase,
   EventLog,
   EventLogType,

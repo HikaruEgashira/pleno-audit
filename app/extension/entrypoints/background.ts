@@ -48,11 +48,17 @@ import {
   getStorage,
   setStorage,
   clearAIPrompts,
+  createExtensionMonitor,
+  DEFAULT_EXTENSION_MONITOR_CONFIG,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
   type QueryOptions,
+  type ExtensionMonitor,
+  type ExtensionMonitorConfig,
+  type ExtensionRequestRecord,
 } from "@pleno-audit/extension-runtime";
+import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
   EventStore,
   checkEventsMigrationNeeded,
@@ -91,6 +97,11 @@ const typosquatCacheAdapter: TyposquatCache = {
   set: (domain, result) => typosquatCache.set(domain, result),
   clear: () => typosquatCache.clear(),
 };
+
+// Extension Monitor
+let extensionMonitor: ExtensionMonitor | null = null;
+const extensionRequestBuffer: ExtensionRequestRecord[] = [];
+const EXTENSION_BUFFER_FLUSH_INTERVAL = 5000;
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -187,6 +198,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: TyposquatDetectedDetails;
+    }
+  | {
+      type: "extension_request";
+      domain: string;
+      timestamp: number;
+      details: ExtensionRequestDetails;
     };
 
 async function getOrInitEventStore(): Promise<EventStore> {
@@ -359,6 +376,137 @@ async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success
     console.error("[Pleno Audit] Error setting Typosquat config:", error);
     return { success: false };
   }
+}
+
+// ============================================================================
+// Extension Network Monitor
+// ============================================================================
+
+async function getExtensionMonitorConfig(): Promise<ExtensionMonitorConfig> {
+  const storage = await getStorage();
+  return storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
+}
+
+async function setExtensionMonitorConfig(newConfig: ExtensionMonitorConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ extensionMonitorConfig: newConfig });
+    // Restart monitor with new config
+    if (extensionMonitor) {
+      extensionMonitor.stop();
+      extensionMonitor = null;
+    }
+    if (newConfig.enabled) {
+      await initExtensionMonitor();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("[Pleno Audit] Error setting extension monitor config:", error);
+    return { success: false };
+  }
+}
+
+async function initExtensionMonitor() {
+  const config = await getExtensionMonitorConfig();
+  if (!config.enabled) return;
+
+  const ownId = chrome.runtime.id;
+  extensionMonitor = createExtensionMonitor(config, ownId);
+
+  extensionMonitor.onRequest(async (record) => {
+    extensionRequestBuffer.push(record);
+
+    // Add to event log
+    await addEvent({
+      type: "extension_request",
+      domain: record.domain,
+      timestamp: record.timestamp,
+      details: {
+        extensionId: record.extensionId,
+        extensionName: record.extensionName,
+        url: record.url,
+        method: record.method,
+        resourceType: record.resourceType,
+        statusCode: record.statusCode,
+      },
+    });
+  });
+
+  await extensionMonitor.start();
+  console.log("[Pleno Audit] Extension monitor started");
+}
+
+async function flushExtensionRequestBuffer() {
+  if (extensionRequestBuffer.length === 0) return;
+
+  const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);
+  const storage = await getStorage();
+  const config = storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
+
+  let requests = storage.extensionRequests || [];
+  requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
+
+  await setStorage({ extensionRequests: requests });
+}
+
+async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
+  const storage = await getStorage();
+  const requests = storage.extensionRequests || [];
+  const total = requests.length;
+
+  const offset = options?.offset || 0;
+  const limit = options?.limit || 500;
+  const sliced = requests.slice(offset, offset + limit);
+
+  return { requests: sliced, total };
+}
+
+function getKnownExtensions(): Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }> {
+  if (!extensionMonitor) return {};
+  const map = extensionMonitor.getKnownExtensions();
+  return Object.fromEntries(map);
+}
+
+interface ExtensionStats {
+  byExtension: Record<string, { name: string; count: number; domains: string[] }>;
+  byDomain: Record<string, { count: number; extensions: string[] }>;
+  total: number;
+}
+
+async function getExtensionStats(): Promise<ExtensionStats> {
+  const storage = await getStorage();
+  const requests = storage.extensionRequests || [];
+
+  const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
+  const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
+
+  for (const req of requests) {
+    // By extension
+    if (!byExtension[req.extensionId]) {
+      byExtension[req.extensionId] = { name: req.extensionName, count: 0, domains: new Set() };
+    }
+    byExtension[req.extensionId].count++;
+    byExtension[req.extensionId].domains.add(req.domain);
+
+    // By domain
+    if (!byDomain[req.domain]) {
+      byDomain[req.domain] = { count: 0, extensions: new Set() };
+    }
+    byDomain[req.domain].count++;
+    byDomain[req.domain].extensions.add(req.extensionId);
+  }
+
+  // Convert Sets to arrays for serialization
+  const byExtensionResult: ExtensionStats["byExtension"] = {};
+  for (const [id, data] of Object.entries(byExtension)) {
+    byExtensionResult[id] = { name: data.name, count: data.count, domains: Array.from(data.domains) };
+  }
+
+  const byDomainResult: ExtensionStats["byDomain"] = {};
+  for (const [domain, data] of Object.entries(byDomain)) {
+    byDomainResult[domain] = { count: data.count, extensions: Array.from(data.extensions) };
+  }
+
+  return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
 }
 
 function createDefaultService(domain: string): DetectedService {
@@ -903,9 +1051,13 @@ export default defineBackground(() => {
     }
   })();
 
+  // Extension Monitor初期化
+  initExtensionMonitor().catch(console.error);
+
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
+  chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "keepAlive") {
@@ -914,6 +1066,9 @@ export default defineBackground(() => {
     }
     if (alarm.name === "flushCSPReports") {
       flushReportQueue().catch(console.error);
+    }
+    if (alarm.name === "flushExtensionRequests") {
+      flushExtensionRequestBuffer().catch(console.error);
     }
   });
 
@@ -1160,6 +1315,40 @@ export default defineBackground(() => {
           sendResponse({ success: false });
         }
       })();
+      return true;
+    }
+
+    // Extension Monitor handlers
+    if (message.type === "GET_EXTENSION_REQUESTS") {
+      getExtensionRequests(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ requests: [], total: 0 }));
+      return true;
+    }
+
+    if (message.type === "GET_KNOWN_EXTENSIONS") {
+      sendResponse(getKnownExtensions());
+      return false;
+    }
+
+    if (message.type === "GET_EXTENSION_STATS") {
+      getExtensionStats()
+        .then(sendResponse)
+        .catch(() => sendResponse({ byExtension: {}, byDomain: {}, total: 0 }));
+      return true;
+    }
+
+    if (message.type === "GET_EXTENSION_MONITOR_CONFIG") {
+      getExtensionMonitorConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_EXTENSION_MONITOR_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_EXTENSION_MONITOR_CONFIG") {
+      setExtensionMonitorConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 

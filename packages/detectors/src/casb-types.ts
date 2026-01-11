@@ -106,6 +106,16 @@ export interface NRDDetectedDetails {
   heuristicScore: number;
 }
 
+/** 拡張機能リクエストイベントの詳細 */
+export interface ExtensionRequestDetails {
+  extensionId: string;
+  extensionName: string;
+  url: string;
+  method: string;
+  resourceType: string;
+  statusCode?: number;
+}
+
 /**
  * イベントログ基底型
  * - Discriminated Union パターンで型安全なイベント処理を実現
@@ -130,6 +140,7 @@ export type EventLogBase<T extends string, D> = {
  * - ai_response_received: AIレスポンス受信
  * - nrd_detected: NRD判定検出
  * - typosquat_detected: タイポスクワッティング検出
+ * - extension_request: 拡張機能のネットワークリクエスト
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
@@ -141,6 +152,7 @@ export type EventLog =
   | EventLogBase<"ai_prompt_sent", AIPromptSentDetails>
   | EventLogBase<"ai_response_received", AIResponseReceivedDetails>
   | EventLogBase<"nrd_detected", NRDDetectedDetails>
-  | EventLogBase<"typosquat_detected", TyposquatDetectedDetails>;
+  | EventLogBase<"typosquat_detected", TyposquatDetectedDetails>
+  | EventLogBase<"extension_request", ExtensionRequestDetails>;
 
 export type EventLogType = EventLog["type"];

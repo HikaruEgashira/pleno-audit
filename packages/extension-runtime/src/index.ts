@@ -48,4 +48,14 @@ export type {
   CSPReport,
   CapturedAIPrompt,
   AIMonitorConfig,
+  ExtensionMonitorConfig,
+  ExtensionRequestRecord,
 } from "./storage-types.js";
+
+// Extension Monitor
+export {
+  createExtensionMonitor,
+  DEFAULT_EXTENSION_MONITOR_CONFIG,
+  type ExtensionMonitor,
+  type ExtensionInfo,
+} from "./extension-monitor.js";

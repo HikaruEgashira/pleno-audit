@@ -21,7 +21,7 @@ export default defineConfig({
         48: "icon.svg",
       },
     },
-    permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting"],
+    permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting", "webRequest", "management"],
     host_permissions: ["<all_urls>"],
     content_security_policy: {
       extension_pages:
