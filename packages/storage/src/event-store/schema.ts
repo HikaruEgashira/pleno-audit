@@ -3,7 +3,7 @@
  */
 
 export const DB_CONFIG = {
-  name: "ServicePolicyAuditorEvents",
+  name: "PlenoAuditEvents",
   version: 1,
   stores: {
     events: {

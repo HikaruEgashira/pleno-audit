@@ -57,7 +57,7 @@ export class CSPReporter {
     } catch (error) {
       if (attempt < this.maxRetries) {
         console.debug(
-          `[Service Policy Auditor] Report send failed (attempt ${attempt + 1}/${this.maxRetries}), retrying...`
+          `[Pleno Audit] Report send failed (attempt ${attempt + 1}/${this.maxRetries}), retrying...`
         );
         await new Promise((resolve) =>
           setTimeout(resolve, this.retryDelay * Math.pow(2, attempt))
@@ -66,7 +66,7 @@ export class CSPReporter {
       }
 
       console.error(
-        "[Service Policy Auditor] Failed to send reports after retries:",
+        "[Pleno Audit] Failed to send reports after retries:",
         error
       );
       return false;

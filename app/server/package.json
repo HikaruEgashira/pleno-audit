@@ -1,7 +1,7 @@
 {
   "name": "@pleno-audit/server",
   "version": "0.0.1",
-  "description": "Local development server for Service Policy Auditor reports",
+  "description": "Local development server for Pleno Audit reports",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {

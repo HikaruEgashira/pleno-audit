@@ -125,7 +125,7 @@ async function updateBadge() {
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     await chrome.action.setBadgeBackgroundColor({ color: "#666" });
   } catch (error) {
-    console.error("[Service Policy Auditor] Failed to update badge:", error);
+    console.error("[Pleno Audit] Failed to update badge:", error);
   }
 }
 
@@ -262,7 +262,7 @@ async function handleNRDCheck(domain: string): Promise<NRDResult> {
 
     return result;
   } catch (error) {
-    console.error("[Service Policy Auditor] NRD check failed:", error);
+    console.error("[Pleno Audit] NRD check failed:", error);
     throw error;
   }
 }
@@ -276,7 +276,7 @@ async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }>
     nrdCacheAdapter.clear();
     return { success: true };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error setting NRD config:", error);
+    console.error("[Pleno Audit] Error setting NRD config:", error);
     return { success: false };
   }
 }
@@ -342,7 +342,7 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult> {
 
     return result;
   } catch (error) {
-    console.error("[Service Policy Auditor] Typosquat check failed:", error);
+    console.error("[Pleno Audit] Typosquat check failed:", error);
     throw error;
   }
 }
@@ -356,7 +356,7 @@ async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success
     typosquatCacheAdapter.clear();
     return { success: true };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error setting Typosquat config:", error);
+    console.error("[Pleno Audit] Error setting Typosquat config:", error);
     return { success: false };
   }
 }
@@ -530,7 +530,7 @@ async function storeCSPReport(report: CSPReport) {
     }
     await apiClient.postReports([report]);
   } catch (error) {
-    console.error("[Service Policy Auditor] Error storing report:", error);
+    console.error("[Pleno Audit] Error storing report:", error);
   }
 }
 
@@ -609,7 +609,7 @@ async function clearCSPData(): Promise<{ success: boolean }> {
     reportQueue = [];
     return { success: true };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error clearing data:", error);
+    console.error("[Pleno Audit] Error clearing data:", error);
     return { success: false };
   }
 }
@@ -656,7 +656,7 @@ async function getCSPReports(options?: {
     }
     return result.reports;
   } catch (error) {
-    console.error("[Service Policy Auditor] Error getting CSP reports:", error);
+    console.error("[Pleno Audit] Error getting CSP reports:", error);
     return [];
   }
 }
@@ -796,7 +796,7 @@ async function setConnectionConfig(
     await updateApiClientConfig(mode, endpoint);
     return { success: true };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error setting connection config:", error);
+    console.error("[Pleno Audit] Error setting connection config:", error);
     return { success: false };
   }
 }
@@ -822,7 +822,7 @@ async function setSyncConfig(
     await syncManager.setEnabled(enabled, endpoint);
     return { success: true };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error setting sync config:", error);
+    console.error("[Pleno Audit] Error setting sync config:", error);
     return { success: false };
   }
 }
@@ -835,7 +835,7 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
     const result = await syncManager.sync();
     return { success: true, ...result };
   } catch (error) {
-    console.error("[Service Policy Auditor] Error triggering sync:", error);
+    console.error("[Pleno Audit] Error triggering sync:", error);
     return { success: false, sent: 0, received: 0 };
   }
 }
@@ -852,7 +852,7 @@ async function registerMainWorldScript() {
       persistAcrossSessions: true,
     }]);
   } catch (error) {
-    console.error("[Service Policy Auditor] Failed to register main world script:", error);
+    console.error("[Pleno Audit] Failed to register main world script:", error);
   }
 }
 
@@ -861,8 +861,8 @@ export default defineBackground(() => {
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitEventStore()
-    .then(() => console.log("[Service Policy Auditor] EventStore initialized"))
-    .catch((error) => console.error("[Service Policy Auditor] EventStore init failed:", error));
+    .then(() => console.log("[Pleno Audit] EventStore initialized"))
+    .catch((error) => console.error("[Pleno Audit] EventStore init failed:", error));
 
   getApiClient()
     .then(async (client) => {
@@ -896,10 +896,10 @@ export default defineBackground(() => {
       if (needsMigration) {
         const store = await getOrInitEventStore();
         const result = await migrateEventsToIndexedDB(store);
-        console.log(`[Service Policy Auditor] Event migration: ${result.success ? "success" : "failed"}`, result);
+        console.log(`[Pleno Audit] Event migration: ${result.success ? "success" : "failed"}`, result);
       }
     } catch (error) {
-      console.error("[Service Policy Auditor] Event migration error:", error);
+      console.error("[Pleno Audit] Event migration error:", error);
     }
   })();
 
@@ -1164,7 +1164,7 @@ export default defineBackground(() => {
     }
 
     // 未知のメッセージタイプはレスポンスを返さず同期的に処理
-    console.warn("[Service Policy Auditor] Unknown message type:", message.type);
+    console.warn("[Pleno Audit] Unknown message type:", message.type);
     return false;
   });
 

@@ -1,4 +1,4 @@
-const DB_NAME = "ServicePolicyAuditorDB";
+const DB_NAME = "PlenoAuditDB";
 const DB_VERSION = 1;
 const STORE_NAME = "sql_database";
 const DB_KEY = "database";

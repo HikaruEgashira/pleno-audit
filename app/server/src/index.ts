@@ -45,7 +45,7 @@ function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdate
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Service Policy Auditor - Dashboard</title>
+  <title>Pleno Audit - Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -103,7 +103,7 @@ function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdate
 </head>
 <body>
   <div class="container">
-    <h1>Service Policy Auditor Dashboard</h1>
+    <h1>Pleno Audit Dashboard</h1>
     <p class="subtitle">Last updated: ${lastUpdated}</p>
 
     <div class="stats">
@@ -278,7 +278,7 @@ async function startServer() {
   serve({ fetch: app.fetch, port: PORT }, () => {
     console.log(`
 +================================================================+
-|              Service Policy Auditor Local Server               |
+|                   Pleno Audit Local Server                     |
 +================================================================+
 |                                                                |
 |  Dashboard:  http://localhost:${PORT}/                            |

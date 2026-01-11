@@ -1,4 +1,4 @@
-# Service Policy Auditor
+# Pleno Audit
 
 Browserを通してアクセスするWebサービスの利用状況を可視化し、プライバシーリスクを管理するChrome拡張機能（CASB/Browser Security）です。
 

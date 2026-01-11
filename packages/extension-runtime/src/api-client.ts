@@ -42,7 +42,7 @@ async function waitForOffscreenReady(timeout = 15000): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      console.error("[Service Policy Auditor] Offscreen document did not respond within timeout");
+      console.error("[Pleno Audit] Offscreen document did not respond within timeout");
       reject(new Error("Offscreen ready timeout"));
     }, timeout);
 

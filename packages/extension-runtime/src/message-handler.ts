@@ -15,7 +15,7 @@ interface HandlerConfig<TData, TResult> {
   logPrefix?: string;
 }
 
-const LOG_PREFIX = "[Service Policy Auditor]";
+const LOG_PREFIX = "[Pleno Audit]";
 
 export function createMessageRouter() {
   const handlers = new Map<

@@ -199,9 +199,9 @@ chrome.runtime.onMessage.addListener(
 
 initLocalServer()
   .then(() => {
-    console.log("[Service Policy Auditor] Offscreen: Local server initialized");
+    console.log("[Pleno Audit] Offscreen: Local server initialized");
     chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
   })
   .catch((error) => {
-    console.error("[Service Policy Auditor] Offscreen: Failed to initialize local server", error);
+    console.error("[Pleno Audit] Offscreen: Failed to initialize local server", error);
   });

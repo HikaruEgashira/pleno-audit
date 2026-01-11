@@ -5,7 +5,7 @@ export default defineConfig({
   outDir: "dist",
   imports: false,
   manifest: {
-    name: "Service Policy Auditor",
+    name: "Pleno Audit",
     version: "0.0.1",
     description:
       "Detect and visualize login pages, privacy policies, session cookies, and CSP violations",

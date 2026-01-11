@@ -43,7 +43,7 @@ async function sendToBackground(analysis: PageAnalysis) {
       payload: analysis,
     });
   } catch (error) {
-    console.error("[Service Policy Auditor] Failed to send analysis:", error);
+    console.error("[Pleno Audit] Failed to send analysis:", error);
   }
 }
 
@@ -54,7 +54,7 @@ async function checkNRD(domain: string) {
       data: { domain },
     });
   } catch (error) {
-    console.error("[Service Policy Auditor] NRD check failed:", error);
+    console.error("[Pleno Audit] NRD check failed:", error);
   }
 }
 
@@ -65,7 +65,7 @@ async function checkTyposquat(domain: string) {
       data: { domain },
     });
   } catch (error) {
-    console.error("[Service Policy Auditor] Typosquat check failed:", error);
+    console.error("[Pleno Audit] Typosquat check failed:", error);
   }
 }
 
@@ -76,7 +76,7 @@ async function runAnalysis() {
   // Send to background if any policy-relevant info found
   if (login.hasPasswordInput || login.isLoginUrl || privacy.found || tos.found) {
     await sendToBackground(analysis);
-    console.log("[Service Policy Auditor] Page analyzed:", analysis);
+    console.log("[Pleno Audit] Page analyzed:", analysis);
   }
 
   // Check NRD in background (non-blocking)
