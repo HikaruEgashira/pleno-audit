@@ -132,9 +132,14 @@ async function saveStorage(data: Partial<StorageData>) {
 async function updateBadge() {
   try {
     const result = await chrome.storage.local.get(["services"]);
-    const count = Object.keys(result.services || {}).length;
+    const services = result.services || {};
+    // Count only problematic detections (NRD or typosquat)
+    const count = Object.values(services).filter(
+      (service: DetectedService) =>
+        service.nrdResult?.isNRD || service.typosquatResult?.isTyposquat
+    ).length;
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
-    await chrome.action.setBadgeBackgroundColor({ color: "#666" });
+    await chrome.action.setBadgeBackgroundColor({ color: count > 0 ? "#dc2626" : "#666" });
   } catch (error) {
     console.error("[Pleno Audit] Failed to update badge:", error);
   }
