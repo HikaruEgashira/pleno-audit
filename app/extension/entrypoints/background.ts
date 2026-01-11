@@ -933,8 +933,6 @@ async function handleAIPromptCaptured(
     domain,
     timestamp: data.timestamp,
     details: {
-      provider: data.provider || "unknown",
-      model: data.model,
       promptPreview: getPromptPreview(data.prompt),
       contentSize: data.prompt.contentSize,
       messageCount: data.prompt.messages?.length,
@@ -948,8 +946,6 @@ async function handleAIPromptCaptured(
       domain,
       timestamp: data.responseTimestamp || Date.now(),
       details: {
-        provider: data.provider || "unknown",
-        model: data.model,
         responsePreview: data.response.text?.substring(0, 100) || "",
         contentSize: data.response.contentSize,
         latencyMs: data.response.latencyMs,

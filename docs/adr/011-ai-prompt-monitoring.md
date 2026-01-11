@@ -42,13 +42,6 @@ CASBとしてAIサービス（ChatGPT、Claude、Gemini等）へのプロンプ�
    { "contents": [{"parts": [{"text": "..."}]}] }
    ```
 
-### プロバイダー推定
-
-レスポンス構造からプロバイダーを推定：
-- `choices[].message.content` → OpenAI互換
-- `content[].text` → Anthropic
-- `candidates[].content` → Google Gemini
-
 ### アーキテクチャ
 
 ```

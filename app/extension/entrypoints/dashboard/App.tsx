@@ -427,11 +427,7 @@ function DashboardContent() {
   const filteredAIPrompts = useMemo(() => {
     if (!searchQuery) return aiPrompts;
     const q = searchQuery.toLowerCase();
-    return aiPrompts.filter((p) =>
-      p.provider?.toLowerCase().includes(q) ||
-      p.model?.toLowerCase().includes(q) ||
-      p.apiEndpoint.toLowerCase().includes(q)
-    );
+    return aiPrompts.filter((p) => p.apiEndpoint.toLowerCase().includes(q));
   }, [aiPrompts, searchQuery]);
 
   const filteredServices = useMemo(() => {
@@ -623,7 +619,7 @@ function DashboardContent() {
       {activeTab === "ai" && (
         <div style={styles.section}>
           <div style={styles.filterBar}>
-            <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Provider、Model、エンドポイントで検索..." />
+            <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="エンドポイントで検索..." />
           </div>
           <DataTable
             data={filteredAIPrompts}
@@ -631,8 +627,7 @@ function DashboardContent() {
             emptyMessage="AIプロンプトは記録されていません"
             columns={[
               { key: "timestamp", header: "日時", width: "160px", render: (p) => new Date(p.timestamp).toLocaleString("ja-JP") },
-              { key: "provider", header: "Provider", width: "100px", render: (p) => <Badge>{p.provider || "unknown"}</Badge> },
-              { key: "model", header: "Model", width: "120px", render: (p) => <code style={{ fontSize: "11px" }}>{p.model || "-"}</code> },
+              { key: "endpoint", header: "エンドポイント", width: "200px", render: (p) => <code style={{ fontSize: "11px" }}>{truncate(p.apiEndpoint, 30)}</code> },
               { key: "prompt", header: "プロンプト", render: (p) => truncate(p.prompt.messages?.[0]?.content || p.prompt.text || "", 50) },
               { key: "latency", header: "レスポンス", width: "100px", render: (p) => p.response ? <Badge>{p.response.latencyMs}ms</Badge> : "-" },
             ]}
@@ -697,7 +692,7 @@ function DashboardContent() {
                   const d = e.details as Record<string, unknown>;
                   if (!d) return "-";
                   if (e.type === "csp_violation") return `${d.directive}: ${truncate(String(d.blockedURL || ""), 30)}`;
-                  if (e.type === "ai_prompt_sent") return `${d.provider}/${d.model}`;
+                  if (e.type === "ai_prompt_sent") return truncate(String(d.promptPreview || ""), 40);
                   return JSON.stringify(d).substring(0, 50);
                 }
               },

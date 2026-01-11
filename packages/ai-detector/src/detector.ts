@@ -1,11 +1,7 @@
 /**
  * AI Request Detection
  */
-import type {
-  InferredProvider,
-  AIPromptContent,
-  AIResponseContent,
-} from "./types.js";
+import type { AIPromptContent, AIResponseContent } from "./types.js";
 
 const TRUNCATE_SIZE = 10000; // 10KB
 
@@ -175,21 +171,6 @@ function extractMessageContent(message: {
   return "";
 }
 
-/**
- * モデル名を抽出
- */
-export function extractModel(body: unknown): string | undefined {
-  if (!body) return undefined;
-
-  try {
-    const obj = typeof body === "string" ? JSON.parse(body) : body;
-    if (typeof obj.model === "string") return obj.model;
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 // ============================================================================
 // Response Extraction
 // ============================================================================
@@ -298,45 +279,6 @@ function extractStreamingContent(text: string): string {
   }
 
   return truncateString(chunks.join(""), TRUNCATE_SIZE);
-}
-
-// ============================================================================
-// Provider Inference
-// ============================================================================
-
-/**
- * レスポンス構造からプロバイダーを推定
- */
-export function inferProviderFromResponse(text: string): InferredProvider {
-  try {
-    // ストリーミング判定
-    if (text.includes("event: content_block_delta")) {
-      return "anthropic";
-    }
-
-    const obj = JSON.parse(
-      text.startsWith("data: ") ? text.split("\n")[0].slice(6) : text
-    );
-
-    // Anthropic: content配列
-    if (obj.content && Array.isArray(obj.content) && obj.content[0]?.text) {
-      return "anthropic";
-    }
-
-    // Google Gemini: candidates配列
-    if (obj.candidates && Array.isArray(obj.candidates)) {
-      return "google";
-    }
-
-    // OpenAI互換: choices配列
-    if (obj.choices && Array.isArray(obj.choices)) {
-      return "openai";
-    }
-
-    return "unknown";
-  } catch {
-    return "unknown";
-  }
 }
 
 // ============================================================================

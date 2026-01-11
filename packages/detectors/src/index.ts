@@ -100,7 +100,6 @@ export { createLoginDetector } from "./login-detector.js";
 
 // AI Prompt Detection (re-export from @pleno-audit/ai-detector)
 export type {
-  InferredProvider,
   AIDetectionMethod,
   CapturedAIPrompt,
   AIPromptContent,
@@ -114,9 +113,7 @@ export {
   DEFAULT_AI_MONITOR_CONFIG,
   isAIRequestBody,
   extractPromptContent,
-  extractModel,
   extractResponseContent,
-  inferProviderFromResponse,
 } from "@pleno-audit/ai-detector";
 
 // Typosquatting Detection (re-export from @pleno-audit/typosquat)

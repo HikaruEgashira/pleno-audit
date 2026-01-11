@@ -7,7 +7,6 @@
 
 // Types
 export type {
-  InferredProvider,
   AIDetectionMethod,
   CapturedAIPrompt,
   AIPromptContent,
@@ -23,7 +22,5 @@ export { DEFAULT_AI_MONITOR_CONFIG } from "./types.js";
 export {
   isAIRequestBody,
   extractPromptContent,
-  extractModel,
   extractResponseContent,
-  inferProviderFromResponse,
 } from "./detector.js";

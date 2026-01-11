@@ -12,7 +12,7 @@ import type {
 import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-} from "./ai-types.js";
+} from "@pleno-audit/ai-detector";
 import type { TyposquatDetectedDetails } from "@pleno-audit/typosquat";
 
 // ============================================================================

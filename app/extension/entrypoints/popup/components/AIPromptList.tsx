@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import type { CapturedAIPrompt } from "@pleno-audit/detectors";
-import { Badge, Card } from "../../../components";
+import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
@@ -66,7 +66,6 @@ function PromptCard({
     second: "2-digit",
   });
   const preview = getPreview(prompt);
-  const showProvider = prompt.provider && prompt.provider !== "unknown";
 
   return (
     <div style={styles.card}>
@@ -75,20 +74,11 @@ function PromptCard({
         style={{
           cursor: "pointer",
           display: "flex",
-          flexDirection: showProvider ? "column" : "row",
+          flexDirection: "row",
           gap: "6px",
-          alignItems: showProvider ? "stretch" : "center",
+          alignItems: "center",
         }}
       >
-        {showProvider && (
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Badge variant="info">{prompt.provider}</Badge>
-            {prompt.model && (
-              <code style={{ ...styles.code, marginLeft: "8px" }}>{prompt.model}</code>
-            )}
-            <span style={{ fontSize: "11px", color: colors.textSecondary, marginLeft: "auto" }}>{time}</span>
-          </div>
-        )}
         <p
           style={{
             fontSize: "12px",
@@ -97,14 +87,12 @@ function PromptCard({
             overflow: "hidden",
             textOverflow: "ellipsis",
             color: colors.textPrimary,
-            flex: showProvider ? undefined : 1,
+            flex: 1,
           }}
         >
           {preview}
         </p>
-        {!showProvider && (
-          <span style={{ fontSize: "11px", color: colors.textSecondary, flexShrink: 0 }}>{time}</span>
-        )}
+        <span style={{ fontSize: "11px", color: colors.textSecondary, flexShrink: 0 }}>{time}</span>
       </div>
 
       {expanded && (

@@ -6,13 +6,6 @@
 // AI Service Detection（AIサービス検出）
 // ============================================================================
 
-/** 推定されたAIプロバイダー */
-export type InferredProvider =
-  | "openai" // ChatGPT, API
-  | "anthropic" // Claude
-  | "google" // Gemini
-  | "unknown"; // 汎用検出
-
 /** AI検出方法 */
 export type AIDetectionMethod =
   | "request_structure" // リクエストボディ構造
@@ -37,15 +30,9 @@ export interface CapturedAIPrompt {
   // プロンプト情報
   prompt: AIPromptContent;
 
-  // メタデータ
-  model?: string;
-
   // レスポンス情報（オプション）
   response?: AIResponseContent;
   responseTimestamp?: number;
-
-  // 推定プロバイダー
-  provider?: InferredProvider;
 }
 
 /** AIプロンプトの内容 */
@@ -100,8 +87,6 @@ export interface AIResponseContent {
 
 /** AIプロンプト送信イベント詳細 */
 export interface AIPromptSentDetails {
-  provider: InferredProvider;
-  model?: string;
   promptPreview: string;
   contentSize: number;
   messageCount?: number;
@@ -109,8 +94,6 @@ export interface AIPromptSentDetails {
 
 /** AIレスポンス受信イベント詳細 */
 export interface AIResponseReceivedDetails {
-  provider: InferredProvider;
-  model?: string;
   responsePreview: string;
   contentSize: number;
   latencyMs?: number;
