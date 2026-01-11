@@ -34,8 +34,27 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   useEffect(() => {
     if (isOpen && !retentionConfig) {
       chrome.runtime.sendMessage({ type: "GET_DATA_RETENTION_CONFIG" })
-        .then((config) => setRetentionConfig(config))
-        .catch(console.error);
+        .then((config) => {
+          if (config) {
+            setRetentionConfig(config);
+          } else {
+            // デフォルト値を設定
+            setRetentionConfig({
+              retentionDays: 180,
+              autoCleanupEnabled: true,
+              lastCleanupTimestamp: 0,
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to load retention config:", error);
+          // エラー時もデフォルト値を設定
+          setRetentionConfig({
+            retentionDays: 180,
+            autoCleanupEnabled: true,
+            lastCleanupTimestamp: 0,
+          });
+        });
     }
   }, [isOpen, retentionConfig]);
 
