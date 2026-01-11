@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -112,7 +112,7 @@ const Sidebar = ({
           fixed top-0 left-0 h-full w-72 bg-white dark:bg-[#0a0a0a] border-r border-[#eaeaea] dark:border-[#333] z-50
           transform transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static lg:z-auto
+          lg:translate-x-0
         `}
       >
         {/* Header */}
@@ -212,17 +212,19 @@ const Sidebar = ({
 
 // Feature Card for docs
 const FeatureDocCard = ({
+  id,
   icon: Icon,
   title,
   description,
   details,
 }: {
+  id: string;
   icon: React.ElementType;
   title: string;
   description: string;
   details: string[];
 }) => (
-  <div className="rounded-xl border border-[#eaeaea] dark:border-[#333] bg-white dark:bg-[#171717] p-6">
+  <div id={id} className="rounded-xl border border-[#eaeaea] dark:border-[#333] bg-white dark:bg-[#171717] p-6 scroll-mt-20">
     <div className="mb-4 inline-flex rounded-lg bg-[#fafafa] dark:bg-[#2a2a2a] p-3">
       <Icon className="h-6 w-6 text-[#171717] dark:text-[#ededed]" />
     </div>
@@ -367,6 +369,7 @@ const FeaturesSection = () => (
 
     <div className="space-y-8">
       <FeatureDocCard
+        id="shadow-it"
         icon={Eye}
         title="Shadow IT検出"
         description="未許可のSaaSサービスへのアクセスをリアルタイムで検出し、可視化します。"
@@ -379,6 +382,7 @@ const FeaturesSection = () => (
       />
 
       <FeatureDocCard
+        id="csp"
         icon={Shield}
         title="CSP監視"
         description="Content Security Policy違反を検出し、セキュリティポリシーの遵守状況を監視します。"
@@ -391,6 +395,7 @@ const FeaturesSection = () => (
       />
 
       <FeatureDocCard
+        id="phishing"
         icon={AlertTriangle}
         title="フィッシング検出"
         description="複数のアルゴリズムを用いて悪意あるドメインを特定します。"
@@ -402,6 +407,7 @@ const FeaturesSection = () => (
       />
 
       <FeatureDocCard
+        id="ai-prompt"
         icon={Zap}
         title="AIプロンプト監視"
         description="AIサービスへの機密情報漏洩リスクを検出・監視します。"
@@ -414,6 +420,7 @@ const FeaturesSection = () => (
       />
 
       <FeatureDocCard
+        id="auth"
         icon={Lock}
         title="認証フロー検出"
         description="OAuth/SAMLなどの認証フローを検出し、セキュリティ状態を把握します。"
@@ -425,6 +432,7 @@ const FeaturesSection = () => (
       />
 
       <FeatureDocCard
+        id="dashboard"
         icon={LayoutDashboard}
         title="ダッシュボード"
         description="検出した全てのセキュリティイベントを一元管理・可視化します。"
@@ -665,10 +673,47 @@ const PrivacySection = () => (
   </section>
 );
 
+// Subsection IDs that should trigger scroll
+const subsectionIds = new Set([
+  'shadow-it',
+  'csp',
+  'phishing',
+  'ai-prompt',
+  'auth',
+  'dashboard',
+  'browser-only',
+  'detection-only',
+  'tech-stack',
+]);
+
 // Main Component
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Scroll to subsection when selected
+  useEffect(() => {
+    if (subsectionIds.has(activeSection)) {
+      // Wait for DOM update
+      setTimeout(() => {
+        const element = document.getElementById(activeSection);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [activeSection]);
+
+  // Get the main section key for motion animation (to avoid re-mount on subsection click)
+  const getMainSectionKey = () => {
+    if (['shadow-it', 'csp', 'phishing', 'ai-prompt', 'auth', 'dashboard'].includes(activeSection)) {
+      return 'features';
+    }
+    if (['browser-only', 'detection-only', 'tech-stack'].includes(activeSection)) {
+      return 'architecture';
+    }
+    return activeSection;
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -723,10 +768,10 @@ export default function DocsPage() {
         />
 
         {/* Main content */}
-        <main className="flex-1 lg:pl-0 pt-14 lg:pt-0">
+        <main className="flex-1 pt-14 lg:pt-0 lg:ml-72">
           <div className="max-w-4xl mx-auto px-6 py-12">
             <motion.div
-              key={activeSection}
+              key={getMainSectionKey()}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
