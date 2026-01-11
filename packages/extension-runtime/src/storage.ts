@@ -9,7 +9,12 @@ import type {
   EventLog,
   CapturedAIPrompt,
   AIMonitorConfig,
+  ExtensionRequestRecord,
+  ExtensionMonitorConfig,
 } from "./storage-types.js";
+import type { NRDConfig } from "@pleno-audit/detectors";
+import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
+import { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./extension-monitor.js";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
 
@@ -20,6 +25,9 @@ const STORAGE_KEYS = [
   "cspConfig",
   "aiPrompts",
   "aiMonitorConfig",
+  "nrdConfig",
+  "extensionRequests",
+  "extensionMonitorConfig",
 ] as const;
 type StorageKey = (typeof STORAGE_KEYS)[number];
 
@@ -44,6 +52,10 @@ export async function getStorage(): Promise<StorageData> {
     aiPrompts: (result.aiPrompts as CapturedAIPrompt[]) || [],
     aiMonitorConfig:
       (result.aiMonitorConfig as AIMonitorConfig) || DEFAULT_AI_MONITOR_CONFIG,
+    nrdConfig: (result.nrdConfig as NRDConfig) || DEFAULT_NRD_CONFIG,
+    extensionRequests: (result.extensionRequests as ExtensionRequestRecord[]) || [],
+    extensionMonitorConfig:
+      (result.extensionMonitorConfig as ExtensionMonitorConfig) || DEFAULT_EXTENSION_MONITOR_CONFIG,
   };
 }
 
@@ -62,6 +74,9 @@ export async function getStorageKey<K extends StorageKey>(
     cspConfig: DEFAULT_CSP_CONFIG,
     aiPrompts: [],
     aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
+    nrdConfig: DEFAULT_NRD_CONFIG,
+    extensionRequests: [],
+    extensionMonitorConfig: DEFAULT_EXTENSION_MONITOR_CONFIG,
   };
   return (result[key] as StorageData[K]) ?? defaults[key];
 }

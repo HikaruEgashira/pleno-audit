@@ -144,78 +144,60 @@ export function Settings() {
       <label style={styles.checkbox}>
         <input
           type="checkbox"
-          checked={nrdConfig.enabled}
+          checked={nrdConfig.enableRDAP}
           onChange={(e) =>
             setNRDConfig({
               ...nrdConfig,
-              enabled: (e.target as HTMLInputElement).checked,
+              enableRDAP: (e.target as HTMLInputElement).checked,
             })
           }
         />
-        <span style={{ color: colors.textPrimary }}>Enable NRD Detection</span>
+        <span style={{ color: colors.textPrimary }}>Enable RDAP Lookup (API queries)</span>
       </label>
 
-      {nrdConfig.enabled && (
-        <>
-          <label style={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={nrdConfig.enableRDAP}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  enableRDAP: (e.target as HTMLInputElement).checked,
-                })
-              }
-            />
-            <span style={{ color: colors.textPrimary }}>Enable RDAP Lookup (API queries)</span>
-          </label>
+      <div style={{ marginBottom: "12px" }}>
+        <label style={styles.label}>
+          Age Threshold (days): {nrdConfig.thresholdDays}
+        </label>
+        <input
+          type="range"
+          min="1"
+          max="365"
+          value={nrdConfig.thresholdDays}
+          onChange={(e) =>
+            setNRDConfig({
+              ...nrdConfig,
+              thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+            })
+          }
+          style={{ width: "100%", marginBottom: "4px" }}
+        />
+        <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+          Domains registered within this period are flagged as NRD
+        </span>
+      </div>
 
-          <div style={{ marginBottom: "12px" }}>
-            <label style={styles.label}>
-              Age Threshold (days): {nrdConfig.thresholdDays}
-            </label>
-            <input
-              type="range"
-              min="1"
-              max="365"
-              value={nrdConfig.thresholdDays}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-                })
-              }
-              style={{ width: "100%", marginBottom: "4px" }}
-            />
-            <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-              Domains registered within this period are flagged as NRD
-            </span>
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={styles.label}>
-              Heuristic Sensitivity: {nrdConfig.heuristicThreshold}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={nrdConfig.heuristicThreshold}
-              onChange={(e) =>
-                setNRDConfig({
-                  ...nrdConfig,
-                  heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
-                })
-              }
-              style={{ width: "100%", marginBottom: "4px" }}
-            />
-            <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-              Higher = stricter heuristic matching (0-100)
-            </span>
-          </div>
-        </>
-      )}
+      <div style={{ marginBottom: "12px" }}>
+        <label style={styles.label}>
+          Suspicious Threshold: {nrdConfig.suspiciousThreshold}
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={nrdConfig.suspiciousThreshold}
+          onChange={(e) =>
+            setNRDConfig({
+              ...nrdConfig,
+              suspiciousThreshold: parseInt((e.target as HTMLInputElement).value, 10),
+            })
+          }
+          style={{ width: "100%", marginBottom: "4px" }}
+        />
+        <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+          Higher = stricter matching (0-100)
+        </span>
+      </div>
 
       <div style={{ display: "flex", gap: "8px" }}>
         <button

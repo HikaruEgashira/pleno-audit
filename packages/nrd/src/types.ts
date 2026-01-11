@@ -77,8 +77,6 @@ export interface NRDResult {
  * NRD detection configuration
  */
 export interface NRDConfig {
-  /** Whether NRD detection is enabled */
-  enabled: boolean;
   /** Threshold in days (domain age <= this is considered NRD) */
   thresholdDays: number;
   /** Whether to enable RDAP API queries (true NRD detection) */
@@ -96,7 +94,6 @@ export interface NRDConfig {
  * Note: RDAP is disabled by default to avoid external API calls
  */
 export const DEFAULT_NRD_CONFIG: NRDConfig = {
-  enabled: true,
   thresholdDays: 30,
   enableRDAP: false,
   rdapTimeout: 5000,

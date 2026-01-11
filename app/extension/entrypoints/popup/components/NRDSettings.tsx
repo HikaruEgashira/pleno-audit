@@ -1,6 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import type { NRDConfig } from "@pleno-audit/detectors";
-import { Button, Badge, Card } from "../../../components";
+import { Button, Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
@@ -59,78 +59,60 @@ export function NRDSettings() {
         <label style={styles.checkbox}>
           <input
             type="checkbox"
-            checked={nrdConfig.enabled}
+            checked={nrdConfig.enableRDAP}
             onChange={(e) =>
               setNRDConfig({
                 ...nrdConfig,
-                enabled: (e.target as HTMLInputElement).checked,
+                enableRDAP: (e.target as HTMLInputElement).checked,
               })
             }
           />
-          <span style={{ color: colors.textPrimary }}>NRD検出を有効化</span>
+          <span style={{ color: colors.textPrimary }}>RDAPルックアップを有効化</span>
         </label>
 
-        {nrdConfig.enabled && (
-          <>
-            <label style={styles.checkbox}>
-              <input
-                type="checkbox"
-                checked={nrdConfig.enableRDAP}
-                onChange={(e) =>
-                  setNRDConfig({
-                    ...nrdConfig,
-                    enableRDAP: (e.target as HTMLInputElement).checked,
-                  })
-                }
-              />
-              <span style={{ color: colors.textPrimary }}>RDAPルックアップを有効化</span>
-            </label>
+        <div style={{ marginBottom: "12px" }}>
+          <label style={styles.label}>
+            経過日数しきい値: <Badge>{nrdConfig.thresholdDays}日</Badge>
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="365"
+            value={nrdConfig.thresholdDays}
+            onChange={(e) =>
+              setNRDConfig({
+                ...nrdConfig,
+                thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
+              })
+            }
+            style={{ width: "100%", marginBottom: "4px" }}
+          />
+          <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+            この期間内に登録されたドメインをNRDとして検出
+          </span>
+        </div>
 
-            <div style={{ marginBottom: "12px" }}>
-              <label style={styles.label}>
-                経過日数しきい値: <Badge>{nrdConfig.thresholdDays}日</Badge>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="365"
-                value={nrdConfig.thresholdDays}
-                onChange={(e) =>
-                  setNRDConfig({
-                    ...nrdConfig,
-                    thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-                  })
-                }
-                style={{ width: "100%", marginBottom: "4px" }}
-              />
-              <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-                この期間内に登録されたドメインをNRDとして検出
-              </span>
-            </div>
-
-            <div style={{ marginBottom: "12px" }}>
-              <label style={styles.label}>
-                ヒューリスティック感度: <Badge>{nrdConfig.heuristicThreshold}</Badge>
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={nrdConfig.heuristicThreshold}
-                onChange={(e) =>
-                  setNRDConfig({
-                    ...nrdConfig,
-                    heuristicThreshold: parseInt((e.target as HTMLInputElement).value, 10),
-                  })
-                }
-                style={{ width: "100%", marginBottom: "4px" }}
-              />
-              <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-                高い値=より厳格なマッチング (0-100)
-              </span>
-            </div>
-          </>
-        )}
+        <div style={{ marginBottom: "12px" }}>
+          <label style={styles.label}>
+            疑わしいドメインしきい値: <Badge>{nrdConfig.suspiciousThreshold}</Badge>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={nrdConfig.suspiciousThreshold}
+            onChange={(e) =>
+              setNRDConfig({
+                ...nrdConfig,
+                suspiciousThreshold: parseInt((e.target as HTMLInputElement).value, 10),
+              })
+            }
+            style={{ width: "100%", marginBottom: "4px" }}
+          />
+          <span style={{ fontSize: "11px", color: colors.textSecondary }}>
+            高い値=より厳格なマッチング (0-100)
+          </span>
+        </div>
 
         <Button
           onClick={handleSave}
