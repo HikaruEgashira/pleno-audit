@@ -6,6 +6,7 @@ import type {
 } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { StorageData } from "@pleno-audit/extension-runtime";
+import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, SettingsMenu } from "../../components";
 import { ShadowITTab } from "./components/ShadowITTab";
@@ -176,6 +177,7 @@ function PopupContent() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>
+          <Shield size={20} />
           Pleno Audit
           <Badge variant={status.variant} size="sm" dot={status.dot}>{status.label}</Badge>
         </h1>

@@ -9,6 +9,7 @@ import type {
   DetectedService,
   EventLog,
 } from "@pleno-audit/detectors";
+import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
 import { ExtensionsTab } from "./ExtensionsTab";
@@ -453,6 +454,7 @@ function DashboardContent() {
         <div style={styles.headerTop}>
           <div>
             <h1 style={styles.title}>
+              <Shield size={20} />
               Pleno Audit
               <Badge variant={status.variant} size="md" dot={status.dot}>{status.label}</Badge>
             </h1>
