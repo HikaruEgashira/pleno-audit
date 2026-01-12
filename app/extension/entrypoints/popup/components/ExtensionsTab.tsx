@@ -252,7 +252,7 @@ export function ExtensionsTab() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <span>拡張機能の通信先 ({groupedExtensions.length})</span>
+        <span>拡張機能の接続先 ({groupedExtensions.length})</span>
         <Badge size="sm">{totalRequests} リクエスト</Badge>
       </div>
 

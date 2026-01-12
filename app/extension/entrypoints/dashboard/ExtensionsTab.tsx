@@ -188,7 +188,7 @@ export function ExtensionsTab() {
                   },
                   {
                     key: "domains",
-                    header: "通信先",
+                    header: "接続先",
                     width: "100px",
                     render: (e) => `${e.domainCount} ドメイン`,
                   },
@@ -197,7 +197,7 @@ export function ExtensionsTab() {
             )}
           </Card>
 
-          <Card title="通信先ドメイン別">
+          <Card title="接続先サイト別">
             {domainSummary.length === 0 ? (
               <p style={styles.emptyText}>データなし</p>
             ) : (
