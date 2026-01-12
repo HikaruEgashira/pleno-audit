@@ -49,6 +49,7 @@ import {
   setStorage,
   clearAIPrompts,
   createExtensionMonitor,
+  createLogger,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
@@ -62,6 +63,8 @@ import {
   type DataRetentionConfig,
   type DetectionConfig,
 } from "@pleno-audit/extension-runtime";
+
+const logger = createLogger("background");
 import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
   EventStore,
@@ -148,7 +151,7 @@ async function updateBadge() {
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     await chrome.action.setBadgeBackgroundColor({ color: count > 0 ? "#dc2626" : "#666" });
   } catch (error) {
-    console.error("[Pleno Audit] Failed to update badge:", error);
+    logger.warn("Failed to update badge:", error);
   }
 }
 
@@ -300,7 +303,7 @@ async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: tr
 
     return result;
   } catch (error) {
-    console.error("[Pleno Audit] NRD check failed:", error);
+    logger.error("NRD check failed:", error);
     throw error;
   }
 }
@@ -314,7 +317,7 @@ async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }>
     nrdCacheAdapter.clear();
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting NRD config:", error);
+    logger.error("Error setting NRD config:", error);
     return { success: false };
   }
 }
@@ -387,7 +390,7 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
 
     return result;
   } catch (error) {
-    console.error("[Pleno Audit] Typosquat check failed:", error);
+    logger.error("Typosquat check failed:", error);
     throw error;
   }
 }
@@ -401,7 +404,7 @@ async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success
     typosquatCacheAdapter.clear();
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting Typosquat config:", error);
+    logger.error("Error setting Typosquat config:", error);
     return { success: false };
   }
 }
@@ -428,7 +431,7 @@ async function setExtensionMonitorConfig(newConfig: ExtensionMonitorConfig): Pro
     }
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting extension monitor config:", error);
+    logger.error("Error setting extension monitor config:", error);
     return { success: false };
   }
 }
@@ -460,7 +463,7 @@ async function initExtensionMonitor() {
   });
 
   await extensionMonitor.start();
-  console.log("[Pleno Audit] Extension monitor started");
+  logger.info("Extension monitor started");
 }
 
 async function flushExtensionRequestBuffer() {
@@ -551,7 +554,7 @@ async function setDataRetentionConfig(newConfig: DataRetentionConfig): Promise<{
     await setStorage({ dataRetentionConfig: newConfig });
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting data retention config:", error);
+    logger.error("Error setting data retention config:", error);
     return { success: false };
   }
 }
@@ -603,10 +606,10 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
       },
     });
 
-    console.log(`[Pleno Audit] Data cleanup completed. Deleted ${deleted} CSP reports.`);
+    logger.info(`Data cleanup completed. Deleted ${deleted} CSP reports.`);
     return { deleted };
   } catch (error) {
-    console.error("[Pleno Audit] Error during data cleanup:", error);
+    logger.error("Error during data cleanup:", error);
     return { deleted: 0 };
   }
 }
@@ -806,7 +809,7 @@ async function storeCSPReport(report: CSPReport) {
     }
     await apiClient.postReports([report]);
   } catch (error) {
-    console.error("[Pleno Audit] Error storing report:", error);
+    logger.error("Error storing report:", error);
   }
 }
 
@@ -885,7 +888,7 @@ async function clearCSPData(): Promise<{ success: boolean }> {
     reportQueue = [];
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error clearing data:", error);
+    logger.error("Error clearing data:", error);
     return { success: false };
   }
 }
@@ -932,7 +935,7 @@ async function getCSPReports(options?: {
     }
     return result.reports;
   } catch (error) {
-    console.error("[Pleno Audit] Error getting CSP reports:", error);
+    logger.error("Error getting CSP reports:", error);
     return [];
   }
 }
@@ -1099,7 +1102,7 @@ async function setConnectionConfig(
     await updateApiClientConfig(mode, endpoint);
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting connection config:", error);
+    logger.error("Error setting connection config:", error);
     return { success: false };
   }
 }
@@ -1125,7 +1128,7 @@ async function setSyncConfig(
     await syncManager.setEnabled(enabled, endpoint);
     return { success: true };
   } catch (error) {
-    console.error("[Pleno Audit] Error setting sync config:", error);
+    logger.error("Error setting sync config:", error);
     return { success: false };
   }
 }
@@ -1138,7 +1141,7 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
     const result = await syncManager.sync();
     return { success: true, ...result };
   } catch (error) {
-    console.error("[Pleno Audit] Error triggering sync:", error);
+    logger.error("Error triggering sync:", error);
     return { success: false, sent: 0, received: 0 };
   }
 }
@@ -1155,17 +1158,24 @@ async function registerMainWorldScript() {
       persistAcrossSessions: true,
     }]);
   } catch (error) {
-    console.error("[Pleno Audit] Failed to register main world script:", error);
+    logger.error("Failed to register main world script:", error);
   }
 }
 
 export default defineBackground(() => {
   registerMainWorldScript();
 
+  // Initialize debug bridge in dev mode
+  if (import.meta.env.DEV) {
+    import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
+      initDebugBridge();
+    }).catch((err) => logger.debug("Debug bridge init failed:", err));
+  }
+
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitEventStore()
-    .then(() => console.log("[Pleno Audit] EventStore initialized"))
-    .catch((error) => console.error("[Pleno Audit] EventStore init failed:", error));
+    .then(() => logger.info("EventStore initialized"))
+    .catch((error) => logger.error("EventStore init failed:", error));
 
   getApiClient()
     .then(async (client) => {
@@ -1175,7 +1185,7 @@ export default defineBackground(() => {
         await migrateToDatabase();
       }
     })
-    .catch(console.error);
+    .catch((err) => logger.debug("API client init failed:", err));
 
   getSyncManager()
     .then(async (manager) => {
@@ -1184,7 +1194,7 @@ export default defineBackground(() => {
         await manager.startSync();
       }
     })
-    .catch(console.error);
+    .catch((err) => logger.debug("Sync manager init failed:", err));
 
   getCSPConfig().then((config) => {
     const endpoint =
@@ -1199,15 +1209,15 @@ export default defineBackground(() => {
       if (needsMigration) {
         const store = await getOrInitEventStore();
         const result = await migrateEventsToIndexedDB(store);
-        console.log(`[Pleno Audit] Event migration: ${result.success ? "success" : "failed"}`, result);
+        logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
       }
     } catch (error) {
-      console.error("[Pleno Audit] Event migration error:", error);
+      logger.error("Event migration error:", error);
     }
   })();
 
   // Extension Monitor初期化
-  initExtensionMonitor().catch(console.error);
+  initExtensionMonitor().catch((err) => logger.debug("Extension monitor init failed:", err));
 
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
@@ -1222,13 +1232,13 @@ export default defineBackground(() => {
       return;
     }
     if (alarm.name === "flushCSPReports") {
-      flushReportQueue().catch(console.error);
+      flushReportQueue().catch((err) => logger.debug("Flush reports failed:", err));
     }
     if (alarm.name === "flushExtensionRequests") {
-      flushExtensionRequestBuffer().catch(console.error);
+      flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
     }
     if (alarm.name === "dataCleanup") {
-      cleanupOldData().catch(console.error);
+      cleanupOldData().catch((err) => logger.debug("Data cleanup failed:", err));
     }
   });
 
@@ -1550,7 +1560,7 @@ export default defineBackground(() => {
     }
 
     // 未知のメッセージタイプはレスポンスを返さず同期的に処理
-    console.warn("[Pleno Audit] Unknown message type:", message.type);
+    logger.warn("Unknown message type:", message.type);
     return false;
   });
 
@@ -1560,7 +1570,7 @@ export default defineBackground(() => {
     if (removed) return;
 
     const domain = cookie.domain.replace(/^\./, "");
-    addCookieToService(domain, cookie).catch(console.error);
+    addCookieToService(domain, cookie).catch((err) => logger.debug("Add cookie to service failed:", err));
     addEvent({
       type: "cookie_set",
       domain,
@@ -1569,7 +1579,7 @@ export default defineBackground(() => {
         name: cookie.name,
         isSession: cookie.isSession,
       },
-    }).catch(console.error);
+    }).catch((err) => logger.debug("Add cookie event failed:", err));
   });
 
   updateBadge();

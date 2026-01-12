@@ -2,6 +2,10 @@
  * メッセージハンドラーの共通ユーティリティ
  */
 
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("message-handler");
+
 type HandlerFn<TData, TResult> = (
   data: TData,
   sender: chrome.runtime.MessageSender
@@ -14,8 +18,6 @@ interface HandlerConfig<TData, TResult> {
   errorResponse: TResult | ErrorResponse;
   logPrefix?: string;
 }
-
-const LOG_PREFIX = "[Pleno Audit]";
 
 export function createMessageRouter() {
   const handlers = new Map<
@@ -51,10 +53,7 @@ export function createMessageRouter() {
         .handler(data, sender)
         .then(sendResponse)
         .catch((error) => {
-          console.error(
-            `${LOG_PREFIX} Error handling ${config.logPrefix}:`,
-            error
-          );
+          logger.error(`Error handling ${config.logPrefix}:`, error);
           sendResponse(config.errorResponse);
         });
 
@@ -70,6 +69,6 @@ export function fireAndForget<T>(
   context: string
 ): void {
   promise.catch((error) => {
-    console.error(`${LOG_PREFIX} Error in ${context}:`, error);
+    logger.error(`Error in ${context}:`, error);
   });
 }

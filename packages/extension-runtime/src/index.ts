@@ -65,3 +65,13 @@ export {
   type ExtensionMonitor,
   type ExtensionInfo,
 } from "./extension-monitor.js";
+
+// Logger
+export {
+  createLogger,
+  setDebuggerSink,
+  hasDebuggerSink,
+  type Logger,
+  type LogLevel,
+  type LogEntry,
+} from "./logger.js";

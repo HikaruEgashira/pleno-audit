@@ -8,6 +8,9 @@ import type {
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
 } from "./storage-types.js";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("extension-monitor");
 
 export const DEFAULT_EXTENSION_MONITOR_CONFIG: ExtensionMonitorConfig = {
   enabled: true,
@@ -75,7 +78,7 @@ export function createExtensionMonitor(
         }
       }
     } catch (error) {
-      console.error("Failed to get extension list:", error);
+      logger.warn("Failed to get extension list:", error);
     }
   }
 
@@ -110,17 +113,17 @@ export function createExtensionMonitor(
       try {
         cb(record);
       } catch (error) {
-        console.error("Extension monitor callback error:", error);
+        logger.error("Callback error:", error);
       }
     }
   }
 
   function handleInstalled(): void {
-    refreshExtensionList().catch(console.error);
+    refreshExtensionList().catch((err) => logger.debug("Refresh on install failed:", err));
   }
 
   function handleUninstalled(): void {
-    refreshExtensionList().catch(console.error);
+    refreshExtensionList().catch((err) => logger.debug("Refresh on uninstall failed:", err));
   }
 
   return {

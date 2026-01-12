@@ -1,17 +1,23 @@
 {
   "name": "@pleno-audit/debugger",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "pleno-debug": "./bin/pleno-debug.js"
+  },
   "scripts": {
-    "start": "tsx src/index.ts",
-    "dump": "tsx src/index.ts dump",
-    "watch": "tsx src/index.ts watch"
+    "build": "tsc",
+    "start": "tsx src/cli.ts",
+    "server": "tsx src/server.ts",
+    "install-host": "tsx src/install.ts"
   },
   "dependencies": {
-    "@pleno-audit/detectors": "workspace:*",
-    "puppeteer": "^24.34.0"
+    "commander": "^13.1.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/node": "^22.16.0",
+    "@types/ws": "^8.18.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
