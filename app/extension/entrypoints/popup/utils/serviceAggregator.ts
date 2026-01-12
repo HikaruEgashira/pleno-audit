@@ -1,6 +1,5 @@
 import { findFaviconUrl, type DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
-import type { DetectionConfig } from "@pleno-audit/extension-runtime";
 
 export type ServiceTag =
   | { type: "nrd"; domainAge: number | null; confidence: string }
@@ -78,10 +77,10 @@ function extractDomain(url: string): string | null {
   }
 }
 
-function extractTags(service: DetectedService, config: DetectionConfig): ServiceTag[] {
+function extractTags(service: DetectedService): ServiceTag[] {
   const tags: ServiceTag[] = [];
 
-  if (config.enableNRD && service.nrdResult?.isNRD) {
+  if (service.nrdResult?.isNRD) {
     tags.push({
       type: "nrd",
       domainAge: service.nrdResult.domainAge,
@@ -89,7 +88,7 @@ function extractTags(service: DetectedService, config: DetectionConfig): Service
     });
   }
 
-  if (config.enableTyposquat && service.typosquatResult?.isTyposquat) {
+  if (service.typosquatResult?.isTyposquat) {
     tags.push({
       type: "typosquat",
       score: service.typosquatResult.totalScore,
@@ -97,19 +96,19 @@ function extractTags(service: DetectedService, config: DetectionConfig): Service
     });
   }
 
-  if (config.enableAI && service.aiDetected?.hasAIActivity) {
+  if (service.aiDetected?.hasAIActivity) {
     tags.push({ type: "ai" });
   }
 
-  if (config.enableLogin && service.hasLoginPage) {
+  if (service.hasLoginPage) {
     tags.push({ type: "login" });
   }
 
-  if (config.enablePrivacy && service.privacyPolicyUrl) {
+  if (service.privacyPolicyUrl) {
     tags.push({ type: "privacy", url: service.privacyPolicyUrl });
   }
 
-  if (config.enableTos && service.termsOfServiceUrl) {
+  if (service.termsOfServiceUrl) {
     tags.push({ type: "tos", url: service.termsOfServiceUrl });
   }
 
@@ -158,8 +157,7 @@ function getConnectionsForDomain(
 export async function aggregateServices(
   services: DetectedService[],
   networkRequests: NetworkRequest[],
-  violations: CSPViolation[],
-  config: DetectionConfig
+  violations: CSPViolation[]
 ): Promise<UnifiedService[]> {
   const result: UnifiedService[] = [];
 
@@ -175,7 +173,7 @@ export async function aggregateServices(
       id: `domain:${service.domain}`,
       source: { type: "domain", domain: service.domain, service },
       connections,
-      tags: extractTags(service, config),
+      tags: extractTags(service),
       lastActivity: service.detectedAt,
       // DetectedServiceのfaviconUrlを優先、なければNetworkRequestsから検索
       faviconUrl: service.faviconUrl || findFaviconUrl(service.domain, networkRequests),

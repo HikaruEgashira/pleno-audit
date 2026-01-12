@@ -75,28 +75,22 @@ export interface NRDResult {
 
 /**
  * NRD detection configuration
+ * NRD = RDAP による新規登録ドメイン判定のみ
  */
 export interface NRDConfig {
   /** Threshold in days (domain age <= this is considered NRD) */
   thresholdDays: number;
-  /** Whether to enable RDAP API queries (true NRD detection) */
-  enableRDAP: boolean;
   /** Timeout for RDAP queries in milliseconds */
   rdapTimeout: number;
-  /** Suspicious score threshold (0-100) to flag domain */
-  suspiciousThreshold: number;
   /** Cache expiry time in milliseconds */
   cacheExpiry: number;
 }
 
 /**
  * Default NRD configuration
- * Note: RDAP is disabled by default to avoid external API calls
  */
 export const DEFAULT_NRD_CONFIG: NRDConfig = {
   thresholdDays: 30,
-  enableRDAP: false,
   rdapTimeout: 5000,
-  suspiciousThreshold: 60,
   cacheExpiry: 86400000, // 24 hours
 };

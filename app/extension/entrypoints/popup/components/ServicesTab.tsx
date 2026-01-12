@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { useState, useEffect, useMemo } from "preact/hooks";
 import type { DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
-import type { DetectionConfig } from "@pleno-audit/extension-runtime";
-import { DEFAULT_DETECTION_CONFIG } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { Badge } from "../../../components";
 import {
@@ -102,21 +100,18 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [sortType, setSortType] = useState<SortType>("activity");
-  const [detectionConfig, setDetectionConfig] = useState<DetectionConfig>(DEFAULT_DETECTION_CONFIG);
 
   const sortedServices = useMemo(
     () => sortServices(unifiedServices, sortType),
     [unifiedServices, sortType]
   );
 
-  // 初回のみ設定を取得してデータをロード
+  // サービスデータをロード
   useEffect(() => {
-    async function initialLoad() {
+    async function loadData() {
       setLoading(true);
       try {
-        const config = await chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" });
-        if (config) setDetectionConfig(config);
-        const result = await aggregateServices(services, networkRequests, violations, config || DEFAULT_DETECTION_CONFIG);
+        const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -124,19 +119,8 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
         setLoading(false);
       }
     }
-    initialLoad();
+    loadData();
   }, [services, violations, networkRequests]);
-
-  // 設定変更時は再計算（ローディング状態にしない）
-  const handleConfigChange = useCallback(async (newConfig: DetectionConfig) => {
-    setDetectionConfig(newConfig);
-    try {
-      const result = await aggregateServices(services, networkRequests, violations, newConfig);
-      setUnifiedServices(result);
-    } catch (error) {
-      console.error("Failed to update services:", error);
-    }
-  }, [services, networkRequests, violations]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -424,7 +408,7 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
         合計: {sortedServices.length} サービス
       </div>
 
-      <DetectionSettings onConfigChange={handleConfigChange} />
+      <DetectionSettings />
     </div>
   );
 }

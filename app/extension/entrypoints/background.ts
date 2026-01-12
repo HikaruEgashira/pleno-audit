@@ -75,6 +75,7 @@ interface StorageData {
   services: Record<string, DetectedService>;
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
+  detectionConfig: DetectionConfig;
 }
 
 let storageQueue: Promise<void> = Promise.resolve();
@@ -121,11 +122,13 @@ async function initStorage(): Promise<StorageData> {
     "services",
     "cspReports",
     "cspConfig",
+    "detectionConfig",
   ]);
   return {
     services: result.services || {},
     cspReports: result.cspReports || [],
     cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
+    detectionConfig: result.detectionConfig || DEFAULT_DETECTION_CONFIG,
   };
 }
 
@@ -255,8 +258,15 @@ async function checkNRD(domain: string): Promise<NRDResult> {
   return nrdDetector!.checkDomain(domain);
 }
 
-async function handleNRDCheck(domain: string): Promise<NRDResult> {
+async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: true; reason: string }> {
   try {
+    const storage = await initStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableNRD) {
+      return { skipped: true, reason: "NRD detection disabled" };
+    }
+
     const result = await checkNRD(domain);
 
     // Update service with NRD result if it's a positive detection
@@ -332,8 +342,15 @@ function checkTyposquat(domain: string): TyposquatResult {
   return typosquatDetector.checkDomain(domain);
 }
 
-async function handleTyposquatCheck(domain: string): Promise<TyposquatResult> {
+async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | { skipped: true; reason: string }> {
   try {
+    const storage = await initStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableTyposquat) {
+      return { skipped: true, reason: "Typosquat detection disabled" };
+    }
+
     // Ensure detector is initialized with latest config
     if (!typosquatDetector) {
       await initTyposquatDetector();
@@ -599,18 +616,17 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
 // ============================================================================
 
 async function getDetectionConfig(): Promise<DetectionConfig> {
-  const storage = await getStorage();
+  const storage = await initStorage();
   return storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
 }
 
-async function setDetectionConfig(newConfig: DetectionConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ detectionConfig: newConfig });
-    return { success: true };
-  } catch (error) {
-    console.error("[Pleno Audit] Error setting detection config:", error);
-    return { success: false };
-  }
+async function setDetectionConfig(
+  newConfig: Partial<DetectionConfig>
+): Promise<{ success: boolean }> {
+  const current = await getDetectionConfig();
+  const updated = { ...current, ...newConfig };
+  await saveStorage({ detectionConfig: updated });
+  return { success: true };
 }
 
 function createDefaultService(domain: string): DetectedService {
@@ -670,13 +686,15 @@ interface PageAnalysis {
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
   const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
+  const storage = await initStorage();
+  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
 
   // faviconUrlを保存
   if (faviconUrl) {
     await updateService(domain, { faviconUrl });
   }
 
-  if (login.hasPasswordInput || login.isLoginUrl) {
+  if (detectionConfig.enableLogin && (login.hasPasswordInput || login.isLoginUrl)) {
     await updateService(domain, { hasLoginPage: true });
     await addEvent({
       type: "login_detected",
@@ -686,7 +704,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     });
   }
 
-  if (privacy.found && privacy.url) {
+  if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
     await updateService(domain, { privacyPolicyUrl: privacy.url });
     await addEvent({
       type: "privacy_policy_found",
@@ -696,7 +714,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     });
   }
 
-  if (tos.found && tos.url) {
+  if (detectionConfig.enableTos && tos.found && tos.url) {
     await updateService(domain, { termsOfServiceUrl: tos.url });
     await addEvent({
       type: "terms_of_service_found",
@@ -937,9 +955,10 @@ async function handleAIPromptCaptured(
   data: CapturedAIPrompt
 ): Promise<{ success: boolean }> {
   const storage = await getStorage();
+  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
   const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
 
-  if (!config.enabled) {
+  if (!detectionConfig.enableAI || !config.enabled) {
     return { success: false };
   }
 
