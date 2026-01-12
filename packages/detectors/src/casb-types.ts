@@ -12,7 +12,8 @@ import type {
 import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-} from "./ai-types.js";
+  InferredProvider,
+} from "@pleno-audit/ai-detector";
 import type { TyposquatDetectedDetails } from "@pleno-audit/typosquat";
 
 // ============================================================================
@@ -49,6 +50,11 @@ export interface DetectedService {
     confidence: "high" | "medium" | "low" | "none";
     totalScore: number;
     checkedAt: number;
+  };
+  aiDetected?: {
+    hasAIActivity: boolean;
+    lastActivityAt: number;
+    providers: InferredProvider[];
   };
 }
 

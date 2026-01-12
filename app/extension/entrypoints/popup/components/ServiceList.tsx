@@ -105,6 +105,7 @@ function ServiceRow({ service, styles }: { service: DetectedService; styles: Ret
       </td>
       <td style={styles.tableCell}>
         <NRDBadge nrdResult={service.nrdResult} />
+        {service.aiDetected?.hasAIActivity && <TagBadge tag="AI" variant="warning" />}
         {service.hasLoginPage && <TagBadge tag="login" variant="warning" />}
         {service.privacyPolicyUrl && (
           <TagBadge

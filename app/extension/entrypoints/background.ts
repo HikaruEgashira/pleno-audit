@@ -958,6 +958,32 @@ async function handleAIPromptCaptured(
     });
   }
 
+  // Update service with AI detection info (use pageUrl domain, not API endpoint)
+  let pageDomain = "unknown";
+  try {
+    pageDomain = new URL(data.pageUrl).hostname;
+  } catch {
+    // ignore
+  }
+
+  if (pageDomain !== "unknown") {
+    const storage = await getStorage();
+    const existingService = storage.services?.[pageDomain];
+    const existingProviders = existingService?.aiDetected?.providers || [];
+    const provider = data.provider || "unknown";
+    const providers = existingProviders.includes(provider)
+      ? existingProviders
+      : [...existingProviders, provider];
+
+    await updateService(pageDomain, {
+      aiDetected: {
+        hasAIActivity: true,
+        lastActivityAt: data.timestamp,
+        providers,
+      },
+    });
+  }
+
   return { success: true };
 }
 
