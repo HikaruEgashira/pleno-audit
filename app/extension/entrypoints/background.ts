@@ -644,10 +644,16 @@ interface PageAnalysis {
   login: LoginDetectedDetails;
   privacy: DetectionResult;
   tos: DetectionResult;
+  faviconUrl?: string | null;
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, tos, timestamp } = analysis;
+  const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
+
+  // faviconUrlを保存
+  if (faviconUrl) {
+    await updateService(domain, { faviconUrl });
+  }
 
   if (login.hasPasswordInput || login.isLoginUrl) {
     await updateService(domain, { hasLoginPage: true });

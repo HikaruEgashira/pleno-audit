@@ -1,11 +1,16 @@
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import { ViolationList } from "./ViolationList";
 import { NetworkList } from "./NetworkList";
 import { PolicyGenerator } from "./PolicyGenerator";
 import { CSPSettings } from "./CSPSettings";
 import { usePopupStyles } from "../styles";
-import type { MalwareTabProps } from "../types";
 
-export function MalwareTab({ violations, networkRequests }: MalwareTabProps) {
+interface RequestsTabProps {
+  violations: CSPViolation[];
+  networkRequests: NetworkRequest[];
+}
+
+export function RequestsTab({ violations, networkRequests }: RequestsTabProps) {
   const styles = usePopupStyles();
   const hasData = violations.length > 0 || networkRequests.length > 0;
 
@@ -13,7 +18,9 @@ export function MalwareTab({ violations, networkRequests }: MalwareTabProps) {
     <div>
       {!hasData && (
         <div style={styles.section}>
-          <p style={styles.emptyText}>CSP違反・ネットワークリクエストはまだ検出されていません</p>
+          <p style={styles.emptyText}>
+            CSP違反・ネットワークリクエストはまだ検出されていません
+          </p>
         </div>
       )}
 

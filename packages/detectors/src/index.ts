@@ -98,6 +98,10 @@ export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
 export { createLoginDetector } from "./login-detector.js";
 
+// Favicon Detection
+export type { FaviconRequest } from "./favicon-detector.js";
+export { findFaviconUrl, findFavicons } from "./favicon-detector.js";
+
 // AI Prompt Detection (re-export from @pleno-audit/ai-detector)
 export type {
   InferredProvider,
