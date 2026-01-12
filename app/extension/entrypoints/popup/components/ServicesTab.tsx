@@ -279,11 +279,6 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
     );
   }
 
-  const totalConnections = sortedServices.reduce(
-    (sum, s) => sum + s.connections.reduce((c, conn) => c + conn.requestCount, 0),
-    0
-  );
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -299,7 +294,6 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
             </option>
           ))}
         </select>
-        <Badge size="sm">{totalConnections} 接続</Badge>
       </div>
 
       {sortedServices.slice(0, 15).map((service) => {
@@ -414,7 +408,7 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       )}
 
       <div style={styles.summary}>
-        合計: {sortedServices.length} サービス / {totalConnections} 接続
+        合計: {sortedServices.length} サービス
       </div>
 
       <DetectionSettings />

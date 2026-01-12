@@ -13,17 +13,19 @@ import { ServicesTab } from "./components/ServicesTab";
 import { SessionsTab } from "./components/SessionsTab";
 import { RequestsTab } from "./components/RequestsTab";
 import { createStyles } from "./styles";
+import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
 
 type Tab = "services" | "sessions" | "requests";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "services", label: "Services", count: (d) => d.services.length },
+  { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
   { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length },
 ];
 
 interface TabData {
   services: DetectedService[];
+  unifiedServices: UnifiedService[];
   aiPrompts: CapturedAIPrompt[];
   events: EventLog[];
   violations: CSPViolation[];
@@ -53,6 +55,7 @@ function PopupContent() {
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
   const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
 
   useEffect(() => {
     loadData();
@@ -137,10 +140,19 @@ function PopupContent() {
       setViolations([]);
       setNetworkRequests([]);
       setAIPrompts([]);
+      setUnifiedServices([]);
     } catch (err) {
       console.error("Failed to clear data:", err);
     }
   }
+
+  // Update unified services when dependencies change
+  useEffect(() => {
+    const services = Object.values(data.services) as DetectedService[];
+    aggregateServices(services, networkRequests, violations)
+      .then(setUnifiedServices)
+      .catch((err) => console.error("Failed to aggregate services:", err));
+  }, [data.services, networkRequests, violations]);
 
   function openDashboard() {
     const url = chrome.runtime.getURL("dashboard.html");
@@ -150,7 +162,7 @@ function PopupContent() {
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events;
 
-  const tabData: TabData = { services, aiPrompts, events, violations, networkRequests };
+  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
