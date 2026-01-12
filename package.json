@@ -10,6 +10,10 @@
     "server": "pnpm -C app/server start",
     "server:dev": "pnpm -C app/server dev",
     "website": "pnpm -C app/website dev",
-    "website:build": "pnpm -C app/website build"
+    "website:build": "pnpm -C app/website build",
+    "lint": "oxlint ."
+  },
+  "devDependencies": {
+    "oxlint": "^1.38.0"
   }
 }

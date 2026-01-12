@@ -1,0 +1,52 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "fetch",
+        "message": "External communication is forbidden. Add exception to .oxlintrc.json overrides if required."
+      },
+      {
+        "name": "XMLHttpRequest",
+        "message": "External communication is forbidden."
+      },
+      {
+        "name": "WebSocket",
+        "message": "WebSocket communication is forbidden."
+      }
+    ]
+  },
+  "overrides": [
+    // RDAP API query for NRD detection (default: OFF)
+    {
+      "files": ["packages/nrd/src/rdap.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Remote API client (default: local mode)
+    {
+      "files": ["packages/extension-runtime/src/api-client.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // CSP violation report sender (default: OFF)
+    {
+      "files": ["packages/csp/src/reporter.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Web API interceptor for monitoring (no actual communication)
+    {
+      "files": ["app/extension/public/api-hooks.js"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // AI service interceptor for monitoring (no actual communication)
+    {
+      "files": ["app/extension/public/ai-hooks.js"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Landing page website (separate from extension)
+    {
+      "files": ["app/website/**/*"],
+      "rules": { "no-restricted-globals": "off" }
+    }
+  ]
+}
