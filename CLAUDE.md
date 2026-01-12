@@ -30,6 +30,19 @@ logger.error("エラー", error);
 
 開発モードでは`pleno-debug logs`でリアルタイム監視可能。
 
+## 動作確認
+
+```bash
+# 開発環境を起動（server + extension + logs）
+pnpm dev
+
+# 別ターミナルでブラウザ操作
+pnpm --filter @pleno-audit/debugger start browser open example.com
+pnpm --filter @pleno-audit/debugger start status
+```
+
+ポップアップでサービス検出結果を確認。
+
 ## ADR
 
 @docs/adr/README.md
