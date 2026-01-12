@@ -76,8 +76,17 @@ class DebugServer extends EventEmitter {
 
     ws.on("message", (data) => {
       try {
-        const response: DebugResponse = JSON.parse(data.toString());
-        this.handleResponse(response);
+        const message = JSON.parse(data.toString());
+
+        // Handle DEBUG_LOG messages - broadcast to CLI clients
+        if (message.type === "DEBUG_LOG") {
+          this.broadcastToCLI(message);
+          this.emit("log", message.data);
+          return;
+        }
+
+        // Handle regular responses
+        this.handleResponse(message as DebugResponse);
       } catch (error) {
         console.error("[server] Invalid message:", error);
       }
@@ -150,6 +159,18 @@ class DebugServer extends EventEmitter {
     } else {
       // Broadcast message
       this.emit("message", response);
+    }
+  }
+
+  /**
+   * Broadcast a message to all connected CLI clients
+   */
+  private broadcastToCLI(message: unknown): void {
+    const data = JSON.stringify(message);
+    for (const client of this.cliSockets) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
     }
   }
 

@@ -12,7 +12,6 @@
     "install-host": "tsx src/install.ts"
   },
   "dependencies": {
-    "@pleno-audit/detectors": "workspace:*",
     "commander": "^13.1.0",
     "ws": "^8.18.0"
   },

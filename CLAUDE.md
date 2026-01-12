@@ -13,6 +13,23 @@ CASB/Browser Security
 
 詳細は各パッケージの`index.ts`を参照。
 
+## ロギング
+
+`console.*`の代わりに`createLogger`を使用する。`oxlint`の`no-console`ルールで検出される。
+
+```typescript
+import { createLogger } from "@pleno-audit/extension-runtime";
+
+const logger = createLogger("module-name");
+
+logger.debug("開発時のみ出力");
+logger.info("情報ログ");
+logger.warn("警告");
+logger.error("エラー", error);
+```
+
+開発モードでは`pleno-debug logs`でリアルタイム監視可能。
+
 ## ADR
 
 @docs/adr/README.md

@@ -1,6 +1,14 @@
 import { Command } from "commander";
 import { getExtensionClient } from "../extension-client.js";
-import type { DetectedService } from "@pleno-audit/detectors";
+
+interface DetectedService {
+  domain: string;
+  detectedAt: number;
+  hasLoginPage: boolean;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
+  cookies: unknown[];
+}
 
 export const servicesCommand = new Command("services").description(
   "Detected services operations"

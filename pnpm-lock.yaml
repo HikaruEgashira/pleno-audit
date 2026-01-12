@@ -17,9 +17,6 @@ importers:
 
   app/debugger:
     dependencies:
-      '@pleno-audit/detectors':
-        specifier: workspace:*
-        version: link:../../packages/detectors
       commander:
         specifier: ^13.1.0
         version: 13.1.0

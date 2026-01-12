@@ -1,6 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "rules": {
+    "no-console": [
+      "warn",
+      {
+        "allow": []
+      }
+    ],
     "no-restricted-globals": [
       "error",
       {
@@ -18,6 +24,16 @@
     ]
   },
   "overrides": [
+    // Debugger CLI - console is intentional for user output
+    {
+      "files": ["app/debugger/src/**/*"],
+      "rules": { "no-console": "off" }
+    },
+    // Debug bridge - needs console before logger is connected
+    {
+      "files": ["app/extension/lib/debug-bridge.ts"],
+      "rules": { "no-console": "off" }
+    },
     // RDAP API query for NRD detection (default: OFF)
     {
       "files": ["packages/nrd/src/rdap.ts"],

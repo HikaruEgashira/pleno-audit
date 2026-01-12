@@ -1,5 +1,8 @@
 import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
 import type { LocalApiResponse } from "./offscreen/db-schema.js";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("api-client");
 
 export type ConnectionMode = "local" | "remote";
 
@@ -42,7 +45,7 @@ async function waitForOffscreenReady(timeout = 15000): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      console.error("[Pleno Audit] Offscreen document did not respond within timeout");
+      logger.error("Offscreen document did not respond within timeout");
       reject(new Error("Offscreen ready timeout"));
     }, timeout);
 

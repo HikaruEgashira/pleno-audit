@@ -7,6 +7,7 @@ import { eventsCommand } from "./commands/events.js";
 import { servicesCommand } from "./commands/services.js";
 import { messageCommand } from "./commands/message.js";
 import { watchCommand } from "./commands/watch.js";
+import { logsCommand } from "./commands/logs.js";
 import { installCommand as serverCommand } from "./commands/install.js";
 
 const program = new Command();
@@ -31,5 +32,6 @@ program.addCommand(servicesCommand);
 // Extension operations
 program.addCommand(messageCommand);
 program.addCommand(watchCommand);
+program.addCommand(logsCommand);
 
 program.parse();

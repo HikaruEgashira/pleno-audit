@@ -1,5 +1,8 @@
 import type { CSPReport } from "@pleno-audit/csp";
 import { ApiClient, getApiClient } from "./api-client.js";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("sync-manager");
 
 const SYNC_ALARM_NAME = "syncReports";
 const LAST_SYNC_TIME_KEY = "lastSyncTime";
@@ -35,7 +38,7 @@ export class SyncManager {
     if (!this.alarmListenerRegistered) {
       chrome.alarms.onAlarm.addListener((alarm) => {
         if (alarm.name === SYNC_ALARM_NAME) {
-          this.sync().catch(console.error);
+          this.sync().catch((err) => logger.debug("Sync failed:", err));
         }
       });
       this.alarmListenerRegistered = true;

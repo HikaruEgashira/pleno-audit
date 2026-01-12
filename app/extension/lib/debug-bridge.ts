@@ -7,8 +7,11 @@
  * Only active in development mode.
  */
 
+import { setDebuggerSink, type LogEntry } from "@pleno-audit/extension-runtime";
+
 const DEBUG_SERVER_URL = "ws://localhost:9222/debug";
 const RECONNECT_INTERVAL = 5000;
+const LOG_BUFFER_SIZE = 100;
 
 interface DebugMessage {
   type: string;
@@ -25,6 +28,46 @@ interface DebugResponse {
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let logBuffer: LogEntry[] = [];
+
+/**
+ * Send log entry to debug server
+ */
+function sendLog(entry: LogEntry): void {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(
+      JSON.stringify({
+        type: "DEBUG_LOG",
+        data: entry,
+      })
+    );
+  } else {
+    // Buffer logs when disconnected
+    logBuffer.push(entry);
+    if (logBuffer.length > LOG_BUFFER_SIZE) {
+      logBuffer.shift();
+    }
+  }
+}
+
+/**
+ * Flush buffered logs
+ */
+function flushLogBuffer(): void {
+  if (ws?.readyState !== WebSocket.OPEN || logBuffer.length === 0) {
+    return;
+  }
+
+  for (const entry of logBuffer) {
+    ws.send(
+      JSON.stringify({
+        type: "DEBUG_LOG",
+        data: entry,
+      })
+    );
+  }
+  logBuffer = [];
+}
 
 /**
  * Initialize debug bridge (only in dev mode)
@@ -33,6 +76,9 @@ export function initDebugBridge(): void {
   if (!import.meta.env.DEV) {
     return;
   }
+
+  // Set up logger sink to forward logs to debug server
+  setDebuggerSink(sendLog);
 
   console.log("[debug-bridge] Initializing...");
   connect();
@@ -66,6 +112,9 @@ function connect(): void {
           devMode: true,
         },
       });
+
+      // Flush any buffered logs
+      flushLogBuffer();
     };
 
     ws.onmessage = async (event) => {
