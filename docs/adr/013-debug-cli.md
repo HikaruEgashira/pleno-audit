@@ -58,6 +58,8 @@ pleno-debug storage list|get|set|clear  # ストレージ操作
 pleno-debug services list|get|clear     # サービス操作
 pleno-debug events list|count|clear     # イベント操作
 pleno-debug message <type> [data]       # 任意メッセージ送信
+pleno-debug logs [-l level] [-m module] # リアルタイムログストリーム
+pleno-debug browser open <url>          # ブラウザでURLを開く
 ```
 
 ### 開発モード専用
@@ -88,7 +90,9 @@ app/debugger/
 │       ├── services.ts
 │       ├── events.ts
 │       ├── message.ts
-│       └── watch.ts
+│       ├── watch.ts
+│       ├── logs.ts         # リアルタイムログ
+│       └── browser.ts      # ブラウザ操作
 
 app/extension/lib/
 └── debug-bridge.ts         # 拡張側WebSocketクライアント
@@ -104,13 +108,11 @@ app/extension/lib/
 ## 使用例
 
 ```bash
-# ターミナル1: サーバー起動
-pnpm --filter @pleno-audit/debugger start server
+# 開発環境を一括起動（server + extension + logs）
+pnpm dev
 
-# ターミナル2: 拡張起動
-pnpm --filter @pleno-audit/extension dev
-
-# ターミナル3: コマンド実行
+# 別ターミナルでコマンド実行
 pnpm --filter @pleno-audit/debugger start status
 pnpm --filter @pleno-audit/debugger start snapshot -p
+pnpm --filter @pleno-audit/debugger start browser open example.com
 ```
