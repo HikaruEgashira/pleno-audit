@@ -1,18 +1,14 @@
 /**
  * NRD (Newly Registered Domain) Detector
  *
- * Main detector that combines suspicious domain analysis with RDAP API queries
- * to provide domain risk assessment.
+ * RDAPによる新規登録ドメイン判定のみを行う。
+ * 怪しいドメインパターン検出はTyposquat側で行う。
  *
  * Detection flow:
  * 1. Check cache for previous result
- * 2. Calculate suspicious domain score (synchronous)
- * 3. Query RDAP API for registration date (async, if enabled)
- * 4. Determine final status
- * 5. Cache result for future lookups
- *
- * Note: True NRD detection requires RDAP. Suspicious score analysis
- * detects malicious patterns but not actual domain age.
+ * 2. Query RDAP API for registration date
+ * 3. Determine NRD status based on domain age
+ * 4. Cache result for future lookups
  */
 
 import type {
@@ -45,10 +41,9 @@ export interface NRDCache {
  */
 export function createNRDDetector(config: NRDConfig, cache: NRDCache) {
   /**
-   * Check if a domain is newly registered or suspicious (async)
+   * Check if a domain is newly registered (async)
    *
-   * Performs full detection including RDAP API queries if enabled.
-   * Results are cached for future lookups.
+   * RDAPでドメイン年齢を取得し、NRD判定を行う。
    *
    * @param domain - Domain name to check
    * @returns NRD detection result
@@ -60,36 +55,34 @@ export function createNRDDetector(config: NRDConfig, cache: NRDCache) {
       return { ...cached, method: 'cache' };
     }
 
-    // 2. Calculate suspicious domain scores (synchronous, fast)
+    // 2. Calculate suspicious domain scores (for reference only, not for NRD judgment)
     const suspiciousScores = calculateSuspiciousScore(domain);
 
-    // 3. Check for DDNS usage (synchronous, fast)
+    // 3. Check for DDNS usage
     const ddnsResult = checkDDNS(domain);
     const ddns: DDNSInfo = {
       isDDNS: ddnsResult.isDDNS,
       provider: ddnsResult.provider,
     };
 
-    // 4. Query RDAP API (async, optional - disabled by default)
+    // 4. Query RDAP API for domain age
     let registrationDate: string | null = null;
     let domainAge: number | null = null;
-    let method: NRDDetectionMethod = 'suspicious';
+    let method: NRDDetectionMethod = 'error';
 
-    if (config.enableRDAP) {
-      try {
-        const rdapResult = await queryRDAP(domain, config.rdapTimeout);
-        registrationDate = extractRegistrationDate(rdapResult);
-        if (registrationDate) {
-          domainAge = calculateDomainAge(registrationDate);
-          method = 'rdap';
-        }
-      } catch (error) {
-        console.warn('[NRD] RDAP query failed:', error);
-        // Continue with suspicious score results only
+    try {
+      const rdapResult = await queryRDAP(domain, config.rdapTimeout);
+      registrationDate = extractRegistrationDate(rdapResult);
+      if (registrationDate) {
+        domainAge = calculateDomainAge(registrationDate);
+        method = 'rdap';
       }
+    } catch (error) {
+      console.warn('[NRD] RDAP query failed:', error);
+      // RDAP取得失敗時はNRD判定不能
     }
 
-    // 5. Determine final status
+    // 5. Determine NRD status based on domain age only
     const result = determineNRDStatus(
       domain,
       registrationDate,
@@ -139,21 +132,16 @@ function calculateDomainAge(registrationDate: string): number {
 }
 
 /**
- * Determine final NRD status based on all available information
- *
- * Priority:
- * 1. RDAP verification (highest confidence - true NRD detection)
- * 2. Suspicious domain analysis (medium confidence - pattern-based)
- * 3. Error state (unknown confidence)
+ * Determine NRD status based on RDAP domain age only
  *
  * @param domain - Domain name
  * @param registrationDate - Registration date from RDAP
  * @param domainAge - Calculated domain age
- * @param suspiciousScores - Suspicious domain analysis scores
+ * @param suspiciousScores - Suspicious domain analysis scores (for reference)
  * @param ddns - DDNS detection result
  * @param config - NRD configuration
  * @param method - Detection method used
- * @returns Final NRD detection result
+ * @returns NRD detection result
  */
 function determineNRDStatus(
   domain: string,
@@ -167,16 +155,12 @@ function determineNRDStatus(
   let isNRD = false;
   let confidence: NRDConfidence = 'unknown';
 
-  // RDAP result available (highest confidence - true NRD detection)
+  // RDAPでドメイン年齢が取得できた場合のみNRD判定
   if (domainAge !== null) {
     isNRD = domainAge <= config.thresholdDays;
     confidence = 'high';
   }
-  // Only suspicious analysis available (medium confidence - pattern-based)
-  else if (suspiciousScores.totalScore >= config.suspiciousThreshold) {
-    isNRD = true;
-    confidence = 'medium';
-  }
+  // ドメイン年齢不明の場合はNRD判定不能（isNRD: false）
 
   return {
     domain,

@@ -51,6 +51,7 @@ import {
   createExtensionMonitor,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
+  DEFAULT_DETECTION_CONFIG,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
@@ -59,6 +60,7 @@ import {
   type ExtensionMonitorConfig,
   type ExtensionRequestRecord,
   type DataRetentionConfig,
+  type DetectionConfig,
 } from "@pleno-audit/extension-runtime";
 import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
@@ -73,6 +75,7 @@ interface StorageData {
   services: Record<string, DetectedService>;
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
+  detectionConfig: DetectionConfig;
 }
 
 let storageQueue: Promise<void> = Promise.resolve();
@@ -119,11 +122,13 @@ async function initStorage(): Promise<StorageData> {
     "services",
     "cspReports",
     "cspConfig",
+    "detectionConfig",
   ]);
   return {
     services: result.services || {},
     cspReports: result.cspReports || [],
     cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
+    detectionConfig: result.detectionConfig || DEFAULT_DETECTION_CONFIG,
   };
 }
 
@@ -253,8 +258,15 @@ async function checkNRD(domain: string): Promise<NRDResult> {
   return nrdDetector!.checkDomain(domain);
 }
 
-async function handleNRDCheck(domain: string): Promise<NRDResult> {
+async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: true; reason: string }> {
   try {
+    const storage = await initStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableNRD) {
+      return { skipped: true, reason: "NRD detection disabled" };
+    }
+
     const result = await checkNRD(domain);
 
     // Update service with NRD result if it's a positive detection
@@ -330,8 +342,15 @@ function checkTyposquat(domain: string): TyposquatResult {
   return typosquatDetector.checkDomain(domain);
 }
 
-async function handleTyposquatCheck(domain: string): Promise<TyposquatResult> {
+async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | { skipped: true; reason: string }> {
   try {
+    const storage = await initStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableTyposquat) {
+      return { skipped: true, reason: "Typosquat detection disabled" };
+    }
+
     // Ensure detector is initialized with latest config
     if (!typosquatDetector) {
       await initTyposquatDetector();
@@ -592,6 +611,24 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
   }
 }
 
+// ============================================================================
+// Detection Config
+// ============================================================================
+
+async function getDetectionConfig(): Promise<DetectionConfig> {
+  const storage = await initStorage();
+  return storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+}
+
+async function setDetectionConfig(
+  newConfig: Partial<DetectionConfig>
+): Promise<{ success: boolean }> {
+  const current = await getDetectionConfig();
+  const updated = { ...current, ...newConfig };
+  await saveStorage({ detectionConfig: updated });
+  return { success: true };
+}
+
 function createDefaultService(domain: string): DetectedService {
   return {
     domain,
@@ -644,12 +681,20 @@ interface PageAnalysis {
   login: LoginDetectedDetails;
   privacy: DetectionResult;
   tos: DetectionResult;
+  faviconUrl?: string | null;
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, tos, timestamp } = analysis;
+  const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
+  const storage = await initStorage();
+  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
 
-  if (login.hasPasswordInput || login.isLoginUrl) {
+  // faviconUrlを保存
+  if (faviconUrl) {
+    await updateService(domain, { faviconUrl });
+  }
+
+  if (detectionConfig.enableLogin && (login.hasPasswordInput || login.isLoginUrl)) {
     await updateService(domain, { hasLoginPage: true });
     await addEvent({
       type: "login_detected",
@@ -659,7 +704,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     });
   }
 
-  if (privacy.found && privacy.url) {
+  if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
     await updateService(domain, { privacyPolicyUrl: privacy.url });
     await addEvent({
       type: "privacy_policy_found",
@@ -669,7 +714,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     });
   }
 
-  if (tos.found && tos.url) {
+  if (detectionConfig.enableTos && tos.found && tos.url) {
     await updateService(domain, { termsOfServiceUrl: tos.url });
     await addEvent({
       type: "terms_of_service_found",
@@ -910,9 +955,10 @@ async function handleAIPromptCaptured(
   data: CapturedAIPrompt
 ): Promise<{ success: boolean }> {
   const storage = await getStorage();
+  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
   const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
 
-  if (!config.enabled) {
+  if (!detectionConfig.enableAI || !config.enabled) {
     return { success: false };
   }
 
@@ -1485,6 +1531,21 @@ export default defineBackground(() => {
       cleanupOldData()
         .then(sendResponse)
         .catch(() => sendResponse({ deleted: 0 }));
+      return true;
+    }
+
+    // Detection Config handlers
+    if (message.type === "GET_DETECTION_CONFIG") {
+      getDetectionConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_DETECTION_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_DETECTION_CONFIG") {
+      setDetectionConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 

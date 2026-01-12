@@ -38,6 +38,7 @@ export interface DetectedService {
   hasLoginPage: boolean;
   privacyPolicyUrl: string | null;
   termsOfServiceUrl: string | null;
+  faviconUrl?: string | null;
   cookies: CookieInfo[];
   nrdResult?: {
     isNRD: boolean;

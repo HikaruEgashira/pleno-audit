@@ -60,14 +60,15 @@ export function Badge({ children, variant = "default", size = "sm", dot = false 
   }
 
   const sizeStyles = size === "sm"
-    ? { padding: "2px 8px", fontSize: "11px" }
-    : { padding: "4px 12px", fontSize: "12px" };
+    ? { padding: "0px 5px", fontSize: "9px", lineHeight: "1.4" }
+    : { padding: "1px 6px", fontSize: "10px", lineHeight: "1.3" };
 
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
+        verticalAlign: "middle",
         borderRadius: "9999px",
         fontWeight: 500,
         ...sizeStyles,

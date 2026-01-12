@@ -51,8 +51,12 @@ export type {
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
   DataRetentionConfig,
+  DetectionConfig,
 } from "./storage-types.js";
-export { DEFAULT_DATA_RETENTION_CONFIG } from "./storage-types.js";
+export {
+  DEFAULT_DATA_RETENTION_CONFIG,
+  DEFAULT_DETECTION_CONFIG,
+} from "./storage-types.js";
 
 // Extension Monitor
 export {

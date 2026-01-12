@@ -164,65 +164,27 @@ export function Settings() {
 
       <hr style={{ margin: "16px 0", border: "none", borderTop: `1px solid ${colors.border}` }} />
 
-      <h3 style={styles.sectionTitle}>Suspicious Domain Detection Settings</h3>
-
-      <label style={styles.checkbox}>
-        <input
-          type="checkbox"
-          checked={nrdConfig.enableRDAP}
-          onChange={(e) =>
-            setNRDConfig({
-              ...nrdConfig,
-              enableRDAP: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-        <span style={{ color: colors.textPrimary }}>Enable RDAP Lookup (API queries)</span>
-      </label>
-
-      {nrdConfig.enableRDAP && (
-        <div style={{ marginBottom: "12px" }}>
-          <label style={styles.label}>
-            Age Threshold (days): {nrdConfig.thresholdDays}
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="365"
-            value={nrdConfig.thresholdDays}
-            onChange={(e) =>
-              setNRDConfig({
-                ...nrdConfig,
-                thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
-              })
-            }
-            style={{ width: "100%", marginBottom: "4px" }}
-          />
-          <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-            Domains registered within this period are flagged as NRD
-          </span>
-        </div>
-      )}
+      <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
 
       <div style={{ marginBottom: "12px" }}>
         <label style={styles.label}>
-          Suspicious Threshold: {nrdConfig.suspiciousThreshold}
+          Age Threshold (days): {nrdConfig.thresholdDays}
         </label>
         <input
           type="range"
-          min="0"
-          max="100"
-          value={nrdConfig.suspiciousThreshold}
+          min="1"
+          max="365"
+          value={nrdConfig.thresholdDays}
           onChange={(e) =>
             setNRDConfig({
               ...nrdConfig,
-              suspiciousThreshold: parseInt((e.target as HTMLInputElement).value, 10),
+              thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
             })
           }
           style={{ width: "100%", marginBottom: "4px" }}
         />
         <span style={{ fontSize: "11px", color: colors.textSecondary }}>
-          Higher = stricter matching (0-100)
+          Domains registered within this period are flagged as NRD
         </span>
       </div>
 

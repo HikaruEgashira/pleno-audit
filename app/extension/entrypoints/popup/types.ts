@@ -17,12 +17,14 @@ export interface EventProps {
   events: EventLog[];
 }
 
-export interface PhishingTabProps extends ServiceProps, EventProps {}
+export interface ServicesTabProps extends ServiceProps, ViolationProps {
+  networkRequests: NetworkRequest[];
+}
 
-export interface ShadowITTabProps extends ServiceProps, EventProps {
+export interface SessionsTabProps extends EventProps {
   aiPrompts: CapturedAIPrompt[];
 }
 
-export interface MalwareTabProps extends ViolationProps {
+export interface RequestsTabProps extends ViolationProps {
   networkRequests: NetworkRequest[];
 }

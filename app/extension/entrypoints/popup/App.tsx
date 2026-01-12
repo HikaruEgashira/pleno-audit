@@ -9,23 +9,23 @@ import type { StorageData } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, SettingsMenu } from "../../components";
-import { ShadowITTab } from "./components/ShadowITTab";
-import { PhishingTab } from "./components/PhishingTab";
-import { MalwareTab } from "./components/MalwareTab";
-import { ExtensionsTab } from "./components/ExtensionsTab";
+import { ServicesTab } from "./components/ServicesTab";
+import { SessionsTab } from "./components/SessionsTab";
+import { RequestsTab } from "./components/RequestsTab";
 import { createStyles } from "./styles";
+import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
 
-type Tab = "sessions" | "domains" | "requests" | "extensions";
+type Tab = "services" | "sessions" | "requests";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "sessions", label: "Sessions", count: (d) => d.services.length + d.aiPrompts.length },
-  { key: "domains", label: "Domains", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
-  { key: "requests", label: "Requests", count: (d) => d.violations.length },
-  { key: "extensions", label: "Extensions" },
+  { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
+  { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
+  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length },
 ];
 
 interface TabData {
   services: DetectedService[];
+  unifiedServices: UnifiedService[];
   aiPrompts: CapturedAIPrompt[];
   events: EventLog[];
   violations: CSPViolation[];
@@ -50,11 +50,12 @@ function PopupContent() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [data, setData] = useState<StorageData>({ services: {}, events: [] });
-  const [tab, setTab] = useState<Tab>("sessions");
+  const [tab, setTab] = useState<Tab>("services");
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
   const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
 
   useEffect(() => {
     loadData();
@@ -139,10 +140,19 @@ function PopupContent() {
       setViolations([]);
       setNetworkRequests([]);
       setAIPrompts([]);
+      setUnifiedServices([]);
     } catch (err) {
       console.error("Failed to clear data:", err);
     }
   }
+
+  // Update unified services when dependencies change
+  useEffect(() => {
+    const services = Object.values(data.services) as DetectedService[];
+    aggregateServices(services, networkRequests, violations)
+      .then(setUnifiedServices)
+      .catch((err) => console.error("Failed to aggregate services:", err));
+  }, [data.services, networkRequests, violations]);
 
   function openDashboard() {
     const url = chrome.runtime.getURL("dashboard.html");
@@ -152,7 +162,7 @@ function PopupContent() {
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events;
 
-  const tabData: TabData = { services, aiPrompts, events, violations, networkRequests };
+  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
@@ -160,14 +170,18 @@ function PopupContent() {
       return <p style={styles.emptyText}>読み込み中...</p>;
     }
     switch (tab) {
+      case "services":
+        return (
+          <ServicesTab
+            services={services}
+            violations={violations}
+            networkRequests={networkRequests}
+          />
+        );
       case "sessions":
-        return <ShadowITTab services={services} aiPrompts={aiPrompts} events={events} />;
-      case "domains":
-        return <PhishingTab services={services} events={events} />;
+        return <SessionsTab events={events} aiPrompts={aiPrompts} />;
       case "requests":
-        return <MalwareTab violations={violations} networkRequests={networkRequests} />;
-      case "extensions":
-        return <ExtensionsTab />;
+        return <RequestsTab violations={violations} networkRequests={networkRequests} />;
       default:
         return null;
     }
