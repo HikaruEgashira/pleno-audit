@@ -39,7 +39,7 @@ function TagBadge({ tag, domain }: { tag: ServiceTag; domain: string }) {
         </Badge>
       );
     case "typosquat":
-      return <Badge variant="danger" size="sm">Typosquat</Badge>;
+      return <Badge variant="warning" size="sm">Typosquat</Badge>;
     case "ai":
       return <Badge variant="warning" size="sm">AI</Badge>;
     case "login":

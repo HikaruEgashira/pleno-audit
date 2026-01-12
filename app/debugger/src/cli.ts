@@ -9,6 +9,8 @@ import { messageCommand } from "./commands/message.js";
 import { watchCommand } from "./commands/watch.js";
 import { logsCommand } from "./commands/logs.js";
 import { installCommand as serverCommand } from "./commands/install.js";
+import { browserCommand } from "./commands/browser.js";
+import { launchCommand } from "./commands/launch.js";
 
 const program = new Command();
 
@@ -33,5 +35,9 @@ program.addCommand(servicesCommand);
 program.addCommand(messageCommand);
 program.addCommand(watchCommand);
 program.addCommand(logsCommand);
+
+// Browser automation
+program.addCommand(launchCommand);
+program.addCommand(browserCommand);
 
 program.parse();

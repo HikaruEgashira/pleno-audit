@@ -12,10 +12,12 @@
     "install-host": "tsx src/install.ts"
   },
   "dependencies": {
+    "chrome-remote-interface": "^0.33.2",
     "commander": "^13.1.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/chrome-remote-interface": "^0.33.0",
     "@types/node": "^22.16.0",
     "@types/ws": "^8.18.0",
     "tsx": "^4.21.0",
