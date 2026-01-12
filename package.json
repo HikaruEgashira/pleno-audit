@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n debug,ext -c blue,green \"pnpm -C app/debugger start server\" \"pnpm -C app/extension dev\"",
+    "dev": "concurrently -n debug,ext,logs -c blue,green,yellow \"pnpm -C app/debugger start server\" \"pnpm -C app/extension dev\" \"sleep 3 && pnpm -C app/debugger start logs\"",
     "dev:ext": "pnpm -C app/extension dev",
     "build": "pnpm -C app/extension build",
     "server": "pnpm -C app/server start",
