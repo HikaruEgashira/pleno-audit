@@ -8,6 +8,10 @@ interface DetectionOption {
   description: string;
 }
 
+interface DetectionSettingsProps {
+  onConfigChange?: (config: DetectionConfig) => void;
+}
+
 const DETECTION_OPTIONS: DetectionOption[] = [
   { key: "enableNRD", label: "NRD", description: "新規登録ドメイン検出" },
   { key: "enableTyposquat", label: "Typosquat", description: "偽装ドメイン検出" },
@@ -17,7 +21,7 @@ const DETECTION_OPTIONS: DetectionOption[] = [
   { key: "enableLogin", label: "Login", description: "ログインページ検出" },
 ];
 
-export function DetectionSettings() {
+export function DetectionSettings({ onConfigChange }: DetectionSettingsProps) {
   const { colors } = useTheme();
   const [config, setConfig] = useState<DetectionConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -35,6 +39,8 @@ export function DetectionSettings() {
     chrome.runtime.sendMessage({
       type: "SET_DETECTION_CONFIG",
       data: newConfig,
+    }).then(() => {
+      onConfigChange?.(newConfig);
     }).catch(console.error);
   }
 

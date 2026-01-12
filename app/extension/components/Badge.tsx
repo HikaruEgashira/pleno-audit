@@ -68,6 +68,7 @@ export function Badge({ children, variant = "default", size = "sm", dot = false 
       style={{
         display: "inline-flex",
         alignItems: "center",
+        verticalAlign: "middle",
         borderRadius: "9999px",
         fontWeight: 500,
         ...sizeStyles,

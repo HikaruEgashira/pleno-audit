@@ -1,5 +1,6 @@
 import { findFaviconUrl, type DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { DetectionConfig } from "@pleno-audit/extension-runtime";
 
 export type ServiceTag =
   | { type: "nrd"; domainAge: number | null; confidence: string }
@@ -77,10 +78,10 @@ function extractDomain(url: string): string | null {
   }
 }
 
-function extractTags(service: DetectedService): ServiceTag[] {
+function extractTags(service: DetectedService, config: DetectionConfig): ServiceTag[] {
   const tags: ServiceTag[] = [];
 
-  if (service.nrdResult?.isNRD) {
+  if (config.enableNRD && service.nrdResult?.isNRD) {
     tags.push({
       type: "nrd",
       domainAge: service.nrdResult.domainAge,
@@ -88,7 +89,7 @@ function extractTags(service: DetectedService): ServiceTag[] {
     });
   }
 
-  if (service.typosquatResult?.isTyposquat) {
+  if (config.enableTyposquat && service.typosquatResult?.isTyposquat) {
     tags.push({
       type: "typosquat",
       score: service.typosquatResult.totalScore,
@@ -96,19 +97,19 @@ function extractTags(service: DetectedService): ServiceTag[] {
     });
   }
 
-  if (service.aiDetected?.hasAIActivity) {
+  if (config.enableAI && service.aiDetected?.hasAIActivity) {
     tags.push({ type: "ai" });
   }
 
-  if (service.hasLoginPage) {
+  if (config.enableLogin && service.hasLoginPage) {
     tags.push({ type: "login" });
   }
 
-  if (service.privacyPolicyUrl) {
+  if (config.enablePrivacy && service.privacyPolicyUrl) {
     tags.push({ type: "privacy", url: service.privacyPolicyUrl });
   }
 
-  if (service.termsOfServiceUrl) {
+  if (config.enableTos && service.termsOfServiceUrl) {
     tags.push({ type: "tos", url: service.termsOfServiceUrl });
   }
 
@@ -157,7 +158,8 @@ function getConnectionsForDomain(
 export async function aggregateServices(
   services: DetectedService[],
   networkRequests: NetworkRequest[],
-  violations: CSPViolation[]
+  violations: CSPViolation[],
+  config: DetectionConfig
 ): Promise<UnifiedService[]> {
   const result: UnifiedService[] = [];
 
@@ -173,7 +175,7 @@ export async function aggregateServices(
       id: `domain:${service.domain}`,
       source: { type: "domain", domain: service.domain, service },
       connections,
-      tags: extractTags(service),
+      tags: extractTags(service, config),
       lastActivity: service.detectedAt,
       // DetectedServiceのfaviconUrlを優先、なければNetworkRequestsから検索
       faviconUrl: service.faviconUrl || findFaviconUrl(service.domain, networkRequests),

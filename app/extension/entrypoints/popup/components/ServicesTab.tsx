@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import type { DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { DetectionConfig } from "@pleno-audit/extension-runtime";
+import { DEFAULT_DETECTION_CONFIG } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { Badge } from "../../../components";
 import {
@@ -50,7 +52,7 @@ function TagBadge({ tag, domain }: { tag: ServiceTag; domain: string }) {
           href={sanitizeUrl(tag.url, domain)}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ textDecoration: "none" }}
+          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
         >
           <Badge size="sm">privacy</Badge>
         </a>
@@ -61,7 +63,7 @@ function TagBadge({ tag, domain }: { tag: ServiceTag; domain: string }) {
           href={sanitizeUrl(tag.url, domain)}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ textDecoration: "none" }}
+          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
         >
           <Badge size="sm">tos</Badge>
         </a>
@@ -100,27 +102,41 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [sortType, setSortType] = useState<SortType>("activity");
+  const [detectionConfig, setDetectionConfig] = useState<DetectionConfig>(DEFAULT_DETECTION_CONFIG);
 
   const sortedServices = useMemo(
     () => sortServices(unifiedServices, sortType),
     [unifiedServices, sortType]
   );
 
+  // 初回のみ設定を取得してデータをロード
   useEffect(() => {
-    loadData();
+    async function initialLoad() {
+      setLoading(true);
+      try {
+        const config = await chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" });
+        if (config) setDetectionConfig(config);
+        const result = await aggregateServices(services, networkRequests, violations, config || DEFAULT_DETECTION_CONFIG);
+        setUnifiedServices(result);
+      } catch (error) {
+        console.error("Failed to load data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    initialLoad();
   }, [services, violations, networkRequests]);
 
-  async function loadData() {
-    setLoading(true);
+  // 設定変更時は再計算（ローディング状態にしない）
+  const handleConfigChange = useCallback(async (newConfig: DetectionConfig) => {
+    setDetectionConfig(newConfig);
     try {
-      const result = await aggregateServices(services, networkRequests, violations);
+      const result = await aggregateServices(services, networkRequests, violations, newConfig);
       setUnifiedServices(result);
     } catch (error) {
-      console.error("Failed to aggregate services:", error);
-    } finally {
-      setLoading(false);
+      console.error("Failed to update services:", error);
     }
-  }
+  }, [services, networkRequests, violations]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -171,7 +187,7 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
     serviceHeaderRow: {
       display: "flex",
       alignItems: "center",
-      gap: "10px",
+      gap: "3px",
     },
     chevron: {
       fontSize: "10px",
@@ -214,14 +230,12 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       fontSize: "10px",
       color: colors.textMuted,
       flexShrink: 0,
-      marginLeft: "8px",
     },
-    tagRow: {
+    tagColumn: {
       display: "flex",
-      flexWrap: "wrap" as const,
-      gap: "4px",
-      marginTop: "6px",
-      marginLeft: "26px",
+      alignItems: "center",
+      gap: "3px",
+      flexShrink: 0,
     },
     connectionList: {
       borderTop: `1px solid ${colors.borderLight}`,
@@ -344,18 +358,17 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
                     {formatRelativeTime(service.lastActivity)}
                   </span>
                 )}
+                {service.tags.length > 0 && (
+                  <div style={styles.tagColumn}>
+                    {service.tags.map((tag, i) => (
+                      <TagBadge key={i} tag={tag} domain={domain} />
+                    ))}
+                  </div>
+                )}
                 {service.connections.length > 0 && (
                   <Badge size="sm">{service.connections.length}</Badge>
                 )}
               </div>
-
-              {service.tags.length > 0 && (
-                <div style={styles.tagRow}>
-                  {service.tags.map((tag, i) => (
-                    <TagBadge key={i} tag={tag} domain={domain} />
-                  ))}
-                </div>
-              )}
             </div>
 
             {isExpanded && (
@@ -411,7 +424,7 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
         合計: {sortedServices.length} サービス
       </div>
 
-      <DetectionSettings />
+      <DetectionSettings onConfigChange={handleConfigChange} />
     </div>
   );
 }
