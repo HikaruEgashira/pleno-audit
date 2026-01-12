@@ -1,0 +1,306 @@
+/**
+ * Debug Bridge for CLI communication
+ *
+ * This module connects to the CLI's WebSocket server when running in dev mode.
+ * It handles debug commands and forwards them to the background script.
+ *
+ * Only active in development mode.
+ */
+
+const DEBUG_SERVER_URL = "ws://localhost:9222/debug";
+const RECONNECT_INTERVAL = 5000;
+
+interface DebugMessage {
+  type: string;
+  id?: string;
+  data?: unknown;
+}
+
+interface DebugResponse {
+  id?: string;
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+
+let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Initialize debug bridge (only in dev mode)
+ */
+export function initDebugBridge(): void {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  console.log("[debug-bridge] Initializing...");
+  connect();
+}
+
+/**
+ * Connect to debug server
+ */
+function connect(): void {
+  if (ws?.readyState === WebSocket.OPEN) {
+    return;
+  }
+
+  try {
+    ws = new WebSocket(DEBUG_SERVER_URL);
+
+    ws.onopen = () => {
+      console.log("[debug-bridge] Connected to debug server");
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+
+      // Send initial connection info
+      sendResponse({
+        success: true,
+        data: {
+          type: "connected",
+          extensionId: chrome.runtime.id,
+          version: chrome.runtime.getManifest().version,
+          devMode: true,
+        },
+      });
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const message: DebugMessage = JSON.parse(event.data as string);
+        const response = await handleMessage(message);
+        sendResponse({ id: message.id, ...response });
+      } catch (error) {
+        console.error("[debug-bridge] Error handling message:", error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("[debug-bridge] Disconnected from debug server");
+      ws = null;
+      scheduleReconnect();
+    };
+
+    ws.onerror = (error) => {
+      console.error("[debug-bridge] WebSocket error:", error);
+      ws?.close();
+    };
+  } catch (error) {
+    console.error("[debug-bridge] Connection error:", error);
+    scheduleReconnect();
+  }
+}
+
+/**
+ * Schedule reconnection attempt
+ */
+function scheduleReconnect(): void {
+  if (reconnectTimer) {
+    return;
+  }
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, RECONNECT_INTERVAL);
+}
+
+/**
+ * Send response to debug server
+ */
+function sendResponse(response: DebugResponse): void {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(response));
+  }
+}
+
+/**
+ * Handle incoming debug message
+ */
+async function handleMessage(
+  message: DebugMessage
+): Promise<Omit<DebugResponse, "id">> {
+  const { type, data } = message;
+
+  try {
+    switch (type) {
+      case "DEBUG_PING":
+        return {
+          success: true,
+          data: {
+            extensionId: chrome.runtime.id,
+            version: chrome.runtime.getManifest().version,
+            devMode: true,
+            timestamp: Date.now(),
+          },
+        };
+
+      case "DEBUG_SNAPSHOT":
+        return await getSnapshot();
+
+      case "DEBUG_STORAGE_LIST":
+        return await getStorageKeys();
+
+      case "DEBUG_STORAGE_GET":
+        return await getStorageValue(data as { key: string });
+
+      case "DEBUG_STORAGE_SET":
+        return await setStorageValue(data as { key: string; value: unknown });
+
+      case "DEBUG_STORAGE_CLEAR":
+        return await clearStorage();
+
+      case "DEBUG_SERVICES_LIST":
+        return await getServices();
+
+      case "DEBUG_SERVICES_GET":
+        return await getService(data as { domain: string });
+
+      case "DEBUG_SERVICES_CLEAR":
+        return await clearServices();
+
+      case "DEBUG_EVENTS_LIST":
+        return await getEvents(data as { limit?: number; type?: string });
+
+      case "DEBUG_EVENTS_COUNT":
+        return await getEventsCount();
+
+      case "DEBUG_EVENTS_CLEAR":
+        return await clearEvents();
+
+      default:
+        // Forward to background script as a regular message
+        return await forwardToBackground(type, data);
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Get full snapshot of extension state
+ */
+async function getSnapshot(): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get(null);
+    const services = storage.services || {};
+
+    return {
+      success: true,
+      data: {
+        storage,
+        services,
+        extensionId: chrome.runtime.id,
+        timestamp: Date.now(),
+      },
+    };
+  } catch (error) {
+    console.error("[debug-bridge] getSnapshot error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Storage operations
+ */
+async function getStorageKeys(): Promise<Omit<DebugResponse, "id">> {
+  const storage = await chrome.storage.local.get(null);
+  return { success: true, data: Object.keys(storage) };
+}
+
+async function getStorageValue(params: {
+  key: string;
+}): Promise<Omit<DebugResponse, "id">> {
+  const storage = await chrome.storage.local.get(params.key);
+  return { success: true, data: storage[params.key] };
+}
+
+async function setStorageValue(params: {
+  key: string;
+  value: unknown;
+}): Promise<Omit<DebugResponse, "id">> {
+  await chrome.storage.local.set({ [params.key]: params.value });
+  return { success: true };
+}
+
+async function clearStorage(): Promise<Omit<DebugResponse, "id">> {
+  await chrome.storage.local.clear();
+  return { success: true };
+}
+
+/**
+ * Services operations
+ */
+async function getServices(): Promise<Omit<DebugResponse, "id">> {
+  const storage = await chrome.storage.local.get("services");
+  return { success: true, data: storage.services || {} };
+}
+
+async function getService(params: {
+  domain: string;
+}): Promise<Omit<DebugResponse, "id">> {
+  const storage = await chrome.storage.local.get("services");
+  const services = storage.services || {};
+  return { success: true, data: services[params.domain] || null };
+}
+
+async function clearServices(): Promise<Omit<DebugResponse, "id">> {
+  await chrome.storage.local.remove("services");
+  return { success: true };
+}
+
+/**
+ * Events operations
+ * Note: Events are stored in IndexedDB, not accessible from this context.
+ * These are stubs that return empty results.
+ */
+async function getEvents(_params: {
+  limit?: number;
+  type?: string;
+}): Promise<Omit<DebugResponse, "id">> {
+  // Events are in IndexedDB, not directly accessible from debug-bridge
+  // Use the message command to call GET_EVENTS instead
+  return {
+    success: true,
+    data: [],
+    error: "Events are stored in IndexedDB. Use 'pleno-debug message GET_EVENTS' instead.",
+  };
+}
+
+async function getEventsCount(): Promise<Omit<DebugResponse, "id">> {
+  return {
+    success: true,
+    data: 0,
+    error: "Events are stored in IndexedDB. Use 'pleno-debug message GET_EVENTS_COUNT' instead.",
+  };
+}
+
+async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
+  return {
+    success: false,
+    error: "Events are stored in IndexedDB. Use 'pleno-debug message CLEAR_EVENTS' instead.",
+  };
+}
+
+/**
+ * Forward message to background script
+ * Note: This doesn't work because debug-bridge runs in the same context as background.
+ */
+async function forwardToBackground(
+  type: string,
+  _data: unknown
+): Promise<Omit<DebugResponse, "id">> {
+  return {
+    success: false,
+    error: `Unknown message type: ${type}. Debug bridge cannot forward messages to background.`,
+  };
+}

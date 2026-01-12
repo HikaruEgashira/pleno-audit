@@ -1162,6 +1162,13 @@ async function registerMainWorldScript() {
 export default defineBackground(() => {
   registerMainWorldScript();
 
+  // Initialize debug bridge in dev mode
+  if (import.meta.env.DEV) {
+    import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
+      initDebugBridge();
+    }).catch(console.error);
+  }
+
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitEventStore()
     .then(() => console.log("[Pleno Audit] EventStore initialized"))

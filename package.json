@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm -C app/extension dev",
+    "dev": "concurrently -n debug,ext -c blue,green \"pnpm -C app/debugger start server\" \"pnpm -C app/extension dev\"",
+    "dev:ext": "pnpm -C app/extension dev",
     "build": "pnpm -C app/extension build",
     "server": "pnpm -C app/server start",
     "server:dev": "pnpm -C app/server dev",
@@ -14,6 +15,7 @@
     "lint": "oxlint ."
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "oxlint": "^1.38.0"
   }
 }

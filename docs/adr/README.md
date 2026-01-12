@@ -14,3 +14,4 @@
 | [010](./010-extension-runtime-package.md) | Extension Runtimeパッケージの分離 | Accepted |
 | [011](./011-ai-prompt-monitoring.md) | AIプロンプト監視機能 | Accepted |
 | [012](./012-dashboard-data-fetching.md) | Dashboardデータ取得の設計原則 | Accepted |
+| [013](./013-debug-cli.md) | デバッグCLI (pleno-debug) | Accepted |
