@@ -220,6 +220,9 @@ async function handleMessage(
       case "DEBUG_EVENTS_CLEAR":
         return await clearEvents();
 
+      case "DEBUG_TAB_OPEN":
+        return await openTab(data as { url: string });
+
       default:
         // Forward to background script as a regular message
         return await forwardToBackground(type, data);
@@ -338,6 +341,33 @@ async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
     success: false,
     error: "Events are stored in IndexedDB. Use 'pleno-debug message CLEAR_EVENTS' instead.",
   };
+}
+
+/**
+ * Tab operations
+ */
+async function openTab(params: { url: string }): Promise<Omit<DebugResponse, "id">> {
+  try {
+    let url = params.url;
+    // Prepend https:// if no protocol specified
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+
+    const tab = await chrome.tabs.create({ url, active: true });
+    return {
+      success: true,
+      data: {
+        tabId: tab.id,
+        url: tab.url || url,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to open tab",
+    };
+  }
 }
 
 /**
