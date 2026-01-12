@@ -5,8 +5,10 @@ import { useTheme } from "../../../lib/theme";
 import { Badge } from "../../../components";
 import {
   aggregateServices,
+  sortServices,
   type UnifiedService,
   type ServiceTag,
+  type SortType,
 } from "../utils/serviceAggregator";
 import { DetectionSettings } from "./DetectionSettings";
 
@@ -71,11 +73,38 @@ function TagBadge({ tag, domain }: { tag: ServiceTag; domain: string }) {
   }
 }
 
+const SORT_OPTIONS: { value: SortType; label: string }[] = [
+  { value: "activity", label: "アクティビティ順" },
+  { value: "connections", label: "接続数順" },
+  { value: "name", label: "名前順" },
+];
+
+function formatRelativeTime(timestamp: number): string {
+  if (timestamp === 0) return "";
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}日前`;
+  if (hours > 0) return `${hours}時間前`;
+  if (minutes > 0) return `${minutes}分前`;
+  return "たった今";
+}
+
 export function ServicesTab({ services, violations, networkRequests }: ServicesTabProps) {
   const { colors } = useTheme();
   const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [sortType, setSortType] = useState<SortType>("activity");
+
+  const sortedServices = useMemo(
+    () => sortServices(unifiedServices, sortType),
+    [unifiedServices, sortType]
+  );
 
   useEffect(() => {
     loadData();
@@ -181,6 +210,12 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       whiteSpace: "nowrap" as const,
       fontFamily: "monospace",
     },
+    timestamp: {
+      fontSize: "10px",
+      color: colors.textMuted,
+      flexShrink: 0,
+      marginLeft: "8px",
+    },
     tagRow: {
       display: "flex",
       flexWrap: "wrap" as const,
@@ -220,13 +255,23 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       padding: "8px",
       borderTop: `1px solid ${colors.borderLight}`,
     },
+    sortSelect: {
+      background: colors.bgSecondary,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "4px",
+      padding: "2px 6px",
+      fontSize: "11px",
+      color: colors.textSecondary,
+      cursor: "pointer",
+      outline: "none",
+    },
   };
 
   if (loading) {
     return <p style={styles.emptyText}>読み込み中...</p>;
   }
 
-  if (unifiedServices.length === 0) {
+  if (sortedServices.length === 0) {
     return (
       <div style={styles.container}>
         <p style={styles.emptyText}>サービスはまだ検出されていません</p>
@@ -234,7 +279,7 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
     );
   }
 
-  const totalConnections = unifiedServices.reduce(
+  const totalConnections = sortedServices.reduce(
     (sum, s) => sum + s.connections.reduce((c, conn) => c + conn.requestCount, 0),
     0
   );
@@ -242,11 +287,22 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <span>サービス ({unifiedServices.length})</span>
+        <span>サービス ({sortedServices.length})</span>
+        <select
+          value={sortType}
+          onChange={(e) => setSortType((e.target as HTMLSelectElement).value as SortType)}
+          style={styles.sortSelect}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         <Badge size="sm">{totalConnections} 接続</Badge>
       </div>
 
-      {unifiedServices.slice(0, 15).map((service) => {
+      {sortedServices.slice(0, 15).map((service) => {
         const isExpanded = expandedIds.has(service.id);
         const isDomain = service.source.type === "domain";
         const displayName = isDomain
@@ -289,6 +345,11 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
                   {!isDomain && "Extension: "}
                   {displayName}
                 </span>
+                {service.lastActivity > 0 && (
+                  <span style={styles.timestamp}>
+                    {formatRelativeTime(service.lastActivity)}
+                  </span>
+                )}
                 {service.connections.length > 0 && (
                   <Badge size="sm">{service.connections.length}</Badge>
                 )}
@@ -346,14 +407,14 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
         );
       })}
 
-      {unifiedServices.length > 15 && (
+      {sortedServices.length > 15 && (
         <p style={{ ...styles.emptyText, padding: "8px" }}>
-          他 {unifiedServices.length - 15} 件のサービス
+          他 {sortedServices.length - 15} 件のサービス
         </p>
       )}
 
       <div style={styles.summary}>
-        合計: {unifiedServices.length} サービス / {totalConnections} 接続
+        合計: {sortedServices.length} サービス / {totalConnections} 接続
       </div>
 
       <DetectionSettings />

@@ -28,6 +28,33 @@ export interface UnifiedService {
   faviconUrl?: string;
 }
 
+export type SortType = "activity" | "connections" | "name";
+
+export function sortServices(
+  services: UnifiedService[],
+  sortType: SortType
+): UnifiedService[] {
+  return [...services].sort((a, b) => {
+    switch (sortType) {
+      case "activity":
+        return b.lastActivity - a.lastActivity;
+      case "connections": {
+        const aCount = a.connections.reduce((sum, c) => sum + c.requestCount, 0);
+        const bCount = b.connections.reduce((sum, c) => sum + c.requestCount, 0);
+        if (bCount !== aCount) return bCount - aCount;
+        return b.lastActivity - a.lastActivity;
+      }
+      case "name": {
+        const aName = a.source.type === "domain" ? a.source.domain : a.source.extensionName;
+        const bName = b.source.type === "domain" ? b.source.domain : b.source.extensionName;
+        return aName.localeCompare(bName);
+      }
+      default:
+        return 0;
+    }
+  });
+}
+
 interface ExtensionStats {
   byExtension: Record<string, { name: string; count: number; domains: string[] }>;
   byDomain: Record<string, { count: number; extensions: string[] }>;
@@ -100,9 +127,10 @@ function getConnectionsForDomain(
   const connectionMap = new Map<string, number>();
 
   // NetworkRequestsから接続先を集計
+  // initiatorはリクエスト種別（"fetch", "xhr"等）なのでpageUrlを使用
   for (const req of networkRequests) {
-    const initiatorDomain = extractDomain(req.initiator);
-    if (initiatorDomain === sourceDomain) {
+    const pageDomain = extractDomain(req.pageUrl);
+    if (pageDomain === sourceDomain) {
       const targetDomain = req.domain;
       if (targetDomain && targetDomain !== sourceDomain) {
         connectionMap.set(targetDomain, (connectionMap.get(targetDomain) || 0) + 1);
@@ -207,23 +235,20 @@ export async function aggregateServices(
         }))
         .sort((a, b) => b.requestCount - a.requestCount);
 
+      // 拡張機能のlastActivityは、接続があればその存在を示す適度な値、なければ0
+      const lastActivity = connections.length > 0 ? Date.now() - 60000 : 0;
+
       result.push({
         id: `extension:${id}`,
         source: { type: "extension", extensionId: id, extensionName: ext.name, icon },
         connections,
         tags: [],
-        lastActivity: Date.now(),
+        lastActivity,
       });
     }
   } catch (error) {
     console.error("Failed to load extension data:", error);
   }
 
-  // リクエスト数の多い順にソート
-  return result.sort((a, b) => {
-    const aCount = a.connections.reduce((sum, c) => sum + c.requestCount, 0);
-    const bCount = b.connections.reduce((sum, c) => sum + c.requestCount, 0);
-    if (bCount !== aCount) return bCount - aCount;
-    return b.lastActivity - a.lastActivity;
-  });
+  return result;
 }
