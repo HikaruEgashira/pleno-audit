@@ -29,6 +29,24 @@ export const DEFAULT_DATA_RETENTION_CONFIG: DataRetentionConfig = {
   lastCleanupTimestamp: 0,
 };
 
+export interface DetectionConfig {
+  enableNRD: boolean;
+  enableTyposquat: boolean;
+  enableAI: boolean;
+  enablePrivacy: boolean;
+  enableTos: boolean;
+  enableLogin: boolean;
+}
+
+export const DEFAULT_DETECTION_CONFIG: DetectionConfig = {
+  enableNRD: false,
+  enableTyposquat: true,
+  enableAI: true,
+  enablePrivacy: true,
+  enableTos: true,
+  enableLogin: true,
+};
+
 export interface ExtensionRequestRecord {
   id: string;
   extensionId: string;
@@ -52,6 +70,7 @@ export interface StorageData {
   extensionRequests?: ExtensionRequestRecord[];
   extensionMonitorConfig?: ExtensionMonitorConfig;
   dataRetentionConfig?: DataRetentionConfig;
+  detectionConfig?: DetectionConfig;
 }
 
 export type {
@@ -63,4 +82,5 @@ export type {
   AIMonitorConfig,
   NRDConfig,
   DataRetentionConfig,
+  DetectionConfig,
 };

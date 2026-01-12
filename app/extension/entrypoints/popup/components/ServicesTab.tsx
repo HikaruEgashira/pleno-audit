@@ -8,6 +8,7 @@ import {
   type UnifiedService,
   type ServiceTag,
 } from "../utils/serviceAggregator";
+import { DetectionSettings } from "./DetectionSettings";
 
 interface ServicesTabProps {
   services: DetectedService[];
@@ -354,6 +355,8 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       <div style={styles.summary}>
         合計: {unifiedServices.length} サービス / {totalConnections} 接続
       </div>
+
+      <DetectionSettings />
     </div>
   );
 }

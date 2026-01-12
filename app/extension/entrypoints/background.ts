@@ -51,6 +51,7 @@ import {
   createExtensionMonitor,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
+  DEFAULT_DETECTION_CONFIG,
   type ApiClient,
   type ConnectionMode,
   type SyncManager,
@@ -59,6 +60,7 @@ import {
   type ExtensionMonitorConfig,
   type ExtensionRequestRecord,
   type DataRetentionConfig,
+  type DetectionConfig,
 } from "@pleno-audit/extension-runtime";
 import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
@@ -589,6 +591,25 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
   } catch (error) {
     console.error("[Pleno Audit] Error during data cleanup:", error);
     return { deleted: 0 };
+  }
+}
+
+// ============================================================================
+// Detection Config
+// ============================================================================
+
+async function getDetectionConfig(): Promise<DetectionConfig> {
+  const storage = await getStorage();
+  return storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+}
+
+async function setDetectionConfig(newConfig: DetectionConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ detectionConfig: newConfig });
+    return { success: true };
+  } catch (error) {
+    console.error("[Pleno Audit] Error setting detection config:", error);
+    return { success: false };
   }
 }
 
@@ -1491,6 +1512,21 @@ export default defineBackground(() => {
       cleanupOldData()
         .then(sendResponse)
         .catch(() => sendResponse({ deleted: 0 }));
+      return true;
+    }
+
+    // Detection Config handlers
+    if (message.type === "GET_DETECTION_CONFIG") {
+      getDetectionConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_DETECTION_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_DETECTION_CONFIG") {
+      setDetectionConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 
