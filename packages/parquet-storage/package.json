@@ -15,7 +15,11 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@pleno-audit/csp": "workspace:*"
+    "@pleno-audit/csp": "workspace:*",
+    "parquet-wasm": "^0.6.0"
+  },
+  "optionalDependencies": {
+    "parquet-wasm": "^0.6.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

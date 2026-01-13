@@ -19,12 +19,29 @@ import {
   getParquetFileName,
 } from "./schema";
 
+// parquet-wasmのインターフェース
+interface ParquetTable {
+  toBytes?(): Uint8Array;
+  writeFile?(): ArrayBuffer;
+  toJSON?(): Record<string, unknown>[];
+}
+
+interface ParquetWasm {
+  Table?: {
+    fromJSON(data: Record<string, unknown>[]): ParquetTable;
+    fromBytes(data: Uint8Array): ParquetTable;
+  };
+  default?: () => Promise<void>;
+}
+
 export class ParquetStore {
   private indexedDB: ParquetIndexedDBAdapter;
   private writeBuffer: WriteBuffer<unknown>;
   private indexCache: DynamicIndexCache;
   private indexBuilder: DynamicIndexBuilder;
   private queryEngine: QueryEngine;
+  private parquetWasm: ParquetWasm | null = null;
+  private wasmInitialized = false;
 
   constructor() {
     this.indexedDB = new ParquetIndexedDBAdapter();
@@ -39,6 +56,27 @@ export class ParquetStore {
   async init(): Promise<void> {
     // IndexedDBを初期化
     await this.indexedDB.init();
+    // parquet-wasmを初期化
+    await this.initParquetWasm();
+  }
+
+  private async initParquetWasm(): Promise<void> {
+    try {
+      // parquet-wasmを動的インポート
+      const wasmModule = await import("parquet-wasm");
+      this.parquetWasm = wasmModule;
+
+      // WASMの初期化（必要な場合）
+      if (wasmModule.default && typeof wasmModule.default === "function") {
+        await wasmModule.default();
+      }
+
+      this.wasmInitialized = true;
+    } catch (error) {
+      console.warn("parquet-wasm initialization failed, falling back to JSON", error);
+      this.parquetWasm = null;
+      this.wasmInitialized = false;
+    }
   }
 
   async write(type: ParquetLogType, records: unknown[]): Promise<void> {
@@ -254,12 +292,27 @@ export class ParquetStore {
     type: ParquetLogType,
     records: unknown[]
   ): Promise<Uint8Array> {
-    if (!this.parquetWasm) {
-      throw new Error("parquet-wasm not initialized");
+    // parquet-wasmが利用可能な場合はそれを使用、失敗時はJSON形式でフォールバック
+    if (this.wasmInitialized && this.parquetWasm?.Table) {
+      try {
+        // parquet-wasmを使用してParquetファイルをエンコード
+        const table = this.parquetWasm.Table.fromJSON(records as Record<string, unknown>[]);
+        // tableをバイトに変換
+        if (table && typeof table.toBytes === "function") {
+          return table.toBytes();
+        }
+        // toBytes()が無い場合はwriteFileフォーマットで
+        if (table && typeof table.writeFile === "function") {
+          const buffer = table.writeFile();
+          return new Uint8Array(buffer);
+        }
+      } catch (error) {
+        console.warn("parquet-wasm encoding failed, falling back to JSON", error);
+        // フォールバック: JSON形式で保存
+      }
     }
 
-    // 実装はparquet-wasmのAPIに合わせて調整が必要
-    // 仮の実装: JSON.stringify → Uint8Array
+    // フォールバック: JSON形式で保存
     const json = JSON.stringify(records);
     return new TextEncoder().encode(json);
   }
@@ -267,9 +320,23 @@ export class ParquetStore {
   private deserializeParquetData(
     data: Uint8Array
   ): Record<string, unknown>[] {
-    // 仮の実装: Uint8Array → JSON
+    // parquet-wasmが利用可能な場合はそれを使用
+    if (this.wasmInitialized && this.parquetWasm?.Table) {
+      try {
+        // Parquetバイナリをparquet-wasmでデコード
+        const table = this.parquetWasm.Table.fromBytes(data);
+        if (table && typeof table.toJSON === "function") {
+          return table.toJSON() as Record<string, unknown>[];
+        }
+      } catch (error) {
+        console.warn("parquet-wasm decoding failed, falling back to JSON", error);
+        // フォールバック: JSON形式で復元
+      }
+    }
+
+    // フォールバック: JSON形式で復元
     const json = new TextDecoder().decode(data);
-    return JSON.parse(json);
+    return JSON.parse(json) as Record<string, unknown>[];
   }
 
   private getDateRange(

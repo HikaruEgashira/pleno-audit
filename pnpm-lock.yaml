@@ -199,6 +199,10 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+    optionalDependencies:
+      parquet-wasm:
+        specifier: ^0.6.0
+        version: 0.6.1
 
   packages/storage:
     dependencies:
@@ -2011,6 +2015,9 @@ packages:
 
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
+
+  parquet-wasm@0.6.1:
+    resolution: {integrity: sha512-wTM/9Y4EHny8i0qgcOlL9UHsTXftowwCqDsAD8axaZbHp0Opp3ue8oxexbzTVNhqBjFhyhLiU3MT0rnEYnYU0Q==}
 
   parse-json@7.1.1:
     resolution: {integrity: sha512-SgOTCX/EZXtZxBE5eJ97P4yGM5n37BwRU+YMsH4vNzFqJV/oWFXXCmwFlgWUM4PrakybVOueJJ6pwHqSVhTFDw==}
@@ -4184,6 +4191,9 @@ snapshots:
       semver: 7.7.3
 
   pako@1.0.11: {}
+
+  parquet-wasm@0.6.1:
+    optional: true
 
   parse-json@7.1.1:
     dependencies:
