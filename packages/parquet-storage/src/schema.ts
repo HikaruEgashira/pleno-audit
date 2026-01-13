@@ -1,4 +1,5 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { NRDResult, TyposquatResult } from "@pleno-audit/detectors";
 import type { ParquetEvent } from "./types";
 
 // Parquetスキーマ定義（parquet-wasmで使用可能な形式）
@@ -52,6 +53,36 @@ export const SCHEMAS = {
       { name: "url", type: "string" },
       { name: "prompt", type: "string" },
       { name: "service", type: { type: "option", inner: "string" } },
+    ],
+  },
+
+  "nrd-detections": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "checkedAt", type: "int64" },
+      { name: "isNRD", type: "bool" },
+      { name: "confidence", type: "string" },
+      { name: "domainAge", type: { type: "option", inner: "int32" } },
+      { name: "registrationDate", type: { type: "option", inner: "string" } },
+      { name: "method", type: "string" },
+      { name: "suspiciousScore", type: { type: "option", inner: "double" } },
+      { name: "isDDNS", type: "bool" },
+      { name: "ddnsProvider", type: { type: "option", inner: "string" } },
+    ],
+  },
+
+  "typosquat-detections": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "checkedAt", type: "int64" },
+      { name: "isTyposquat", type: "bool" },
+      { name: "confidence", type: "string" },
+      { name: "totalScore", type: "double" },
+      { name: "homoglyphCount", type: "int32" },
+      { name: "hasMixedScript", type: "bool" },
+      { name: "detectedScripts", type: "string" },
     ],
   },
 };
@@ -182,4 +213,38 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// NRDResultをParquetレコードに変換
+export function nrdResultToParquetRecord(
+  result: NRDResult
+): Record<string, unknown> {
+  return {
+    domain: result.domain,
+    checkedAt: result.checkedAt,
+    isNRD: result.isNRD,
+    confidence: result.confidence,
+    domainAge: result.domainAge || null,
+    registrationDate: result.registrationDate || null,
+    method: result.method,
+    suspiciousScore: result.suspiciousScores?.totalScore || null,
+    isDDNS: result.ddns?.isDDNS || false,
+    ddnsProvider: result.ddns?.provider || null,
+  };
+}
+
+// TyposquatResultをParquetレコードに変換
+export function typosquatResultToParquetRecord(
+  result: TyposquatResult
+): Record<string, unknown> {
+  return {
+    domain: result.domain,
+    checkedAt: result.checkedAt,
+    isTyposquat: result.isTyposquat,
+    confidence: result.confidence,
+    totalScore: result.heuristics?.totalScore || 0,
+    homoglyphCount: result.heuristics?.homoglyphs?.length || 0,
+    hasMixedScript: result.heuristics?.hasMixedScript || false,
+    detectedScripts: (result.heuristics?.detectedScripts || []).join(","),
+  };
 }

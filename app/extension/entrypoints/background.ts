@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -313,6 +313,14 @@ async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: tr
       });
     }
 
+    // Log detection result to ParquetStore
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = nrdResultToParquetRecord(result);
+    await parquetStore.write("nrd-detections", [record]);
+
     return result;
   } catch (error) {
     logger.error("NRD check failed:", error);
@@ -399,6 +407,14 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
         },
       });
     }
+
+    // Log detection result to ParquetStore
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = typosquatResultToParquetRecord(result);
+    await parquetStore.write("typosquat-detections", [record]);
 
     return result;
   } catch (error) {
