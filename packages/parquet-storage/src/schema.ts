@@ -1,5 +1,6 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { ParquetEvent } from "./types";
+import type { ExtensionRequestRecord } from "@pleno-audit/extension-runtime";
 
 // Parquetスキーマ定義（parquet-wasmで使用可能な形式）
 export const SCHEMAS = {
@@ -52,6 +53,21 @@ export const SCHEMAS = {
       { name: "url", type: "string" },
       { name: "prompt", type: "string" },
       { name: "service", type: { type: "option", inner: "string" } },
+    ],
+  },
+
+  "extension-requests": {
+    type: "struct",
+    fields: [
+      { name: "id", type: "string" },
+      { name: "extensionId", type: "string" },
+      { name: "extensionName", type: "string" },
+      { name: "timestamp", type: "int64" },
+      { name: "url", type: "string" },
+      { name: "method", type: "string" },
+      { name: "resourceType", type: "string" },
+      { name: "domain", type: "string" },
+      { name: "statusCode", type: { type: "option", inner: "int32" } },
     ],
   },
 };
@@ -182,4 +198,38 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// ExtensionRequestをParquetレコードに変換
+export function extensionRequestToParquetRecord(
+  req: ExtensionRequestRecord
+): Record<string, unknown> {
+  return {
+    id: req.id,
+    extensionId: req.extensionId,
+    extensionName: req.extensionName,
+    timestamp: req.timestamp,
+    url: req.url,
+    method: req.method,
+    resourceType: req.resourceType,
+    domain: req.domain,
+    statusCode: req.statusCode || null,
+  };
+}
+
+// ParquetレコードをExtensionRequestに変換
+export function parquetRecordToExtensionRequest(
+  record: Record<string, unknown>
+): ExtensionRequestRecord {
+  return {
+    id: record.id as string,
+    extensionId: record.extensionId as string,
+    extensionName: record.extensionName as string,
+    timestamp: record.timestamp as number,
+    url: record.url as string,
+    method: record.method as string,
+    resourceType: record.resourceType as string,
+    domain: record.domain as string,
+    statusCode: (record.statusCode as number | null) || undefined,
+  };
 }

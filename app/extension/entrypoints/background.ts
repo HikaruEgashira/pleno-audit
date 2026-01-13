@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, extensionRequestToParquetRecord, parquetRecordToExtensionRequest } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -482,25 +482,28 @@ async function flushExtensionRequestBuffer() {
   if (extensionRequestBuffer.length === 0) return;
 
   const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);
-  const storage = await getStorage();
-  const config = storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
+  const records = toFlush.map(req => extensionRequestToParquetRecord(req));
+  const store = await getOrInitParquetStore();
 
-  let requests = storage.extensionRequests || [];
-  requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
-
-  await setStorage({ extensionRequests: requests });
+  await store.write("extension-requests", records);
 }
 
 async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
-  const storage = await getStorage();
-  const requests = storage.extensionRequests || [];
-  const total = requests.length;
+  try {
+    const store = await getOrInitParquetStore();
+    const result = await store.getEvents({ type: "extension-requests" });
+    const requests = result.map((record: any) => parquetRecordToExtensionRequest(record));
+    const total = requests.length;
 
-  const offset = options?.offset || 0;
-  const limit = options?.limit || 500;
-  const sliced = requests.slice(offset, offset + limit);
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 500;
+    const sliced = requests.slice(offset, offset + limit);
 
-  return { requests: sliced, total };
+    return { requests: sliced, total };
+  } catch (error) {
+    logger.error("Error getting extension requests:", error);
+    return { requests: [], total: 0 };
+  }
 }
 
 function getKnownExtensions(): Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }> {
@@ -516,40 +519,46 @@ interface ExtensionStats {
 }
 
 async function getExtensionStats(): Promise<ExtensionStats> {
-  const storage = await getStorage();
-  const requests = storage.extensionRequests || [];
+  try {
+    const store = await getOrInitParquetStore();
+    const result = await store.getEvents({ type: "extension-requests" });
+    const requests = result.map((record: any) => parquetRecordToExtensionRequest(record));
 
-  const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
-  const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
+    const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
+    const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
 
-  for (const req of requests) {
-    // By extension
-    if (!byExtension[req.extensionId]) {
-      byExtension[req.extensionId] = { name: req.extensionName, count: 0, domains: new Set() };
+    for (const req of requests) {
+      // By extension
+      if (!byExtension[req.extensionId]) {
+        byExtension[req.extensionId] = { name: req.extensionName, count: 0, domains: new Set() };
+      }
+      byExtension[req.extensionId].count++;
+      byExtension[req.extensionId].domains.add(req.domain);
+
+      // By domain
+      if (!byDomain[req.domain]) {
+        byDomain[req.domain] = { count: 0, extensions: new Set() };
+      }
+      byDomain[req.domain].count++;
+      byDomain[req.domain].extensions.add(req.extensionId);
     }
-    byExtension[req.extensionId].count++;
-    byExtension[req.extensionId].domains.add(req.domain);
 
-    // By domain
-    if (!byDomain[req.domain]) {
-      byDomain[req.domain] = { count: 0, extensions: new Set() };
+    // Convert Sets to arrays for serialization
+    const byExtensionResult: ExtensionStats["byExtension"] = {};
+    for (const [id, data] of Object.entries(byExtension)) {
+      byExtensionResult[id] = { name: data.name, count: data.count, domains: Array.from(data.domains) };
     }
-    byDomain[req.domain].count++;
-    byDomain[req.domain].extensions.add(req.extensionId);
-  }
 
-  // Convert Sets to arrays for serialization
-  const byExtensionResult: ExtensionStats["byExtension"] = {};
-  for (const [id, data] of Object.entries(byExtension)) {
-    byExtensionResult[id] = { name: data.name, count: data.count, domains: Array.from(data.domains) };
-  }
+    const byDomainResult: ExtensionStats["byDomain"] = {};
+    for (const [domain, data] of Object.entries(byDomain)) {
+      byDomainResult[domain] = { count: data.count, extensions: Array.from(data.extensions) };
+    }
 
-  const byDomainResult: ExtensionStats["byDomain"] = {};
-  for (const [domain, data] of Object.entries(byDomain)) {
-    byDomainResult[domain] = { count: data.count, extensions: Array.from(data.extensions) };
+    return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
+  } catch (error) {
+    logger.error("Error getting extension stats:", error);
+    return { byExtension: {}, byDomain: {}, total: 0 };
   }
-
-  return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
 }
 
 // ============================================================================
@@ -603,12 +612,8 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
       await setStorage({ aiPrompts: filteredPrompts });
     }
 
-    // Delete old extension requests
-    const extensionRequests = storage.extensionRequests || [];
-    const filteredRequests = extensionRequests.filter(r => r.timestamp >= cutoffMs);
-    if (filteredRequests.length < extensionRequests.length) {
-      await setStorage({ extensionRequests: filteredRequests });
-    }
+    // Delete old extension requests from ParquetStore
+    await store.deleteBeforeDate(cutoffTimestamp);
 
     // Update last cleanup timestamp
     await setStorage({
