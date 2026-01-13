@@ -1,4 +1,5 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { DetectedService } from "@pleno-audit/detectors";
 import type { ParquetEvent } from "./types";
 
 // Parquetスキーマ定義（parquet-wasmで使用可能な形式）
@@ -52,6 +53,15 @@ export const SCHEMAS = {
       { name: "url", type: "string" },
       { name: "prompt", type: "string" },
       { name: "service", type: { type: "option", inner: "string" } },
+    ],
+  },
+
+  services: {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "data", type: "string" },
     ],
   },
 };
@@ -182,4 +192,25 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// DetectedServiceをParquetレコードに変換
+export function detectedServiceToParquetRecord(
+  domain: string,
+  service: DetectedService
+): Record<string, unknown> {
+  return {
+    domain,
+    detectedAt: service.detectedAt,
+    data: JSON.stringify(service),
+  };
+}
+
+// ParquetレコードをDetectedServiceに変換
+export function parquetRecordToDetectedService(
+  record: Record<string, unknown>
+): { domain: string; service: DetectedService } {
+  const domain = record.domain as string;
+  const data = JSON.parse(record.data as string) as DetectedService;
+  return { domain, service: data };
 }

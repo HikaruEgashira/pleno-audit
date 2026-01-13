@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, detectedServiceToParquetRecord, parquetRecordToDetectedService } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -666,6 +666,15 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
     };
 
     await saveStorage({ services: storage.services });
+
+    // Store in Parquet for logging/history
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = detectedServiceToParquetRecord(domain, storage.services[domain]);
+    await parquetStore.write("services", [record]);
+
     await updateBadge();
   });
 }
@@ -685,6 +694,15 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
     }
 
     await saveStorage({ services: storage.services });
+
+    // Store in Parquet for logging/history
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = detectedServiceToParquetRecord(domain, service);
+    await parquetStore.write("services", [record]);
+
     await updateBadge();
   });
 }
