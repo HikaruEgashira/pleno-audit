@@ -54,6 +54,24 @@ export const SCHEMAS = {
       { name: "service", type: { type: "option", inner: "string" } },
     ],
   },
+
+  "domain-risk-profiles": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "profiledAt", type: "int64" },
+      { name: "isNRD", type: "bool" },
+      { name: "isTyposquat", type: "bool" },
+      { name: "hasLoginPage", type: "bool" },
+      { name: "hasPrivacyPolicy", type: "bool" },
+      { name: "hasTermsOfService", type: "bool" },
+      { name: "hasAIActivity", type: "bool" },
+      { name: "cookieCount", type: "int32" },
+      { name: "faviconUrl", type: { type: "option", inner: "string" } },
+      { name: "aiProviders", type: { type: "option", inner: "string" } },
+      { name: "riskLevel", type: "string" },
+    ],
+  },
 };
 
 // CSPViolationをParquetレコードに変換
@@ -182,4 +200,43 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// Domain Risk Profileをレコードに変換
+export function domainRiskProfileToParquetRecord(
+  service: any // DetectedService
+): Record<string, unknown> {
+  // Risk levelの計算: 複数の危険要因がある場合はより高いレベルになる
+  let riskLevel = "low";
+  const riskFactors = [
+    service.nrdResult?.isNRD || false,
+    service.typosquatResult?.isTyposquat || false,
+  ];
+  const criticalFactors = riskFactors.filter(Boolean).length;
+
+  if (criticalFactors >= 2) {
+    riskLevel = "critical";
+  } else if (criticalFactors === 1) {
+    riskLevel = "high";
+  } else if (
+    service.aiDetected?.hasAIActivity ||
+    (service.cookies && service.cookies.length > 0)
+  ) {
+    riskLevel = "medium";
+  }
+
+  return {
+    domain: service.domain,
+    profiledAt: Date.now(),
+    isNRD: service.nrdResult?.isNRD || false,
+    isTyposquat: service.typosquatResult?.isTyposquat || false,
+    hasLoginPage: service.hasLoginPage || false,
+    hasPrivacyPolicy: !!service.privacyPolicyUrl,
+    hasTermsOfService: !!service.termsOfServiceUrl,
+    hasAIActivity: service.aiDetected?.hasAIActivity || false,
+    cookieCount: service.cookies?.length || 0,
+    faviconUrl: service.faviconUrl || null,
+    aiProviders: service.aiDetected?.providers?.join(",") || null,
+    riskLevel,
+  };
 }

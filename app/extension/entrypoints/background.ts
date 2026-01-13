@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, domainRiskProfileToParquetRecord } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -143,11 +143,23 @@ async function updateBadge() {
   try {
     const result = await chrome.storage.local.get(["services"]);
     const services = result.services || {};
+    const store = await getOrInitParquetStore();
+
     // Count only problematic detections (NRD or typosquat)
     const count = Object.values(services).filter(
       (service: DetectedService) =>
         service.nrdResult?.isNRD || service.typosquatResult?.isTyposquat
     ).length;
+
+    // Log domain risk profiles to Parquet for all services
+    const riskProfiles = Object.values(services)
+      .filter((service: any) => service && service.domain)
+      .map((service: any) => domainRiskProfileToParquetRecord(service));
+
+    if (riskProfiles.length > 0) {
+      await store.write("domain-risk-profiles", riskProfiles);
+    }
+
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     await chrome.action.setBadgeBackgroundColor({ color: count > 0 ? "#dc2626" : "#666" });
   } catch (error) {
