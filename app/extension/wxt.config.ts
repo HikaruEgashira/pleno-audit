@@ -32,7 +32,7 @@ export default defineConfig({
       },
       web_accessible_resources: [
         {
-          resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm"],
+          resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"],
           matches: ["<all_urls>"],
         },
       ],
@@ -46,6 +46,9 @@ export default defineConfig({
     },
     build: {
       target: "esnext",
+      rollupOptions: {
+        external: ["parquet-wasm"],
+      },
     },
     optimizeDeps: {
       include: [
@@ -54,6 +57,7 @@ export default defineConfig({
         "@pleno-audit/api",
         "@pleno-audit/extension-runtime",
       ],
+      exclude: ["parquet-wasm"],
     },
   }),
 });
