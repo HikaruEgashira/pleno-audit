@@ -54,6 +54,36 @@ export const SCHEMAS = {
       { name: "service", type: { type: "option", inner: "string" } },
     ],
   },
+
+  "login-detections": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "hasPasswordInput", type: "bool" },
+      { name: "isLoginUrl", type: "bool" },
+    ],
+  },
+
+  "privacy-policies": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "url", type: "string" },
+      { name: "method", type: "string" },
+    ],
+  },
+
+  "terms-of-service": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "url", type: "string" },
+      { name: "method", type: "string" },
+    ],
+  },
 };
 
 // CSPViolationをParquetレコードに変換
@@ -182,4 +212,48 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// LoginDetectedDetailsをParquetレコードに変換
+export function loginDetectionToParquetRecord(
+  domain: string,
+  login: any, // LoginDetectedDetails
+  detectedAt: number
+): Record<string, unknown> {
+  return {
+    domain,
+    detectedAt,
+    hasPasswordInput: login.hasPasswordInput || false,
+    isLoginUrl: login.isLoginUrl || false,
+  };
+}
+
+// PrivacyPolicyDetectionをParquetレコードに変換
+export function privacyPolicyToParquetRecord(
+  domain: string,
+  url: string,
+  method: string,
+  detectedAt: number
+): Record<string, unknown> {
+  return {
+    domain,
+    detectedAt,
+    url,
+    method,
+  };
+}
+
+// TermsOfServiceDetectionをParquetレコードに変換
+export function termsOfServiceToParquetRecord(
+  domain: string,
+  url: string,
+  method: string,
+  detectedAt: number
+): Record<string, unknown> {
+  return {
+    domain,
+    detectedAt,
+    url,
+    method,
+  };
 }

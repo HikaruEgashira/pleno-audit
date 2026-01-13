@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, loginDetectionToParquetRecord, privacyPolicyToParquetRecord, termsOfServiceToParquetRecord } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -703,6 +703,8 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
   const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
   const storage = await initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+  const store = await getOrInitParquetStore();
+  const detectedAt = Date.now();
 
   // faviconUrlを保存
   if (faviconUrl) {
@@ -717,6 +719,10 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       timestamp,
       details: login,
     });
+
+    // Log login detection to ParquetStore
+    const loginRecord = loginDetectionToParquetRecord(domain, login, detectedAt);
+    await store.write("login-detections", [loginRecord]);
   }
 
   if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
@@ -727,6 +733,15 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       timestamp,
       details: { url: privacy.url, method: privacy.method },
     });
+
+    // Log privacy policy detection to ParquetStore
+    const privacyRecord = privacyPolicyToParquetRecord(
+      domain,
+      privacy.url,
+      privacy.method,
+      detectedAt
+    );
+    await store.write("privacy-policies", [privacyRecord]);
   }
 
   if (detectionConfig.enableTos && tos.found && tos.url) {
@@ -737,6 +752,15 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       timestamp,
       details: { url: tos.url, method: tos.method },
     });
+
+    // Log terms of service detection to ParquetStore
+    const tosRecord = termsOfServiceToParquetRecord(
+      domain,
+      tos.url,
+      tos.method,
+      detectedAt
+    );
+    await store.write("terms-of-service", [tosRecord]);
   }
 }
 
