@@ -54,6 +54,21 @@ export const SCHEMAS = {
       { name: "service", type: { type: "option", inner: "string" } },
     ],
   },
+
+  "cookies": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "name", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "value", type: { type: "option", inner: "string" } },
+      { name: "isSession", type: "bool" },
+      { name: "expirationDate", type: { type: "option", inner: "int64" } },
+      { name: "secure", type: { type: "option", inner: "bool" } },
+      { name: "httpOnly", type: { type: "option", inner: "bool" } },
+      { name: "sameSite", type: { type: "option", inner: "string" } },
+    ],
+  },
 };
 
 // CSPViolationをParquetレコードに変換
@@ -182,4 +197,21 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// CookieをParquetレコードに変換
+export function cookieToParquetRecord(
+  cookie: any // CookieInfo型
+): Record<string, unknown> {
+  return {
+    domain: cookie.domain,
+    name: cookie.name,
+    detectedAt: cookie.detectedAt,
+    value: cookie.value || null,
+    isSession: cookie.isSession || false,
+    expirationDate: cookie.expirationDate || null,
+    secure: cookie.secure !== undefined ? cookie.secure : null,
+    httpOnly: cookie.httpOnly !== undefined ? cookie.httpOnly : null,
+    sameSite: cookie.sameSite || null,
+  };
 }

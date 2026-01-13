@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, cookieToParquetRecord } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -582,6 +582,7 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
     const cutoffTimestamp = cutoffDate.toISOString();
+    const cutoffMs = cutoffDate.getTime();
 
     if (!apiClient) {
       apiClient = await getApiClient();
@@ -686,6 +687,11 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
 
     await saveStorage({ services: storage.services });
     await updateBadge();
+
+    // Log cookie detection to ParquetStore
+    const store = await getOrInitParquetStore();
+    const record = cookieToParquetRecord(cookie);
+    await store.write("cookies", [record]);
   });
 }
 
