@@ -71,6 +71,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
+import { ParquetStore, aiPromptToParquetRecord, parquetRecordToAIPrompt } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -85,6 +86,7 @@ let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
 let eventStore: EventStore | null = null;
+let aiPromptStore: ParquetStore | null = null;
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -227,6 +229,14 @@ async function getOrInitEventStore(): Promise<EventStore> {
     await eventStore.init();
   }
   return eventStore;
+}
+
+async function getOrInitAIPromptStore(): Promise<ParquetStore> {
+  if (!aiPromptStore) {
+    aiPromptStore = new ParquetStore();
+    await aiPromptStore.init();
+  }
+  return aiPromptStore;
 }
 
 async function addEvent(event: NewEvent): Promise<EventLog> {
@@ -583,13 +593,9 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     const cutoffMs = cutoffDate.getTime();
     await store.deleteOldEvents(cutoffMs);
 
-    // Delete old AI prompts from storage
-    const storage = await getStorage();
-    const aiPrompts = storage.aiPrompts || [];
-    const filteredPrompts = aiPrompts.filter(p => p.timestamp >= cutoffMs);
-    if (filteredPrompts.length < aiPrompts.length) {
-      await setStorage({ aiPrompts: filteredPrompts });
-    }
+    // Delete old AI prompts from ParquetStore
+    const aiPromptStore = await getOrInitAIPromptStore();
+    await aiPromptStore.deleteBeforeDate(cutoffTimestamp);
 
     // Delete old extension requests
     const extensionRequests = storage.extensionRequests || [];
@@ -1050,29 +1056,32 @@ function getPromptPreview(prompt: CapturedAIPrompt["prompt"]): string {
 
 async function storeAIPrompt(prompt: CapturedAIPrompt) {
   return queueStorageOperation(async () => {
-    const storage = await getStorage();
-    const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-    const maxPrompts = config.maxStoredRecords || MAX_AI_PROMPTS;
-
-    const aiPrompts = storage.aiPrompts || [];
-    aiPrompts.unshift(prompt);
-
-    if (aiPrompts.length > maxPrompts) {
-      aiPrompts.splice(maxPrompts);
-    }
-
-    await setStorage({ aiPrompts });
+    const store = await getOrInitAIPromptStore();
+    const record = aiPromptToParquetRecord(prompt);
+    await store.write("ai-prompts", [record]);
   });
 }
 
 async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
-  const storage = await getStorage();
-  return storage.aiPrompts || [];
+  try {
+    const store = await getOrInitAIPromptStore();
+    const result = await store.getEvents({ type: "ai-prompts" });
+    return result.map((record: any) => parquetRecordToAIPrompt(record));
+  } catch (error) {
+    logger.error("Error getting AI prompts:", error);
+    return [];
+  }
 }
 
 async function getAIPromptsCount(): Promise<number> {
-  const storage = await getStorage();
-  return (storage.aiPrompts || []).length;
+  try {
+    const store = await getOrInitAIPromptStore();
+    const result = await store.getEvents({ type: "ai-prompts" });
+    return result.length;
+  } catch (error) {
+    logger.error("Error getting AI prompts count:", error);
+    return 0;
+  }
 }
 
 async function getAIMonitorConfig(): Promise<AIMonitorConfig> {
@@ -1090,8 +1099,15 @@ async function setAIMonitorConfig(
 }
 
 async function clearAIData(): Promise<{ success: boolean }> {
-  await clearAIPrompts();
-  return { success: true };
+  try {
+    await clearAIPrompts();
+    const store = await getOrInitAIPromptStore();
+    await store.deleteBeforeDate(new Date().toISOString()); // Delete all records
+    return { success: true };
+  } catch (error) {
+    logger.error("Error clearing AI data:", error);
+    return { success: false };
+  }
 }
 
 async function setConnectionConfig(
@@ -1176,6 +1192,11 @@ export default defineBackground(() => {
   getOrInitEventStore()
     .then(() => logger.info("EventStore initialized"))
     .catch((error) => logger.error("EventStore init failed:", error));
+
+  // AIPromptStoreを即座に初期化
+  getOrInitAIPromptStore()
+    .then(() => logger.info("AIPromptStore initialized"))
+    .catch((error) => logger.error("AIPromptStore init failed:", error));
 
   getApiClient()
     .then(async (client) => {

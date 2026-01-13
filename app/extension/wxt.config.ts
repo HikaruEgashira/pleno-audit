@@ -46,6 +46,9 @@ export default defineConfig({
     },
     build: {
       target: "esnext",
+      rollupOptions: {
+        external: ["parquet-wasm", "@pleno-audit/parquet-storage"],
+      },
     },
     optimizeDeps: {
       include: [
@@ -53,7 +56,9 @@ export default defineConfig({
         "@pleno-audit/detectors",
         "@pleno-audit/api",
         "@pleno-audit/extension-runtime",
+        "@pleno-audit/parquet-storage",
       ],
+      exclude: ["parquet-wasm"],
     },
   }),
 });
