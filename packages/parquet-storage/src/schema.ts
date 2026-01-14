@@ -54,6 +54,24 @@ export const SCHEMAS = {
       { name: "service", type: { type: "option", inner: "string" } },
     ],
   },
+
+  "service-inventory": {
+    type: "struct",
+    fields: [
+      { name: "snapshotId", type: "string" },
+      { name: "snapshotAt", type: "int64" },
+      { name: "totalServices", type: "int32" },
+      { name: "servicesWithLogin", type: "int32" },
+      { name: "servicesWithPrivacy", type: "int32" },
+      { name: "servicesWithTos", type: "int32" },
+      { name: "servicesWithNRD", type: "int32" },
+      { name: "servicesWithTyposquat", type: "int32" },
+      { name: "servicesWithAI", type: "int32" },
+      { name: "totalCookies", type: "int32" },
+      { name: "highRiskDomains", type: "string" },
+      { name: "criticalRiskDomains", type: "string" },
+    ],
+  },
 };
 
 // CSPViolationをParquetレコードに変換
@@ -182,4 +200,56 @@ export function parseParquetFileName(fileName: string): {
   const match = fileName.match(/^pleno-logs-(.+)-(\d{4}-\d{2}-\d{2})\.parquet$/);
   if (!match) return null;
   return { type: match[1], date: match[2] };
+}
+
+// Service Inventory Snapshotを生成
+export function createServiceInventorySnapshot(
+  services: Record<string, any> // DetectedService dictionary
+): Record<string, unknown> {
+  const serviceList = Object.values(services).filter(Boolean);
+
+  const highRiskDomains: string[] = [];
+  const criticalRiskDomains: string[] = [];
+  let totalCookies = 0;
+  let servicesWithLogin = 0;
+  let servicesWithPrivacy = 0;
+  let servicesWithTos = 0;
+  let servicesWithNRD = 0;
+  let servicesWithTyposquat = 0;
+  let servicesWithAI = 0;
+
+  for (const service of serviceList) {
+    const isNRD = service.nrdResult?.isNRD || false;
+    const isTyposquat = service.typosquatResult?.isTyposquat || false;
+
+    if (service.hasLoginPage) servicesWithLogin++;
+    if (service.privacyPolicyUrl) servicesWithPrivacy++;
+    if (service.termsOfServiceUrl) servicesWithTos++;
+    if (isNRD) servicesWithNRD++;
+    if (isTyposquat) servicesWithTyposquat++;
+    if (service.aiDetected?.hasAIActivity) servicesWithAI++;
+    totalCookies += service.cookies?.length || 0;
+
+    // Risk classification
+    if (isNRD && isTyposquat) {
+      criticalRiskDomains.push(service.domain);
+    } else if (isNRD || isTyposquat) {
+      highRiskDomains.push(service.domain);
+    }
+  }
+
+  return {
+    snapshotId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    snapshotAt: Date.now(),
+    totalServices: serviceList.length,
+    servicesWithLogin,
+    servicesWithPrivacy,
+    servicesWithTos,
+    servicesWithNRD,
+    servicesWithTyposquat,
+    servicesWithAI,
+    totalCookies,
+    highRiskDomains: highRiskDomains.join(","),
+    criticalRiskDomains: criticalRiskDomains.join(","),
+  };
 }

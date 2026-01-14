@@ -70,7 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore } from "@pleno-audit/parquet-storage";
+import { ParquetStore, createServiceInventorySnapshot } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -610,6 +610,11 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
       await setStorage({ extensionRequests: filteredRequests });
     }
 
+    // Create service inventory snapshot for compliance tracking
+    const fullStorage = await initStorage();
+    const inventorySnapshot = createServiceInventorySnapshot(fullStorage.services);
+    await store.write("service-inventory", [inventorySnapshot]);
+
     // Update last cleanup timestamp
     await setStorage({
       dataRetentionConfig: {
@@ -618,7 +623,7 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
       },
     });
 
-    logger.info(`Data cleanup completed. Deleted ${deleted} CSP reports.`);
+    logger.info(`Data cleanup completed. Deleted ${deleted} CSP reports. Inventory snapshot created.`);
     return { deleted };
   } catch (error) {
     logger.error("Error during data cleanup:", error);
