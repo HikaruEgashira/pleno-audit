@@ -19,7 +19,6 @@ export type PolicyCategory =
   | "network_security"
   | "ai_governance"
   | "compliance"
-  | "shadow_it"
   | "privacy";
 
 /**
@@ -95,8 +94,6 @@ export interface PolicyContext {
   aiProvider?: string;
   hasSensitiveData?: boolean;
   sensitiveDataTypes?: string[];
-  shadowITCategory?: string;
-  shadowITApproved?: boolean;
   cspViolationCount?: number;
   [key: string]: unknown;
 }
@@ -132,21 +129,6 @@ export const DEFAULT_POLICIES: PolicyRule[] = [
   },
   // AI Governance
   {
-    id: "ai-001",
-    name: "未承認AIサービスの使用",
-    description: "承認されていないAIサービスへのアクセスを検出",
-    category: "ai_governance",
-    severity: "high",
-    enabled: true,
-    conditions: [
-      { field: "isAIProvider", operator: "equals", value: true },
-      { field: "shadowITApproved", operator: "equals", value: false },
-    ],
-    conditionLogic: "and",
-    remediation: "IT部門に承認を申請するか、承認済みのAIサービスを使用してください。",
-    tags: ["ai", "shadow-it"],
-  },
-  {
     id: "ai-002",
     name: "機密データのAI送信",
     description: "認証情報やPIIをAIサービスに送信することを検出",
@@ -176,37 +158,6 @@ export const DEFAULT_POLICIES: PolicyRule[] = [
     conditionLogic: "and",
     remediation: "プライバシーポリシーを確認してから個人情報を入力してください。",
     tags: ["privacy", "login"],
-  },
-  // Shadow IT
-  {
-    id: "sit-001",
-    name: "未承認クラウドストレージ",
-    description: "承認されていないクラウドストレージサービスの使用を検出",
-    category: "shadow_it",
-    severity: "high",
-    enabled: true,
-    conditions: [
-      { field: "shadowITCategory", operator: "equals", value: "storage" },
-      { field: "shadowITApproved", operator: "equals", value: false },
-    ],
-    conditionLogic: "and",
-    remediation: "承認済みのクラウドストレージサービスを使用してください。",
-    tags: ["shadow-it", "storage"],
-  },
-  {
-    id: "sit-002",
-    name: "未承認コラボレーションツール",
-    description: "承認されていないコラボレーションツールの使用を検出",
-    category: "shadow_it",
-    severity: "medium",
-    enabled: true,
-    conditions: [
-      { field: "shadowITCategory", operator: "equals", value: "collaboration" },
-      { field: "shadowITApproved", operator: "equals", value: false },
-    ],
-    conditionLogic: "and",
-    remediation: "承認済みのコラボレーションツールを使用してください。",
-    tags: ["shadow-it", "collaboration"],
   },
   // Network Security
   {

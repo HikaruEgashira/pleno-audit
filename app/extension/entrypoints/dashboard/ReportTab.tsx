@@ -2,13 +2,10 @@ import { useState, useCallback, useMemo } from "preact/hooks";
 import {
   exportData,
   downloadExport,
-  exportReportToMarkdown,
-  exportReportToHTML,
   type SecurityReport,
   type ServiceExport,
   type ViolationExport,
   type AlertExport,
-  type ShadowITExport,
   type PermissionExport,
 } from "@pleno-audit/data-export";
 import {
@@ -71,7 +68,6 @@ export function ReportTab() {
       "events",
       "runtimeThreats",
       "policyViolations",
-      "shadowITServices",
     ]);
 
     const services = storageResult.services
@@ -146,24 +142,6 @@ export function ReportTab() {
       }
     }
 
-    // Build shadow IT exports
-    const shadowIT: ShadowITExport[] = [];
-    if (storageResult.shadowITServices) {
-      for (const s of storageResult.shadowITServices as any[]) {
-        if (s.firstSeen >= startTime) {
-          shadowIT.push({
-            domain: s.domain,
-            serviceName: s.serviceName,
-            category: s.category,
-            status: s.status,
-            riskLevel: s.riskLevel,
-            firstSeen: s.firstSeen,
-            visitCount: s.visitCount || 1,
-          });
-        }
-      }
-    }
-
     // Build permission exports (from installed extensions)
     const permissions: PermissionExport[] = [];
     try {
@@ -201,9 +179,6 @@ export function ReportTab() {
     if (typosquatCount > 0) topRisks.push(`${typosquatCount}件のタイポスクワット検出`);
     if (violations.length > 0) topRisks.push(`${violations.length}件のポリシー違反`);
     if (alerts.length > 0) topRisks.push(`${alerts.length}件のセキュリティアラート`);
-    if (shadowIT.filter((s) => s.status === "unknown").length > 0) {
-      topRisks.push(`${shadowIT.filter((s) => s.status === "unknown").length}件の未承認サービス`);
-    }
 
     return {
       metadata: {
@@ -227,7 +202,6 @@ export function ReportTab() {
       violations,
       alerts,
       permissions,
-      shadowIT,
       compliance: {
         framework: "SOC2",
         overallScore: securityScore,
@@ -325,7 +299,6 @@ export function ReportTab() {
             { icon: Shield, label: "セキュリティスコア" },
             { icon: Eye, label: "検出サービス" },
             { icon: AlertTriangle, label: "脅威・違反" },
-            { icon: FileText, label: "Shadow IT" },
             { icon: CheckCircle, label: "権限分析" },
           ].map(({ icon: Icon, label }) => (
             <div

@@ -18,7 +18,6 @@ export type ExportDataType =
   | "violations"
   | "alerts"
   | "compliance"
-  | "shadow_it"
   | "permissions"
   | "graph"
   | "full_report";
@@ -70,7 +69,6 @@ export interface SecurityReport {
   violations: ViolationExport[];
   alerts: AlertExport[];
   permissions: PermissionExport[];
-  shadowIT: ShadowITExport[];
   compliance: ComplianceExport;
 }
 
@@ -155,19 +153,6 @@ export interface PermissionExport {
   permissions: string[];
   findingsCount: number;
   analyzedAt: number;
-}
-
-/**
- * Shadow IT export structure
- */
-export interface ShadowITExport {
-  domain: string;
-  serviceName?: string;
-  category: string;
-  status: string;
-  riskLevel: string;
-  firstSeen: number;
-  visitCount: number;
 }
 
 /**

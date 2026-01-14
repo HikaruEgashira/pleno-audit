@@ -14,12 +14,12 @@ import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../l
 import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
 import { ExtensionsTab } from "./ExtensionsTab";
 import { SecurityGraphTab } from "./SecurityGraphTab";
-import { ShadowITTab } from "./ShadowITTab";
 import { PolicyTab } from "./PolicyTab";
 import { PermissionTab } from "./PermissionTab";
 import { ThreatTab } from "./ThreatTab";
 import { ReportTab } from "./ReportTab";
 import { RiskPriorityTab } from "./RiskPriorityTab";
+import { IntegrationsTab } from "./IntegrationsTab";
 
 interface TotalCounts {
   violations: number;
@@ -29,7 +29,7 @@ interface TotalCounts {
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "shadow-it" | "policy" | "permissions" | "threats" | "reports" | "risks";
+type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "policy" | "permissions" | "threats" | "reports" | "risks" | "integrations";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -223,7 +223,7 @@ function DashboardContent() {
 
   const getInitialTab = (): TabType => {
     const hash = window.location.hash.slice(1);
-    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy", "permissions", "threats", "reports", "risks"];
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "permissions", "threats", "reports", "risks", "integrations"];
     return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
   };
 
@@ -243,7 +243,7 @@ function DashboardContent() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) as TabType;
-      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy", "permissions", "threats", "reports", "risks"];
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "permissions", "threats", "reports", "risks", "integrations"];
       if (validTabs.includes(hash)) setActiveTab(hash);
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -321,7 +321,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "shadow-it", "policy", "permissions", "threats"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "policy", "permissions", "threats"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -413,12 +413,12 @@ function DashboardContent() {
     { id: "events", label: "イベント", count: totalCounts.events },
     { id: "extensions", label: "拡張機能" },
     { id: "graph", label: "セキュリティグラフ" },
-    { id: "shadow-it", label: "Shadow IT" },
     { id: "policy", label: "ポリシー" },
     { id: "permissions", label: "権限分析" },
     { id: "threats", label: "脅威検出" },
     { id: "reports", label: "レポート" },
     { id: "risks", label: "リスク優先度" },
+    { id: "integrations", label: "連携" },
   ];
 
   const filteredViolations = useMemo(() => {
@@ -942,12 +942,6 @@ function DashboardContent() {
         </div>
       )}
 
-      {activeTab === "shadow-it" && (
-        <div style={styles.section}>
-          <ShadowITTab />
-        </div>
-      )}
-
       {activeTab === "policy" && (
         <div style={styles.section}>
           <PolicyTab />
@@ -975,6 +969,12 @@ function DashboardContent() {
       {activeTab === "risks" && (
         <div style={styles.section}>
           <RiskPriorityTab />
+        </div>
+      )}
+
+      {activeTab === "integrations" && (
+        <div style={styles.section}>
+          <IntegrationsTab />
         </div>
       )}
     </div>

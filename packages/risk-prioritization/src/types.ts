@@ -20,7 +20,6 @@ export type RiskCategory =
   | "suspicious_domain" // NRD/Typosquat risk
   | "policy_violation" // Security policy breach
   | "excessive_permission" // Over-privileged access
-  | "unmonitored_service" // Shadow IT risk
   | "ai_data_leak" // AI service data exposure
   | "extension_risk"; // Browser extension risk
 
@@ -127,7 +126,6 @@ export const RISK_WEIGHTS: Record<RiskCategory, number> = {
   policy_violation: 20,
   excessive_permission: 15,
   extension_risk: 15,
-  unmonitored_service: 10,
 };
 
 /**

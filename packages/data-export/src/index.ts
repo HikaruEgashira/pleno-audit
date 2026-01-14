@@ -19,7 +19,6 @@ export type {
   ViolationExport,
   AlertExport,
   PermissionExport,
-  ShadowITExport,
   ComplianceExport,
   ComplianceControlExport,
 } from "./types.js";
@@ -34,7 +33,6 @@ export {
   exportViolationsToCSV,
   exportAlertsToCSV,
   exportPermissionsToCSV,
-  exportShadowITToCSV,
   exportReportToMarkdown,
   exportReportToHTML,
 } from "./exporter.js";
