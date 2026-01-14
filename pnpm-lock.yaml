@@ -178,6 +178,9 @@ importers:
       '@pleno-audit/nrd':
         specifier: workspace:*
         version: link:../nrd
+      '@pleno-audit/threat-intel':
+        specifier: workspace:*
+        version: link:../threat-intel
       '@pleno-audit/typosquat':
         specifier: workspace:*
         version: link:../typosquat
@@ -214,6 +217,8 @@ importers:
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
+
+  packages/threat-intel: {}
 
   packages/typosquat: {}
 

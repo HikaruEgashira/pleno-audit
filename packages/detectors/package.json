@@ -13,6 +13,7 @@
     "@pleno-audit/ai-detector": "workspace:*",
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/nrd": "workspace:*",
+    "@pleno-audit/threat-intel": "workspace:*",
     "@pleno-audit/typosquat": "workspace:*"
   }
 }
