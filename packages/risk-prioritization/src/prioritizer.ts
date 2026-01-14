@@ -30,8 +30,6 @@ export interface RiskInput {
   sensitiveDataTypes?: string[];
   extensionRequests?: number;
   policyViolations?: number;
-  threatIntelMatch?: boolean;
-  threatCategory?: string;
 }
 
 export interface RiskPrioritizer {
@@ -155,22 +153,6 @@ export function createRiskPrioritizer(): RiskPrioritizer {
       });
     }
 
-    // Threat Intel Match
-    if (input.threatIntelMatch) {
-      factors.push({
-        id: "threat_intel",
-        name: "脅威インテリジェンス一致",
-        category: "malicious_site",
-        weight: 40,
-        present: true,
-        description: "既知の悪意あるサイトとして報告されている",
-        evidence: [
-          `カテゴリ: ${input.threatCategory || "不明"}`,
-          "脅威データベースに一致",
-        ],
-      });
-    }
-
     // Policy Violations
     if ((input.policyViolations || 0) > 0) {
       factors.push({
@@ -225,7 +207,7 @@ export function createRiskPrioritizer(): RiskPrioritizer {
     if ((input.sessionCookies || 0) > 0) dataAtRisk.push("セッションデータ");
 
     const exploitability =
-      input.threatIntelMatch || input.isTyposquat
+      input.isTyposquat
         ? "easy"
         : input.isNRD
           ? "moderate"
@@ -257,7 +239,7 @@ export function createRiskPrioritizer(): RiskPrioritizer {
   ): RemediationAction[] {
     const actions: RemediationAction[] = [];
 
-    if (input.threatIntelMatch || input.isTyposquat) {
+    if (input.isTyposquat) {
       actions.push({
         id: "block_1",
         type: "block_access",
@@ -332,8 +314,6 @@ export function createRiskPrioritizer(): RiskPrioritizer {
       title = `タイポスクワット: ${input.domain}`;
     } else if (input.isNRD) {
       title = `NRDサイト: ${input.domain}`;
-    } else if (input.threatIntelMatch) {
-      title = `悪意あるサイト: ${input.domain}`;
     }
 
     // Generate description
@@ -342,7 +322,6 @@ export function createRiskPrioritizer(): RiskPrioritizer {
     if (input.isNRD) descriptions.push("新規登録ドメイン");
     if (input.hasLogin && !input.hasPrivacyPolicy)
       descriptions.push("プライバシーポリシーなしのログインページ");
-    if (input.threatIntelMatch) descriptions.push("脅威データベースに一致");
 
     return {
       id: generateId(),

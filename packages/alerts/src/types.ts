@@ -16,13 +16,12 @@ export type AlertSeverity = "critical" | "high" | "medium" | "low" | "info";
 export type AlertCategory =
   | "nrd" // Newly registered domain
   | "typosquat" // Typosquatting attempt
-  | "threat" // Threat intelligence match
   | "data_leak" // Sensitive data exposure
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
   | "extension" // Suspicious extension activity
   | "login" // Login on suspicious site
-  | "policy" // Missing privacy/ToS policy;
+  | "policy"; // Missing privacy/ToS policy
 
 /**
  * Alert status
@@ -57,7 +56,6 @@ export interface SecurityAlert {
 export type AlertDetails =
   | NRDAlertDetails
   | TyposquatAlertDetails
-  | ThreatAlertDetails
   | DataLeakAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
@@ -77,13 +75,6 @@ export interface TyposquatAlertDetails {
   targetDomain?: string;
   homoglyphCount: number;
   confidence: "high" | "medium" | "low" | "none";
-}
-
-export interface ThreatAlertDetails {
-  type: "threat";
-  threatType: string;
-  source: string;
-  confidence: number;
 }
 
 export interface DataLeakAlertDetails {
@@ -210,18 +201,6 @@ export const DEFAULT_ALERT_RULES: AlertRule[] = [
     actions: [
       { id: "block", label: "ブロック", type: "block" },
       { id: "report", label: "報告", type: "report" },
-    ],
-  },
-  {
-    id: "threat-detected",
-    name: "Threat intelligence match",
-    enabled: true,
-    category: "threat",
-    condition: { type: "always" },
-    severity: "critical",
-    actions: [
-      { id: "block", label: "ブロック", type: "block" },
-      { id: "investigate", label: "調査", type: "investigate" },
     ],
   },
   {

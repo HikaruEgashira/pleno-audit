@@ -169,29 +169,6 @@ export function createRuntimeProtector(
       });
     }
 
-    // Threat Intel Detection
-    if (source === "threat_intel" && data.isMalicious) {
-      threat = createThreat({
-        type: data.category as ThreatType || "malware",
-        severity: (data.severity as ThreatSeverity) || "high",
-        source,
-        domain,
-        url,
-        timestamp,
-        title: "既知の脅威サイトへのアクセス",
-        description: `${domain} は脅威インテリジェンスにより悪意のあるサイトとして報告されています。`,
-        indicators: [
-          {
-            type: "domain",
-            value: domain,
-            confidence: 0.95,
-            source: data.source as string || "threat_intel",
-          },
-        ],
-        riskFactors: ["known_malicious", "threat_intel_match"],
-      });
-    }
-
     // AI Data Exfiltration Detection
     if (source === "ai_monitor" && data.hasSensitiveData) {
       threat = createThreat({

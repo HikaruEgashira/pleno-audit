@@ -43,7 +43,6 @@ export type ThreatType =
 export type DetectionSource =
   | "nrd_detector" // NRD detection
   | "typosquat_detector" // Typosquat detection
-  | "threat_intel" // Threat intelligence feed
   | "csp_monitor" // CSP violation monitor
   | "behavior_analysis" // Behavioral analysis
   | "ai_monitor" // AI prompt monitoring

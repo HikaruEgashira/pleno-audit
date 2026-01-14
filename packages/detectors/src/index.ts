@@ -156,34 +156,6 @@ export {
   createTyposquatDetector,
 } from "@pleno-audit/typosquat";
 
-// Threat Intelligence (re-export from @pleno-audit/threat-intel)
-export type {
-  ThreatSeverity,
-  ThreatCategory,
-  ThreatSource,
-  IndicatorType,
-  ThreatIndicator,
-  ThreatSourceInfo,
-  ThreatCheckResult,
-  ThreatCacheEntry,
-  ThreatIntelConfig,
-  ThreatDetector,
-  ThreatIntelCache,
-} from "@pleno-audit/threat-intel";
-
-export {
-  DEFAULT_THREAT_INTEL_CONFIG,
-  checkURLhaus,
-  checkURLhausHost,
-  checkMaliciousPatterns,
-  updateBlocklists,
-  checkBlocklist,
-  getBlocklistStats,
-  clearBlocklistCache,
-  createThreatDetector,
-  createInMemoryCache,
-} from "@pleno-audit/threat-intel";
-
 // Alert System (re-export from @pleno-audit/alerts)
 export type {
   AlertSeverity,
@@ -193,7 +165,6 @@ export type {
   AlertDetails,
   NRDAlertDetails,
   TyposquatAlertDetails,
-  ThreatAlertDetails,
   DataLeakAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,
