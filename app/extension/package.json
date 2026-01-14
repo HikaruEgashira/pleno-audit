@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@pleno-audit/api": "workspace:*",
+    "@pleno-audit/compliance": "workspace:*",
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/detectors": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",

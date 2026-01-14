@@ -42,6 +42,9 @@ importers:
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@pleno-audit/compliance':
+        specifier: workspace:*
+        version: link:../../packages/compliance
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
