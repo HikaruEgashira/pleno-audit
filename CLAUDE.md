@@ -29,6 +29,7 @@ logger.error("エラー", error);
 ```
 
 開発モードでは`pleno-debug logs`でリアルタイム監視可能。
+dashboard.html, popup.htmlはbrowser操作不可。
 
 ## 動作確認
 

@@ -165,7 +165,6 @@ export type {
   AlertDetails,
   NRDAlertDetails,
   TyposquatAlertDetails,
-  ThreatAlertDetails,
   DataLeakAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,

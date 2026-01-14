@@ -117,7 +117,6 @@ export interface IntegrationTrigger {
  * Trigger events
  */
 export type TriggerEvent =
-  | "threat_detected" // New threat detected
   | "policy_violation" // Policy violation
   | "nrd_access" // NRD site accessed
   | "typosquat_detected" // Typosquat detected
@@ -248,11 +247,11 @@ export const WORKFLOW_TEMPLATES: Array<{
   actions: Omit<WorkflowAction, "id">[];
 }> = [
   {
-    name: "Critical Threat Alert",
-    description: "重大な脅威検出時にSlackとメールで通知",
+    name: "Critical Typosquat Alert",
+    description: "タイポスクワット検出時にSlackとメールで通知",
     trigger: {
       type: "event",
-      event: "threat_detected",
+      event: "typosquat_detected",
       conditions: [{ field: "severity", operator: "equals", value: "critical" }],
     },
     actions: [

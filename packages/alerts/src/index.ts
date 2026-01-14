@@ -1,8 +1,8 @@
 /**
  * @fileoverview Alert System Package
  *
- * Real-time security alerting system for immediate threat response.
- * Wiz-style alerts for NRD, typosquat, threats, and data leaks.
+ * Real-time security alerting system for immediate response.
+ * Wiz-style alerts for NRD, typosquat, and data leaks.
  */
 
 // Types
@@ -14,7 +14,6 @@ export type {
   AlertDetails,
   NRDAlertDetails,
   TyposquatAlertDetails,
-  ThreatAlertDetails,
   DataLeakAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,

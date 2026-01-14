@@ -20,7 +20,7 @@ import {
   ChevronRight,
 } from "lucide-preact";
 import { useTheme, spacing } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, Select, StatCard, LoadingState, EmptyState, StatsGrid } from "../../components";
+import { Badge, Card, SearchInput, Select, StatCard, LoadingState, EmptyState, StatsGrid } from "../../components";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";

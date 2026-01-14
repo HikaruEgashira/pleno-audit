@@ -126,18 +126,6 @@ export function createAlertManager(
         { id: "report", label: "報告", type: "report" },
       ],
     },
-    {
-      id: "threat-detected",
-      name: "Threat intelligence match",
-      enabled: true,
-      category: "threat",
-      condition: { type: "always" },
-      severity: "critical",
-      actions: [
-        { id: "block", label: "ブロック", type: "block" },
-        { id: "investigate", label: "調査", type: "investigate" },
-      ],
-    },
   ];
 
   for (const rule of [...defaultRules, ...config.rules]) {
@@ -268,33 +256,6 @@ export function createAlertManager(
   }
 
   /**
-   * Create threat alert
-   */
-  async function alertThreat(params: {
-    domain: string;
-    threatType: string;
-    source: string;
-    confidence: number;
-  }): Promise<SecurityAlert | null> {
-    const severity: AlertSeverity =
-      params.confidence >= 80 ? "critical" : params.confidence >= 50 ? "high" : "medium";
-
-    return createAlert({
-      category: "threat",
-      severity,
-      title: `脅威検出: ${params.domain}`,
-      description: `${params.threatType} (${params.source})`,
-      domain: params.domain,
-      details: {
-        type: "threat",
-        threatType: params.threatType,
-        source: params.source,
-        confidence: params.confidence,
-      },
-    });
-  }
-
-  /**
    * Create AI sensitive data alert
    */
   async function alertAISensitive(params: {
@@ -382,7 +343,6 @@ export function createAlertManager(
     createAlert,
     alertNRD,
     alertTyposquat,
-    alertThreat,
     alertAISensitive,
     updateAlertStatus,
     getAlerts,
