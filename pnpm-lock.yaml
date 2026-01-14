@@ -82,8 +82,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/storage
       hono:
-        specifier: ^4.7.0
-        version: 4.11.3
+        specifier: ^4.11.4
+        version: 4.11.4
       lucide-preact:
         specifier: ^0.562.0
         version: 0.562.0(preact@10.28.2)
@@ -108,7 +108,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: ^1.14.0
-        version: 1.19.8(hono@4.11.3)
+        version: 1.19.8(hono@4.11.4)
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
@@ -116,8 +116,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/csp
       hono:
-        specifier: ^4.7.0
-        version: 4.11.3
+        specifier: ^4.11.4
+        version: 4.11.4
       sql.js:
         specifier: ^1.13.0
         version: 1.13.0
@@ -185,8 +185,8 @@ importers:
         specifier: workspace:*
         version: link:../parquet-storage
       hono:
-        specifier: ^4.7.0
-        version: 4.11.3
+        specifier: ^4.11.4
+        version: 4.11.4
       sql.js:
         specifier: ^1.13.0
         version: 1.13.0
@@ -1615,8 +1615,8 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
-  hono@4.11.3:
-    resolution: {integrity: sha512-PmQi306+M/ct/m5s66Hrg+adPnkD5jiO6IjA7WhWw0gSBSo1EcRegwuI1deZ+wd5pzCGynCcn2DprnE4/yEV4w==}
+  hono@4.11.4:
+    resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -2988,9 +2988,9 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
-  '@hono/node-server@1.19.8(hono@4.11.3)':
+  '@hono/node-server@1.19.8(hono@4.11.4)':
     dependencies:
-      hono: 4.11.3
+      hono: 4.11.4
 
   '@isaacs/balanced-match@4.0.1': {}
 
@@ -3835,7 +3835,7 @@ snapshots:
 
   he@1.2.0: {}
 
-  hono@4.11.3: {}
+  hono@4.11.4: {}
 
   hookable@5.5.3: {}
 
