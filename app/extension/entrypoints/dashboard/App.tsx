@@ -10,8 +10,8 @@ import type {
   EventLog,
 } from "@pleno-audit/detectors";
 import { Shield } from "lucide-preact";
-import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
-import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar } from "../../components";
+import { ThemeContext, useThemeState, useTheme, type ThemeColors, spacing } from "../../lib/theme";
+import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar, LoadingState, StatsGrid } from "../../components";
 import { UnifiedExtensionsTab } from "./UnifiedExtensionsTab";
 import { SecurityGraphTab } from "./SecurityGraphTab";
 import { PolicyTab } from "./PolicyTab";
@@ -403,7 +403,7 @@ function DashboardContent() {
   if (loading) {
     return (
       <div style={styles.container}>
-        <p style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>読み込み中...</p>
+        <LoadingState />
       </div>
     );
   }
@@ -499,13 +499,15 @@ function DashboardContent() {
             </div>
           </div>
 
-          <div style={styles.statsGrid}>
-            <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
-            <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
-            <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
-            <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
-            <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
-            <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
+          <div style={{ marginBottom: spacing.xl }}>
+            <StatsGrid minWidth="lg">
+              <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
+              <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
+              <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
+              <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
+              <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
+              <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
+            </StatsGrid>
           </div>
         </header>
 

@@ -186,3 +186,61 @@ export function createThemedStyles<T extends Record<string, CSSProperties>>(
 ) {
   return factory;
 }
+
+// ============================================
+// Design Tokens (ADR-005)
+// ============================================
+
+/** スペーシングスケール */
+export const spacing = {
+  xs: "4px",
+  sm: "8px",
+  md: "12px",
+  lg: "16px",
+  xl: "24px",
+  xxl: "32px",
+} as const;
+
+/** フォントサイズスケール */
+export const fontSize = {
+  xs: "10px",
+  sm: "11px",
+  md: "12px",
+  base: "13px",
+  lg: "14px",
+  xl: "16px",
+  xxl: "20px",
+  display: "32px",
+} as const;
+
+/** グリッド設定 */
+export const grid = {
+  statsMinWidth: "140px",
+  cardMinWidth: "280px",
+} as const;
+
+/** ボーダー半径 */
+export const borderRadius = {
+  sm: "4px",
+  md: "6px",
+  lg: "8px",
+} as const;
+
+/** Severity色を取得（critical/high/medium/low対応） */
+export function getSeverityColor(
+  severity: string,
+  colors: ThemeColors
+): string {
+  switch (severity) {
+    case "critical":
+      return colors.dot.danger;
+    case "high":
+      return colors.dot.warning;
+    case "medium":
+      return colors.dot.info;
+    case "low":
+      return colors.dot.success;
+    default:
+      return colors.dot.default;
+  }
+}

@@ -12,11 +12,6 @@ import {
 } from "@pleno-audit/integrations";
 import {
   Plug,
-  Plus,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Clock,
   Play,
   Pause,
   Trash2,
@@ -26,16 +21,16 @@ import {
   Globe,
   GitBranch,
 } from "lucide-preact";
-import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, StatCard } from "../../components";
+import { useTheme, spacing, type ThemeColors } from "../../lib/theme";
+import { Badge, Button, Card, StatCard, EmptyState, StatsGrid } from "../../components";
 
-function getStatusColor(status: string): string {
+function getStatusColor(status: string, colors: ThemeColors): string {
   switch (status) {
-    case "active": return "#22c55e";
-    case "inactive": return "#6b7280";
-    case "error": return "#dc2626";
-    case "pending": return "#eab308";
-    default: return "#6b7280";
+    case "active": return colors.dot.success;
+    case "inactive": return colors.dot.default;
+    case "error": return colors.dot.danger;
+    case "pending": return colors.dot.warning;
+    default: return colors.dot.default;
   }
 }
 
@@ -58,6 +53,7 @@ interface IntegrationCardProps {
 
 function IntegrationCard({ integration, onToggle, onTest, onDelete }: IntegrationCardProps) {
   const { colors } = useTheme();
+  const statusColor = getStatusColor(integration.status, colors);
 
   return (
     <div
@@ -92,7 +88,7 @@ function IntegrationCard({ integration, onToggle, onTest, onDelete }: Integratio
                 width: "8px",
                 height: "8px",
                 borderRadius: "50%",
-                background: getStatusColor(integration.status),
+                background: statusColor,
               }}
             />
             <span style={{ fontSize: "11px", color: colors.textMuted }}>
@@ -103,7 +99,7 @@ function IntegrationCard({ integration, onToggle, onTest, onDelete }: Integratio
             {integration.type} • {integration.triggers.filter(t => t.enabled).length} triggers
           </div>
           {integration.errorMessage && (
-            <div style={{ fontSize: "11px", color: "#dc2626", marginBottom: "8px" }}>
+            <div style={{ fontSize: "11px", color: colors.dot.danger, marginBottom: "8px" }}>
               Error: {integration.errorMessage}
             </div>
           )}
@@ -170,11 +166,11 @@ function WorkflowCard({ workflow, onToggle, onRun, onDelete }: WorkflowCardProps
             width: "40px",
             height: "40px",
             borderRadius: "8px",
-            background: workflow.enabled ? "#3b82f620" : colors.bgSecondary,
+            background: workflow.enabled ? `${colors.dot.info}20` : colors.bgSecondary,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: workflow.enabled ? "#3b82f6" : colors.textMuted,
+            color: workflow.enabled ? colors.dot.info : colors.textMuted,
           }}
         >
           <Zap size={20} />
@@ -341,18 +337,13 @@ export function IntegrationsTab() {
   return (
     <div>
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "12px",
-          marginBottom: "24px",
-        }}
-      >
-        <StatCard value={integrations.length} label="連携" />
-        <StatCard value={activeIntegrations} label="アクティブ連携" />
-        <StatCard value={workflows.length} label="ワークフロー" />
-        <StatCard value={activeWorkflows} label="アクティブWF" />
+      <div style={{ marginBottom: spacing.xl }}>
+        <StatsGrid>
+          <StatCard value={integrations.length} label="連携" />
+          <StatCard value={activeIntegrations} label="アクティブ連携" />
+          <StatCard value={workflows.length} label="ワークフロー" />
+          <StatCard value={activeWorkflows} label="アクティブWF" />
+        </StatsGrid>
       </div>
 
       {/* View Toggle */}
@@ -410,15 +401,11 @@ export function IntegrationsTab() {
           {/* Integrations List */}
           <Card title={`設定済み連携 (${integrations.length})`}>
             {integrations.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px", color: colors.textMuted }}>
-                <Plug size={48} style={{ marginBottom: "16px", opacity: 0.5 }} />
-                <div style={{ fontSize: "14px", marginBottom: "8px" }}>
-                  連携が設定されていません
-                </div>
-                <div style={{ fontSize: "12px" }}>
-                  上のテンプレートから連携を追加してください
-                </div>
-              </div>
+              <EmptyState
+                icon={Plug}
+                title="連携が設定されていません"
+                description="上のテンプレートから連携を追加してください"
+              />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {integrations.map((integration) => (
@@ -473,15 +460,11 @@ export function IntegrationsTab() {
           {/* Workflows List */}
           <Card title={`ワークフロー (${workflows.length})`}>
             {workflows.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px", color: colors.textMuted }}>
-                <Zap size={48} style={{ marginBottom: "16px", opacity: 0.5 }} />
-                <div style={{ fontSize: "14px", marginBottom: "8px" }}>
-                  ワークフローが設定されていません
-                </div>
-                <div style={{ fontSize: "12px" }}>
-                  テンプレートからワークフローを追加してください
-                </div>
-              </div>
+              <EmptyState
+                icon={Zap}
+                title="ワークフローが設定されていません"
+                description="テンプレートからワークフローを追加してください"
+              />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {workflows.map((workflow) => (
