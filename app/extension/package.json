@@ -13,6 +13,7 @@
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/detectors": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
+    "@pleno-audit/policy-engine": "workspace:*",
     "@pleno-audit/security-graph": "workspace:*",
     "@pleno-audit/shadow-it": "workspace:*",
     "@pleno-audit/storage": "workspace:*",

@@ -57,6 +57,9 @@ importers:
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
+      '@pleno-audit/policy-engine':
+        specifier: workspace:*
+        version: link:../../packages/policy-engine
       '@pleno-audit/security-graph':
         specifier: workspace:*
         version: link:../../packages/security-graph
