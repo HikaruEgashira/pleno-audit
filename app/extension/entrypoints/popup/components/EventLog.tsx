@@ -27,7 +27,7 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length})</h3>
+      <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length > 50 ? "50+" : filteredEvents.length})</h3>
       <div style={styles.card}>
         <table style={styles.table}>
           <thead>
@@ -44,11 +44,6 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
           </tbody>
         </table>
       </div>
-      {filteredEvents.length > 50 && (
-        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
-          50件中{filteredEvents.length}件を表示
-        </p>
-      )}
     </div>
   );
 }

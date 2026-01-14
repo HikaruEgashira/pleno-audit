@@ -28,4 +28,6 @@ export {
   getDateString,
   getParquetFileName,
   parseParquetFileName,
+  nrdResultToParquetRecord,
+  typosquatResultToParquetRecord,
 } from "./schema";

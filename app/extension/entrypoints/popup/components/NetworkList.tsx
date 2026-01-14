@@ -21,7 +21,7 @@ export function NetworkList({ requests }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>ネットワーク ({requests.length})</h3>
+      <h3 style={styles.sectionTitle}>ネットワーク ({requests.length > 50 ? "50+" : requests.length})</h3>
       <div style={styles.card}>
         <table style={styles.table}>
           <thead>
@@ -50,11 +50,6 @@ export function NetworkList({ requests }: Props) {
           </tbody>
         </table>
       </div>
-      {requests.length > 50 && (
-        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
-          50件中{requests.length}件を表示
-        </p>
-      )}
     </div>
   );
 }

@@ -1,9 +1,8 @@
 import { useState } from "preact/hooks";
 import type { ExtensionAnalysis } from "@pleno-audit/permission-analyzer";
 import { Shield, AlertTriangle } from "lucide-preact";
-import { useTheme } from "../../../../lib/theme";
-import { Button } from "../../../../components";
-import { RiskBadge, getRiskColor } from "./RiskBadge";
+import { useTheme, getSeverityColor } from "../../../../lib/theme";
+import { Button, SeverityBadge, type Severity } from "../../../../components";
 
 interface ExtensionCardProps {
   analysis: ExtensionAnalysis;
@@ -12,17 +11,28 @@ interface ExtensionCardProps {
 export function ExtensionCard({ analysis }: ExtensionCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const riskColor = getSeverityColor(analysis.riskLevel, colors);
 
   const criticalFindings = analysis.findings.filter(
     (f) => f.severity === "critical" || f.severity === "high"
   );
+
+  // Map risk level to severity (handle "minimal" as "low")
+  const severityMap: Record<string, Severity> = {
+    critical: "critical",
+    high: "high",
+    medium: "medium",
+    low: "low",
+    minimal: "low",
+  };
+  const severity = severityMap[analysis.riskLevel] || "low";
 
   return (
     <div
       style={{
         background: colors.bgPrimary,
         borderRadius: "8px",
-        border: `1px solid ${analysis.riskLevel === "critical" || analysis.riskLevel === "high" ? getRiskColor(analysis.riskLevel) : colors.border}`,
+        border: `1px solid ${analysis.riskLevel === "critical" || analysis.riskLevel === "high" ? riskColor : colors.border}`,
         padding: "16px",
       }}
     >
@@ -32,18 +42,18 @@ export function ExtensionCard({ analysis }: ExtensionCardProps) {
             width: "40px",
             height: "40px",
             borderRadius: "8px",
-            background: `${getRiskColor(analysis.riskLevel)}20`,
+            background: `${riskColor}20`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Shield size={20} color={getRiskColor(analysis.riskLevel)} />
+          <Shield size={20} color={riskColor} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
             <span style={{ fontWeight: 600, fontSize: "14px" }}>{analysis.name}</span>
-            <RiskBadge risk={analysis.riskLevel} />
+            <SeverityBadge severity={severity} />
             <span style={{ fontSize: "11px", color: colors.textMuted }}>
               Score: {analysis.riskScore}
             </span>
@@ -62,7 +72,7 @@ export function ExtensionCard({ analysis }: ExtensionCardProps) {
                     alignItems: "center",
                     gap: "6px",
                     fontSize: "12px",
-                    color: getRiskColor(f.severity),
+                    color: getSeverityColor(f.severity, colors),
                     marginBottom: "4px",
                   }}
                 >
@@ -87,20 +97,23 @@ export function ExtensionCard({ analysis }: ExtensionCardProps) {
                   Permissions:
                 </strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
-                  {analysis.permissions.map((p) => (
-                    <span
-                      key={p.type}
-                      style={{
-                        fontSize: "10px",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        background: `${getRiskColor(p.risk)}20`,
-                        color: getRiskColor(p.risk),
-                      }}
-                    >
-                      {p.type}
-                    </span>
-                  ))}
+                  {analysis.permissions.map((p) => {
+                    const permColor = getSeverityColor(p.risk, colors);
+                    return (
+                      <span
+                        key={p.type}
+                        style={{
+                          fontSize: "10px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: `${permColor}20`,
+                          color: permColor,
+                        }}
+                      >
+                        {p.type}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 

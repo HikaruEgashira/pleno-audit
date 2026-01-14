@@ -251,15 +251,10 @@ export class ParquetStore {
   }
 
   private async encodeParquet(
-    type: ParquetLogType,
+    _type: ParquetLogType,
     records: unknown[]
   ): Promise<Uint8Array> {
-    if (!this.parquetWasm) {
-      throw new Error("parquet-wasm not initialized");
-    }
-
-    // 実装はparquet-wasmのAPIに合わせて調整が必要
-    // 仮の実装: JSON.stringify → Uint8Array
+    // JSON形式でエンコード（parquet-wasmが利用可能になったら切り替え）
     const json = JSON.stringify(records);
     return new TextEncoder().encode(json);
   }

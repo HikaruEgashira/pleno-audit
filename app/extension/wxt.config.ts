@@ -47,7 +47,7 @@ export default defineConfig({
     build: {
       target: "esnext",
       rollupOptions: {
-        external: ["parquet-wasm", "@pleno-audit/parquet-storage"],
+        external: ["parquet-wasm"],
       },
     },
     optimizeDeps: {

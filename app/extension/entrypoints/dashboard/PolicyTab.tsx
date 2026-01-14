@@ -10,33 +10,10 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Settings,
-  FileText,
 } from "lucide-preact";
-import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, Select, StatCard } from "../../components";
-
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case "critical": return "#dc2626";
-    case "high": return "#f97316";
-    case "medium": return "#eab308";
-    case "low": return "#22c55e";
-    default: return "#6b7280";
-  }
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const variants: Record<string, "danger" | "warning" | "info" | "success" | "default"> = {
-    critical: "danger",
-    high: "warning",
-    medium: "warning",
-    low: "success",
-    info: "default",
-  };
-  return <Badge variant={variants[severity] || "default"}>{severity}</Badge>;
-}
+import { useTheme, getSeverityColor, spacing } from "../../lib/theme";
+import { Badge, Button, Card, SearchInput, Select, StatCard, SeverityBadge, LoadingState, EmptyState, StatsGrid } from "../../components";
 
 interface ViolationCardProps {
   violation: PolicyViolation;
@@ -45,13 +22,14 @@ interface ViolationCardProps {
 
 function ViolationCard({ violation, onAcknowledge }: ViolationCardProps) {
   const { colors } = useTheme();
+  const severityColor = getSeverityColor(violation.severity, colors);
 
   return (
     <div
       style={{
         background: colors.bgPrimary,
         borderRadius: "8px",
-        border: `1px solid ${violation.acknowledged ? colors.border : getSeverityColor(violation.severity)}`,
+        border: `1px solid ${violation.acknowledged ? colors.border : severityColor}`,
         padding: "16px",
         opacity: violation.acknowledged ? 0.6 : 1,
       }}
@@ -59,7 +37,7 @@ function ViolationCard({ violation, onAcknowledge }: ViolationCardProps) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
         <AlertTriangle
           size={20}
-          color={violation.acknowledged ? colors.textSecondary : getSeverityColor(violation.severity)}
+          color={violation.acknowledged ? colors.textSecondary : severityColor}
         />
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
@@ -83,7 +61,7 @@ function ViolationCard({ violation, onAcknowledge }: ViolationCardProps) {
             padding: "8px",
             background: colors.bgSecondary,
             borderRadius: "4px",
-            borderLeft: `3px solid ${getSeverityColor(violation.severity)}`,
+            borderLeft: `3px solid ${severityColor}`,
           }}>
             <strong>対策:</strong> {violation.remediation}
           </div>
@@ -126,7 +104,7 @@ function PolicyCard({ policy, onToggle }: PolicyCardProps) {
             width: "8px",
             height: "8px",
             borderRadius: "50%",
-            background: policy.enabled ? "#22c55e" : "#6b7280",
+            background: policy.enabled ? colors.dot.success : colors.dot.default,
           }}
         />
         <div style={{ flex: 1 }}>
@@ -231,11 +209,7 @@ export function PolicyTab() {
   }, [violations, searchQuery, severityFilter, showAcknowledged]);
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>
-        ポリシーを評価中...
-      </div>
-    );
+    return <LoadingState message="ポリシーを評価中..." />;
   }
 
   const severityOptions = [
@@ -248,27 +222,22 @@ export function PolicyTab() {
   return (
     <div>
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-          gap: "12px",
-          marginBottom: "24px",
-        }}
-      >
-        <StatCard
-          value={stats.total || 0}
-          label="未対応"
-          trend={stats.total > 0 ? { value: stats.total, isUp: true } : undefined}
-        />
-        <StatCard
-          value={stats.critical || 0}
-          label="Critical"
-          trend={stats.critical > 0 ? { value: stats.critical, isUp: true } : undefined}
-        />
-        <StatCard value={stats.high || 0} label="High" />
-        <StatCard value={stats.medium || 0} label="Medium" />
-        <StatCard value={policies.filter((p) => p.enabled).length} label="有効ポリシー" />
+      <div style={{ marginBottom: spacing.xl }}>
+        <StatsGrid minWidth="sm">
+          <StatCard
+            value={stats.total || 0}
+            label="未対応"
+            trend={stats.total > 0 ? { value: stats.total, isUp: true } : undefined}
+          />
+          <StatCard
+            value={stats.critical || 0}
+            label="Critical"
+            trend={stats.critical > 0 ? { value: stats.critical, isUp: true } : undefined}
+          />
+          <StatCard value={stats.high || 0} label="High" />
+          <StatCard value={stats.medium || 0} label="Medium" />
+          <StatCard value={policies.filter((p) => p.enabled).length} label="有効ポリシー" />
+        </StatsGrid>
       </div>
 
       {/* View Toggle */}
@@ -329,9 +298,10 @@ export function PolicyTab() {
           {/* Violations */}
           <Card title={`ポリシー違反 (${filteredViolations.length})`}>
             {filteredViolations.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "24px", color: colors.textMuted }}>
-                {showAcknowledged ? "違反は記録されていません" : "未対応の違反はありません"}
-              </div>
+              <EmptyState
+                icon={Shield}
+                title={showAcknowledged ? "違反は記録されていません" : "未対応の違反はありません"}
+              />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {filteredViolations.map((v) => (

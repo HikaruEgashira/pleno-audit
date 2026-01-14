@@ -8,7 +8,6 @@ import {
 import type { DetectedService } from "@pleno-audit/detectors";
 import {
   Target,
-  AlertTriangle,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -17,33 +16,13 @@ import {
   Shield,
   Zap,
 } from "lucide-preact";
-import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, Select, StatCard } from "../../components";
-
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case "critical": return "#dc2626";
-    case "high": return "#f97316";
-    case "medium": return "#eab308";
-    case "low": return "#22c55e";
-    default: return "#6b7280";
-  }
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const variants: Record<string, "danger" | "warning" | "info" | "success" | "default"> = {
-    critical: "danger",
-    high: "warning",
-    medium: "warning",
-    low: "success",
-    info: "default",
-  };
-  return <Badge variant={variants[severity] || "default"}>{severity.toUpperCase()}</Badge>;
-}
+import { useTheme, getSeverityColor, spacing } from "../../lib/theme";
+import { Badge, Button, Card, SearchInput, Select, StatCard, SeverityBadge, LoadingState, EmptyState, StatsGrid } from "../../components";
 
 function ScoreGauge({ score }: { score: number }) {
   const { colors } = useTheme();
-  const color = score >= 80 ? "#dc2626" : score >= 60 ? "#f97316" : score >= 40 ? "#eab308" : "#22c55e";
+  const severity = score >= 80 ? "critical" : score >= 60 ? "high" : score >= 40 ? "medium" : "low";
+  const color = getSeverityColor(severity, colors);
 
   return (
     <div style={{ position: "relative", width: "48px", height: "48px" }}>
@@ -98,7 +77,7 @@ function RiskCard({ risk, onAcknowledge }: RiskCardProps) {
       style={{
         background: colors.bgPrimary,
         borderRadius: "8px",
-        border: `1px solid ${risk.status === "open" ? getSeverityColor(risk.severity) : colors.border}`,
+        border: `1px solid ${risk.status === "open" ? getSeverityColor(risk.severity, colors) : colors.border}`,
         padding: "16px",
         opacity: risk.status === "resolved" ? 0.6 : 1,
       }}
@@ -164,7 +143,8 @@ function RiskCard({ risk, onAcknowledge }: RiskCardProps) {
                         height: "6px",
                         borderRadius: "50%",
                         background: getSeverityColor(
-                          factor.weight >= 30 ? "critical" : factor.weight >= 20 ? "high" : "medium"
+                          factor.weight >= 30 ? "critical" : factor.weight >= 20 ? "high" : "medium",
+                          colors
                         ),
                       }}
                     />
@@ -314,11 +294,7 @@ export function RiskPriorityTab() {
   }, [risks, searchQuery, severityFilter]);
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>
-        リスクを分析中...
-      </div>
-    );
+    return <LoadingState message="リスクを分析中..." />;
   }
 
   const severityOptions = [
@@ -332,28 +308,23 @@ export function RiskPriorityTab() {
     <div>
       {/* Summary Stats */}
       {summary && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: "12px",
-            marginBottom: "24px",
-          }}
-        >
-          <StatCard
-            value={summary.criticalCount}
-            label="Critical"
-            trend={summary.criticalCount > 0 ? { value: summary.criticalCount, isUp: true } : undefined}
-          />
-          <StatCard
-            value={summary.highCount}
-            label="High"
-            trend={summary.highCount > 0 ? { value: summary.highCount, isUp: true } : undefined}
-          />
-          <StatCard value={summary.mediumCount} label="Medium" />
-          <StatCard value={summary.lowCount} label="Low" />
-          <StatCard value={summary.averageScore} label="平均スコア" />
-          <StatCard value={`${summary.remediationProgress}%`} label="対処進捗" />
+        <div style={{ marginBottom: spacing.xl }}>
+          <StatsGrid>
+            <StatCard
+              value={summary.criticalCount}
+              label="Critical"
+              trend={summary.criticalCount > 0 ? { value: summary.criticalCount, isUp: true } : undefined}
+            />
+            <StatCard
+              value={summary.highCount}
+              label="High"
+              trend={summary.highCount > 0 ? { value: summary.highCount, isUp: true } : undefined}
+            />
+            <StatCard value={summary.mediumCount} label="Medium" />
+            <StatCard value={summary.lowCount} label="Low" />
+            <StatCard value={summary.averageScore} label="平均スコア" />
+            <StatCard value={`${summary.remediationProgress}%`} label="対処進捗" />
+          </StatsGrid>
         </div>
       )}
 
@@ -464,21 +435,11 @@ export function RiskPriorityTab() {
       {/* Risk List */}
       <Card title={`優先度順リスク (${filteredRisks.length})`}>
         {filteredRisks.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "48px",
-              color: colors.textMuted,
-            }}
-          >
-            <Shield size={48} style={{ marginBottom: "16px", opacity: 0.5 }} />
-            <div style={{ fontSize: "14px", marginBottom: "8px" }}>
-              重大なリスクは検出されていません
-            </div>
-            <div style={{ fontSize: "12px" }}>
-              ブラウジングを続けると、新しいリスクが自動的に検出されます。
-            </div>
-          </div>
+          <EmptyState
+            icon={Shield}
+            title="重大なリスクは検出されていません"
+            description="ブラウジングを続けると、新しいリスクが自動的に検出されます。"
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {filteredRisks.map((risk) => (

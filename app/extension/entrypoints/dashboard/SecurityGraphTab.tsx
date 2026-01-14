@@ -27,8 +27,8 @@ import {
   Skull,
   FileText,
 } from "lucide-preact";
-import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, Select, StatCard } from "../../components";
+import { useTheme, spacing } from "../../lib/theme";
+import { Badge, Button, Card, SearchInput, Select, StatCard, LoadingState, EmptyState, StatsGrid } from "../../components";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -433,18 +433,16 @@ export function SecurityGraphTab() {
   }, [threatResults]);
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>
-        グラフを構築中...
-      </div>
-    );
+    return <LoadingState message="グラフを構築中..." />;
   }
 
   if (!graph || graph.stats.totalNodes === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>
-        データが不足しています。ブラウザの利用を続けてセキュリティグラフを構築してください。
-      </div>
+      <EmptyState
+        icon={Network}
+        title="データが不足しています"
+        description="ブラウザの利用を続けてセキュリティグラフを構築してください。"
+      />
     );
   }
 
@@ -466,40 +464,35 @@ export function SecurityGraphTab() {
   return (
     <div>
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "12px",
-          marginBottom: "24px",
-        }}
-      >
-        <StatCard
-          value={graph.stats.totalNodes}
-          label="ノード総数"
-        />
-        <StatCard
-          value={graph.stats.totalEdges}
-          label="エッジ総数"
-        />
-        <StatCard
-          value={graph.stats.riskDistribution.critical + graph.stats.riskDistribution.high}
-          label="高リスクノード"
-          trend={
-            graph.stats.riskDistribution.critical > 0
-              ? { value: graph.stats.riskDistribution.critical, isUp: true }
-              : undefined
-          }
-        />
-        <StatCard
-          value={graph.stats.criticalPaths.length}
-          label="攻撃パス"
-        />
-        <StatCard
-          value={threatCount}
-          label="脅威検出"
-          trend={threatCount > 0 ? { value: threatCount, isUp: true } : undefined}
-        />
+      <div style={{ marginBottom: spacing.xl }}>
+        <StatsGrid>
+          <StatCard
+            value={graph.stats.totalNodes}
+            label="ノード総数"
+          />
+          <StatCard
+            value={graph.stats.totalEdges}
+            label="エッジ総数"
+          />
+          <StatCard
+            value={graph.stats.riskDistribution.critical + graph.stats.riskDistribution.high}
+            label="高リスクノード"
+            trend={
+              graph.stats.riskDistribution.critical > 0
+                ? { value: graph.stats.riskDistribution.critical, isUp: true }
+                : undefined
+            }
+          />
+          <StatCard
+            value={graph.stats.criticalPaths.length}
+            label="攻撃パス"
+          />
+          <StatCard
+            value={threatCount}
+            label="脅威検出"
+            trend={threatCount > 0 ? { value: threatCount, isUp: true } : undefined}
+          />
+        </StatsGrid>
       </div>
 
       {/* Threat Intel Scan */}
@@ -731,9 +724,10 @@ export function SecurityGraphTab() {
       {/* Node Grid */}
       <Card title={`ノード一覧 (${filteredNodes.length})`}>
         {filteredNodes.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "24px", color: colors.textMuted }}>
-            該当するノードがありません
-          </div>
+          <EmptyState
+            icon={Network}
+            title="該当するノードがありません"
+          />
         ) : (
           <div
             style={{

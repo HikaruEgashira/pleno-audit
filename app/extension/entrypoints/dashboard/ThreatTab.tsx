@@ -10,49 +10,28 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Clock,
   Eye,
   Zap,
   Target,
-  Activity,
 } from "lucide-preact";
-import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, SearchInput, Select, StatCard } from "../../components";
+import { useTheme, getSeverityColor, spacing, type ThemeColors } from "../../lib/theme";
+import { Badge, Button, Card, SearchInput, Select, StatCard, SeverityBadge, LoadingState, EmptyState, StatsGrid } from "../../components";
 
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case "critical": return "#dc2626";
-    case "high": return "#f97316";
-    case "medium": return "#eab308";
-    case "low": return "#22c55e";
-    default: return "#6b7280";
-  }
-}
-
-function getStatusColor(status: string): string {
+function getStatusColor(status: string, colors: ThemeColors): string {
   switch (status) {
-    case "active": return "#dc2626";
-    case "investigating": return "#f97316";
-    case "mitigated": return "#3b82f6";
-    case "resolved": return "#22c55e";
-    case "false_positive": return "#6b7280";
-    default: return "#6b7280";
+    case "active": return colors.dot.danger;
+    case "investigating": return colors.dot.warning;
+    case "mitigated": return colors.dot.info;
+    case "resolved": return colors.dot.success;
+    case "false_positive": return colors.dot.default;
+    default: return colors.dot.default;
   }
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const variants: Record<string, "danger" | "warning" | "info" | "success" | "default"> = {
-    critical: "danger",
-    high: "warning",
-    medium: "warning",
-    low: "success",
-    info: "default",
-  };
-  return <Badge variant={variants[severity] || "default"}>{severity}</Badge>;
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { colors } = useTheme();
+  const statusColor = getStatusColor(status, colors);
   const labels: Record<string, string> = {
     active: "アクティブ",
     investigating: "調査中",
@@ -69,8 +48,8 @@ function StatusBadge({ status }: { status: string }) {
         fontSize: "11px",
         padding: "2px 8px",
         borderRadius: "4px",
-        background: `${getStatusColor(status)}20`,
-        color: getStatusColor(status),
+        background: `${statusColor}20`,
+        color: statusColor,
       }}
     >
       {status === "active" && <Zap size={10} />}
@@ -91,6 +70,7 @@ interface ThreatCardProps {
 function ThreatCard({ threat, onMitigate, onUpdateStatus }: ThreatCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const severityColor = getSeverityColor(threat.severity, colors);
 
   const isActive = threat.status === "active" || threat.status === "investigating";
 
@@ -99,7 +79,7 @@ function ThreatCard({ threat, onMitigate, onUpdateStatus }: ThreatCardProps) {
       style={{
         background: colors.bgPrimary,
         borderRadius: "8px",
-        border: `1px solid ${isActive ? getSeverityColor(threat.severity) : colors.border}`,
+        border: `1px solid ${isActive ? severityColor : colors.border}`,
         padding: "16px",
         opacity: threat.status === "resolved" || threat.status === "false_positive" ? 0.7 : 1,
       }}
@@ -110,13 +90,13 @@ function ThreatCard({ threat, onMitigate, onUpdateStatus }: ThreatCardProps) {
             width: "40px",
             height: "40px",
             borderRadius: "8px",
-            background: `${getSeverityColor(threat.severity)}20`,
+            background: `${severityColor}20`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <AlertTriangle size={20} color={getSeverityColor(threat.severity)} />
+          <AlertTriangle size={20} color={severityColor} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
@@ -225,7 +205,7 @@ function ThreatCard({ threat, onMitigate, onUpdateStatus }: ThreatCardProps) {
                         color: colors.textSecondary,
                       }}
                     >
-                      <CheckCircle size={10} color="#22c55e" />
+                      <CheckCircle size={10} color={colors.dot.success} />
                       <span>{action.description}</span>
                     </div>
                   ))}
@@ -358,11 +338,7 @@ export function ThreatTab() {
   }, [threats, searchQuery, severityFilter, statusFilter]);
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "48px", color: colors.textSecondary }}>
-        脅威データを読み込み中...
-      </div>
-    );
+    return <LoadingState message="脅威データを読み込み中..." />;
   }
 
   const severityOptions = [
@@ -383,49 +359,44 @@ export function ThreatTab() {
     <div>
       {/* Stats */}
       {stats && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: "12px",
-            marginBottom: "24px",
-          }}
-        >
-          <StatCard
-            value={stats.activeThreats}
-            label="アクティブな脅威"
-            trend={stats.activeThreats > 0 ? { value: stats.activeThreats, isUp: true } : undefined}
-          />
-          <StatCard
-            value={stats.threatsToday}
-            label="本日検出"
-          />
-          <StatCard
-            value={stats.threatsThisWeek}
-            label="今週検出"
-          />
-          <StatCard
-            value={stats.mitigatedThreats}
-            label="対処済み"
-          />
-          <StatCard
-            value={stats.openIncidents}
-            label="インシデント"
-          />
+        <div style={{ marginBottom: spacing.xl }}>
+          <StatsGrid>
+            <StatCard
+              value={stats.activeThreats}
+              label="アクティブな脅威"
+              trend={stats.activeThreats > 0 ? { value: stats.activeThreats, isUp: true } : undefined}
+            />
+            <StatCard
+              value={stats.threatsToday}
+              label="本日検出"
+            />
+            <StatCard
+              value={stats.threatsThisWeek}
+              label="今週検出"
+            />
+            <StatCard
+              value={stats.mitigatedThreats}
+              label="対処済み"
+            />
+            <StatCard
+              value={stats.openIncidents}
+              label="インシデント"
+            />
+          </StatsGrid>
         </div>
       )}
 
       {/* Severity Distribution */}
       {stats && (
-        <Card title="脅威の深刻度分布" style={{ marginBottom: "24px" }}>
-          <div style={{ display: "flex", gap: "24px", alignItems: "center" }}>
+        <Card title="脅威の深刻度分布" style={{ marginBottom: spacing.xl }}>
+          <div style={{ display: "flex", gap: spacing.xl, alignItems: "center" }}>
             {Object.entries(stats.threatsBySeverity).map(([severity, count]) => (
               <div key={severity} style={{ textAlign: "center" }}>
                 <div
                   style={{
                     fontSize: "24px",
                     fontWeight: 700,
-                    color: getSeverityColor(severity),
+                    color: getSeverityColor(severity, colors),
                   }}
                 >
                   {count}
@@ -473,21 +444,11 @@ export function ThreatTab() {
       {/* Threats List */}
       <Card title={`検出された脅威 (${filteredThreats.length})`}>
         {filteredThreats.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "48px",
-              color: colors.textMuted,
-            }}
-          >
-            <Shield size={48} style={{ marginBottom: "16px", opacity: 0.5 }} />
-            <div style={{ fontSize: "14px", marginBottom: "8px" }}>
-              アクティブな脅威はありません
-            </div>
-            <div style={{ fontSize: "12px" }}>
-              リアルタイム監視が有効です。脅威が検出されると自動的に表示されます。
-            </div>
-          </div>
+          <EmptyState
+            icon={Shield}
+            title="アクティブな脅威はありません"
+            description="リアルタイム監視が有効です。脅威が検出されると自動的に表示されます。"
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {filteredThreats.map((threat) => (

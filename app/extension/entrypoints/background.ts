@@ -665,6 +665,7 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
     const cutoffTimestamp = cutoffDate.toISOString();
+    const cutoffMs = cutoffDate.getTime();
 
     if (!apiClient) {
       apiClient = await getApiClient();
@@ -675,8 +676,8 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
 
     // Delete old events from Parquet storage
     const store = await getOrInitParquetStore();
-    const cutoffDate_ = cutoffDate.toISOString().split("T")[0];
-    await store.deleteOldReports(cutoffDate_);
+    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+    await store.deleteOldReports(cutoffDateStr);
 
     // Delete old AI prompts from storage
     const storage = await getStorage();

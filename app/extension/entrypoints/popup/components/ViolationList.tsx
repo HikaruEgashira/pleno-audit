@@ -20,7 +20,7 @@ export function ViolationList({ violations }: ViolationProps) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>CSP違反 ({violations.length})</h3>
+      <h3 style={styles.sectionTitle}>CSP違反 ({violations.length > 50 ? "50+" : violations.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {violations.slice(0, 50).map((v, i) => {
           const id = `${v.timestamp}-${i}`;
@@ -36,11 +36,6 @@ export function ViolationList({ violations }: ViolationProps) {
           );
         })}
       </div>
-      {violations.length > 50 && (
-        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
-          50件中{violations.length}件を表示
-        </p>
-      )}
     </div>
   );
 }
