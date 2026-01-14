@@ -533,6 +533,53 @@ function DashboardContent() {
             </div>
           </Card>
 
+          {/* Risk Trend - 7 Day Activity */}
+          <Card title="7日間のアクティビティ" style={{ marginBottom: "24px" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "4px", height: "80px" }}>
+              {(() => {
+                const days = 7;
+                const dayData: number[] = [];
+                const now = Date.now();
+                for (let i = days - 1; i >= 0; i--) {
+                  const dayStart = now - (i + 1) * 24 * 60 * 60 * 1000;
+                  const dayEnd = now - i * 24 * 60 * 60 * 1000;
+                  const count = events.filter((e) => e.timestamp >= dayStart && e.timestamp < dayEnd).length;
+                  dayData.push(count);
+                }
+                const maxCount = Math.max(...dayData, 1);
+                const dayLabels = ["月", "火", "水", "木", "金", "土", "日"];
+                const todayIndex = new Date().getDay();
+                return dayData.map((count, i) => {
+                  const dayOfWeek = (todayIndex - (days - 1 - i) + 7) % 7;
+                  const height = Math.max(4, (count / maxCount) * 60);
+                  const hasRisk = events.filter((e) => {
+                    const dayStart = now - (days - i) * 24 * 60 * 60 * 1000;
+                    const dayEnd = now - (days - 1 - i) * 24 * 60 * 60 * 1000;
+                    return e.timestamp >= dayStart && e.timestamp < dayEnd && (e.type.includes("nrd") || e.type.includes("typosquat"));
+                  }).length > 0;
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                      <div
+                        style={{
+                          width: "100%",
+                          height: `${height}px`,
+                          background: hasRisk ? "#dc2626" : count > 0 ? colors.interactive : colors.bgSecondary,
+                          borderRadius: "4px 4px 0 0",
+                        }}
+                        title={`${count}件`}
+                      />
+                      <span style={{ fontSize: "10px", color: colors.textSecondary }}>{dayLabels[dayOfWeek]}</span>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px", color: colors.textSecondary }}>
+              <span>7日前</span>
+              <span>今日</span>
+            </div>
+          </Card>
+
           <div style={styles.twoColumn}>
             <HorizontalBarChart data={directiveStats} title="Directive別違反数" colors={colors} isDark={isDark} />
             <HorizontalBarChart data={domainStats} title="ドメイン別違反数" colors={colors} isDark={isDark} />
