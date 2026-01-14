@@ -424,8 +424,8 @@ function DashboardContent() {
     { id: "graph", label: "グラフ" },
     { id: "policy", label: "ポリシー" },
     { id: "threats", label: "脅威検出" },
-    { id: "reports", label: "レポート" },
     { id: "risks", label: "リスク優先度" },
+    { id: "reports", label: "レポート" },
     { id: "integrations", label: "連携" },
   ];
 
