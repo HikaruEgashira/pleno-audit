@@ -183,3 +183,35 @@ export {
   createThreatDetector,
   createInMemoryCache,
 } from "@pleno-audit/threat-intel";
+
+// Alert System (re-export from @pleno-audit/alerts)
+export type {
+  AlertSeverity,
+  AlertCategory,
+  AlertStatus,
+  SecurityAlert,
+  AlertDetails,
+  NRDAlertDetails,
+  TyposquatAlertDetails,
+  ThreatAlertDetails,
+  DataLeakAlertDetails,
+  CSPAlertDetails,
+  AISensitiveAlertDetails,
+  ExtensionAlertDetails,
+  LoginAlertDetails,
+  PolicyAlertDetails,
+  AlertAction,
+  AlertRule,
+  AlertCondition,
+  AlertConfig,
+  AlertManager,
+  AlertStore,
+  AlertListener,
+} from "@pleno-audit/alerts";
+
+export {
+  DEFAULT_ALERT_CONFIG,
+  DEFAULT_ALERT_RULES,
+  createAlertManager,
+  createInMemoryAlertStore,
+} from "@pleno-audit/alerts";

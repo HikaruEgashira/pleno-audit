@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@pleno-audit/ai-detector": "workspace:*",
+    "@pleno-audit/alerts": "workspace:*",
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/nrd": "workspace:*",
     "@pleno-audit/threat-intel": "workspace:*",

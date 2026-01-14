@@ -147,6 +147,8 @@ importers:
 
   packages/ai-detector: {}
 
+  packages/alerts: {}
+
   packages/api:
     dependencies:
       '@pleno-audit/csp':
@@ -172,6 +174,9 @@ importers:
       '@pleno-audit/ai-detector':
         specifier: workspace:*
         version: link:../ai-detector
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../alerts
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
