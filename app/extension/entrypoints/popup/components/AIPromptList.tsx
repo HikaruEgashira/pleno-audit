@@ -23,7 +23,7 @@ export function AIPromptList({ prompts }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length})</h3>
+      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length > 50 ? "50+" : prompts.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {prompts.slice(0, 50).map((prompt) => (
           <PromptCard
@@ -38,11 +38,6 @@ export function AIPromptList({ prompts }: Props) {
           />
         ))}
       </div>
-      {prompts.length > 50 && (
-        <p style={{ color: colors.textMuted, fontSize: "11px", marginTop: "8px" }}>
-          50件中{prompts.length}件を表示
-        </p>
-      )}
     </div>
   );
 }

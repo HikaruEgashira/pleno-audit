@@ -221,7 +221,7 @@ function PopupContent() {
                   ...styles.tabCount,
                   ...(tab === t.key ? styles.tabCountActive : styles.tabCountInactive),
                 }}>
-                  {count}
+                  {count > 50 ? "50+" : count}
                 </span>
               )}
             </button>
