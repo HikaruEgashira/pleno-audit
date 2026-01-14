@@ -643,6 +643,91 @@ export function SecurityGraphTab() {
         </div>
       </Card>
 
+      {/* Data Flow Visualization */}
+      <Card title="データフロー" style={{ marginBottom: "24px" }}>
+        <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+          ドメイン間のデータ転送を可視化
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {Array.from(graph.edges.values())
+            .filter((e) => e.type === "sends_data" || e.type === "ai_prompt" || e.type === "requests")
+            .slice(0, 10)
+            .map((edge) => {
+              const sourceNode = graph.nodes.get(edge.source);
+              const targetNode = graph.nodes.get(edge.target);
+              const flowColor = edge.metadata.hasCredentials
+                ? "#dc2626"
+                : edge.metadata.hasPII
+                  ? "#f97316"
+                  : edge.type === "ai_prompt"
+                    ? "#8b5cf6"
+                    : "#3b82f6";
+
+              return (
+                <div
+                  key={edge.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: colors.bgSecondary,
+                    borderRadius: "6px",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "4px 8px",
+                      background: colors.bgPrimary,
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      maxWidth: "120px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={sourceNode?.label}
+                  >
+                    {truncate(sourceNode?.label || edge.source.split(":")[1], 15)}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                    <div style={{ flex: 1, height: "2px", background: `linear-gradient(to right, ${flowColor}, ${flowColor}80)` }} />
+                    <div style={{ color: flowColor, fontSize: "14px", margin: "0 4px" }}>→</div>
+                    <div style={{ flex: 1, height: "2px", background: `linear-gradient(to right, ${flowColor}80, ${flowColor})` }} />
+                  </div>
+                  <div
+                    style={{
+                      padding: "4px 8px",
+                      background: colors.bgPrimary,
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      maxWidth: "120px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={targetNode?.label}
+                  >
+                    {truncate(targetNode?.label || edge.target.split(":")[1], 15)}
+                  </div>
+                  <Badge size="sm" variant={edge.type === "ai_prompt" ? "info" : "default"}>
+                    {edge.type === "sends_data" ? "データ" : edge.type === "ai_prompt" ? "AI" : "リクエスト"}
+                  </Badge>
+                  {edge.metadata.hasCredentials && <Badge size="sm" variant="danger">認証</Badge>}
+                  {edge.metadata.hasPII && <Badge size="sm" variant="warning">PII</Badge>}
+                </div>
+              );
+            })}
+          {Array.from(graph.edges.values()).filter((e) => e.type === "sends_data" || e.type === "ai_prompt" || e.type === "requests").length === 0 && (
+            <div style={{ textAlign: "center", padding: "16px", color: colors.textMuted }}>
+              データフローは検出されていません
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* Node Grid */}
       <Card title={`ノード一覧 (${filteredNodes.length})`}>
         {filteredNodes.length === 0 ? (
