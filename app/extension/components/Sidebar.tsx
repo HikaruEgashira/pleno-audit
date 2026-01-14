@@ -24,6 +24,7 @@ export function Sidebar({ tabs, activeTab, onChange }: SidebarProps) {
         padding: "16px 0",
         display: "flex",
         flexDirection: "column",
+        justifyContent: "center",
         gap: "2px",
         height: "100vh",
         position: "sticky",
