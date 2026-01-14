@@ -493,6 +493,44 @@ function DashboardContent() {
 
       {activeTab === "overview" && (
         <>
+          {/* Security Score Card */}
+          <Card title="セキュリティスコア" style={{ marginBottom: "24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "32px", flexWrap: "wrap" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{
+                  fontSize: "48px",
+                  fontWeight: 700,
+                  color: nrdServices.length === 0 && violations.length < 10 ? "#22c55e" : nrdServices.length > 0 ? "#dc2626" : "#f97316",
+                }}>
+                  {Math.max(0, 100 - nrdServices.length * 20 - Math.floor(violations.length / 10) * 5 - services.filter(s => s.typosquatResult?.isTyposquat).length * 30)}
+                </div>
+                <div style={{ fontSize: "12px", color: colors.textSecondary }}>/ 100</div>
+              </div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: nrdServices.length > 0 ? "#dc2626" : "#22c55e" }} />
+                  <span style={{ fontSize: "13px" }}>NRD検出: {nrdServices.length}件</span>
+                  {nrdServices.length > 0 && <Badge variant="danger" size="sm">-{nrdServices.length * 20}pt</Badge>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: services.filter(s => s.typosquatResult?.isTyposquat).length > 0 ? "#dc2626" : "#22c55e" }} />
+                  <span style={{ fontSize: "13px" }}>Typosquat: {services.filter(s => s.typosquatResult?.isTyposquat).length}件</span>
+                  {services.filter(s => s.typosquatResult?.isTyposquat).length > 0 && <Badge variant="danger" size="sm">-{services.filter(s => s.typosquatResult?.isTyposquat).length * 30}pt</Badge>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: violations.length > 50 ? "#f97316" : "#22c55e" }} />
+                  <span style={{ fontSize: "13px" }}>CSP違反: {violations.length}件</span>
+                  {violations.length >= 10 && <Badge variant="warning" size="sm">-{Math.floor(violations.length / 10) * 5}pt</Badge>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: aiPrompts.length > 0 ? "#3b82f6" : "#6b7280" }} />
+                  <span style={{ fontSize: "13px" }}>AI利用: {aiPrompts.length}件</span>
+                  <Badge variant="info" size="sm">監視中</Badge>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <div style={styles.twoColumn}>
             <HorizontalBarChart data={directiveStats} title="Directive別違反数" colors={colors} isDark={isDark} />
             <HorizontalBarChart data={domainStats} title="ドメイン別違反数" colors={colors} isDark={isDark} />
