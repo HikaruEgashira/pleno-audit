@@ -19,7 +19,7 @@
     "@pleno-audit/risk-prioritization": "workspace:*",
     "@pleno-audit/runtime-protection": "workspace:*",
     "@pleno-audit/security-graph": "workspace:*",
-    "@pleno-audit/shadow-it": "workspace:*",
+    "@pleno-audit/integrations": "workspace:*",
     "@pleno-audit/storage": "workspace:*",
     "hono": "^4.7.0",
     "lucide-preact": "^0.562.0",

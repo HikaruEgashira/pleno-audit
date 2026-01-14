@@ -15,7 +15,6 @@ import type {
   ViolationExport,
   AlertExport,
   PermissionExport,
-  ShadowITExport,
 } from "./types.js";
 
 /**
@@ -136,22 +135,6 @@ export function exportPermissionsToCSV(permissions: PermissionExport[]): string 
 }
 
 /**
- * Export Shadow IT to CSV
- */
-export function exportShadowITToCSV(shadowIT: ShadowITExport[]): string {
-  const columns: CSVColumn<ShadowITExport>[] = [
-    { header: "Domain", accessor: (s) => s.domain },
-    { header: "Service Name", accessor: (s) => s.serviceName || "" },
-    { header: "Category", accessor: (s) => s.category },
-    { header: "Status", accessor: (s) => s.status },
-    { header: "Risk Level", accessor: (s) => s.riskLevel },
-    { header: "First Seen", accessor: (s) => new Date(s.firstSeen).toISOString() },
-    { header: "Visit Count", accessor: (s) => s.visitCount },
-  ];
-  return toCSV(shadowIT, columns);
-}
-
-/**
  * Export full report to Markdown
  */
 export function exportReportToMarkdown(report: SecurityReport): string {
@@ -244,23 +227,6 @@ export function exportReportToMarkdown(report: SecurityReport): string {
     }
     if (report.alerts.length > 15) {
       lines.push(`\n*...and ${report.alerts.length - 15} more alerts*`);
-    }
-    lines.push("");
-  }
-
-  // Shadow IT
-  if (report.shadowIT.length > 0) {
-    lines.push("## Shadow IT Services");
-    lines.push("");
-    lines.push("| Service | Category | Status | Risk |");
-    lines.push("|---------|----------|--------|------|");
-    for (const shadow of report.shadowIT.slice(0, 15)) {
-      lines.push(
-        `| ${shadow.serviceName || shadow.domain} | ${shadow.category} | ${shadow.status} | ${shadow.riskLevel} |`
-      );
-    }
-    if (report.shadowIT.length > 15) {
-      lines.push(`\n*...and ${report.shadowIT.length - 15} more services*`);
     }
     lines.push("");
   }
@@ -397,8 +363,8 @@ export function exportReportToHTML(report: SecurityReport): string {
         <div class="stat-label">Alerts</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${report.shadowIT.length}</div>
-        <div class="stat-label">Shadow IT</div>
+        <div class="stat-value">${report.permissions.length}</div>
+        <div class="stat-label">Permissions</div>
       </div>
     </div>
 
@@ -435,25 +401,6 @@ export function exportReportToHTML(report: SecurityReport): string {
             <td>${v.domain}</td>
             <td><span class="badge badge-${v.severity}">${v.severity}</span></td>
             <td>${v.description}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-    ` : ""}
-
-    ${report.shadowIT.length > 0 ? `
-    <h2>Shadow IT Services</h2>
-    <table>
-      <thead>
-        <tr><th>Service</th><th>Category</th><th>Status</th><th>Risk</th></tr>
-      </thead>
-      <tbody>
-        ${report.shadowIT.slice(0, 15).map((s) => `
-          <tr>
-            <td>${s.serviceName || s.domain}</td>
-            <td>${s.category}</td>
-            <td>${s.status}</td>
-            <td><span class="badge badge-${s.riskLevel}">${s.riskLevel}</span></td>
           </tr>
         `).join("")}
       </tbody>
@@ -508,10 +455,6 @@ export function exportData(
         case "permissions":
           content = exportPermissionsToCSV(data as PermissionExport[]);
           recordCount = (data as PermissionExport[]).length;
-          break;
-        case "shadow_it":
-          content = exportShadowITToCSV(data as ShadowITExport[]);
-          recordCount = (data as ShadowITExport[]).length;
           break;
         default:
           content = toJSON(data, prettyPrint);
