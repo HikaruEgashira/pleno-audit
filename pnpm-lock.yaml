@@ -222,6 +222,8 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/policy-engine: {}
+
   packages/security-graph:
     dependencies:
       '@pleno-audit/detectors':
