@@ -7,14 +7,11 @@
 import type {
   Integration,
   IntegrationType,
-  IntegrationStatus,
   IntegrationConfig,
   IntegrationTrigger,
   IntegrationPayload,
   Workflow,
-  WorkflowTrigger,
   WorkflowAction,
-  TriggerEvent,
 } from "./types.js";
 
 export interface IntegrationStore {
@@ -150,12 +147,7 @@ export function createIntegrationManager(
 
     try {
       // For webhook/slack, try a test request
-      if (integration.config.type === "webhook") {
-        // Would make actual HTTP request in production
-        console.log(`Testing webhook: ${integration.config.url}`);
-      } else if (integration.config.type === "slack") {
-        console.log(`Testing Slack webhook: ${integration.config.webhookUrl}`);
-      }
+      // TODO: Make actual HTTP request in production
 
       await updateIntegration(id, { status: "active" });
       return true;
@@ -200,14 +192,15 @@ export function createIntegrationManager(
     const { config } = integration;
 
     if (config.type === "webhook") {
-      // In production, make actual HTTP request
-      console.log(`Webhook ${config.url}:`, JSON.stringify(payload));
+      // TODO: In production, make actual HTTP request to config.url
+      void payload; // Consume payload to avoid unused variable warning
     } else if (config.type === "slack") {
       // Format Slack message
-      const slackMessage = formatSlackMessage(payload);
-      console.log(`Slack ${config.webhookUrl}:`, slackMessage);
+      formatSlackMessage(payload);
+      // TODO: In production, send to config.webhookUrl
     } else if (config.type === "email") {
-      console.log(`Email to ${config.recipients.join(", ")}:`, payload.title);
+      // TODO: In production, send email to config.recipients
+      void payload;
     }
   }
 
@@ -352,8 +345,6 @@ export function createIntegrationManager(
     const workflow = workflows.find((w) => w.id === id);
     if (!workflow || !workflow.enabled) return;
 
-    console.log(`Running workflow: ${workflow.name}`);
-
     // Sort actions by order
     const sortedActions = [...workflow.actions].sort((a, b) => a.order - b.order);
 
@@ -372,10 +363,8 @@ export function createIntegrationManager(
    */
   async function executeAction(
     action: WorkflowAction,
-    payload?: IntegrationPayload
+    _payload?: IntegrationPayload
   ): Promise<void> {
-    console.log(`Executing action: ${action.type}`, action.config);
-
     switch (action.type) {
       case "send_notification":
         // Send notification through configured channel
@@ -393,8 +382,7 @@ export function createIntegrationManager(
         // Generate report
         break;
       case "log_event":
-        // Log event
-        console.log("Event logged:", payload);
+        // Log event - handled by integration system
         break;
     }
   }

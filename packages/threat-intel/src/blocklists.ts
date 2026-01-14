@@ -5,7 +5,7 @@
  * threat detection and filtering.
  */
 
-import type { ThreatCategory, ThreatCheckResult } from "./types.js";
+import type { ThreatCheckResult } from "./types.js";
 
 /**
  * Known malicious domain patterns

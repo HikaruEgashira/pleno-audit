@@ -77,8 +77,7 @@ export function createNRDDetector(config: NRDConfig, cache: NRDCache) {
         domainAge = calculateDomainAge(registrationDate);
         method = 'rdap';
       }
-    } catch (error) {
-      console.warn('[NRD] RDAP query failed:', error);
+    } catch {
       // RDAP取得失敗時はNRD判定不能
     }
 

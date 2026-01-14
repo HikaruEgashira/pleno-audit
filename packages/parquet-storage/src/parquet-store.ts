@@ -16,7 +16,6 @@ import {
   networkRequestToParquetRecord,
   eventToParquetRecord,
   getDateString,
-  getParquetFileName,
 } from "./schema";
 
 export class ParquetStore {
@@ -52,7 +51,6 @@ export class ParquetStore {
   ): Promise<void> {
     if (records.length === 0) return;
 
-    const fileName = getParquetFileName(type, date);
     const key = `${type}-${date}`;
 
     // 既存ファイルがあれば読み込み

@@ -261,8 +261,8 @@ export function RiskPriorityTab() {
 
       setRisks(significantRisks);
       setSummary(prioritizer.getSummary(significantRisks));
-    } catch (error) {
-      console.error("Failed to load risk data:", error);
+    } catch {
+      // Failed to load risk data
     } finally {
       setLoading(false);
     }

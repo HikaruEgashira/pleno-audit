@@ -100,7 +100,7 @@ class DebugServer extends EventEmitter {
       this.emit("extension-disconnected");
 
       // Reject all pending requests
-      for (const [id, pending] of this.pendingRequests) {
+      for (const [, pending] of this.pendingRequests) {
         clearTimeout(pending.timeout);
         pending.reject(new Error("Extension disconnected"));
       }

@@ -31,7 +31,7 @@ const PATTERNS: Array<{
   {
     classification: "credentials",
     pattern:
-      /(?:api[_-]?key|apikey|api_secret|secret_key|access_token|auth_token|bearer)[\s:="']+[a-zA-Z0-9_\-]{20,}/gi,
+      /(?:api[_-]?key|apikey|api_secret|secret_key|access_token|auth_token|bearer)[\s:="']+[a-zA-Z0-9_-]{20,}/gi,
     confidence: "high",
     name: "API Key",
   },
@@ -49,7 +49,7 @@ const PATTERNS: Array<{
   },
   {
     classification: "credentials",
-    pattern: /sk-ant-[a-zA-Z0-9\-]{80,}/g, // Anthropic API key format
+    pattern: /sk-ant-[a-zA-Z0-9-]{80,}/g, // Anthropic API key format
     confidence: "high",
     name: "Anthropic API Key",
   },
@@ -136,7 +136,7 @@ const PATTERNS: Array<{
   {
     classification: "health",
     pattern:
-      /(?:診断|diagnosis|medical.?record|patient.?id|health.?id)[\s:：]+[a-zA-Z0-9\-]{5,}/gi,
+      /(?:診断|diagnosis|medical.?record|patient.?id|health.?id)[\s:：]+[a-zA-Z0-9-]{5,}/gi,
     confidence: "medium",
     name: "Medical Record",
   },

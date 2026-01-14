@@ -29,10 +29,25 @@
       "files": ["app/debugger/src/**/*"],
       "rules": { "no-console": "off" }
     },
-    // Debug bridge - needs console before logger is connected
+    // Server - console is intentional for startup message
+    {
+      "files": ["app/server/src/**/*"],
+      "rules": { "no-console": "off" }
+    },
+    // Logger package - console is the output mechanism
+    {
+      "files": ["packages/extension-runtime/src/logger.ts"],
+      "rules": { "no-console": "off" }
+    },
+    // Debug bridge - needs console before logger is connected, and WebSocket for debug
     {
       "files": ["app/extension/lib/debug-bridge.ts"],
-      "rules": { "no-console": "off" }
+      "rules": { "no-console": "off", "no-restricted-globals": "off" }
+    },
+    // Threat intel - needs fetch for blocklist updates
+    {
+      "files": ["packages/threat-intel/src/**/*"],
+      "rules": { "no-restricted-globals": "off" }
     },
     // RDAP API query for NRD detection (default: OFF)
     {

@@ -312,8 +312,8 @@ function DashboardContent() {
         setTotalCounts((prev) => ({ ...prev, aiPrompts: aiPromptsCountResult.count ?? 0 }));
       }
       setLastUpdated(new Date().toISOString());
-    } catch (error) {
-      console.error("Failed to load data:", error);
+    } catch {
+      // Failed to load data
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -353,8 +353,8 @@ function DashboardContent() {
     try {
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
       await loadData();
-    } catch (error) {
-      console.error("Failed to clear data:", error);
+    } catch {
+      // Failed to clear data
     }
   };
 
@@ -820,8 +820,8 @@ function DashboardContent() {
                     a.click();
                     URL.revokeObjectURL(url);
                   }
-                } catch (e) {
-                  console.error("CSP生成エラー:", e);
+                } catch {
+                  // CSP generation error
                 }
               }}
             >

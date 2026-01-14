@@ -32,8 +32,8 @@ export function Settings() {
         type: "GET_DATA_RETENTION_CONFIG",
       });
       setRetentionDays(retCfg?.retentionDays ?? 180);
-    } catch (error) {
-      console.error("Failed to load config:", error);
+    } catch {
+      // Failed to load config
     }
   }
 
@@ -46,7 +46,7 @@ export function Settings() {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(console.error);
+    }).catch(() => {});
   }
 
   function formatRetentionDays(days: number): string {
@@ -75,8 +75,7 @@ export function Settings() {
 
       setMessage("Settings saved!");
       setTimeout(() => setMessage(""), 2000);
-    } catch (error) {
-      console.error("Failed to save config:", error);
+    } catch {
       setMessage("Failed to save");
     }
     setSaving(false);
@@ -88,8 +87,8 @@ export function Settings() {
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
       setMessage("Data cleared!");
       setTimeout(() => setMessage(""), 2000);
-    } catch (error) {
-      console.error("Failed to clear data:", error);
+    } catch {
+      // Failed to clear data
     }
   }
 

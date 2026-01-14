@@ -9,7 +9,6 @@ import type {
   PolicyViolation,
   PolicyContext,
   PolicyCondition,
-  ConditionOperator,
 } from "./types.js";
 import { DEFAULT_POLICIES } from "./types.js";
 

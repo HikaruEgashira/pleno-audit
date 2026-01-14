@@ -24,7 +24,6 @@ export interface ApiClientConfig {
   remoteEndpoint?: string;
 }
 
-let offscreenCreated = false;
 let offscreenReady = false;
 let offscreenCreating: Promise<void> | null = null;
 let offscreenReadyResolvers: (() => void)[] = [];
@@ -72,7 +71,7 @@ async function ensureOffscreenDocument(): Promise<void> {
       });
 
       if (contexts.length > 0) {
-        offscreenCreated = true;
+        // offscreen created
         await waitForOffscreenReady();
         return;
       }
@@ -82,11 +81,11 @@ async function ensureOffscreenDocument(): Promise<void> {
         reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
         justification: "Running local SQL database with sql.js WASM",
       });
-      offscreenCreated = true;
+      // offscreen created
       await waitForOffscreenReady();
     } catch (error) {
       if (error instanceof Error && error.message.includes("already exists")) {
-        offscreenCreated = true;
+        // offscreen created
         await waitForOffscreenReady();
       } else {
         throw error;

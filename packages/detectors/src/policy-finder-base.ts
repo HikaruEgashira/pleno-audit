@@ -3,7 +3,7 @@
  */
 import { FOOTER_SELECTORS } from "./patterns.js";
 import { decodeUrlSafe, getPathFromUrl, resolveUrl } from "./url-utils.js";
-import type { DOMAdapter, DetectionResult, DetectionMethod } from "./types.js";
+import type { DOMAdapter, DetectionResult } from "./types.js";
 
 export interface PolicyFinderConfig {
   // URL判定

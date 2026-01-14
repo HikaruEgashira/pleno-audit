@@ -63,12 +63,9 @@ export async function migrateEventsToIndexedDB(
     await chrome.storage.local.set({ [MIGRATION_FLAG_KEY]: true });
     await chrome.storage.local.remove(["events"]);
 
-    console.log(`[ParquetStore] Migrated ${events.length} events`);
-
     return { success: true, migratedCount: events.length };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[ParquetStore] Migration failed: ${errorMsg}`);
     return { success: false, migratedCount: 0, error: errorMsg };
   }
 }

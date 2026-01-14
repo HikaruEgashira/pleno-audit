@@ -129,7 +129,7 @@ function PolicyCard({ policy, onToggle }: PolicyCardProps) {
 }
 
 export function PolicyTab() {
-  const { colors } = useTheme();
+  useTheme();
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<PolicyViolation[]>([]);
   const [policies, setPolicies] = useState<PolicyRule[]>([]);

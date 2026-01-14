@@ -8,22 +8,17 @@
 import type {
   EventLog,
   DetectedService,
-  ExtensionRequestDetails,
 } from "@pleno-audit/detectors";
 import type {
   SecurityGraph,
   GraphNode,
   GraphEdge,
-  NodeType,
-  EdgeType,
   DomainMetadata,
   AIProviderMetadata,
   ExtensionMetadata,
   DataTypeMetadata,
   GraphStats,
   AttackPath,
-  RiskLevel,
-  DataClassification,
 } from "./types.js";
 import {
   calculateRiskScore,
@@ -33,7 +28,6 @@ import {
 } from "./risk-calculator.js";
 import {
   detectSensitiveData,
-  getHighestRiskClassification,
 } from "./sensitive-data-detector.js";
 
 /**

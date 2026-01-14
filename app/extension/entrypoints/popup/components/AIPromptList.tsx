@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import type { CapturedAIPrompt } from "@pleno-audit/detectors";
-import { Badge, Card } from "../../../components";
+import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 

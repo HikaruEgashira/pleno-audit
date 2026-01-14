@@ -67,7 +67,7 @@ interface ThreatCardProps {
   onUpdateStatus: (id: string, status: ThreatStatus) => void;
 }
 
-function ThreatCard({ threat, onMitigate, onUpdateStatus }: ThreatCardProps) {
+function ThreatCard({ threat, onUpdateStatus }: ThreatCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const severityColor = getSeverityColor(threat.severity, colors);
@@ -260,10 +260,6 @@ export function ThreatTab() {
 
   const loadData = useCallback(async () => {
     try {
-      // Get stored threats from chrome storage
-      const storageResult = await chrome.storage.local.get(["runtimeThreats"]);
-      const storedThreats = storageResult.runtimeThreats || [];
-
       // Also check for services with NRD/Typosquat flags to create threats
       const servicesResult = await chrome.storage.local.get(["services"]);
       const services = servicesResult.services
@@ -298,8 +294,8 @@ export function ThreatTab() {
 
       setThreats(await protector.getActiveThreats());
       setStats(await protector.getStats());
-    } catch (error) {
-      console.error("Failed to load threats:", error);
+    } catch {
+      // Failed to load threats
     } finally {
       setLoading(false);
     }

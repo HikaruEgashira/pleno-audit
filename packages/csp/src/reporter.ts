@@ -54,21 +54,13 @@ export class CSPReporter {
       });
 
       return response.ok;
-    } catch (error) {
+    } catch {
       if (attempt < this.maxRetries) {
-        console.debug(
-          `[Pleno Audit] Report send failed (attempt ${attempt + 1}/${this.maxRetries}), retrying...`
-        );
         await new Promise((resolve) =>
           setTimeout(resolve, this.retryDelay * Math.pow(2, attempt))
         );
         return this.sendWithRetry(payload, attempt + 1);
       }
-
-      console.error(
-        "[Pleno Audit] Failed to send reports after retries:",
-        error
-      );
       return false;
     }
   }

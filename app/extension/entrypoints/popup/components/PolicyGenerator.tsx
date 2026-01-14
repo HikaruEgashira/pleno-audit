@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import type { GeneratedCSPPolicy } from "@pleno-audit/csp";
-import { Badge, Button, Card } from "../../../components";
+import { Badge, Button } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
@@ -33,8 +33,8 @@ export function PolicyGenerator() {
       if (data?.policies?.length > 0) {
         setExpandedDomain(data.policies[0].domain);
       }
-    } catch (err) {
-      console.error("Failed to generate policy:", err);
+    } catch {
+      // Failed to generate policy
     } finally {
       setLoading(false);
     }
@@ -44,8 +44,8 @@ export function PolicyGenerator() {
     try {
       await navigator.clipboard.writeText(policyString);
       alert("クリップボードにコピーしました");
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch {
+      // Failed to copy
     }
   }
 

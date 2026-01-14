@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "preact/hooks";
+import { useState, useCallback } from "preact/hooks";
 import {
   exportData,
   downloadExport,
@@ -8,6 +8,12 @@ import {
   type AlertExport,
   type PermissionExport,
 } from "@pleno-audit/data-export";
+import {
+  generateComplianceReport,
+  exportReportMarkdown,
+  type ComplianceFramework,
+} from "@pleno-audit/compliance";
+import type { DetectedService } from "@pleno-audit/detectors";
 import {
   FileText,
   Download,
@@ -19,21 +25,13 @@ import {
   AlertTriangle,
   Eye,
   CheckCircle,
+  Scale,
 } from "lucide-preact";
 import { useTheme } from "../../lib/theme";
-import { Badge, Button, Card, Select, StatCard } from "../../components";
+import { Button, Card, Select } from "../../components";
 
 type ReportPeriod = "7d" | "30d" | "90d" | "all";
 type ExportFormat = "json" | "csv" | "markdown" | "html";
-
-function getPeriodLabel(period: ReportPeriod): string {
-  switch (period) {
-    case "7d": return "過去7日";
-    case "30d": return "過去30日";
-    case "90d": return "過去90日";
-    case "all": return "全期間";
-  }
-}
 
 function getPeriodMs(period: ReportPeriod): number {
   const now = Date.now();
@@ -49,6 +47,7 @@ export function ReportTab() {
   const { colors } = useTheme();
   const [period, setPeriod] = useState<ReportPeriod>("30d");
   const [generating, setGenerating] = useState(false);
+  const [generatingCompliance, setGeneratingCompliance] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
 
   const periodOptions = [
@@ -267,8 +266,8 @@ export function ReportTab() {
       }
 
       setLastGenerated(new Date().toLocaleString("ja-JP"));
-    } catch (error) {
-      console.error("Failed to generate report:", error);
+    } catch {
+      // Failed to generate report
     } finally {
       setGenerating(false);
     }

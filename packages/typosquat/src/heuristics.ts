@@ -7,7 +7,6 @@
 
 import type {
   HomoglyphMatch,
-  HomoglyphType,
   TyposquatScores,
   ScriptType,
   ScoreBreakdown,

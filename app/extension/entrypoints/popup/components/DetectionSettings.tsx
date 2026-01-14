@@ -25,7 +25,7 @@ export function DetectionSettings() {
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" })
       .then(setConfig)
-      .catch(console.error);
+      .catch(() => {});
   }, []);
 
   function handleToggle(key: keyof DetectionConfig) {
@@ -35,7 +35,7 @@ export function DetectionSettings() {
     chrome.runtime.sendMessage({
       type: "SET_DETECTION_CONFIG",
       data: newConfig,
-    }).catch(console.error);
+    }).catch(() => {});
   }
 
   const styles = {

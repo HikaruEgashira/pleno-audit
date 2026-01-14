@@ -13,8 +13,6 @@ import type {
   AlertRule,
   AlertAction,
   AlertDetails,
-  DEFAULT_ALERT_CONFIG,
-  DEFAULT_ALERT_RULES,
 } from "./types.js";
 
 /**

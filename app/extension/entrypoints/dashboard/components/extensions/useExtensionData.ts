@@ -66,8 +66,8 @@ export function useExtensionData(): ExtensionData {
       analysisResults.sort((a, b) => b.riskScore - a.riskScore);
       setAnalyses(analysisResults);
       setSummary(await analyzer.getSummary());
-    } catch (error) {
-      console.error("Failed to load extension data:", error);
+    } catch {
+      // Failed to load extension data
     } finally {
       setLoading(false);
     }

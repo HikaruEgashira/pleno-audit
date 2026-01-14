@@ -14,7 +14,6 @@ import type {
   PermissionRisk,
   PermissionChange,
   PermissionBaseline,
-  FindingType,
 } from "./types.js";
 import {
   PERMISSION_METADATA,

@@ -12,7 +12,6 @@ import type {
   ThreatSeverity,
   ThreatCategory,
   ThreatSource,
-  DEFAULT_THREAT_INTEL_CONFIG,
 } from "./types.js";
 import { checkURLhausHost } from "./urlhaus.js";
 import { checkBlocklist, checkMaliciousPatterns, updateBlocklists } from "./blocklists.js";

@@ -12,11 +12,6 @@ import {
   riskLevelPriority,
 } from "@pleno-audit/security-graph";
 import {
-  generateComplianceReport,
-  exportReportMarkdown,
-  type ComplianceFramework,
-} from "@pleno-audit/compliance";
-import {
   AlertTriangle,
   Network,
   Shield,
@@ -25,7 +20,6 @@ import {
   ChevronDown,
   ChevronRight,
   Skull,
-  FileText,
 } from "lucide-preact";
 import { useTheme, spacing } from "../../lib/theme";
 import { Badge, Button, Card, SearchInput, Select, StatCard, LoadingState, EmptyState, StatsGrid } from "../../components";
@@ -268,7 +262,6 @@ export function SecurityGraphTab() {
   const [riskFilter, setRiskFilter] = useState("");
   const [threatResults, setThreatResults] = useState<Map<string, ThreatCheckResult>>(new Map());
   const [scanningThreats, setScanningThreats] = useState(false);
-  const [generatingReport, setGeneratingReport] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -314,84 +307,6 @@ export function SecurityGraphTab() {
       setScanningThreats(false);
     }
   }, [graph]);
-
-  const generateReport = useCallback(async (framework: ComplianceFramework) => {
-    setGeneratingReport(true);
-    try {
-      const [storageResult, eventsResult, aiPromptsResult] = await Promise.all([
-        chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000 } }),
-        chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
-      ]);
-
-      const services = storageResult.services ? Object.values(storageResult.services) as DetectedService[] : [];
-      const events = eventsResult?.events ?? [];
-      const aiPrompts = aiPromptsResult ?? [];
-
-      const now = Date.now();
-      const period = { start: now - 30 * 24 * 60 * 60 * 1000, end: now };
-
-      const input = {
-        services: services.map((s) => ({
-          domain: s.domain,
-          hasLoginPage: s.hasLoginPage,
-          privacyPolicyUrl: s.privacyPolicyUrl,
-          termsOfServiceUrl: s.termsOfServiceUrl,
-          isNRD: s.nrdResult?.isNRD ?? false,
-          isTyposquat: s.typosquatResult?.isTyposquat ?? false,
-          cookieCount: s.cookies?.length ?? 0,
-        })),
-        events: events.map((e: { type: string; domain: string; timestamp: number; details: Record<string, unknown> }) => ({
-          type: e.type,
-          domain: e.domain,
-          timestamp: e.timestamp,
-          details: e.details,
-        })),
-        aiPrompts: aiPrompts.map((p: { apiEndpoint: string; provider?: string }) => {
-          try {
-            return {
-              domain: new URL(p.apiEndpoint).hostname,
-              provider: p.provider || "unknown",
-              hasSensitiveData: false,
-              dataTypes: [],
-            };
-          } catch {
-            return { domain: "unknown", provider: "unknown", hasSensitiveData: false, dataTypes: [] };
-          }
-        }),
-        cspViolations: events
-          .filter((e: { type: string }) => e.type === "csp_violation")
-          .map((e: { domain: string; details: { directive?: string; blockedURL?: string } }) => ({
-            domain: e.domain,
-            directive: e.details?.directive || "unknown",
-            blockedURL: e.details?.blockedURL || "",
-          })),
-        threats: Array.from(threatResults.entries())
-          .filter(([_, r]) => r.isThreat)
-          .map(([domain, r]) => ({
-            domain,
-            severity: r.severity,
-            category: r.categories[0] || "unknown",
-          })),
-      };
-
-      const report = generateComplianceReport(framework, input, period);
-      const markdown = exportReportMarkdown(report);
-
-      // Download report
-      const blob = new Blob([markdown], { type: "text/markdown" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `compliance-${framework}-${new Date().toISOString().slice(0, 10)}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // Failed to generate report
-    } finally {
-      setGeneratingReport(false);
-    }
-  }, [threatResults]);
 
   useEffect(() => {
     loadData();
@@ -542,30 +457,6 @@ export function SecurityGraphTab() {
             )}
           </div>
         )}
-      </Card>
-
-      {/* Compliance Reports */}
-      <Card title="コンプライアンスレポート" style={{ marginBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          <Button
-            onClick={() => generateReport("soc2")}
-            disabled={generatingReport}
-          >
-            <FileText size={14} style={{ marginRight: "6px" }} />
-            {generatingReport ? "生成中..." : "SOC2レポート"}
-          </Button>
-          <Button
-            onClick={() => generateReport("gdpr")}
-            disabled={generatingReport}
-            variant="secondary"
-          >
-            <FileText size={14} style={{ marginRight: "6px" }} />
-            GDPRレポート
-          </Button>
-          <span style={{ fontSize: "12px", color: colors.textSecondary }}>
-            過去30日間のデータに基づくレポートを生成
-          </span>
-        </div>
       </Card>
 
       {/* Attack Paths */}

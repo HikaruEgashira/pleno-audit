@@ -26,7 +26,7 @@ export function CSPSettings() {
         setConfig(cfg);
         setEndpoint(cfg?.reportEndpoint ?? "");
       })
-      .catch(console.error);
+      .catch(() => {});
   }, []);
 
   function handleToggle(key: CSPOption["key"]) {
@@ -36,7 +36,7 @@ export function CSPSettings() {
     chrome.runtime.sendMessage({
       type: "SET_CSP_CONFIG",
       data: newConfig,
-    }).catch(console.error);
+    }).catch(() => {});
   }
 
   function handleEndpointChange(value: string) {
@@ -45,7 +45,7 @@ export function CSPSettings() {
     chrome.runtime.sendMessage({
       type: "SET_CSP_CONFIG",
       data: { ...config, reportEndpoint: value || null },
-    }).catch(console.error);
+    }).catch(() => {});
   }
 
   const styles = {

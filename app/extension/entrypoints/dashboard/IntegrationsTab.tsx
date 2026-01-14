@@ -232,7 +232,7 @@ export function IntegrationsTab() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activeView, setActiveView] = useState<"integrations" | "workflows">("integrations");
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [_showAddDialog, setShowAddDialog] = useState(false);
 
   const manager = useMemo(() => createIntegrationManager(), []);
 

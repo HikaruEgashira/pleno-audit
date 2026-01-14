@@ -174,9 +174,8 @@ chrome.runtime.onMessage.addListener(
 
 initLocalServer()
   .then(() => {
-    console.log("[Pleno Audit] Offscreen: Local server initialized");
     chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
   })
-  .catch((error) => {
-    console.error("[Pleno Audit] Offscreen: Failed to initialize local server", error);
+  .catch(() => {
+    // Failed to initialize local server
   });

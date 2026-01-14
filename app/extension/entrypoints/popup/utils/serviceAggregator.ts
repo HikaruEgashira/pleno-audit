@@ -246,8 +246,8 @@ export async function aggregateServices(
         lastActivity,
       });
     }
-  } catch (error) {
-    console.error("Failed to load extension data:", error);
+  } catch {
+    // Failed to load extension data
   }
 
   return result;

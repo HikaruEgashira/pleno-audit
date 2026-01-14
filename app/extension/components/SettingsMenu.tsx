@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "preact/hooks";
-import type { DataRetentionConfig } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../lib/theme";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -52,7 +51,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(console.error);
+    }).catch(() => {});
   }
 
   return (

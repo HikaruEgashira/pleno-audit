@@ -113,8 +113,8 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       try {
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
-      } catch (error) {
-        console.error("Failed to load data:", error);
+      } catch {
+        // Failed to load data
       } finally {
         setLoading(false);
       }

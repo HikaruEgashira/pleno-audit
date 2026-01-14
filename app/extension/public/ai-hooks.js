@@ -422,5 +422,5 @@
     return originalXHRSend.call(this, body)
   }
 
-  console.log('[AI Prompt Capture] Initialized')
+  // AI Prompt Capture initialized
 })()

@@ -13,9 +13,6 @@ import type {
   ComplianceStatus,
   ComplianceEvidence,
   ComplianceFinding,
-  ControlCategory,
-  SOC2_CONTROLS,
-  GDPR_CONTROLS,
 } from "./types.js";
 
 /**

@@ -90,8 +90,7 @@ function PopupContent() {
         services: servicesResult.services || {},
         events,
       });
-    } catch (error) {
-      console.error("Failed to load data:", error);
+    } catch {
       setData({
         services: {},
         events: [],
@@ -115,8 +114,8 @@ function PopupContent() {
       ]);
       if (Array.isArray(vData)) setViolations(vData);
       if (Array.isArray(nData)) setNetworkRequests(nData);
-    } catch (error) {
-      console.error("Failed to load CSP data:", error);
+    } catch {
+      // Failed to load CSP data
     }
   }
 
@@ -124,8 +123,8 @@ function PopupContent() {
     try {
       const data = await chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" });
       if (Array.isArray(data)) setAIPrompts(data);
-    } catch (error) {
-      console.error("Failed to load AI data:", error);
+    } catch {
+      // Failed to load AI data
     }
   }
 
@@ -141,8 +140,8 @@ function PopupContent() {
       setNetworkRequests([]);
       setAIPrompts([]);
       setUnifiedServices([]);
-    } catch (err) {
-      console.error("Failed to clear data:", err);
+    } catch {
+      // Failed to clear data
     }
   }
 
@@ -151,7 +150,7 @@ function PopupContent() {
     const services = Object.values(data.services) as DetectedService[];
     aggregateServices(services, networkRequests, violations)
       .then(setUnifiedServices)
-      .catch((err) => console.error("Failed to aggregate services:", err));
+      .catch(() => {});
   }, [data.services, networkRequests, violations]);
 
   function openDashboard() {

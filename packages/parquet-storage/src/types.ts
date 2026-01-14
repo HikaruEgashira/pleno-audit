@@ -1,4 +1,4 @@
-import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
+import type { CSPReport } from "@pleno-audit/csp";
 
 export type ParquetLogType =
   | "csp-violations"

@@ -12,11 +12,9 @@ import type {
   PrioritizedRisk,
   RiskImpact,
   RemediationAction,
-  RemediationType,
   RiskSummary,
-  RiskTrend,
 } from "./types.js";
-import { RISK_WEIGHTS, SEVERITY_THRESHOLDS } from "./types.js";
+import { SEVERITY_THRESHOLDS } from "./types.js";
 
 export interface RiskInput {
   domain: string;

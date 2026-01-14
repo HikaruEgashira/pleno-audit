@@ -1,4 +1,3 @@
-import type { CSPReport } from "@pleno-audit/csp";
 import { ApiClient, getApiClient } from "./api-client.js";
 import { createLogger } from "./logger.js";
 

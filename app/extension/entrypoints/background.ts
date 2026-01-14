@@ -161,7 +161,6 @@ const typosquatCacheAdapter: TyposquatCache = {
 // Extension Monitor
 let extensionMonitor: ExtensionMonitor | null = null;
 const extensionRequestBuffer: ExtensionRequestRecord[] = [];
-const EXTENSION_BUFFER_FLUSH_INTERVAL = 5000;
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -1415,7 +1414,7 @@ export default defineBackground(() => {
           }
           const stats = await apiClient.getStats();
           sendResponse(stats);
-        } catch (error) {
+        } catch {
           sendResponse({ violations: 0, requests: 0, uniqueDomains: 0 });
         }
       })();
@@ -1565,7 +1564,7 @@ export default defineBackground(() => {
             timestamp: new Date(e.timestamp).toISOString(),
           }));
           sendResponse({ events, total: result.total, hasMore: result.hasMore });
-        } catch (error) {
+        } catch {
           sendResponse({ events: [], total: 0, hasMore: false });
         }
       })();
@@ -1586,7 +1585,7 @@ export default defineBackground(() => {
           }
           const result = await store.getEvents(options);
           sendResponse({ count: result.total });
-        } catch (error) {
+        } catch {
           sendResponse({ count: 0 });
         }
       })();
@@ -1599,7 +1598,7 @@ export default defineBackground(() => {
           const store = await getOrInitParquetStore();
           await store.clearAll();
           sendResponse({ success: true });
-        } catch (error) {
+        } catch {
           sendResponse({ success: false });
         }
       })();
