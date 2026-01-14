@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@pleno-audit/csp": "workspace:*",
+    "@pleno-audit/extension-runtime": "workspace:*",
+    "@pleno-audit/parquet-storage": "workspace:*",
     "hono": "^4.7.0"
   },
   "peerDependencies": {

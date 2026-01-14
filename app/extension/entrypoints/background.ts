@@ -67,10 +67,10 @@ import {
 const logger = createLogger("background");
 import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
-  EventStore,
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
+import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -84,7 +84,7 @@ interface StorageData {
 let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
-let eventStore: EventStore | null = null;
+let parquetStore: ParquetStore | null = null;
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -221,21 +221,33 @@ type NewEvent =
       details: ExtensionRequestDetails;
     };
 
-async function getOrInitEventStore(): Promise<EventStore> {
-  if (!eventStore) {
-    eventStore = new EventStore();
-    await eventStore.init();
+async function getOrInitParquetStore(): Promise<ParquetStore> {
+  if (!parquetStore) {
+    parquetStore = new ParquetStore();
+    await parquetStore.init();
   }
-  return eventStore;
+  return parquetStore;
 }
 
 async function addEvent(event: NewEvent): Promise<EventLog> {
-  const store = await getOrInitEventStore();
+  const store = await getOrInitParquetStore();
+  const eventId = generateEventId();
   const newEvent = {
     ...event,
-    id: generateEventId(),
+    id: eventId,
   } as EventLog;
-  await store.add(newEvent);
+
+  // ParquetEvent形式に変換
+  const parquetEvent = {
+    id: eventId,
+    type: event.type,
+    domain: event.domain,
+    timestamp: Date.now(), // ミリ秒
+    details: JSON.stringify(event.details || {}),
+  };
+
+  // Parquetストアに記録
+  await store.addEvents([parquetEvent]);
   await updateBadge();
   return newEvent;
 }
@@ -300,6 +312,14 @@ async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: tr
         },
       });
     }
+
+    // Log detection result to ParquetStore
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = nrdResultToParquetRecord(result);
+    await parquetStore.write("nrd-detections", [record]);
 
     return result;
   } catch (error) {
@@ -387,6 +407,14 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
         },
       });
     }
+
+    // Log detection result to ParquetStore
+    if (!parquetStore) {
+      parquetStore = new ParquetStore();
+      await parquetStore.init();
+    }
+    const record = typosquatResultToParquetRecord(result);
+    await parquetStore.write("typosquat-detections", [record]);
 
     return result;
   } catch (error) {
@@ -578,10 +606,10 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     // Delete old CSP reports from database
     const deleted = await apiClient.deleteOldReports(cutoffTimestamp);
 
-    // Delete old events from EventStore
-    const store = await getOrInitEventStore();
-    const cutoffMs = cutoffDate.getTime();
-    await store.deleteOldEvents(cutoffMs);
+    // Delete old events from Parquet storage
+    const store = await getOrInitParquetStore();
+    const cutoffDate_ = cutoffDate.toISOString().split("T")[0];
+    await store.deleteOldReports(cutoffDate_);
 
     // Delete old AI prompts from storage
     const storage = await getStorage();
@@ -1173,7 +1201,7 @@ export default defineBackground(() => {
   }
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
-  getOrInitEventStore()
+  getOrInitParquetStore()
     .then(() => logger.info("EventStore initialized"))
     .catch((error) => logger.error("EventStore init failed:", error));
 
@@ -1207,7 +1235,7 @@ export default defineBackground(() => {
     try {
       const needsMigration = await checkEventsMigrationNeeded();
       if (needsMigration) {
-        const store = await getOrInitEventStore();
+        const store = await getOrInitParquetStore();
         const result = await migrateEventsToIndexedDB(store);
         logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
       }
@@ -1452,9 +1480,23 @@ export default defineBackground(() => {
     if (message.type === "GET_EVENTS") {
       (async () => {
         try {
-          const store = await getOrInitEventStore();
-          const result = await store.query(message.data);
-          sendResponse(result);
+          const store = await getOrInitParquetStore();
+          // タイムスタンプ形式を ISO形式に変換（ParquetStore対応）
+          const options = message.data || {};
+          if (typeof options.since === "number") {
+            options.since = new Date(options.since).toISOString();
+          }
+          if (typeof options.until === "number") {
+            options.until = new Date(options.until).toISOString();
+          }
+          const result = await store.getEvents(options);
+          // ParquetEvent を EventLog形式に変換
+          const events = result.data.map((e: any) => ({
+            ...e,
+            details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
+            timestamp: new Date(e.timestamp).toISOString(),
+          }));
+          sendResponse({ events, total: result.total, hasMore: result.hasMore });
         } catch (error) {
           sendResponse({ events: [], total: 0, hasMore: false });
         }
@@ -1465,9 +1507,17 @@ export default defineBackground(() => {
     if (message.type === "GET_EVENTS_COUNT") {
       (async () => {
         try {
-          const store = await getOrInitEventStore();
-          const count = await store.count(message.data);
-          sendResponse({ count });
+          const store = await getOrInitParquetStore();
+          // タイムスタンプ形式を ISO形式に変換
+          const options = message.data || {};
+          if (typeof options.since === "number") {
+            options.since = new Date(options.since).toISOString();
+          }
+          if (typeof options.until === "number") {
+            options.until = new Date(options.until).toISOString();
+          }
+          const result = await store.getEvents(options);
+          sendResponse({ count: result.total });
         } catch (error) {
           sendResponse({ count: 0 });
         }
@@ -1478,8 +1528,8 @@ export default defineBackground(() => {
     if (message.type === "CLEAR_EVENTS") {
       (async () => {
         try {
-          const store = await getOrInitEventStore();
-          await store.clear();
+          const store = await getOrInitParquetStore();
+          await store.clearAll();
           sendResponse({ success: true });
         } catch (error) {
           sendResponse({ success: false });

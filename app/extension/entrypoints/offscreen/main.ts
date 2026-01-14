@@ -1,8 +1,6 @@
-import initSqlJs from "sql.js";
-import { createApp, SqlJsAdapter } from "@pleno-audit/api";
+import { createApp, ParquetAdapter } from "@pleno-audit/api";
 import {
   isLocalApiRequest,
-  IndexedDBStorage,
   type DBMessage,
   type LocalApiResponse,
   type LegacyDBMessage,
@@ -10,33 +8,13 @@ import {
 } from "@pleno-audit/extension-runtime/offscreen";
 
 let app: ReturnType<typeof createApp> | null = null;
-let db: SqlJsAdapter | null = null;
-let indexedDBStorage: IndexedDBStorage | null = null;
-let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let db: ParquetAdapter | null = null;
 
 async function initLocalServer(): Promise<void> {
   if (app) return;
 
-  indexedDBStorage = new IndexedDBStorage();
-  await indexedDBStorage.init();
-
-  const savedData = await indexedDBStorage.load();
-
-  const SQL = await initSqlJs({
-    locateFile: () => chrome.runtime.getURL("sql-wasm.wasm"),
-  });
-
-  db = new SqlJsAdapter(SQL, {
-    loadFromBuffer: savedData || undefined,
-    onSave: (data: Uint8Array) => {
-      if (saveDebounceTimer) {
-        clearTimeout(saveDebounceTimer);
-      }
-      saveDebounceTimer = setTimeout(() => {
-        indexedDBStorage?.save(data).catch(console.error);
-      }, 1000);
-    },
-  });
+  // Parquetアダプターを初期化
+  db = new ParquetAdapter();
   await db.init();
   app = createApp(db);
 }
@@ -121,9 +99,6 @@ async function handleLegacyMessage(
       case "clear":
         if (!db) throw new Error("Database not initialized");
         await db.clearAll();
-        if (indexedDBStorage) {
-          await indexedDBStorage.clear();
-        }
         return { id: message.id, success: true };
 
       case "stats":

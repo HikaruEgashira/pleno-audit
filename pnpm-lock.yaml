@@ -149,6 +149,12 @@ importers:
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
       hono:
         specifier: ^4.7.0
         version: 4.11.3
@@ -183,6 +189,16 @@ importers:
         version: link:../detectors
 
   packages/nrd: {}
+
+  packages/parquet-storage:
+    dependencies:
+      '@pleno-audit/csp':
+        specifier: workspace:*
+        version: link:../csp
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
 
   packages/storage:
     dependencies:
