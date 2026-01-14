@@ -273,6 +273,80 @@ export function ReportTab() {
     }
   }, [generateReport]);
 
+  const handleComplianceExport = useCallback(async (framework: ComplianceFramework) => {
+    setGeneratingCompliance(true);
+    try {
+      const startTime = getPeriodMs(period);
+      const endTime = Date.now();
+
+      const [storageResult, eventsResult, aiPromptsResult] = await Promise.all([
+        chrome.storage.local.get(["services"]),
+        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: { limit: 1000 } }),
+        chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }),
+      ]);
+
+      const services = storageResult.services ? Object.values(storageResult.services) as DetectedService[] : [];
+      const events = eventsResult?.events ?? [];
+      const aiPrompts = aiPromptsResult ?? [];
+
+      const input = {
+        services: services.map((s) => ({
+          domain: s.domain,
+          hasLoginPage: s.hasLoginPage,
+          privacyPolicyUrl: s.privacyPolicyUrl,
+          termsOfServiceUrl: s.termsOfServiceUrl,
+          isNRD: s.nrdResult?.isNRD ?? false,
+          isTyposquat: s.typosquatResult?.isTyposquat ?? false,
+          cookieCount: s.cookies?.length ?? 0,
+        })),
+        events: events.map((e: { type: string; domain: string; timestamp: number; details: Record<string, unknown> }) => ({
+          type: e.type,
+          domain: e.domain,
+          timestamp: e.timestamp,
+          details: e.details,
+        })),
+        aiPrompts: aiPrompts.map((p: { apiEndpoint: string; provider?: string }) => {
+          try {
+            return {
+              domain: new URL(p.apiEndpoint).hostname,
+              provider: p.provider || "unknown",
+              hasSensitiveData: false,
+              dataTypes: [],
+            };
+          } catch {
+            return { domain: "unknown", provider: "unknown", hasSensitiveData: false, dataTypes: [] };
+          }
+        }),
+        cspViolations: events
+          .filter((e: { type: string }) => e.type === "csp_violation")
+          .map((e: { domain: string; details: { directive?: string; blockedURL?: string } }) => ({
+            domain: e.domain,
+            directive: e.details?.directive || "unknown",
+            blockedURL: e.details?.blockedURL || "",
+          })),
+        threats: [],
+      };
+
+      const complianceReport = generateComplianceReport(framework, input, { start: startTime, end: endTime });
+      const markdown = exportReportMarkdown(complianceReport);
+
+      // Download report
+      const blob = new Blob([markdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `compliance-${framework}-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setLastGenerated(new Date().toLocaleString("ja-JP"));
+    } catch {
+      // Failed to generate compliance report
+    } finally {
+      setGeneratingCompliance(false);
+    }
+  }, [period]);
+
   return (
     <div>
       {/* Report Configuration */}
@@ -432,6 +506,66 @@ export function ReportTab() {
             >
               <Download size={14} style={{ marginRight: "6px" }} />
               {generating ? "生成中..." : "HTMLで出力"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Compliance Reports */}
+      <Card title="コンプライアンスレポート" style={{ marginTop: "24px" }}>
+        <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "16px" }}>
+          選択した期間のデータに基づいてコンプライアンスフレームワーク別のレポートを生成します。
+        </div>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              padding: "16px",
+              background: colors.bgSecondary,
+              borderRadius: "8px",
+              border: `1px solid ${colors.border}`,
+              flex: "1 1 200px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Scale size={20} color="#3b82f6" />
+              <span style={{ fontWeight: 600 }}>SOC 2</span>
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+              サービス組織のセキュリティ統制レポート
+            </div>
+            <Button
+              onClick={() => handleComplianceExport("soc2")}
+              disabled={generatingCompliance}
+              size="sm"
+            >
+              <Download size={14} style={{ marginRight: "6px" }} />
+              {generatingCompliance ? "生成中..." : "SOC 2レポート"}
+            </Button>
+          </div>
+          <div
+            style={{
+              padding: "16px",
+              background: colors.bgSecondary,
+              borderRadius: "8px",
+              border: `1px solid ${colors.border}`,
+              flex: "1 1 200px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Scale size={20} color="#22c55e" />
+              <span style={{ fontWeight: 600 }}>GDPR</span>
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+              EU一般データ保護規則の準拠レポート
+            </div>
+            <Button
+              onClick={() => handleComplianceExport("gdpr")}
+              disabled={generatingCompliance}
+              size="sm"
+              variant="secondary"
+            >
+              <Download size={14} style={{ marginRight: "6px" }} />
+              {generatingCompliance ? "生成中..." : "GDPRレポート"}
             </Button>
           </div>
         </div>
