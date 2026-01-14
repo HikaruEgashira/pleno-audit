@@ -51,12 +51,18 @@ importers:
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
+      '@pleno-audit/data-export':
+        specifier: workspace:*
+        version: link:../../packages/data-export
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
+      '@pleno-audit/permission-analyzer':
+        specifier: workspace:*
+        version: link:../../packages/permission-analyzer
       '@pleno-audit/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
@@ -183,6 +189,8 @@ importers:
 
   packages/csp: {}
 
+  packages/data-export: {}
+
   packages/detectors:
     dependencies:
       '@pleno-audit/ai-detector':
@@ -224,6 +232,8 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/permission-analyzer: {}
 
   packages/policy-engine: {}
 

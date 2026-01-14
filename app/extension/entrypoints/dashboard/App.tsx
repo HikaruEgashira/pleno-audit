@@ -16,6 +16,7 @@ import { ExtensionsTab } from "./ExtensionsTab";
 import { SecurityGraphTab } from "./SecurityGraphTab";
 import { ShadowITTab } from "./ShadowITTab";
 import { PolicyTab } from "./PolicyTab";
+import { PermissionTab } from "./PermissionTab";
 
 interface TotalCounts {
   violations: number;
@@ -25,7 +26,7 @@ interface TotalCounts {
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "shadow-it" | "policy";
+type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "shadow-it" | "policy" | "permissions";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -219,7 +220,7 @@ function DashboardContent() {
 
   const getInitialTab = (): TabType => {
     const hash = window.location.hash.slice(1);
-    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy"];
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy", "permissions"];
     return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
   };
 
@@ -239,7 +240,7 @@ function DashboardContent() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) as TabType;
-      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy"];
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "shadow-it", "policy", "permissions"];
       if (validTabs.includes(hash)) setActiveTab(hash);
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -317,7 +318,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "shadow-it", "policy"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "shadow-it", "policy", "permissions"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -411,6 +412,7 @@ function DashboardContent() {
     { id: "graph", label: "セキュリティグラフ" },
     { id: "shadow-it", label: "Shadow IT" },
     { id: "policy", label: "ポリシー" },
+    { id: "permissions", label: "権限分析" },
   ];
 
   const filteredViolations = useMemo(() => {
@@ -943,6 +945,12 @@ function DashboardContent() {
       {activeTab === "policy" && (
         <div style={styles.section}>
           <PolicyTab />
+        </div>
+      )}
+
+      {activeTab === "permissions" && (
+        <div style={styles.section}>
+          <PermissionTab />
         </div>
       )}
     </div>

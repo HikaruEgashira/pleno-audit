@@ -1,0 +1,40 @@
+/**
+ * @fileoverview Data Export Package
+ *
+ * Export security data in various formats (JSON, CSV, Markdown, HTML).
+ * Enables reporting and data portability.
+ */
+
+// Types
+export type {
+  ExportFormat,
+  ExportDataType,
+  ExportOptions,
+  ExportResult,
+  CSVColumn,
+  SecurityReport,
+  ReportMetadata,
+  ReportSummary,
+  ServiceExport,
+  ViolationExport,
+  AlertExport,
+  PermissionExport,
+  ShadowITExport,
+  ComplianceExport,
+  ComplianceControlExport,
+} from "./types.js";
+
+// Exporter functions
+export {
+  exportData,
+  downloadExport,
+  toCSV,
+  toJSON,
+  exportServicesToCSV,
+  exportViolationsToCSV,
+  exportAlertsToCSV,
+  exportPermissionsToCSV,
+  exportShadowITToCSV,
+  exportReportToMarkdown,
+  exportReportToHTML,
+} from "./exporter.js";
