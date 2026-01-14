@@ -136,7 +136,8 @@ export default function PrivacyPage() {
                 <strong>認証フロー情報:</strong> OAuth/SAMLなどの認証フローの検出結果
               </li>
               <li>
-                <strong>AIサービス利用情報:</strong> AIサービスへのリクエストの検出結果（プロンプト内容を含む場合があります）
+                <strong>AIサービス利用情報:</strong> AIサービスへのリクエストの検出結果（プロンプト内容を含む場合があります）。
+                これらのデータはすべてユーザーの端末内にのみ保存され、開発者を含む第三者がアクセスすることはできません。
               </li>
             </ul>
           </Section>
@@ -145,6 +146,7 @@ export default function PrivacyPage() {
             <p>
               収集したすべてのデータは、ユーザーの端末内（ブラウザのIndexedDB/SQLite）に保存されます。
               データは外部サーバーに送信されることはありません。
+              開発者およびいかなる第三者も、ユーザーの端末に保存されたデータにアクセスする手段を持ちません。
             </p>
             <div className="rounded-lg bg-[#d3f9d8] dark:bg-[#0a3d1a] border border-[#b8f0c0] dark:border-[#166534] p-4 mt-4">
               <p className="text-[#0a7227] dark:text-[#4ade80] text-sm">

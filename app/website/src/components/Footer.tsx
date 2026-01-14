@@ -39,6 +39,12 @@ export default function Footer() {
               運営会社
             </a>
             <Link
+              to="/faq"
+              className="hover:text-[#171717] dark:hover:text-[#ededed] transition-colors"
+            >
+              よくある質問
+            </Link>
+            <Link
               to="/privacy"
               className="hover:text-[#171717] dark:hover:text-[#ededed] transition-colors"
             >
