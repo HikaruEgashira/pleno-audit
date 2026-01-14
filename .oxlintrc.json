@@ -44,11 +44,6 @@
       "files": ["app/extension/lib/debug-bridge.ts"],
       "rules": { "no-console": "off", "no-restricted-globals": "off" }
     },
-    // Threat intel - needs fetch for blocklist updates
-    {
-      "files": ["packages/threat-intel/src/**/*"],
-      "rules": { "no-restricted-globals": "off" }
-    },
     // RDAP API query for NRD detection (default: OFF)
     {
       "files": ["packages/nrd/src/rdap.ts"],
