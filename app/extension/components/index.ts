@@ -6,5 +6,6 @@ export { SearchInput } from "./SearchInput";
 export { Select } from "./Select";
 export { StatCard } from "./StatCard";
 export { Tabs } from "./Tabs";
+export { Sidebar } from "./Sidebar";
 export { ThemeToggle } from "./ThemeToggle";
 export { SettingsMenu } from "./SettingsMenu";

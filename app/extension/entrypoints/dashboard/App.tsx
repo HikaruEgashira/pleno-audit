@@ -11,11 +11,10 @@ import type {
 } from "@pleno-audit/detectors";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors } from "../../lib/theme";
-import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Tabs } from "../../components";
-import { ExtensionsTab } from "./ExtensionsTab";
+import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar } from "../../components";
+import { UnifiedExtensionsTab } from "./UnifiedExtensionsTab";
 import { SecurityGraphTab } from "./SecurityGraphTab";
 import { PolicyTab } from "./PolicyTab";
-import { PermissionTab } from "./PermissionTab";
 import { ThreatTab } from "./ThreatTab";
 import { ReportTab } from "./ReportTab";
 import { RiskPriorityTab } from "./RiskPriorityTab";
@@ -29,7 +28,7 @@ interface TotalCounts {
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "policy" | "permissions" | "threats" | "reports" | "risks" | "integrations";
+type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "policy" | "threats" | "reports" | "risks" | "integrations";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -47,14 +46,18 @@ function getPeriodMs(period: Period): number {
 
 function createStyles(colors: ThemeColors, isDark: boolean) {
   return {
-    container: {
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "24px",
+    wrapper: {
+      display: "flex",
+      minHeight: "100vh",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
       color: colors.textPrimary,
       background: colors.bgSecondary,
-      minHeight: "100vh",
+    },
+    container: {
+      flex: 1,
+      maxWidth: "1200px",
+      padding: "24px",
+      overflowY: "auto",
     },
     header: {
       marginBottom: "32px",
@@ -223,7 +226,9 @@ function DashboardContent() {
 
   const getInitialTab = (): TabType => {
     const hash = window.location.hash.slice(1);
-    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "permissions", "threats", "reports", "risks", "integrations"];
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "threats", "reports", "risks", "integrations"];
+    // permissionsはextensionsに統合されたのでリダイレクト
+    if (hash === "permissions") return "extensions";
     return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
   };
 
@@ -242,9 +247,13 @@ function DashboardContent() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.slice(1) as TabType;
-      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "permissions", "threats", "reports", "risks", "integrations"];
-      if (validTabs.includes(hash)) setActiveTab(hash);
+      const hash = window.location.hash.slice(1);
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions", "graph", "policy", "threats", "reports", "risks", "integrations"];
+      if (hash === "permissions") {
+        setActiveTab("extensions");
+      } else if (validTabs.includes(hash as TabType)) {
+        setActiveTab(hash as TabType);
+      }
     };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
@@ -321,7 +330,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "policy", "permissions", "threats"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions", "graph", "policy", "threats", "reports"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -405,16 +414,15 @@ function DashboardContent() {
 
   const tabs = [
     { id: "overview", label: "概要" },
-    { id: "violations", label: "CSP違反", count: totalCounts.violations },
+    { id: "violations", label: "CSP違反" },
     { id: "domains", label: "ドメイン" },
-    { id: "ai", label: "AI監視", count: totalCounts.aiPrompts },
-    { id: "services", label: "サービス", count: services.length },
-    { id: "network", label: "ネットワーク", count: totalCounts.networkRequests },
-    { id: "events", label: "イベント", count: totalCounts.events },
+    { id: "ai", label: "AI監視" },
+    { id: "services", label: "サービス" },
+    { id: "network", label: "ネットワーク" },
+    { id: "events", label: "イベント" },
     { id: "extensions", label: "拡張機能" },
-    { id: "graph", label: "セキュリティグラフ" },
+    { id: "graph", label: "グラフ" },
     { id: "policy", label: "ポリシー" },
-    { id: "permissions", label: "権限分析" },
     { id: "threats", label: "脅威検出" },
     { id: "reports", label: "レポート" },
     { id: "risks", label: "リスク優先度" },
@@ -463,43 +471,43 @@ function DashboardContent() {
   }, [events, searchQuery]);
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.headerTop}>
-          <div>
-            <h1 style={styles.title}>
-              <Shield size={20} />
-              Pleno Audit
-              <Badge variant={status.variant} size="md" dot={status.dot}>{status.label}</Badge>
-            </h1>
-            <p style={styles.subtitle}>
-              更新: {new Date(lastUpdated).toLocaleString("ja-JP")} | 接続: {connectionMode}
-            </p>
+    <div style={styles.wrapper}>
+      <Sidebar tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} />
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <div style={styles.headerTop}>
+            <div>
+              <h1 style={styles.title}>
+                <Shield size={20} />
+                Pleno Audit
+                <Badge variant={status.variant} size="md" dot={status.dot}>{status.label}</Badge>
+              </h1>
+              <p style={styles.subtitle}>
+                更新: {new Date(lastUpdated).toLocaleString("ja-JP")} | 接続: {connectionMode}
+              </p>
+            </div>
+            <div style={styles.controls}>
+              <Select
+                value={period}
+                onChange={(v) => setPeriod(v as Period)}
+                options={periodOptions}
+              />
+              <Button onClick={() => loadData()} disabled={isRefreshing}>
+                {isRefreshing ? "更新中..." : "更新"}
+              </Button>
+              <SettingsMenu onClearData={handleClearData} onExport={handleExportJSON} />
+            </div>
           </div>
-          <div style={styles.controls}>
-            <Select
-              value={period}
-              onChange={(v) => setPeriod(v as Period)}
-              options={periodOptions}
-            />
-            <Button onClick={() => loadData()} disabled={isRefreshing}>
-              {isRefreshing ? "更新中..." : "更新"}
-            </Button>
-            <SettingsMenu onClearData={handleClearData} onExport={handleExportJSON} />
+
+          <div style={styles.statsGrid}>
+            <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
+            <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
+            <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
+            <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
+            <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
+            <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
           </div>
-        </div>
-
-        <div style={styles.statsGrid}>
-          <StatCard value={totalCounts.violations} label="CSP違反" onClick={() => setActiveTab("violations")} />
-          <StatCard value={nrdServices.length} label="NRD検出" trend={nrdServices.length > 0 ? { value: nrdServices.length, isUp: true } : undefined} onClick={() => { setActiveTab("services"); setSearchQuery("nrd"); }} />
-          <StatCard value={totalCounts.aiPrompts} label="AIプロンプト" onClick={() => setActiveTab("ai")} />
-          <StatCard value={services.length} label="サービス" onClick={() => setActiveTab("services")} />
-          <StatCard value={loginServices.length} label="ログイン検出" onClick={() => { setActiveTab("services"); setSearchQuery("login"); }} />
-          <StatCard value={totalCounts.events} label="イベント" onClick={() => setActiveTab("events")} />
-        </div>
-      </header>
-
-      <Tabs tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} />
+        </header>
 
       {activeTab === "overview" && (
         <>
@@ -932,7 +940,7 @@ function DashboardContent() {
 
       {activeTab === "extensions" && (
         <div style={styles.section}>
-          <ExtensionsTab />
+          <UnifiedExtensionsTab />
         </div>
       )}
 
@@ -945,12 +953,6 @@ function DashboardContent() {
       {activeTab === "policy" && (
         <div style={styles.section}>
           <PolicyTab />
-        </div>
-      )}
-
-      {activeTab === "permissions" && (
-        <div style={styles.section}>
-          <PermissionTab />
         </div>
       )}
 
@@ -977,6 +979,7 @@ function DashboardContent() {
           <IntegrationsTab />
         </div>
       )}
+      </div>
     </div>
   );
 }

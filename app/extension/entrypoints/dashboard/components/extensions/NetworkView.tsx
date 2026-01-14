@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "preact/hooks";
-import { Badge, Button, Card, DataTable, SearchInput, Select } from "../../components";
-import { useTheme, type ThemeColors } from "../../lib/theme";
+import { useState, useMemo } from "preact/hooks";
 import type { ExtensionRequestRecord, ExtensionInfo } from "@pleno-audit/extension-runtime";
+import { useTheme, type ThemeColors } from "../../../../lib/theme";
+import { Badge, Button, Card, DataTable, SearchInput, Select } from "../../../../components";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -52,39 +52,20 @@ function createStyles(colors: ThemeColors) {
   };
 }
 
-export function ExtensionsTab() {
+interface NetworkViewProps {
+  requests: ExtensionRequestRecord[];
+  extensionMap: Record<string, ExtensionInfo>;
+  stats: ExtensionStats | null;
+  loading: boolean;
+}
+
+export function NetworkView({ requests, extensionMap, stats, loading }: NetworkViewProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  const [requests, setRequests] = useState<ExtensionRequestRecord[]>([]);
-  const [extensions, setExtensions] = useState<Record<string, ExtensionInfo>>({});
-  const [stats, setStats] = useState<ExtensionStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedExtension, setSelectedExtension] = useState("");
   const [viewMode, setViewMode] = useState<"summary" | "details">("summary");
-  const [loading, setLoading] = useState(true);
-
-  async function loadData() {
-    try {
-      const [reqResult, extResult, statsResult] = await Promise.all([
-        chrome.runtime.sendMessage({ type: "GET_EXTENSION_REQUESTS", data: { limit: 500 } }),
-        chrome.runtime.sendMessage({ type: "GET_KNOWN_EXTENSIONS" }),
-        chrome.runtime.sendMessage({ type: "GET_EXTENSION_STATS" }),
-      ]);
-
-      setRequests(reqResult?.requests || []);
-      setExtensions(extResult || {});
-      setStats(statsResult || null);
-    } catch (error) {
-      console.error("Failed to load extension data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const extensionSummary = useMemo(() => {
     if (!stats) return [];
@@ -169,9 +150,9 @@ export function ExtensionsTab() {
                     header: "拡張機能",
                     render: (e) => (
                       <div style={styles.extensionName}>
-                        {extensions[e.id]?.icons?.[0]?.url && (
+                        {extensionMap[e.id]?.icons?.[0]?.url && (
                           <img
-                            src={extensions[e.id].icons![0].url}
+                            src={extensionMap[e.id].icons![0].url}
                             style={styles.extensionIcon}
                             alt=""
                           />
@@ -268,9 +249,9 @@ export function ExtensionsTab() {
                 width: "140px",
                 render: (r) => (
                   <div style={styles.extensionName}>
-                    {extensions[r.extensionId]?.icons?.[0]?.url && (
+                    {extensionMap[r.extensionId]?.icons?.[0]?.url && (
                       <img
-                        src={extensions[r.extensionId].icons![0].url}
+                        src={extensionMap[r.extensionId].icons![0].url}
                         style={styles.extensionIcon}
                         alt=""
                       />
