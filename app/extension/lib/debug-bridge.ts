@@ -8,6 +8,18 @@
  */
 
 import { setDebuggerSink, type LogEntry } from "@pleno-audit/extension-runtime";
+import { ParquetStore } from "@pleno-audit/parquet-storage";
+
+// Shared ParquetStore instance
+let parquetStore: ParquetStore | null = null;
+
+async function getParquetStore(): Promise<ParquetStore> {
+  if (!parquetStore) {
+    parquetStore = new ParquetStore();
+    await parquetStore.init();
+  }
+  return parquetStore;
+}
 
 const DEBUG_SERVER_URL = "ws://localhost:9222/debug";
 const RECONNECT_INTERVAL = 5000;
@@ -312,35 +324,78 @@ async function clearServices(): Promise<Omit<DebugResponse, "id">> {
 
 /**
  * Events operations
- * Note: Events are stored in IndexedDB, not accessible from this context.
- * These are stubs that return empty results.
+ * Uses ParquetStore directly
  */
-async function getEvents(_params: {
+async function getEvents(params: {
   limit?: number;
   type?: string;
 }): Promise<Omit<DebugResponse, "id">> {
-  // Events are in IndexedDB, not directly accessible from debug-bridge
-  // Use the message command to call GET_EVENTS instead
-  return {
-    success: true,
-    data: [],
-    error: "Events are stored in IndexedDB. Use 'pleno-debug message GET_EVENTS' instead.",
-  };
+  try {
+    const store = await getParquetStore();
+    const result = await store.getEvents({
+      limit: params.limit || 100,
+    });
+
+    // Convert ParquetEvent to a more readable format
+    const events = result.data.map((e) => ({
+      id: e.id,
+      type: e.type,
+      domain: e.domain,
+      timestamp: e.timestamp,
+      details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
+    }));
+
+    // Filter by type if specified
+    const filteredEvents = params.type
+      ? events.filter((e) => e.type === params.type)
+      : events;
+
+    return {
+      success: true,
+      data: filteredEvents,
+    };
+  } catch (error) {
+    console.error("[debug-bridge] getEvents error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get events",
+    };
+  }
 }
 
 async function getEventsCount(): Promise<Omit<DebugResponse, "id">> {
-  return {
-    success: true,
-    data: 0,
-    error: "Events are stored in IndexedDB. Use 'pleno-debug message GET_EVENTS_COUNT' instead.",
-  };
+  try {
+    const store = await getParquetStore();
+    const result = await store.getEvents({ limit: 0 });
+
+    return {
+      success: true,
+      data: result.total,
+    };
+  } catch (error) {
+    console.error("[debug-bridge] getEventsCount error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get events count",
+    };
+  }
 }
 
 async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
-  return {
-    success: false,
-    error: "Events are stored in IndexedDB. Use 'pleno-debug message CLEAR_EVENTS' instead.",
-  };
+  try {
+    const store = await getParquetStore();
+    await store.clearAll();
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("[debug-bridge] clearEvents error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to clear events",
+    };
+  }
 }
 
 /**

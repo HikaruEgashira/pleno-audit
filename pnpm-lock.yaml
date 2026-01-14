@@ -63,6 +63,9 @@ importers:
       '@pleno-audit/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../../packages/parquet-storage
       '@pleno-audit/permission-analyzer':
         specifier: workspace:*
         version: link:../../packages/permission-analyzer
@@ -236,6 +239,9 @@ importers:
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../detectors
     devDependencies:
       typescript:
         specifier: ^5.3.3
