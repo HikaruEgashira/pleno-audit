@@ -12,7 +12,7 @@
     "@hono/node-server": "^1.14.0",
     "@pleno-audit/api": "workspace:*",
     "@pleno-audit/csp": "workspace:*",
-    "hono": "^4.7.0",
+    "hono": "^4.11.4",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
