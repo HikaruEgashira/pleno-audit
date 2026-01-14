@@ -563,6 +563,131 @@ function DashboardContent() {
               </div>
             )}
           </Card>
+
+          {/* Security Recommendations */}
+          <Card title="セキュリティ推奨事項" style={{ marginTop: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {nrdServices.length > 0 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #dc2626",
+                }}>
+                  <Badge variant="danger">Critical</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>NRDサイトへのアクセスを確認</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      {nrdServices.map(s => s.domain).join(", ")} への接続が検出されました。
+                      これらは新規登録ドメインであり、フィッシングの可能性があります。
+                    </div>
+                  </div>
+                </div>
+              )}
+              {services.filter(s => s.typosquatResult?.isTyposquat).length > 0 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #dc2626",
+                }}>
+                  <Badge variant="danger">Critical</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>タイポスクワットの疑い</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      {services.filter(s => s.typosquatResult?.isTyposquat).map(s => s.domain).join(", ")} は
+                      正規サイトの偽装の可能性があります。URLを再確認してください。
+                    </div>
+                  </div>
+                </div>
+              )}
+              {services.filter(s => !s.privacyPolicyUrl).length > 5 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #f97316",
+                }}>
+                  <Badge variant="warning">High</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>プライバシーポリシー未確認のサイト</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      {services.filter(s => !s.privacyPolicyUrl).length}件のサイトでプライバシーポリシーが確認できません。
+                      個人情報の取り扱いに注意してください。
+                    </div>
+                  </div>
+                </div>
+              )}
+              {aiPrompts.length > 10 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #3b82f6",
+                }}>
+                  <Badge variant="info">Info</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>AI利用の監視</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      {aiPrompts.length}件のAIプロンプトが記録されています。
+                      機密情報をAIに送信していないか確認してください。
+                    </div>
+                  </div>
+                </div>
+              )}
+              {violations.length > 50 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #eab308",
+                }}>
+                  <Badge variant="warning">Medium</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>CSP違反の増加</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      {violations.length}件のCSP違反が検出されています。
+                      サードパーティスクリプトの監視を強化することを推奨します。
+                    </div>
+                  </div>
+                </div>
+              )}
+              {nrdServices.length === 0 && services.filter(s => s.typosquatResult?.isTyposquat).length === 0 && violations.length < 50 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  padding: "12px",
+                  background: colors.bgSecondary,
+                  borderRadius: "8px",
+                  borderLeft: "3px solid #22c55e",
+                }}>
+                  <Badge variant="success">Good</Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>セキュリティ状態は良好です</div>
+                    <div style={{ fontSize: "12px", color: colors.textSecondary }}>
+                      重大なセキュリティリスクは検出されていません。引き続き監視を継続します。
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
         </>
       )}
 
