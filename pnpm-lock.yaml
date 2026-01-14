@@ -66,6 +66,9 @@ importers:
       '@pleno-audit/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
+      '@pleno-audit/risk-prioritization':
+        specifier: workspace:*
+        version: link:../../packages/risk-prioritization
       '@pleno-audit/runtime-protection':
         specifier: workspace:*
         version: link:../../packages/runtime-protection
@@ -239,6 +242,8 @@ importers:
   packages/permission-analyzer: {}
 
   packages/policy-engine: {}
+
+  packages/risk-prioritization: {}
 
   packages/runtime-protection: {}
 
