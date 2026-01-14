@@ -14,6 +14,7 @@
     "@pleno-audit/detectors": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
     "@pleno-audit/security-graph": "workspace:*",
+    "@pleno-audit/shadow-it": "workspace:*",
     "@pleno-audit/storage": "workspace:*",
     "hono": "^4.7.0",
     "lucide-preact": "^0.562.0",

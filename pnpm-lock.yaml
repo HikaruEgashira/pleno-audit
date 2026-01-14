@@ -60,6 +60,9 @@ importers:
       '@pleno-audit/security-graph':
         specifier: workspace:*
         version: link:../../packages/security-graph
+      '@pleno-audit/shadow-it':
+        specifier: workspace:*
+        version: link:../../packages/shadow-it
       '@pleno-audit/storage':
         specifier: workspace:*
         version: link:../../packages/storage
