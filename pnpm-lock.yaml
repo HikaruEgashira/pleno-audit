@@ -51,6 +51,9 @@ importers:
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
+      '@pleno-audit/security-graph':
+        specifier: workspace:*
+        version: link:../../packages/security-graph
       '@pleno-audit/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -199,6 +202,12 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/security-graph:
+    dependencies:
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../detectors
 
   packages/storage:
     dependencies:
