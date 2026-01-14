@@ -85,6 +85,91 @@ export const SCHEMAS = {
       { name: "detectedScripts", type: "string" },
     ],
   },
+
+  // Phase 8: Cookie検出
+  "cookies": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "name", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "value", type: { type: "option", inner: "string" } },
+      { name: "isSession", type: "bool" },
+      { name: "expirationDate", type: { type: "option", inner: "int64" } },
+      { name: "secure", type: { type: "option", inner: "bool" } },
+      { name: "httpOnly", type: { type: "option", inner: "bool" } },
+      { name: "sameSite", type: { type: "option", inner: "string" } },
+    ],
+  },
+
+  // Phase 9: ページ分析結果
+  "login-detections": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "hasPasswordInput", type: "bool" },
+      { name: "isLoginUrl", type: "bool" },
+    ],
+  },
+
+  "privacy-policies": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "url", type: "string" },
+      { name: "method", type: "string" },
+    ],
+  },
+
+  "terms-of-service": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "detectedAt", type: "int64" },
+      { name: "url", type: "string" },
+      { name: "method", type: "string" },
+    ],
+  },
+
+  // Phase 10: ドメインリスクプロファイル
+  "domain-risk-profiles": {
+    type: "struct",
+    fields: [
+      { name: "domain", type: "string" },
+      { name: "profiledAt", type: "int64" },
+      { name: "isNRD", type: "bool" },
+      { name: "isTyposquat", type: "bool" },
+      { name: "hasLoginPage", type: "bool" },
+      { name: "hasPrivacyPolicy", type: "bool" },
+      { name: "hasTermsOfService", type: "bool" },
+      { name: "hasAIActivity", type: "bool" },
+      { name: "cookieCount", type: "int32" },
+      { name: "faviconUrl", type: { type: "option", inner: "string" } },
+      { name: "aiProviders", type: { type: "option", inner: "string" } },
+      { name: "riskLevel", type: "string" },
+    ],
+  },
+
+  // Phase 11: サービスインベントリスナップショット
+  "service-inventory": {
+    type: "struct",
+    fields: [
+      { name: "snapshotId", type: "string" },
+      { name: "snapshotAt", type: "int64" },
+      { name: "totalServices", type: "int32" },
+      { name: "servicesWithLogin", type: "int32" },
+      { name: "servicesWithPrivacy", type: "int32" },
+      { name: "servicesWithTos", type: "int32" },
+      { name: "servicesWithNRD", type: "int32" },
+      { name: "servicesWithTyposquat", type: "int32" },
+      { name: "servicesWithAI", type: "int32" },
+      { name: "totalCookies", type: "int32" },
+      { name: "highRiskDomains", type: "string" },
+      { name: "criticalRiskDomains", type: "string" },
+    ],
+  },
 };
 
 // CSPViolationをParquetレコードに変換
@@ -246,5 +331,145 @@ export function typosquatResultToParquetRecord(
     homoglyphCount: result.heuristics?.homoglyphs?.length || 0,
     hasMixedScript: result.heuristics?.hasMixedScript || false,
     detectedScripts: (result.heuristics?.detectedScripts || []).join(","),
+  };
+}
+
+// Phase 8: CookieをParquetレコードに変換
+export function cookieToParquetRecord(
+  cookie: any // CookieInfo型
+): Record<string, unknown> {
+  return {
+    domain: cookie.domain,
+    name: cookie.name,
+    detectedAt: cookie.detectedAt,
+    value: cookie.value || null,
+    isSession: cookie.isSession || false,
+    expirationDate: cookie.expirationDate || null,
+    secure: cookie.secure !== undefined ? cookie.secure : null,
+    httpOnly: cookie.httpOnly !== undefined ? cookie.httpOnly : null,
+    sameSite: cookie.sameSite || null,
+  };
+}
+
+// Phase 9: LoginDetectedDetailsをParquetレコードに変換
+export function loginDetectionToParquetRecord(
+  domain: string,
+  login: any,
+  detectedAt: number
+): Record<string, unknown> {
+  return {
+    domain,
+    detectedAt,
+    hasPasswordInput: login.hasPasswordInput || false,
+    isLoginUrl: login.isLoginUrl || false,
+  };
+}
+
+// Phase 9: PrivacyPolicyDetectionをParquetレコードに変換
+export function privacyPolicyToParquetRecord(
+  domain: string,
+  url: string,
+  method: string,
+  detectedAt: number
+): Record<string, unknown> {
+  return { domain, detectedAt, url, method };
+}
+
+// Phase 9: TermsOfServiceDetectionをParquetレコードに変換
+export function termsOfServiceToParquetRecord(
+  domain: string,
+  url: string,
+  method: string,
+  detectedAt: number
+): Record<string, unknown> {
+  return { domain, detectedAt, url, method };
+}
+
+// Phase 10: Domain Risk Profileをレコードに変換
+export function domainRiskProfileToParquetRecord(
+  service: any // DetectedService
+): Record<string, unknown> {
+  let riskLevel = "low";
+  const riskFactors = [
+    service.nrdResult?.isNRD || false,
+    service.typosquatResult?.isTyposquat || false,
+  ];
+  const criticalFactors = riskFactors.filter(Boolean).length;
+
+  if (criticalFactors >= 2) {
+    riskLevel = "critical";
+  } else if (criticalFactors === 1) {
+    riskLevel = "high";
+  } else if (
+    service.aiDetected?.hasAIActivity ||
+    (service.cookies && service.cookies.length > 0)
+  ) {
+    riskLevel = "medium";
+  }
+
+  return {
+    domain: service.domain,
+    profiledAt: Date.now(),
+    isNRD: service.nrdResult?.isNRD || false,
+    isTyposquat: service.typosquatResult?.isTyposquat || false,
+    hasLoginPage: service.hasLoginPage || false,
+    hasPrivacyPolicy: !!service.privacyPolicyUrl,
+    hasTermsOfService: !!service.termsOfServiceUrl,
+    hasAIActivity: service.aiDetected?.hasAIActivity || false,
+    cookieCount: service.cookies?.length || 0,
+    faviconUrl: service.faviconUrl || null,
+    aiProviders: service.aiDetected?.providers?.join(",") || null,
+    riskLevel,
+  };
+}
+
+// Phase 11: Service Inventory Snapshotを生成
+export function createServiceInventorySnapshot(
+  services: Record<string, any>
+): Record<string, unknown> {
+  const serviceList = Object.values(services).filter(Boolean);
+
+  const highRiskDomains: string[] = [];
+  const criticalRiskDomains: string[] = [];
+  let totalCookies = 0;
+  let servicesWithLogin = 0;
+  let servicesWithPrivacy = 0;
+  let servicesWithTos = 0;
+  let servicesWithNRD = 0;
+  let servicesWithTyposquat = 0;
+  let servicesWithAI = 0;
+
+  for (const service of serviceList) {
+    const isNRD = service.nrdResult?.isNRD || false;
+    const isTyposquat = service.typosquatResult?.isTyposquat || false;
+
+    if (service.hasLoginPage) servicesWithLogin++;
+    if (service.privacyPolicyUrl) servicesWithPrivacy++;
+    if (service.termsOfServiceUrl) servicesWithTos++;
+    if (isNRD) servicesWithNRD++;
+    if (isTyposquat) servicesWithTyposquat++;
+    if (service.aiDetected?.hasAIActivity) servicesWithAI++;
+    totalCookies += service.cookies?.length || 0;
+
+    if (isNRD && isTyposquat) {
+      criticalRiskDomains.push(service.domain);
+    } else if (isNRD || isTyposquat) {
+      highRiskDomains.push(service.domain);
+    }
+  }
+
+  return {
+    snapshotId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    snapshotAt: Date.now(),
+    totalServices: serviceList.length,
+    servicesWithLogin,
+    servicesWithPrivacy,
+    servicesWithTos,
+    servicesWithNRD,
+    servicesWithTyposquat,
+    servicesWithAI,
+    totalCookies,
+    highRiskDomains: highRiskDomains.join(","),
+    criticalRiskDomains: criticalRiskDomains.join(","),
   };
 }
