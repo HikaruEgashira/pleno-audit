@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
-import type { DetectedService } from "@pleno-audit/detectors";
+import type { DetectedService, ThreatCheckResult } from "@pleno-audit/detectors";
+import { createThreatDetector } from "@pleno-audit/detectors";
 import {
   buildSecurityGraph,
   type SecurityGraph,
@@ -18,9 +19,10 @@ import {
   Info,
   ChevronDown,
   ChevronRight,
+  Skull,
 } from "lucide-preact";
 import { useTheme } from "../../lib/theme";
-import { Badge, Card, SearchInput, Select, StatCard } from "../../components";
+import { Badge, Button, Card, SearchInput, Select, StatCard } from "../../components";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -258,6 +260,8 @@ export function SecurityGraphTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [nodeTypeFilter, setNodeTypeFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
+  const [threatResults, setThreatResults] = useState<Map<string, ThreatCheckResult>>(new Map());
+  const [scanningThreats, setScanningThreats] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -269,18 +273,40 @@ export function SecurityGraphTab() {
       const loadedServices = storageResult.services ? Object.values(storageResult.services) as DetectedService[] : [];
       const loadedEvents = eventsResult?.events ?? [];
 
-      setServices(loadedServices);
-      setEvents(loadedEvents);
-
       // Build security graph
       const secGraph = buildSecurityGraph(loadedServices, loadedEvents);
       setGraph(secGraph);
-    } catch (error) {
-      console.error("Failed to load data:", error);
+    } catch {
+      // Failed to load data
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const scanThreats = useCallback(async () => {
+    if (!graph) return;
+
+    setScanningThreats(true);
+    try {
+      const detector = createThreatDetector({
+        enabled: true,
+        cacheTTLMs: 24 * 60 * 60 * 1000,
+        sources: { urlhaus: true, blocklists: true },
+        blocklists: [],
+      });
+
+      const domains = Array.from(graph.nodes.values())
+        .filter((n) => n.type === "domain")
+        .map((n) => n.label);
+
+      const results = await detector.checkDomains(domains);
+      setThreatResults(results);
+    } catch {
+      // Failed to scan threats
+    } finally {
+      setScanningThreats(false);
+    }
+  }, [graph]);
 
   useEffect(() => {
     loadData();
@@ -310,9 +336,16 @@ export function SecurityGraphTab() {
   }, [graph, searchQuery, nodeTypeFilter, riskFilter]);
 
   const handleNodeClick = (nodeId: string) => {
-    setSelectedNodeId(nodeId);
     setSearchQuery(nodeId.split(":")[1]);
   };
+
+  const threatCount = useMemo(() => {
+    let count = 0;
+    for (const result of threatResults.values()) {
+      if (result.isThreat) count++;
+    }
+    return count;
+  }, [threatResults]);
 
   if (loading) {
     return (
@@ -377,7 +410,61 @@ export function SecurityGraphTab() {
           value={graph.stats.criticalPaths.length}
           label="攻撃パス"
         />
+        <StatCard
+          value={threatCount}
+          label="脅威検出"
+          trend={threatCount > 0 ? { value: threatCount, isUp: true } : undefined}
+        />
       </div>
+
+      {/* Threat Intel Scan */}
+      <Card title="脅威インテリジェンス" style={{ marginBottom: "24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <Button
+            onClick={scanThreats}
+            disabled={scanningThreats}
+          >
+            <Skull size={14} style={{ marginRight: "6px" }} />
+            {scanningThreats ? "スキャン中..." : "脅威スキャン実行"}
+          </Button>
+          <span style={{ fontSize: "12px", color: colors.textSecondary }}>
+            URLhaus / ブロックリストで脅威を検出
+          </span>
+        </div>
+        {threatCount > 0 && (
+          <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {Array.from(threatResults.entries())
+              .filter(([_, result]) => result.isThreat)
+              .slice(0, 5)
+              .map(([domain, result]) => (
+                <div
+                  key={domain}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: colors.bgSecondary,
+                    borderRadius: "6px",
+                    borderLeft: `3px solid ${getRiskColor(result.severity === "critical" ? "critical" : result.severity === "high" ? "high" : "medium")}`,
+                  }}
+                >
+                  <Skull size={14} color={getRiskColor("critical")} />
+                  <code style={{ fontSize: "12px", flex: 1 }}>{domain}</code>
+                  <Badge variant="danger">{result.severity}</Badge>
+                  {result.categories.map((cat) => (
+                    <Badge key={cat} size="sm">{cat}</Badge>
+                  ))}
+                </div>
+              ))}
+            {threatCount > 5 && (
+              <div style={{ fontSize: "12px", color: colors.textSecondary, textAlign: "center" }}>
+                +{threatCount - 5} more threats detected
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* Attack Paths */}
       {graph.stats.criticalPaths.length > 0 && (
