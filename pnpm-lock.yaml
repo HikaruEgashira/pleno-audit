@@ -39,6 +39,9 @@ importers:
 
   app/extension:
     dependencies:
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../../packages/alerts
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api

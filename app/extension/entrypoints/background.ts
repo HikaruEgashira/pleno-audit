@@ -71,6 +71,7 @@ import {
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
 import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
+import { createAlertManager, type AlertManager, type SecurityAlert } from "@pleno-audit/alerts";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -85,6 +86,57 @@ let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
+let alertManager: AlertManager | null = null;
+
+// ============================================================================
+// Alert Manager
+// ============================================================================
+
+function getAlertManager(): AlertManager {
+  if (!alertManager) {
+    alertManager = createAlertManager({
+      enabled: true,
+      showNotifications: true,
+      playSound: false,
+      rules: [],
+      severityFilter: ["critical", "high"],
+    });
+
+    // Subscribe to new alerts and show Chrome notifications
+    alertManager.subscribe((alert: SecurityAlert) => {
+      showChromeNotification(alert);
+    });
+  }
+  return alertManager;
+}
+
+async function showChromeNotification(alert: SecurityAlert): Promise<void> {
+  try {
+    const iconUrl = alert.severity === "critical" || alert.severity === "high"
+      ? "icon-dev-128.png"
+      : "icon-128.png";
+
+    await chrome.notifications.create(alert.id, {
+      type: "basic",
+      iconUrl,
+      title: `[${alert.severity.toUpperCase()}] ${alert.title}`,
+      message: alert.description,
+      priority: alert.severity === "critical" ? 2 : alert.severity === "high" ? 1 : 0,
+      requireInteraction: alert.severity === "critical",
+    });
+  } catch (error) {
+    logger.warn("Failed to show notification:", error);
+  }
+}
+
+// Handle notification clicks
+chrome.notifications.onClicked.addListener(async (notificationId) => {
+  // Open dashboard to alerts
+  await chrome.tabs.create({
+    url: chrome.runtime.getURL("dashboard.html#graph"),
+  });
+  chrome.notifications.clear(notificationId);
+});
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -311,6 +363,14 @@ async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: tr
           ddnsProvider: result.ddns.provider,
         },
       });
+
+      // Fire NRD alert
+      await getAlertManager().alertNRD({
+        domain: result.domain,
+        domainAge: result.domainAge,
+        registrationDate: result.registrationDate,
+        confidence: result.confidence,
+      });
     }
 
     // Log detection result to ParquetStore
@@ -405,6 +465,13 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
           hasMixedScript: result.heuristics.hasMixedScript,
           detectedScripts: result.heuristics.detectedScripts,
         },
+      });
+
+      // Fire typosquat alert
+      await getAlertManager().alertTyposquat({
+        domain: result.domain,
+        homoglyphCount: result.heuristics.homoglyphs.length,
+        confidence: result.confidence,
       });
     }
 

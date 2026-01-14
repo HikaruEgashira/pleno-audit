@@ -24,7 +24,7 @@ export default defineConfig({
           48: `${iconPrefix}-48.png`,
         },
       },
-      permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting", "webRequest", "management"],
+      permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting", "webRequest", "management", "notifications"],
       host_permissions: ["<all_urls>"],
       content_security_policy: {
         extension_pages:
