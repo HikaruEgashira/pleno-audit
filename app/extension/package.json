@@ -16,6 +16,7 @@
     "@pleno-audit/extension-runtime": "workspace:*",
     "@pleno-audit/permission-analyzer": "workspace:*",
     "@pleno-audit/policy-engine": "workspace:*",
+    "@pleno-audit/runtime-protection": "workspace:*",
     "@pleno-audit/security-graph": "workspace:*",
     "@pleno-audit/shadow-it": "workspace:*",
     "@pleno-audit/storage": "workspace:*",

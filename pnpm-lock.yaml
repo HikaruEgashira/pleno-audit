@@ -66,6 +66,9 @@ importers:
       '@pleno-audit/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
+      '@pleno-audit/runtime-protection':
+        specifier: workspace:*
+        version: link:../../packages/runtime-protection
       '@pleno-audit/security-graph':
         specifier: workspace:*
         version: link:../../packages/security-graph
@@ -236,6 +239,8 @@ importers:
   packages/permission-analyzer: {}
 
   packages/policy-engine: {}
+
+  packages/runtime-protection: {}
 
   packages/security-graph:
     dependencies:
