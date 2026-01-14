@@ -225,6 +225,8 @@ importers:
         specifier: workspace:*
         version: link:../detectors
 
+  packages/shadow-it: {}
+
   packages/storage:
     dependencies:
       '@pleno-audit/detectors':
