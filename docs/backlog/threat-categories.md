@@ -24,32 +24,39 @@
 - **ドメイン**: CSP違反を利用したマルウェア配信の検出
 - **ユースケース**: 不正コンテンツ検出、ポリシー強化
 
-## 将来の拡張候補
+### 4. Data Exfiltration（データ漏洩）✅ 完了
+- 大量データ転送検出（100KB以上）
+- fetch/XHR/beacon APIの監視
+- DATA_EXFILTRATION_DETECTED イベント
+- **PR**: #62
 
-### 4. Data Exfiltration（データ漏洩）
-- **検出内容**: 疑わしいネットワークリクエスト（大量データ転送）
-- **実装の目安**: ネットワークリクエストのサイズ分析、疑わしいドメインへの転送検出
-- **設定項目**: 転送量しきい値、許可リスト設定
+### 5. Credential Theft（認証情報窃取）✅ 完了
+- フォーム送信監視（password, email, credit-card等）
+- 非HTTPS送信検出、クロスオリジン検出
+- CREDENTIAL_THEFT_DETECTED イベント
+- **PR**: #63
 
-### 5. Credential Theft（認証情報窃取）
-- **検出内容**: フォーム送信の監視、認証情報の非HTTPS送信
-- **実装の目安**: FormSubmitイベント、SSL/TLS確認
-- **設定項目**: 監視対象フォーム、除外ドメイン
+### 6. Compliance（コンプライアンス違反）✅ 完了
+- クッキーポリシー検出（多言語対応）
+- クッキーバナー検出（Cookiebot, OneTrust等対応）
+- GDPR準拠チェック（Accept/Reject/Settingsボタン）
+- cookie_policy_found, cookie_banner_detected イベント
+- **PR**: #65
 
-### 6. Compliance（コンプライアンス違反）
-- **検出内容**: GDPR/CCPA等の規制要件への違反
-- **実装の目安**: プライバシーポリシー、利用規約の更新確認、クッキーポリシー検証
-- **設定項目**: 規制要件設定、確認間隔
+### 7. Supply Chain（サプライチェーン攻撃）✅ 完了
+- 外部スクリプト/スタイルシート監視
+- SRI (Subresource Integrity) 検証
+- 主要CDN検出（cdnjs, jsdelivr, unpkg等）
+- SUPPLY_CHAIN_RISK_DETECTED イベント
+- **PR**: #64
 
-### 7. Supply Chain（サプライチェーン攻撃）
-- **検出内容**: 依存ライブラリの変更検出、パッケージバージョン確認
-- **実装の目安**: JavaScriptライブラリのハッシュ検証、SRI (Subresource Integrity) 確認
-- **設定項目**: 信頼できるソース設定
-
-### 8. Policy Enforcement（ポリシー適用）
-- **検出内容**: 企業セキュリティポリシーへの準拠確認
-- **実装の目安**: カスタムポリシー定義、ドメイン/ツール許可リスト管理
-- **設定項目**: ポリシーテンプレート、許可/ブロック設定
+### 8. Policy Enforcement（ポリシー適用）✅ 完了
+- ドメインポリシールール（exact/suffix/prefix/contains/regex）
+- ツール/サービスポリシールール
+- AIサービスポリシールール
+- データ転送ポリシールール
+- allow/block/warn アクション
+- **PR**: #66
 
 ## 設計方針
 
