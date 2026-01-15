@@ -506,6 +506,54 @@ export function createAlertManager(
     });
   }
 
+  /**
+   * Create supply chain risk alert
+   */
+  async function alertSupplyChainRisk(params: {
+    pageDomain: string;
+    resourceUrl: string;
+    resourceDomain: string;
+    resourceType: string;
+    hasIntegrity: boolean;
+    hasCrossorigin: boolean;
+    isCDN: boolean;
+    risks: string[];
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risks
+    const isCDNWithoutSRI = params.isCDN && !params.hasIntegrity;
+    const severity: AlertSeverity = isCDNWithoutSRI ? "high" : "medium";
+
+    const riskDescriptions: string[] = [];
+    if (!params.hasIntegrity) {
+      riskDescriptions.push("SRIなし");
+    }
+    if (params.isCDN) {
+      riskDescriptions.push("CDN");
+    }
+    if (!params.hasCrossorigin) {
+      riskDescriptions.push("crossorigin属性なし");
+    }
+
+    return createAlert({
+      category: "supply_chain",
+      severity,
+      title: `サプライチェーンリスク: ${params.resourceDomain}`,
+      description: `${params.resourceType}が${riskDescriptions.join(", ")}で読み込まれています`,
+      domain: params.resourceDomain,
+      details: {
+        type: "supply_chain",
+        pageDomain: params.pageDomain,
+        resourceUrl: params.resourceUrl,
+        resourceDomain: params.resourceDomain,
+        resourceType: params.resourceType,
+        hasIntegrity: params.hasIntegrity,
+        hasCrossorigin: params.hasCrossorigin,
+        isCDN: params.isCDN,
+        risks: params.risks,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -515,6 +563,7 @@ export function createAlertManager(
     alertExtension,
     alertDataExfiltration,
     alertCredentialTheft,
+    alertSupplyChainRisk,
     updateAlertStatus,
     getAlerts,
     getAlertCount,

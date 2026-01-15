@@ -312,6 +312,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: CredentialTheftRiskDetails;
+    }
+  | {
+      type: "supply_chain_risk";
+      domain: string;
+      timestamp: number;
+      details: SupplyChainRiskDetails;
     };
 
 /** AI機密情報検出イベント詳細 */
@@ -343,6 +349,17 @@ interface CredentialTheftRiskDetails {
   isSecure: boolean;
   isCrossOrigin: boolean;
   fieldType: string;
+  risks: string[];
+  pageUrl: string;
+}
+
+/** サプライチェーンリスクイベント詳細 */
+interface SupplyChainRiskDetails {
+  url: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
   risks: string[];
   pageUrl: string;
 }
@@ -1325,6 +1342,62 @@ async function handleCredentialTheft(
   return { success: true };
 }
 
+interface SupplyChainRiskData {
+  timestamp: string;
+  pageUrl: string;
+  url: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
+  risks: string[];
+}
+
+async function handleSupplyChainRisk(
+  data: SupplyChainRiskData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const resourceDomain = extractDomainFromUrl(data.url);
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the supply chain risk event
+  await addEvent({
+    type: "supply_chain_risk",
+    domain: resourceDomain,
+    timestamp: Date.now(),
+    details: {
+      url: data.url,
+      resourceType: data.resourceType,
+      hasIntegrity: data.hasIntegrity,
+      hasCrossorigin: data.hasCrossorigin,
+      isCDN: data.isCDN,
+      risks: data.risks,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Fire alert for supply chain risk
+  await getAlertManager().alertSupplyChainRisk({
+    pageDomain: pageDomain,
+    resourceUrl: data.url,
+    resourceDomain: resourceDomain,
+    resourceType: data.resourceType,
+    hasIntegrity: data.hasIntegrity,
+    hasCrossorigin: data.hasCrossorigin,
+    isCDN: data.isCDN,
+    risks: data.risks,
+  });
+
+  logger.warn("Supply chain risk detected:", {
+    page: pageDomain,
+    resource: resourceDomain,
+    type: data.resourceType,
+    risks: data.risks.join(", "),
+  });
+
+  return { success: true };
+}
+
 function extractDomainFromUrl(url: string): string {
   try {
     return new URL(url).hostname;
@@ -1899,6 +1972,13 @@ export default defineBackground(() => {
 
     if (message.type === "CREDENTIAL_THEFT_DETECTED") {
       handleCredentialTheft(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "SUPPLY_CHAIN_RISK_DETECTED") {
+      handleSupplyChainRisk(message.data, sender)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
