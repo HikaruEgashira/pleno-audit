@@ -4,12 +4,26 @@ import { ThemeToggle } from "./ThemeToggle";
 import {
   DEFAULT_BLOCKING_CONFIG,
   type BlockingConfig,
+  type SSOStatus,
+  type SSOProvider,
 } from "@pleno-audit/extension-runtime";
 
 interface Props {
   onClearData: () => void;
   onExport?: () => void;
 }
+
+interface ServerConnectionConfig {
+  enabled: boolean;
+  endpoint: string;
+  userConsentGiven: boolean;
+}
+
+const DEFAULT_SERVER_CONFIG: ServerConnectionConfig = {
+  enabled: false,
+  endpoint: "",
+  userConsentGiven: false,
+};
 
 function formatRetentionDays(days: number): string {
   if (days === 0) return "無期限";
@@ -24,6 +38,13 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [blockingConfig, setBlockingConfig] = useState<BlockingConfig | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [serverConfig, setServerConfig] = useState<ServerConnectionConfig | null>(null);
+  const [showServerConsentDialog, setShowServerConsentDialog] = useState(false);
+  const [serverEndpointInput, setServerEndpointInput] = useState("");
+  const [ssoStatus, setSSOStatus] = useState<SSOStatus | null>(null);
+  const [showSSODialog, setShowSSODialog] = useState(false);
+  const [selectedSSOProvider, setSelectedSSOProvider] = useState<SSOProvider>("oidc");
+  const [ssoConfigInput, setSSOConfigInput] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,18 +81,46 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     }
   }, [isOpen, blockingConfig]);
 
+  useEffect(() => {
+    if (isOpen && serverConfig === null) {
+      chrome.storage.local.get(["serverConnectionConfig"])
+        .then((result) => {
+          const config = result.serverConnectionConfig ?? DEFAULT_SERVER_CONFIG;
+          setServerConfig(config);
+          setServerEndpointInput(config.endpoint || "");
+        })
+        .catch(() => {
+          setServerConfig(DEFAULT_SERVER_CONFIG);
+        });
+    }
+  }, [isOpen, serverConfig]);
+
+  useEffect(() => {
+    if (isOpen && ssoStatus === null) {
+      chrome.runtime.sendMessage({ type: "GET_SSO_STATUS" })
+        .then((status) => {
+          setSSOStatus(status ?? { enabled: false, isAuthenticated: false });
+        })
+        .catch(() => {
+          setSSOStatus({ enabled: false, isAuthenticated: false });
+        });
+    }
+  }, [isOpen, ssoStatus]);
+
   // Escキーでダイアログを閉じる
   useEffect(() => {
-    if (!showConsentDialog) return;
+    if (!showConsentDialog && !showServerConsentDialog && !showSSODialog) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setShowConsentDialog(false);
+        setShowServerConsentDialog(false);
+        setShowSSODialog(false);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showConsentDialog]);
+  }, [showConsentDialog, showServerConsentDialog, showSSODialog]);
 
   function handleRetentionChange(days: number) {
     setRetentionDays(days);
@@ -114,6 +163,88 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     chrome.runtime.sendMessage({
       type: "SET_BLOCKING_CONFIG",
       data: newConfig,
+    }).catch(() => {});
+  }
+
+  function handleServerToggle() {
+    if (!serverConfig) return;
+
+    if (!serverConfig.userConsentGiven && !serverConfig.enabled) {
+      setShowServerConsentDialog(true);
+      return;
+    }
+
+    const newConfig = { ...serverConfig, enabled: !serverConfig.enabled };
+    setServerConfig(newConfig);
+    chrome.storage.local.set({ serverConnectionConfig: newConfig }).catch(() => {});
+
+    // Update API client mode
+    chrome.runtime.sendMessage({
+      type: "SET_CONNECTION_CONFIG",
+      data: {
+        mode: newConfig.enabled ? "remote" : "local",
+        endpoint: newConfig.endpoint,
+      },
+    }).catch(() => {});
+  }
+
+  function handleServerConsentAccept() {
+    if (!serverConfig) return;
+
+    // Validate endpoint
+    if (!serverEndpointInput.trim()) {
+      return;
+    }
+
+    try {
+      new URL(serverEndpointInput);
+    } catch {
+      return;
+    }
+
+    const newConfig: ServerConnectionConfig = {
+      enabled: true,
+      endpoint: serverEndpointInput,
+      userConsentGiven: true,
+    };
+    setServerConfig(newConfig);
+    setShowServerConsentDialog(false);
+    chrome.storage.local.set({ serverConnectionConfig: newConfig }).catch(() => {});
+
+    // Update API client mode
+    chrome.runtime.sendMessage({
+      type: "SET_CONNECTION_CONFIG",
+      data: {
+        mode: "remote",
+        endpoint: serverEndpointInput,
+      },
+    }).catch(() => {});
+  }
+
+  function handleSSOToggle() {
+    if (!ssoStatus) return;
+
+    if (!ssoStatus.enabled && !ssoStatus.isAuthenticated) {
+      setShowSSODialog(true);
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      type: "SET_SSO_ENABLED",
+      data: { enabled: !ssoStatus.enabled },
+    }).then(() => {
+      setSSOStatus(prev => prev ? { ...prev, enabled: !prev.enabled } : null);
+    }).catch(() => {});
+  }
+
+  function handleDisableSSO() {
+    chrome.runtime.sendMessage({
+      type: "DISABLE_SSO",
+    }).then(() => {
+      setSSOStatus({ enabled: false, isAuthenticated: false });
+      setShowSSODialog(false);
+      setSSOConfigInput("");
+      setSelectedSSOProvider("oidc");
     }).catch(() => {});
   }
 
@@ -244,6 +375,111 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
                   タイポスクワット、NRDログイン、機密データ送信を検出時にブロック
                 </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              サーバー連携
+            </div>
+            {serverConfig !== null ? (
+              <div>
+                <button
+                  onClick={handleServerToggle}
+                  aria-pressed={serverConfig.enabled}
+                  aria-label={`サーバー連携: ${serverConfig.enabled ? "有効" : "無効"}`}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: serverConfig.enabled ? colors.status.info.bg : colors.bgSecondary,
+                    border: `1px solid ${serverConfig.enabled ? colors.status.info.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    color: serverConfig.enabled ? colors.status.info.text : colors.textPrimary,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>組織管理</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: serverConfig.enabled ? colors.status.info.text : colors.textMuted,
+                    color: colors.bgPrimary,
+                  }}>
+                    {serverConfig.enabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
+                  組織サーバーとの連携（オプトイン）
+                </div>
+                {serverConfig.enabled && serverConfig.endpoint && (
+                  <div style={{ fontSize: "10px", color: colors.status.info.text, marginTop: "4px", wordBreak: "break-all" }}>
+                    接続先: {serverConfig.endpoint}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              SSO連携
+            </div>
+            {ssoStatus !== null ? (
+              <div>
+                <button
+                  onClick={handleSSOToggle}
+                  aria-pressed={ssoStatus.enabled}
+                  aria-label={`SSO: ${ssoStatus.enabled ? "有効" : "無効"}`}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: ssoStatus.enabled ? colors.status.success.bg : colors.bgSecondary,
+                    border: `1px solid ${ssoStatus.enabled ? colors.status.success.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    color: ssoStatus.enabled ? colors.status.success.text : colors.textPrimary,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>{ssoStatus.provider ? `SAML/OIDC (${ssoStatus.provider.toUpperCase()})` : "SSO設定"}</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: ssoStatus.enabled ? colors.status.success.text : colors.textMuted,
+                    color: colors.bgPrimary,
+                  }}>
+                    {ssoStatus.enabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
+                  エンタープライズSSO (SAML/OIDC)
+                </div>
+                {ssoStatus.enabled && ssoStatus.isAuthenticated && (
+                  <div style={{ fontSize: "10px", color: colors.status.success.text, marginTop: "4px" }}>
+                    認証済み: {ssoStatus.userEmail || "ユーザー"}
+                  </div>
+                )}
+                {ssoStatus.enabled && ssoStatus.expiresAt && (
+                  <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "2px" }}>
+                    有効期限: {new Date(ssoStatus.expiresAt).toLocaleString("ja-JP")}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
@@ -424,6 +660,237 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 }}
               >
                 有効化する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showServerConsentDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="server-consent-dialog-title"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+          onClick={() => setShowServerConsentDialog(false)}
+        >
+          <div
+            role="document"
+            style={{
+              backgroundColor: colors.bgPrimary,
+              borderRadius: "12px",
+              padding: "20px",
+              maxWidth: "360px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div id="server-consent-dialog-title" style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+              サーバー連携を有効化
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
+              この機能を有効にすると、組織のサーバーと連携してセキュリティデータを一元管理できます。
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: colors.status.warning.text,
+              background: colors.status.warning.bg,
+              padding: "10px",
+              borderRadius: "6px",
+              marginBottom: "16px",
+              lineHeight: 1.6,
+            }}>
+              この機能を有効にすると、以下のデータが指定したサーバーに送信されます：
+              <ul style={{ margin: "8px 0 0 16px", padding: 0 }}>
+                <li>匿名化されたセキュリティイベント</li>
+                <li>ポリシー設定</li>
+                <li>集計された統計データ</li>
+              </ul>
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "11px", color: colors.textSecondary, display: "block", marginBottom: "6px" }}>
+                サーバーエンドポイント
+              </label>
+              <input
+                type="url"
+                value={serverEndpointInput}
+                onChange={(e) => setServerEndpointInput((e.target as HTMLInputElement).value)}
+                placeholder="https://your-server.example.com/api"
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  fontSize: "12px",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "6px",
+                  backgroundColor: colors.bgSecondary,
+                  color: colors.textPrimary,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: "10px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
+              ※ 閲覧履歴、パスワード、AIプロンプトの内容は送信されません。
+              詳細は<a href="https://github.com/HikaruEgashira/pleno-audit/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener noreferrer" style={{ color: colors.status.info.text }}>プライバシーポリシー</a>をご確認ください。
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setShowServerConsentDialog(false)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "transparent",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.textSecondary,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleServerConsentAccept}
+                disabled={!serverEndpointInput.trim()}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: serverEndpointInput.trim() ? colors.status.info.bg : colors.bgSecondary,
+                  border: `1px solid ${serverEndpointInput.trim() ? colors.status.info.text : colors.border}`,
+                  borderRadius: "6px",
+                  cursor: serverEndpointInput.trim() ? "pointer" : "not-allowed",
+                  fontSize: "12px",
+                  color: serverEndpointInput.trim() ? colors.status.info.text : colors.textMuted,
+                  fontWeight: 500,
+                  opacity: serverEndpointInput.trim() ? 1 : 0.6,
+                }}
+              >
+                有効化する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSSODialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sso-dialog-title"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+          onClick={() => setShowSSODialog(false)}
+        >
+          <div
+            role="document"
+            style={{
+              backgroundColor: colors.bgPrimary,
+              borderRadius: "12px",
+              padding: "20px",
+              maxWidth: "380px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div id="sso-dialog-title" style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+              SSO (SAML/OIDC) 設定
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
+              エンタープライズSSO認証を設定してシングルサインオンを有効にします。
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: colors.status.warning.text,
+              background: colors.status.warning.bg,
+              padding: "10px",
+              borderRadius: "6px",
+              marginBottom: "16px",
+              lineHeight: 1.6,
+            }}>
+              SAML/OIDC設定により、組織のアイデンティティプロバイダーと連携できます。トークンはローカルに保存されます。
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "11px", color: colors.textSecondary, display: "block", marginBottom: "6px" }}>
+                SSO タイプ
+              </label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {(["oidc", "saml"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedSSOProvider(type)}
+                    style={{
+                      flex: 1,
+                      padding: "8px",
+                      background: selectedSSOProvider === type ? colors.status.info.bg : colors.bgSecondary,
+                      border: `1px solid ${selectedSSOProvider === type ? colors.status.info.text : colors.border}`,
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      color: selectedSSOProvider === type ? colors.status.info.text : colors.textPrimary,
+                      fontWeight: 500,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {type === "oidc" ? "OpenID Connect" : "SAML 2.0"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: "10px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
+              ※ トークンと設定はローカルに保存され、外部に送信されません。
+              詳細は<a href="https://github.com/HikaruEgashira/pleno-audit/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener noreferrer" style={{ color: colors.status.info.text }}>プライバシーポリシー</a>をご確認ください。
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setShowSSODialog(false)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "transparent",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.textSecondary,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDisableSSO}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: colors.status.danger.bg,
+                  border: `1px solid ${colors.status.danger.text}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.status.danger.text,
+                  fontWeight: 500,
+                }}
+              >
+                設定
               </button>
             </div>
           </div>
