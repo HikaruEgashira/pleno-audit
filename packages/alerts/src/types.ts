@@ -17,6 +17,7 @@ export type AlertCategory =
   | "nrd" // Newly registered domain
   | "typosquat" // Typosquatting attempt
   | "data_leak" // Sensitive data exposure
+  | "data_exfiltration" // Large data transfer (potential exfiltration)
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
   | "shadow_ai" // Unauthorized/unknown AI service
@@ -58,6 +59,7 @@ export type AlertDetails =
   | NRDAlertDetails
   | TyposquatAlertDetails
   | DataLeakAlertDetails
+  | DataExfiltrationAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
   | ShadowAIAlertDetails
@@ -130,6 +132,16 @@ export interface PolicyAlertDetails {
   hasPrivacyPolicy: boolean;
   hasTermsOfService: boolean;
   hasLogin: boolean;
+}
+
+export interface DataExfiltrationAlertDetails {
+  type: "data_exfiltration";
+  sourceDomain: string;
+  targetDomain: string;
+  bodySize: number;
+  sizeKB: number;
+  method: string;
+  initiator: string;
 }
 
 /**

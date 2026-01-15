@@ -77,6 +77,25 @@ export default defineContentScript({
         });
       }) as EventListener
     );
+
+    // Listen for data exfiltration events from main world
+    window.addEventListener(
+      "__DATA_EXFILTRATION_DETECTED__",
+      ((event: CustomEvent) => {
+        safeSendMessage({
+          type: "DATA_EXFILTRATION_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            targetUrl: event.detail.url,
+            targetDomain: event.detail.targetDomain,
+            method: event.detail.method,
+            bodySize: event.detail.bodySize,
+            initiator: event.detail.initiator,
+          },
+        });
+      }) as EventListener
+    );
   },
 });
 
