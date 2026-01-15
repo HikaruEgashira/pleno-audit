@@ -60,6 +60,143 @@ function generateReportId(): string {
 }
 
 /**
+ * Check HIPAA-specific compliance (PHI protection)
+ */
+function checkHIPAACompliance(input: ComplianceInput): {
+  status: ComplianceStatus;
+  evidence: ComplianceEvidence[];
+  findings: ComplianceFinding[];
+} {
+  const evidence: ComplianceEvidence[] = [];
+  const findings: ComplianceFinding[] = [];
+
+  // Check for sensitive health data
+  const healthDataPrompts = input.aiPrompts.filter((p) =>
+    p.dataTypes.some((dt) =>
+      ["medical_records", "patient_data", "health_info", "prescription"].includes(dt)
+    )
+  );
+
+  evidence.push({
+    type: "log",
+    description: `${healthDataPrompts.length}件の医療関連データ送信を検出`,
+    source: "ai-monitor",
+    timestamp: Date.now(),
+    data: { count: healthDataPrompts.length },
+  });
+
+  if (healthDataPrompts.length > 0) {
+    findings.push({
+      severity: "critical",
+      description: `PHI（保護対象医療情報）がAIサービスに送信されました`,
+      recommendation: "医療データをAIサービスに送信しないよう厳格なポリシーを実施してください",
+      affectedAssets: [...new Set(healthDataPrompts.map((p) => p.domain))],
+    });
+  }
+
+  // Check for authentication controls
+  const servicesWithAuth = input.services.filter((s) => s.hasLoginPage);
+  if (servicesWithAuth.length === 0 && input.services.length > 0) {
+    findings.push({
+      severity: "high",
+      description: "認証メカニズムが検出されません",
+      recommendation: "すべてのシステムに強力な認証メカニズムを実装してください",
+      affectedAssets: input.services.map((s) => s.domain),
+    });
+  }
+
+  const status: ComplianceStatus =
+    findings.filter((f) => f.severity === "critical").length > 0
+      ? "non_compliant"
+      : findings.length > 0
+        ? "partial"
+        : "compliant";
+
+  return { status, evidence, findings };
+}
+
+/**
+ * Check CCPA-specific compliance (consumer rights)
+ */
+function checkCCPACompliance(input: ComplianceInput): {
+  status: ComplianceStatus;
+  evidence: ComplianceEvidence[];
+  findings: ComplianceFinding[];
+} {
+  const evidence: ComplianceEvidence[] = [];
+  const findings: ComplianceFinding[] = [];
+
+  // Check privacy policy (CCPA requires clear privacy notice)
+  const servicesWithPolicy = input.services.filter((s) => s.privacyPolicyUrl);
+  const coverage = input.services.length > 0
+    ? (servicesWithPolicy.length / input.services.length) * 100
+    : 100;
+
+  evidence.push({
+    type: "scan",
+    description: `CCPA準拠性チェック: プライバシーポリシー検出率 ${coverage.toFixed(1)}%`,
+    source: "policy-detection",
+    timestamp: Date.now(),
+    data: { coverage },
+  });
+
+  if (coverage < 100) {
+    findings.push({
+      severity: "high",
+      description: `${100 - coverage.toFixed(0)}%のサービスでプライバシーポリシーが欠落しています`,
+      recommendation:
+        "CCPA要件として、すべてのサービスで消費者に対する明確なプライバシーポリシーを提供してください",
+      affectedAssets: input.services
+        .filter((s) => !s.privacyPolicyUrl)
+        .map((s) => s.domain),
+    });
+  }
+
+  // Check for PII (Personally Identifiable Information) handling
+  const piiPrompts = input.aiPrompts.filter((p) =>
+    p.dataTypes.some((dt) =>
+      ["pii", "ssn", "driver_license", "passport", "email", "phone"].includes(dt)
+    )
+  );
+
+  if (piiPrompts.length > 0) {
+    findings.push({
+      severity: "high",
+      description: `${piiPrompts.length}件のPII（個人識別情報）が外部サービスに送信されました`,
+      recommendation:
+        "CCPA消費者には個人情報の売却・共有について通知し、オプトアウト権を提供してください",
+      affectedAssets: [...new Set(piiPrompts.map((p) => p.domain))],
+    });
+  }
+
+  // Check for insecure data transmission
+  const highRiskDomains = input.services.filter((s) => s.isNRD || s.isTyposquat);
+  if (highRiskDomains.length > 0) {
+    evidence.push({
+      type: "log",
+      description: `${highRiskDomains.length}個の疑わしいドメインを検出`,
+      source: "threat-detection",
+      timestamp: Date.now(),
+    });
+
+    findings.push({
+      severity: "high",
+      description: "疑わしいドメインを介したデータ送信が検出されました",
+      recommendation:
+        "CCPA要件として、消費者データを安全なエンドポイントのみに送信してください",
+      affectedAssets: highRiskDomains.map((s) => s.domain),
+    });
+  }
+
+  const status: ComplianceStatus =
+    findings.filter((f) => f.severity === "critical" || f.severity === "high").length > 0
+      ? "non_compliant"
+      : "compliant";
+
+  return { status, evidence, findings };
+}
+
+/**
  * Check access control compliance
  */
 function checkAccessControl(input: ComplianceInput): {
@@ -351,10 +488,44 @@ export function generateComplianceReport(
   const startTime = Date.now();
   const controls: ComplianceControl[] = [];
 
+  // HIPAA-specific check
+  if (framework === "hipaa") {
+    const hipaaCheck = checkHIPAACompliance(input);
+    controls.push({
+      id: "HIPAA-164.312",
+      framework,
+      category: "data_protection",
+      name: "PHI（保護対象医療情報）保護",
+      description: "医療情報プライバシーおよびセキュリティ",
+      requirement: "医療情報を安全に保護し、認証制御を実装する",
+      status: hipaaCheck.status,
+      evidence: hipaaCheck.evidence,
+      findings: hipaaCheck.findings,
+      lastChecked: Date.now(),
+    });
+  }
+
+  // CCPA-specific check
+  if (framework === "ccpa") {
+    const ccpaCheck = checkCCPACompliance(input);
+    controls.push({
+      id: "CCPA-1798.100",
+      framework,
+      category: "privacy",
+      name: "消費者プライバシー権",
+      description: "カリフォルニア消費者プライバシー法準拠",
+      requirement: "消費者のプライバシー権を保護し、透明性を確保する",
+      status: ccpaCheck.status,
+      evidence: ccpaCheck.evidence,
+      findings: ccpaCheck.findings,
+      lastChecked: Date.now(),
+    });
+  }
+
   // Access Control
   const accessCheck = checkAccessControl(input);
   controls.push({
-    id: framework === "soc2" ? "CC6.1" : "access-control",
+    id: framework === "soc2" ? "CC6.1" : framework === "hipaa" ? "HIPAA-164.308" : "access-control",
     framework,
     category: "access_control",
     name: "アクセス制御",
@@ -369,7 +540,7 @@ export function generateComplianceReport(
   // Data Protection
   const dataCheck = checkDataProtection(input);
   controls.push({
-    id: framework === "gdpr" ? "Art.25" : "data-protection",
+    id: framework === "gdpr" ? "Art.25" : framework === "hipaa" ? "HIPAA-164.312" : "data-protection",
     framework,
     category: "data_protection",
     name: "データ保護",
