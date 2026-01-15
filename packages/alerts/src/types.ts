@@ -18,6 +18,7 @@ export type AlertCategory =
   | "typosquat" // Typosquatting attempt
   | "data_leak" // Sensitive data exposure
   | "data_exfiltration" // Large data transfer (potential exfiltration)
+  | "credential_theft" // Credential theft risk
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
   | "shadow_ai" // Unauthorized/unknown AI service
@@ -60,6 +61,7 @@ export type AlertDetails =
   | TyposquatAlertDetails
   | DataLeakAlertDetails
   | DataExfiltrationAlertDetails
+  | CredentialTheftAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
   | ShadowAIAlertDetails
@@ -142,6 +144,17 @@ export interface DataExfiltrationAlertDetails {
   sizeKB: number;
   method: string;
   initiator: string;
+}
+
+export interface CredentialTheftAlertDetails {
+  type: "credential_theft";
+  sourceDomain: string;
+  targetDomain: string;
+  formAction: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
 }
 
 /**

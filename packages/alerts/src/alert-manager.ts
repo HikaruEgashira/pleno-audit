@@ -463,6 +463,49 @@ export function createAlertManager(
     });
   }
 
+  /**
+   * Create credential theft alert
+   */
+  async function alertCredentialTheft(params: {
+    sourceDomain: string;
+    targetDomain: string;
+    formAction: string;
+    isSecure: boolean;
+    isCrossOrigin: boolean;
+    fieldType: string;
+    risks: string[];
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risks
+    const hasInsecureProtocol = params.risks.includes("insecure_protocol");
+    const severity: AlertSeverity = hasInsecureProtocol ? "critical" : "high";
+
+    const riskDescriptions: string[] = [];
+    if (hasInsecureProtocol) {
+      riskDescriptions.push("非HTTPS通信");
+    }
+    if (params.isCrossOrigin) {
+      riskDescriptions.push("クロスオリジン送信");
+    }
+
+    return createAlert({
+      category: "credential_theft",
+      severity,
+      title: `認証情報リスク: ${params.targetDomain}`,
+      description: `${params.fieldType}フィールドが${riskDescriptions.join(", ")}で送信されます`,
+      domain: params.targetDomain,
+      details: {
+        type: "credential_theft",
+        sourceDomain: params.sourceDomain,
+        targetDomain: params.targetDomain,
+        formAction: params.formAction,
+        isSecure: params.isSecure,
+        isCrossOrigin: params.isCrossOrigin,
+        fieldType: params.fieldType,
+        risks: params.risks,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -471,6 +514,7 @@ export function createAlertManager(
     alertShadowAI,
     alertExtension,
     alertDataExfiltration,
+    alertCredentialTheft,
     updateAlertStatus,
     getAlerts,
     getAlertCount,
