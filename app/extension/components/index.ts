@@ -13,6 +13,7 @@ export { SeverityBadge, type Severity } from "./SeverityBadge";
 export { EmptyState } from "./EmptyState";
 export { LoadingState } from "./LoadingState";
 export { ErrorState, parseErrorMessage, type ErrorType } from "./ErrorState";
+export { VirtualList, VirtualTable } from "./VirtualList";
 export { StatsGrid } from "./StatsGrid";
 export {
   Skeleton,
