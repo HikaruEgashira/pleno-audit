@@ -332,6 +332,50 @@ export function createAlertManager(
   }
 
   /**
+   * Create extension risk alert
+   */
+  async function alertExtension(params: {
+    extensionId: string;
+    extensionName: string;
+    riskLevel: "critical" | "high" | "medium" | "low";
+    riskScore: number;
+    flags: string[];
+    requestCount: number;
+    targetDomains: string[];
+  }): Promise<SecurityAlert | null> {
+    // 危険度に基づいてseverityを決定
+    let severity: AlertSeverity;
+    if (params.riskLevel === "critical") {
+      severity = "critical";
+    } else if (params.riskLevel === "high") {
+      severity = "high";
+    } else if (params.riskLevel === "medium") {
+      severity = "medium";
+    } else {
+      severity = "low";
+    }
+
+    const flagsPreview = params.flags.slice(0, 2).join(", ");
+
+    return createAlert({
+      category: "extension",
+      severity,
+      title: `危険な拡張機能: ${params.extensionName}`,
+      description: flagsPreview
+        ? `リスクフラグ: ${flagsPreview}`
+        : `リスクスコア: ${params.riskScore}`,
+      domain: "chrome-extension://" + params.extensionId,
+      details: {
+        type: "extension",
+        extensionId: params.extensionId,
+        extensionName: params.extensionName,
+        requestCount: params.requestCount,
+        targetDomains: params.targetDomains,
+      },
+    });
+  }
+
+  /**
    * Update alert status
    */
   async function updateAlertStatus(
@@ -394,6 +438,7 @@ export function createAlertManager(
     alertTyposquat,
     alertAISensitive,
     alertShadowAI,
+    alertExtension,
     updateAlertStatus,
     getAlerts,
     getAlertCount,
