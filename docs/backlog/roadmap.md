@@ -53,7 +53,7 @@
 |-----|------|-----|
 | ブロック設定UI | 設定メニューに保護機能トグルと同意ダイアログ追加 | #56 |
 | Firefox対応 | Firefox MV2ビルドサポート、ブラウザ別manifest設定 | #57 |
-| Edge対応 | Edge MV3ビルドサポート（WXT標準機能） | - |
+| Edge対応 | Edge MV3ビルドサポート（WXT標準機能） | #70 |
 | Safari対応 | Safari MV2ビルドサポート | #60 |
 | Data Exfiltration検出 | 大量データ転送検出（100KB+）、fetch/XHR/beacon監視 | #62 |
 | Credential Theft検出 | フォーム送信監視、非HTTPS/クロスオリジン検出 | #63 |
@@ -119,51 +119,51 @@
 | DLPルールテスト | DLPパターン・マネージャーテスト (34テスト) | 高 | #74 |
 
 | UIコンポーネントテスト | Badge, Button, StatCard, Card, Select, EmptyStateのテスト (47テスト) | 中 | #75 |
-| Policy Engineテスト | ポリシーエンジンの条件評価・違反管理テスト (35テスト) | 高 | - |
-| Blocking Engineテスト | ブロッキングエンジンの判定・イベント管理テスト (33テスト) | 高 | - |
-| Threat Intelテスト | 脅威インテリジェンス分析テスト (41テスト) | 高 | - |
-| Predictive Analysisテスト | トレンド検出・異常検知テスト (23テスト) | 高 | - |
-| Identity Securityテスト | パスワード強度分析テスト (49テスト) | 高 | - |
-| Data Exportテスト | CSV/JSON/Markdown/HTMLエクスポートテスト (38テスト) | 中 | - |
-| CSP Analyzerテスト | CSPポリシー生成・統計・推奨事項テスト (27テスト) | 高 | - |
-| Alert Managerテスト | アラート管理・通知・ライフサイクルテスト (48テスト) | 高 | - |
-| Policy Generatorテスト | ポリシー自動生成テスト (27テスト) | 高 | - |
-| Password Reuse Detectorテスト | パスワード再利用検出テスト (28テスト) | 高 | - |
-| Extension Risk Analyzerテスト | 拡張機能リスク分析テスト (48テスト) | 高 | - |
-| Risk Forecasterテスト | リスク予測テスト (24テスト) | 高 | - |
-| Login Detectorテスト | ログイン検出テスト (31テスト) | 高 | - |
-| Privacy Finderテスト | プライバシーポリシー検出テスト (33テスト) | 高 | - |
-| NRD Detectorテスト | NRD検出器テスト (19テスト) | 高 | - |
-| DDNSテスト | DDNS検出テスト (36テスト) | 高 | - |
-| RDAPテスト | RDAP APIクライアントテスト (14テスト) | 高 | - |
-| ToS Finderテスト | 利用規約検出テスト (32テスト) | 高 | - |
-| Cookie Finderテスト | クッキーポリシー・バナー検出テスト (35テスト) | 高 | - |
-| Typosquat Detectorテスト | タイポスクワッティング検出器テスト (22テスト) | 高 | - |
-| URL Utilsテスト | URL解析ユーティリティテスト (33テスト) | 高 | - |
-| Patternsテスト | パターンマッチングヘルパーテスト (147テスト) | 高 | - |
-| AI Detectorテスト | AIリクエスト/レスポンス検出テスト (45テスト) | 高 | - |
-| Sensitive Data Detectorテスト | 機密データ検出テスト (49テスト) | 高 | - |
-| Favicon Detectorテスト | ファビコン検出テスト (26テスト) | 中 | - |
-| Report Generatorテスト | コンプライアンスレポート生成テスト (31テスト) | 高 | - |
-| Policy Managerテスト | ポリシー管理・違反検出テスト (54テスト) | 高 | - |
-| Permission Analyzerテスト | 拡張機能権限分析テスト (31テスト) | 高 | - |
-| Risk Prioritizerテスト | リスク優先順位付けテスト (48テスト) | 高 | - |
-| Policy Finder Baseテスト | ポリシー検出基盤テスト (28テスト) | 高 | - |
-| Runtime Protectionテスト | ランタイム保護・脅威検出テスト (25テスト) | 高 | - |
-| Risk Calculatorテスト | リスクスコア計算テスト (46テスト) | 高 | - |
-| Audit Exporterテスト | CSV/JSON監査ログエクスポートテスト (38テスト) | 中 | - |
-| Graph Builderテスト | セキュリティグラフ構築テスト (49テスト) | 高 | - |
-| Threat Dataテスト | 脅威インテリジェンスデータテスト (36テスト) | 中 | - |
-| CSP Constantsテスト | CSPディレクティブ定数テスト (33テスト) | 中 | - |
-| Loggerテスト | ロガーユーティリティテスト (38テスト) | 中 | - |
-| SQL.js Adapterテスト | データベースアダプターテスト (28テスト) | 高 | - |
-| API Routesテスト | Honoルーティング・エンドポイントテスト (32テスト) | 高 | - |
-| Parquet Schemaテスト | データ変換・スキーマ定義テスト (59テスト) | 高 | - |
-| Query Engineテスト | クエリエンジン・フィルタリング・ページネーションテスト (38テスト) | 高 | - |
-| Integration Managerテスト | 統合管理・ワークフロー・トリガー条件テスト (41テスト) | 高 | - |
-| Write Bufferテスト | バッファリング・フラッシュ・デバウンステスト (30テスト) | 中 | - |
-| Dynamic Indexテスト | インデックスキャッシュ・ビルダーテスト (22テスト) | 中 | - |
-| Sensitive Data Detectorテスト | 機密データ検出・分類・マスキングテスト (47テスト) | 高 | - |
+| Policy Engineテスト | ポリシーエンジンの条件評価・違反管理テスト (35テスト) | 高 | #70 |
+| Blocking Engineテスト | ブロッキングエンジンの判定・イベント管理テスト (33テスト) | 高 | #70 |
+| Threat Intelテスト | 脅威インテリジェンス分析テスト (41テスト) | 高 | #70 |
+| Predictive Analysisテスト | トレンド検出・異常検知テスト (23テスト) | 高 | #70 |
+| Identity Securityテスト | パスワード強度分析テスト (49テスト) | 高 | #70 |
+| Data Exportテスト | CSV/JSON/Markdown/HTMLエクスポートテスト (38テスト) | 中 | #70 |
+| CSP Analyzerテスト | CSPポリシー生成・統計・推奨事項テスト (27テスト) | 高 | #70 |
+| Alert Managerテスト | アラート管理・通知・ライフサイクルテスト (48テスト) | 高 | #70 |
+| Policy Generatorテスト | ポリシー自動生成テスト (27テスト) | 高 | #70 |
+| Password Reuse Detectorテスト | パスワード再利用検出テスト (28テスト) | 高 | #70 |
+| Extension Risk Analyzerテスト | 拡張機能リスク分析テスト (48テスト) | 高 | #70 |
+| Risk Forecasterテスト | リスク予測テスト (24テスト) | 高 | #70 |
+| Login Detectorテスト | ログイン検出テスト (31テスト) | 高 | #70 |
+| Privacy Finderテスト | プライバシーポリシー検出テスト (33テスト) | 高 | #70 |
+| NRD Detectorテスト | NRD検出器テスト (19テスト) | 高 | #70 |
+| DDNSテスト | DDNS検出テスト (36テスト) | 高 | #70 |
+| RDAPテスト | RDAP APIクライアントテスト (14テスト) | 高 | #70 |
+| ToS Finderテスト | 利用規約検出テスト (32テスト) | 高 | #70 |
+| Cookie Finderテスト | クッキーポリシー・バナー検出テスト (35テスト) | 高 | #70 |
+| Typosquat Detectorテスト | タイポスクワッティング検出器テスト (22テスト) | 高 | #70 |
+| URL Utilsテスト | URL解析ユーティリティテスト (33テスト) | 高 | #70 |
+| Patternsテスト | パターンマッチングヘルパーテスト (147テスト) | 高 | #70 |
+| AI Detectorテスト | AIリクエスト/レスポンス検出テスト (45テスト) | 高 | #70 |
+| Sensitive Data Detectorテスト | 機密データ検出テスト (49テスト) | 高 | #70 |
+| Favicon Detectorテスト | ファビコン検出テスト (26テスト) | 中 | #70 |
+| Report Generatorテスト | コンプライアンスレポート生成テスト (31テスト) | 高 | #70 |
+| Policy Managerテスト | ポリシー管理・違反検出テスト (54テスト) | 高 | #70 |
+| Permission Analyzerテスト | 拡張機能権限分析テスト (31テスト) | 高 | #70 |
+| Risk Prioritizerテスト | リスク優先順位付けテスト (48テスト) | 高 | #70 |
+| Policy Finder Baseテスト | ポリシー検出基盤テスト (28テスト) | 高 | #70 |
+| Runtime Protectionテスト | ランタイム保護・脅威検出テスト (25テスト) | 高 | #70 |
+| Risk Calculatorテスト | リスクスコア計算テスト (46テスト) | 高 | #70 |
+| Audit Exporterテスト | CSV/JSON監査ログエクスポートテスト (38テスト) | 中 | #70 |
+| Graph Builderテスト | セキュリティグラフ構築テスト (49テスト) | 高 | #70 |
+| Threat Dataテスト | 脅威インテリジェンスデータテスト (36テスト) | 中 | #70 |
+| CSP Constantsテスト | CSPディレクティブ定数テスト (33テスト) | 中 | #70 |
+| Loggerテスト | ロガーユーティリティテスト (38テスト) | 中 | #70 |
+| SQL.js Adapterテスト | データベースアダプターテスト (28テスト) | 高 | #70 |
+| API Routesテスト | Honoルーティング・エンドポイントテスト (32テスト) | 高 | #70 |
+| Parquet Schemaテスト | データ変換・スキーマ定義テスト (59テスト) | 高 | #70 |
+| Query Engineテスト | クエリエンジン・フィルタリング・ページネーションテスト (38テスト) | 高 | #70 |
+| Integration Managerテスト | 統合管理・ワークフロー・トリガー条件テスト (41テスト) | 高 | #70 |
+| Write Bufferテスト | バッファリング・フラッシュ・デバウンステスト (30テスト) | 中 | #70 |
+| Dynamic Indexテスト | インデックスキャッシュ・ビルダーテスト (22テスト) | 中 | #70 |
+| Sensitive Data Detectorテスト | 機密データ検出・分類・マスキングテスト (47テスト) | 高 | #70 |
 
 ## 成功指標
 
