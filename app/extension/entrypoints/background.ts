@@ -175,6 +175,53 @@ async function checkDomainPolicy(domain: string): Promise<void> {
   }
 }
 
+async function checkAIServicePolicy(params: {
+  domain: string;
+  provider?: string;
+  dataTypes?: string[];
+}): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkAIService(params);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain: params.domain,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
+}
+
+async function checkDataTransferPolicy(params: {
+  destination: string;
+  sizeKB: number;
+}): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkDataTransfer(params);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain: params.destination,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
+}
+
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
   try {
     const iconUrl = alert.severity === "critical" || alert.severity === "high"
@@ -1396,6 +1443,14 @@ async function handleDataExfiltration(
     method: data.method,
   });
 
+  // Check data transfer policy
+  checkDataTransferPolicy({
+    destination: data.targetDomain,
+    sizeKB: Math.round(data.bodySize / 1024),
+  }).catch(() => {
+    // Ignore policy check errors
+  });
+
   return { success: true };
 }
 
@@ -1829,6 +1884,15 @@ async function handleAIPromptCaptured(
       },
     });
   }
+
+  // Check AI service policy
+  checkAIServicePolicy({
+    domain,
+    provider: providerClassification.provider,
+    dataTypes: analysis.pii.hasSensitiveData ? analysis.pii.classifications : undefined,
+  }).catch(() => {
+    // Ignore policy check errors
+  });
 
   return { success: true };
 }
