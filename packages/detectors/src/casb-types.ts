@@ -13,6 +13,7 @@ import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   InferredProvider,
+  ExtendedProvider,
 } from "@pleno-audit/ai-detector";
 import type { TyposquatDetectedDetails } from "@pleno-audit/typosquat";
 
@@ -55,13 +56,17 @@ export interface DetectedService {
   aiDetected?: {
     hasAIActivity: boolean;
     lastActivityAt: number;
-    providers: InferredProvider[];
+    providers: (InferredProvider | ExtendedProvider)[];
     /** 機密情報が検出されたか */
     hasSensitiveData?: boolean;
     /** 検出された機密情報の種類 */
     sensitiveDataTypes?: string[];
     /** 最大リスクレベル */
     riskLevel?: "critical" | "high" | "medium" | "low" | "info";
+    /** Shadow AIが検出されたか（未承認AIサービス） */
+    hasShadowAI?: boolean;
+    /** 検出されたShadow AIプロバイダー */
+    shadowAIProviders?: ExtendedProvider[];
   };
 }
 

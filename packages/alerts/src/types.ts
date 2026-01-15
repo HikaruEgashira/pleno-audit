@@ -19,6 +19,7 @@ export type AlertCategory =
   | "data_leak" // Sensitive data exposure
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
+  | "shadow_ai" // Unauthorized/unknown AI service
   | "extension" // Suspicious extension activity
   | "login" // Login on suspicious site
   | "policy"; // Missing privacy/ToS policy
@@ -59,6 +60,7 @@ export type AlertDetails =
   | DataLeakAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
+  | ShadowAIAlertDetails
   | ExtensionAlertDetails
   | LoginAlertDetails
   | PolicyAlertDetails;
@@ -96,6 +98,16 @@ export interface AISensitiveAlertDetails {
   provider: string;
   model?: string;
   dataTypes: string[];
+}
+
+export interface ShadowAIAlertDetails {
+  type: "shadow_ai";
+  provider: string;
+  providerDisplayName: string;
+  category: "major" | "enterprise" | "open_source" | "regional" | "specialized";
+  riskLevel: "low" | "medium" | "high";
+  confidence: "high" | "medium" | "low";
+  model?: string;
 }
 
 export interface ExtensionAlertDetails {

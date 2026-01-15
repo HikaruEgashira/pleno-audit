@@ -26,6 +26,9 @@ import {
   createNRDDetector,
   createTyposquatDetector,
   analyzePrompt,
+  classifyProvider,
+  isShadowAI,
+  getProviderInfo,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -1081,8 +1084,22 @@ async function handleAIPromptCaptured(
   // PII/機密情報検出
   const analysis = analyzePrompt(data.prompt);
 
-  // Store AI prompt
-  await storeAIPrompt(data);
+  // Shadow AI検出（拡張プロバイダー分類）
+  const providerClassification = classifyProvider({
+    modelName: data.model,
+    url: data.apiEndpoint,
+    responseText: data.response?.text,
+  });
+
+  const isShadowAIDetected = isShadowAI(providerClassification.provider);
+  const providerInfo = getProviderInfo(providerClassification.provider);
+
+  // Store AI prompt with enhanced provider info
+  const enhancedData: CapturedAIPrompt = {
+    ...data,
+    provider: providerClassification.provider,
+  };
+  await storeAIPrompt(enhancedData);
 
   // Extract domain from API endpoint
   let domain = "unknown";
@@ -1092,17 +1109,19 @@ async function handleAIPromptCaptured(
     // ignore
   }
 
-  // Add prompt sent event
+  // Add prompt sent event with Shadow AI info
   await addEvent({
     type: "ai_prompt_sent",
     domain,
     timestamp: data.timestamp,
     details: {
-      provider: data.provider || "unknown",
+      provider: providerClassification.provider,
       model: data.model,
       promptPreview: getPromptPreview(data.prompt),
       contentSize: data.prompt.contentSize,
       messageCount: data.prompt.messages?.length,
+      isShadowAI: isShadowAIDetected,
+      providerConfidence: providerClassification.confidence,
     },
   });
 
@@ -1135,6 +1154,19 @@ async function handleAIPromptCaptured(
     }
   }
 
+  // Shadow AI検出時のアラート発火
+  if (isShadowAIDetected) {
+    await getAlertManager().alertShadowAI({
+      domain,
+      provider: providerClassification.provider,
+      providerDisplayName: providerInfo.displayName,
+      category: providerInfo.category,
+      riskLevel: providerInfo.riskLevel,
+      confidence: providerClassification.confidence,
+      model: data.model,
+    });
+  }
+
   // Add response received event if available
   if (data.response) {
     await addEvent({
@@ -1164,10 +1196,16 @@ async function handleAIPromptCaptured(
     const storage = await getStorage();
     const existingService = storage.services?.[pageDomain];
     const existingProviders = existingService?.aiDetected?.providers || [];
-    const provider = data.provider || "unknown";
+    const provider = providerClassification.provider;
     const providers = existingProviders.includes(provider)
       ? existingProviders
       : [...existingProviders, provider];
+
+    // Shadow AIプロバイダーの追跡
+    const existingShadowProviders = existingService?.aiDetected?.shadowAIProviders || [];
+    const shadowAIProviders = isShadowAIDetected && !existingShadowProviders.includes(provider)
+      ? [...existingShadowProviders, provider]
+      : existingShadowProviders;
 
     await updateService(pageDomain, {
       aiDetected: {
@@ -1182,6 +1220,9 @@ async function handleAIPromptCaptured(
         riskLevel: analysis.risk.riskLevel === "critical" || analysis.risk.riskLevel === "high"
           ? analysis.risk.riskLevel
           : existingService?.aiDetected?.riskLevel,
+        // Shadow AI情報を追加
+        hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
+        shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
       },
     });
   }

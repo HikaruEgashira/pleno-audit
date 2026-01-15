@@ -8,7 +8,6 @@ import type {
   EventLogExport,
   AIPromptExport,
   DetectedServiceExport,
-  AuditLogExportOptions,
 } from "./types.js";
 
 /**

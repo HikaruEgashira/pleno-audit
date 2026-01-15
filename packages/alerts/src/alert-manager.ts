@@ -283,6 +283,55 @@ export function createAlertManager(
   }
 
   /**
+   * Create Shadow AI alert
+   */
+  async function alertShadowAI(params: {
+    domain: string;
+    provider: string;
+    providerDisplayName: string;
+    category: "major" | "enterprise" | "open_source" | "regional" | "specialized";
+    riskLevel: "low" | "medium" | "high";
+    confidence: "high" | "medium" | "low";
+    model?: string;
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risk level and category
+    let severity: AlertSeverity;
+    if (params.provider === "unknown") {
+      severity = "high";
+    } else if (params.category === "regional") {
+      severity = params.riskLevel === "high" ? "high" : "medium";
+    } else {
+      severity = params.riskLevel === "high" ? "high" : "medium";
+    }
+
+    const isUnknown = params.provider === "unknown";
+    const title = isUnknown
+      ? `未知のAIサービス検出: ${params.domain}`
+      : `Shadow AI検出: ${params.providerDisplayName}`;
+
+    const description = isUnknown
+      ? "未承認のAIサービスへのアクセスを検出しました"
+      : `${params.providerDisplayName}（${params.category}）へのアクセスを検出`;
+
+    return createAlert({
+      category: "shadow_ai",
+      severity,
+      title,
+      description,
+      domain: params.domain,
+      details: {
+        type: "shadow_ai",
+        provider: params.provider,
+        providerDisplayName: params.providerDisplayName,
+        category: params.category,
+        riskLevel: params.riskLevel,
+        confidence: params.confidence,
+        model: params.model,
+      },
+    });
+  }
+
+  /**
    * Update alert status
    */
   async function updateAlertStatus(
@@ -344,6 +393,7 @@ export function createAlertManager(
     alertNRD,
     alertTyposquat,
     alertAISensitive,
+    alertShadowAI,
     updateAlertStatus,
     getAlerts,
     getAlertCount,

@@ -6,9 +6,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { useTheme } from "../../lib/theme";
-import { Card, Select, Badge } from "../../components";
+import { Card, Select } from "../../components";
 import {
-  TimelineChart,
   StackedTimelineChart,
   ActivityHeatmap,
   type TimeGranularity,

@@ -100,11 +100,15 @@ export interface AIResponseContent {
 
 /** AIプロンプト送信イベント詳細 */
 export interface AIPromptSentDetails {
-  provider: InferredProvider;
+  provider: string; // ExtendedProvider含む
   model?: string;
   promptPreview: string;
   contentSize: number;
   messageCount?: number;
+  /** Shadow AI（未承認AIサービス）として検出されたか */
+  isShadowAI?: boolean;
+  /** プロバイダー検出の信頼度 */
+  providerConfidence?: "high" | "medium" | "low";
 }
 
 /** AIレスポンス受信イベント詳細 */

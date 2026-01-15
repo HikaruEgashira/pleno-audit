@@ -171,12 +171,6 @@ export function TimelineChart({
   );
 }
 
-interface EventTypeBreakdown {
-  type: string;
-  count: number;
-  color: string;
-}
-
 interface StackedTimelineChartProps {
   data: Array<{
     timestamp: number;
