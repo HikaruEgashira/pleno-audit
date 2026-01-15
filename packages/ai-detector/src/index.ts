@@ -39,3 +39,17 @@ export {
   type AIPromptRiskAssessment,
   type AIPromptAnalysisResult,
 } from "./pii-analyzer.js";
+
+// Provider Classifier (Shadow AI Detection)
+export {
+  classifyByModelName,
+  classifyByUrl,
+  classifyByResponseStructure,
+  classifyProvider,
+  getProviderInfo,
+  isShadowAI,
+  PROVIDER_INFO,
+  type ExtendedProvider,
+  type ProviderClassification,
+  type ProviderInfo,
+} from "./provider-classifier.js";

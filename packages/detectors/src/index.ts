@@ -116,6 +116,10 @@ export type {
   AIPromptPIIResult,
   AIPromptRiskAssessment,
   AIPromptAnalysisResult,
+  // Provider Classification Types
+  ExtendedProvider,
+  ProviderClassification,
+  ProviderInfo,
 } from "@pleno-audit/ai-detector";
 
 export {
@@ -130,6 +134,14 @@ export {
   scoreToRiskLevel,
   assessPromptRisk,
   analyzePrompt,
+  // Provider Classification Functions
+  classifyByModelName,
+  classifyByUrl,
+  classifyByResponseStructure,
+  classifyProvider,
+  getProviderInfo,
+  isShadowAI,
+  PROVIDER_INFO,
 } from "@pleno-audit/ai-detector";
 
 // Typosquatting Detection (re-export from @pleno-audit/typosquat)
