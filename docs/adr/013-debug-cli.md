@@ -5,7 +5,7 @@ Accepted
 
 ## コンテキスト
 
-Chrome拡張のデバッグ・開発において以下の課題があった：
+Chrome拡張のデバッグ・開発において以下の課題があった
 
 1. **拡張内部状態の取得が困難** - ストレージやサービス情報を確認するにはDevToolsを開く必要がある
 2. **coding agentとの連携** - Claude Codeなどのコーディングエージェントが拡張の状態を自動取得できない
@@ -17,7 +17,7 @@ Chrome拡張のデバッグ・開発において以下の課題があった：
 
 ### アーキテクチャ
 
-WebSocketベースのクライアント・サーバーアーキテクチャを採用：
+WebSocketベースのクライアント・サーバーアーキテクチャを採用
 
 ```
 ┌─────────────────┐      WebSocket        ┌──────────────────────┐
@@ -41,14 +41,14 @@ WebSocketベースのクライアント・サーバーアーキテクチャを�
 | **HTTP REST API** | シンプル | Service Workerからサーバーを立てられない |
 | **WebSocket** ✅ | 双方向通信、シンプル | 専用サーバーが必要 |
 
-WebSocketを選択した理由：
+WebSocketを選択した理由
 - Service Workerがクライアントとして接続可能
 - 双方向リアルタイム通信が可能
 - セットアップが不要（サーバー起動のみ）
 
 ### コマンド体系
 
-agent-browser風のサブコマンド構造：
+agent-browser風のサブコマンド構造
 
 ```bash
 pleno-debug server              # サーバー起動
@@ -64,7 +64,7 @@ pleno-debug browser open <url>          # ブラウザでURLを開く
 
 ### 開発モード専用
 
-`debug-bridge.ts`は`import.meta.env.DEV`でガードされ、本番ビルドには含まれない：
+`debug-bridge.ts`は`import.meta.env.DEV`でガードされ、本番ビルドには含まれない
 
 ```typescript
 // background.ts

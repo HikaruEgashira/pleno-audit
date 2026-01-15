@@ -215,7 +215,7 @@ export default function PrivacyPage() {
 
           <Section title="10. お問い合わせ">
             <p>
-              プライバシーに関するご質問やご懸念がある場合は、以下の方法でお問い合わせください：
+              プライバシーに関するご質問やご懸念がある場合は、以下の方法でお問い合わせください
             </p>
             <div className="flex items-center gap-2 mt-4 p-4 rounded-lg bg-[#fafafa] dark:bg-[#111] border border-[#eaeaea] dark:border-[#333]">
               <Mail className="h-5 w-5 text-[#666] dark:text-[#8f8f8f]" />

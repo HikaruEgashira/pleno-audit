@@ -78,7 +78,7 @@ pleno-debug watch storage       # ストレージ変更監視
 
 ## coding agent連携
 
-Claude Codeなどのcoding agentから使用する場合：
+Claude Codeなどのcoding agentから使用する場合
 
 ```bash
 # サーバーをバックグラウンドで起動

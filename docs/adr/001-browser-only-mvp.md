@@ -6,7 +6,7 @@ Accepted
 ## Context
 AIサービスの利用状況を可視化し、プライバシーリスクを管理するツールを作りたい。
 
-最終的なビジョンは法人向けCASB（Cloud Access Security Broker）だが、そこに至るまでに以下の課題がある：
+最終的なビジョンは法人向けCASB（Cloud Access Security Broker）だが、そこに至るまでに以下の課題がある
 
 1. **価値検証の必要性**: ユーザーが本当にこの機能を必要としているか不明
 2. **導入障壁**: サーバー構築・運用は初期コストが高い
@@ -43,7 +43,7 @@ MVPは**端末完結型のブラウザ拡張機能**として実装する。サ�
 - Cookie名からサービスを推定するintelligence機能が使えない
 
 ### 現在の構成
-サーバー連携オプション付きのローカルファースト構成：
+サーバー連携オプション付きのローカルファースト構成
 - `packages/detectors`: CASBドメイン（サービス検出、認証検出）
 - `packages/csp`: CSP監査
 - `packages/api`: Isomorphic Hono API（ローカル/リモート両対応）

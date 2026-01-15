@@ -6,7 +6,7 @@ Accepted
 
 ## コンテキスト
 
-CASBとしてAIサービス（ChatGPT、Claude、Gemini等）へのプロンプト送信とレスポンス受信を監視する機能が求められている。これにより以下を実現する：
+CASBとしてAIサービス（ChatGPT、Claude、Gemini等）へのプロンプト送信とレスポンス受信を監視する機能が求められている。これにより以下を実現する
 
 - **DLP（Data Loss Prevention）**: 機密情報がAIサービスに送信されていないか監視
 - **Shadow AI監視**: 組織が把握していないAIサービスの利用を検出
@@ -18,14 +18,14 @@ CASBとしてAIサービス（ChatGPT、Claude、Gemini等）へのプロンプ�
 
 **URLパターンは使用せず、リクエスト構造による汎用検出を採用する**
 
-理由：
+理由
 1. 新しいAIサービスやカスタムエンドポイントにも対応可能
 2. メンテナンスコストの低減（URLパターンの更新不要）
 3. 自社ホスト型のAIサービス（Azure OpenAI等）にも対応
 
 ### 検出対象のリクエスト構造
 
-以下の構造を持つPOSTリクエストをAIサービスとして検出：
+以下の構造を持つPOSTリクエストをAIサービスとして検出
 
 1. **Chat Completion形式**
    ```json
@@ -44,7 +44,7 @@ CASBとしてAIサービス（ChatGPT、Claude、Gemini等）へのプロンプ�
 
 ### プロバイダー推定
 
-レスポンス構造からプロバイダーを推定：
+レスポンス構造からプロバイダーを推定
 - `choices[].message.content` → OpenAI互換
 - `content[].text` → Anthropic
 - `candidates[].content` → Google Gemini

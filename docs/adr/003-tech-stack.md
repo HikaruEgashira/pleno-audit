@@ -4,7 +4,7 @@
 Accepted (Updated: CRXJSからWXTへ移行)
 
 ## Context
-ブラウザ拡張機能の開発には複数の選択肢がある：
+ブラウザ拡張機能の開発には複数の選択肢がある
 
 ### ブラウザ選択
 - Chrome: シェア65%、Manifest V3が必須（2024年〜）

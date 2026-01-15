@@ -6,7 +6,7 @@ Accepted
 
 ## コンテキスト
 
-`@pleno-audit/core` パッケージは現在、以下の4つの責務を担っている：
+`@pleno-audit/core` パッケージは現在、以下の4つの責務を担っている
 
 1. **型定義（types.ts）**: データ構造の定義
 2. **検出パターン（patterns.ts）**: URL/テキスト判定用正規表現
@@ -23,7 +23,7 @@ Accepted
 
 ### ドメイン分析
 
-このプロジェクトには**2つの異なるドメイン**が存在する：
+このプロジェクトには**2つの異なるドメイン**が存在する
 
 #### 1. CASBドメイン（Cloud Access Security Broker）
 
@@ -111,7 +111,7 @@ extension → detectors (CASB機能)
 
 ### 共通型の扱い
 
-`EventLog`のようにCSPとCASB両方で使用される型は、以下のいずれかで対応：
+`EventLog`のようにCSPとCASB両方で使用される型は、以下のいずれかで対応
 
 1. **detectors側に配置**: CASBがメインドメインのため
 2. **interface拡張**: CSP側で独自のイベント型を定義し、detectors側のEventLogBaseを拡張
