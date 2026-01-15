@@ -11,7 +11,8 @@ import type {
 } from "@pleno-audit/detectors";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors, spacing } from "../../lib/theme";
-import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar, LoadingState, StatsGrid } from "../../components";
+import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar, StatsGrid, NotificationBanner, useNotifications } from "../../components";
+import { SkeletonDashboard } from "../../components/Skeleton";
 import { UnifiedExtensionsTab } from "./UnifiedExtensionsTab";
 import { SecurityGraphTab } from "./SecurityGraphTab";
 import { PolicyTab } from "./PolicyTab";
@@ -240,6 +241,8 @@ function DashboardContent() {
   const [services, setServices] = useState<DetectedService[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { notifications, addNotification, dismissNotification } = useNotifications();
+  const [lastNotifiedEventId, setLastNotifiedEventId] = useState<string | null>(null);
 
   useEffect(() => {
     window.location.hash = activeTab;
@@ -326,6 +329,56 @@ function DashboardContent() {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  // 脅威検出時のリアルタイム通知
+  useEffect(() => {
+    if (events.length === 0 || loading) return;
+
+    const threatEventTypes = [
+      "nrd_detected",
+      "typosquat_detected",
+      "threat_intel_match",
+      "DATA_EXFILTRATION_DETECTED",
+      "CREDENTIAL_THEFT_DETECTED",
+      "SUPPLY_CHAIN_RISK_DETECTED",
+    ];
+
+    const latestEvent = events[0];
+    if (!latestEvent || latestEvent.id === lastNotifiedEventId) return;
+
+    if (threatEventTypes.includes(latestEvent.type)) {
+      const severityMap: Record<string, "critical" | "warning" | "info"> = {
+        DATA_EXFILTRATION_DETECTED: "critical",
+        CREDENTIAL_THEFT_DETECTED: "critical",
+        threat_intel_match: "critical",
+        nrd_detected: "warning",
+        typosquat_detected: "warning",
+        SUPPLY_CHAIN_RISK_DETECTED: "warning",
+      };
+
+      const titleMap: Record<string, string> = {
+        nrd_detected: "新規登録ドメイン検出",
+        typosquat_detected: "タイポスクワット検出",
+        threat_intel_match: "脅威インテリジェンス一致",
+        DATA_EXFILTRATION_DETECTED: "データ漏洩の可能性",
+        CREDENTIAL_THEFT_DETECTED: "認証情報窃取の可能性",
+        SUPPLY_CHAIN_RISK_DETECTED: "サプライチェーンリスク",
+      };
+
+      addNotification({
+        severity: severityMap[latestEvent.type] || "warning",
+        title: titleMap[latestEvent.type] || "セキュリティアラート",
+        message: latestEvent.domain || latestEvent.url || "詳細はイベントログを確認してください",
+        autoDismiss: 8000,
+        action: {
+          label: "詳細を見る",
+          onClick: () => setActiveTab("events"),
+        },
+      });
+
+      setLastNotifiedEventId(latestEvent.id);
+    }
+  }, [events, loading, lastNotifiedEventId, addNotification]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
@@ -402,8 +455,20 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <LoadingState />
+      <div style={styles.wrapper}>
+        <Sidebar
+          tabs={[
+            { id: "overview", label: "概要" },
+            { id: "violations", label: "CSP違反" },
+            { id: "domains", label: "ドメイン" },
+            { id: "ai", label: "AI監視" },
+          ]}
+          activeTab="overview"
+          onTabChange={() => {}}
+        />
+        <div style={styles.container}>
+          <SkeletonDashboard />
+        </div>
       </div>
     );
   }
@@ -472,6 +537,10 @@ function DashboardContent() {
 
   return (
     <div style={styles.wrapper}>
+      <NotificationBanner
+        notifications={notifications}
+        onDismiss={dismissNotification}
+      />
       <Sidebar tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} />
       <div style={styles.container}>
         <header style={styles.header}>

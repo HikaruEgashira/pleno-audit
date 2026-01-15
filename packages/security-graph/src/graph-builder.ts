@@ -19,6 +19,7 @@ import type {
   DataTypeMetadata,
   GraphStats,
   AttackPath,
+  DataClassification,
 } from "./types.js";
 import {
   calculateRiskScore,
@@ -182,7 +183,7 @@ function processAIPrompt(
   event: EventLog & { type: "ai_prompt_sent" }
 ): void {
   const { domain, details, timestamp } = event;
-  const provider = details.inferredProvider || "unknown";
+  const provider = details.provider || "unknown";
   const aiNodeId = `ai_provider:${provider}`;
   const domainNodeId = `domain:${domain}`;
 
@@ -196,7 +197,7 @@ function processAIPrompt(
       provider,
       models: details.model ? [details.model] : [],
       promptCount: 1,
-      totalTokensEstimate: details.promptContent?.text?.length || 0,
+      totalTokensEstimate: details.contentSize || 0,
     };
 
     const node: GraphNode = {
@@ -218,12 +219,12 @@ function processAIPrompt(
     if (details.model && !metadata.models.includes(details.model)) {
       metadata.models.push(details.model);
     }
-    metadata.totalTokensEstimate += details.promptContent?.text?.length || 0;
+    metadata.totalTokensEstimate += details.contentSize || 0;
     node.lastSeen = timestamp;
   }
 
   // Analyze sensitive data in prompt
-  const promptText = details.promptContent?.text || "";
+  const promptText = details.promptPreview || "";
   const sensitiveData = detectSensitiveData(promptText);
   const dataTypes = [
     ...new Set(sensitiveData.map((s) => s.classification)),
@@ -282,7 +283,7 @@ function processAIResponse(
   event: EventLog & { type: "ai_response_received" }
 ): void {
   // Update AI provider stats
-  const provider = event.details.inferredProvider || "unknown";
+  const provider = event.details.provider || "unknown";
   const aiNodeId = `ai_provider:${provider}`;
 
   if (graph.nodes.has(aiNodeId)) {
