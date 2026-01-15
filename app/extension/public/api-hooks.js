@@ -269,7 +269,7 @@
   // Check if form contains password or sensitive fields
   function hasSensitiveFields(form) {
     const sensitiveTypes = ['password', 'email', 'tel', 'credit-card']
-    const sensitiveNames = ['password', 'passwd', 'pwd', 'pass', 'secret', 'token', 'api_key', 'apikey', 'credit', 'card', 'cvv', 'ssn']
+    const sensitiveNames = ['password', 'passwd', 'pwd', 'pass', 'secret', 'token', 'api_key', 'apikey', 'credit', 'card', 'cvv', 'ssn', 'otp', 'pin', 'auth', 'credential', '2fa', 'mfa']
 
     const inputs = form.querySelectorAll('input')
     for (const input of inputs) {

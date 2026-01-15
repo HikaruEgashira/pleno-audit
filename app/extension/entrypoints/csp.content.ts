@@ -101,18 +101,19 @@ export default defineContentScript({
     window.addEventListener(
       "__CREDENTIAL_THEFT_DETECTED__",
       ((event: CustomEvent) => {
+        const detail = event.detail || {};
         safeSendMessage({
           type: "CREDENTIAL_THEFT_DETECTED",
           data: {
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
-            formAction: event.detail.formAction,
-            targetDomain: event.detail.targetDomain,
-            method: event.detail.method,
-            isSecure: event.detail.isSecure,
-            isCrossOrigin: event.detail.isCrossOrigin,
-            fieldType: event.detail.fieldType,
-            risks: event.detail.risks,
+            formAction: detail.formAction || "",
+            targetDomain: detail.targetDomain || "",
+            method: detail.method || "GET",
+            isSecure: detail.isSecure ?? true,
+            isCrossOrigin: detail.isCrossOrigin ?? false,
+            fieldType: detail.fieldType || "unknown",
+            risks: detail.risks || [],
           },
         });
       }) as EventListener
