@@ -8,7 +8,6 @@
  */
 
 import type { ExtendedProvider } from "./provider-classifier.js";
-import type { DLPDetectionResult } from "./dlp-rules.js";
 
 // ============================================================================
 // Types

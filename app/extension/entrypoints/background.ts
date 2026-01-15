@@ -92,7 +92,6 @@ import {
   createThreatAnalyzer,
   DEFAULT_THREAT_ANALYZER_CONFIG,
   type ThreatAnalyzer,
-  type ThreatAnalysisResult,
 } from "@pleno-audit/threat-intel";
 import {
   createRiskForecaster,
