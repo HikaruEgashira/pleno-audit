@@ -139,8 +139,8 @@ function connect(): void {
       }
     };
 
-    ws.onclose = () => {
-      console.log("[debug-bridge] Disconnected from debug server");
+    ws.onclose = (event) => {
+      console.log(`[debug-bridge] Disconnected from debug server (code: ${event.code}, reason: ${event.reason || "none"})`);
       ws = null;
       scheduleReconnect();
     };
