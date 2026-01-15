@@ -1,0 +1,13 @@
+{
+  "name": "@pleno-audit/vulnerable-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build"
+  },
+  "devDependencies": {
+    "wxt": "^0.20.13"
+  }
+}
