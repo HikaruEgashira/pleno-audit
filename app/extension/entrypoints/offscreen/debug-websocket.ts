@@ -1,5 +1,6 @@
 const DEBUG_SERVER_URL = "ws://localhost:9222/debug";
 const RECONNECT_INTERVAL = 5000;
+const KEEPALIVE_INTERVAL = 25000; // 25 seconds - keep offscreen document alive
 
 interface DebugMessage {
   type: string;
@@ -16,13 +17,27 @@ interface DebugResponse {
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 let isInitialized = false;
+
+function startKeepAlive(): void {
+  if (keepAliveTimer) return;
+
+  keepAliveTimer = setInterval(async () => {
+    try {
+      await chrome.storage.local.get("__keepalive__");
+    } catch {
+      // noop
+    }
+  }, KEEPALIVE_INTERVAL);
+}
 
 export function initDebugWebSocket(): void {
   if (isInitialized) {
     return;
   }
   isInitialized = true;
+  startKeepAlive();
   connect();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

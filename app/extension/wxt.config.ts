@@ -46,7 +46,7 @@ export default defineConfig({
         ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
         : {
             extension_pages: isDev
-              ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' ws://localhost:*;"
+              ? "script-src 'self' 'wasm-unsafe-eval' http://localhost:*; object-src 'self'; connect-src 'self' ws://localhost:* http://localhost:*;"
               : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
           },
       web_accessible_resources: isMV2
