@@ -2,6 +2,10 @@
  * Extension Network Monitor
  *
  * 他のChrome拡張機能が発するネットワークリクエストを監視する
+ *
+ * MV3 Service Worker対応:
+ * - webRequest.onBeforeRequestリスナーは同期的にトップレベルで登録する必要がある
+ * - Service Workerの再起動時にリスナーが維持されるように設計
  */
 
 import type {
@@ -27,6 +31,13 @@ export interface ExtensionInfo {
   icons?: { size: number; url: string }[];
 }
 
+// グローバル状態（Service Worker再起動時に再初期化される）
+let globalConfig: ExtensionMonitorConfig = DEFAULT_EXTENSION_MONITOR_CONFIG;
+let globalOwnExtensionId: string = "";
+let globalKnownExtensions = new Map<string, ExtensionInfo>();
+let globalCallbacks: ((request: ExtensionRequestRecord) => void)[] = [];
+let isListenerRegistered = false;
+
 function isExtensionRequest(
   details: chrome.webRequest.WebRequestDetails
 ): boolean {
@@ -46,29 +57,106 @@ function extractDomain(url: string): string {
   }
 }
 
+/**
+ * webRequestリスナーのハンドラー
+ * グローバル状態を参照して動作する
+ */
+function handleWebRequest(
+  details: chrome.webRequest.WebRequestBodyDetails
+): void {
+  // 設定が無効な場合は何もしない
+  if (!globalConfig.enabled) return;
+
+  if (!isExtensionRequest(details)) return;
+
+  const extensionId = extractExtensionId(details.initiator!);
+  if (!extensionId) return;
+
+  // 自分自身を除外
+  if (globalConfig.excludeOwnExtension && extensionId === globalOwnExtensionId) {
+    return;
+  }
+
+  // 除外リストチェック
+  if (globalConfig.excludedExtensions.includes(extensionId)) return;
+
+  const extInfo = globalKnownExtensions.get(extensionId);
+
+  const record: ExtensionRequestRecord = {
+    id: crypto.randomUUID(),
+    extensionId,
+    extensionName: extInfo?.name || "Unknown Extension",
+    timestamp: Date.now(),
+    url: details.url,
+    method: details.method,
+    resourceType: details.type,
+    domain: extractDomain(details.url),
+  };
+
+  logger.debug("Extension request detected:", {
+    extensionId,
+    extensionName: record.extensionName,
+    url: record.url.substring(0, 100),
+  });
+
+  for (const cb of globalCallbacks) {
+    try {
+      cb(record);
+    } catch (error) {
+      logger.error("Callback error:", error);
+    }
+  }
+}
+
+/**
+ * webRequestリスナーを同期的に登録
+ * MV3 Service Workerではトップレベルで同期的に呼び出す必要がある
+ */
+export function registerExtensionMonitorListener(): void {
+  if (isListenerRegistered) {
+    logger.debug("Extension monitor listener already registered");
+    return;
+  }
+
+  try {
+    chrome.webRequest.onBeforeRequest.addListener(
+      handleWebRequest,
+      { urls: ["<all_urls>"] }
+    );
+    isListenerRegistered = true;
+    logger.info("webRequest.onBeforeRequest listener registered");
+  } catch (error) {
+    logger.error("Failed to register webRequest listener:", error);
+  }
+}
+
 export interface ExtensionMonitor {
-  start(): void;
+  start(): Promise<void>;
   stop(): void;
   getKnownExtensions(): Map<string, ExtensionInfo>;
   onRequest(callback: (request: ExtensionRequestRecord) => void): void;
   refreshExtensionList(): Promise<void>;
 }
 
+/**
+ * Extension Monitorを作成
+ * 注意: webRequestリスナーはregisterExtensionMonitorListener()で事前に登録済みである必要がある
+ */
 export function createExtensionMonitor(
   config: ExtensionMonitorConfig,
   ownExtensionId: string
 ): ExtensionMonitor {
-  const knownExtensions = new Map<string, ExtensionInfo>();
-  const callbacks: ((request: ExtensionRequestRecord) => void)[] = [];
-  let isRunning = false;
+  // グローバル状態を更新
+  globalConfig = config;
+  globalOwnExtensionId = ownExtensionId;
 
   async function refreshExtensionList(): Promise<void> {
     try {
       const extensions = await chrome.management.getAll();
-      knownExtensions.clear();
+      globalKnownExtensions.clear();
       for (const ext of extensions) {
         if (ext.type === "extension") {
-          knownExtensions.set(ext.id, {
+          globalKnownExtensions.set(ext.id, {
             id: ext.id,
             name: ext.name,
             version: ext.version,
@@ -77,89 +165,57 @@ export function createExtensionMonitor(
           });
         }
       }
+      logger.debug(`Extension list refreshed: ${globalKnownExtensions.size} extensions`);
     } catch (error) {
       logger.warn("Failed to get extension list:", error);
     }
   }
 
-  function handleRequest(
-    details: chrome.webRequest.WebRequestBodyDetails
-  ): void {
-    if (!isExtensionRequest(details)) return;
-
-    const extensionId = extractExtensionId(details.initiator!);
-    if (!extensionId) return;
-
-    // 自分自身を除外
-    if (config.excludeOwnExtension && extensionId === ownExtensionId) return;
-
-    // 除外リストチェック
-    if (config.excludedExtensions.includes(extensionId)) return;
-
-    const extInfo = knownExtensions.get(extensionId);
-
-    const record: ExtensionRequestRecord = {
-      id: crypto.randomUUID(),
-      extensionId,
-      extensionName: extInfo?.name || "Unknown Extension",
-      timestamp: Date.now(),
-      url: details.url,
-      method: details.method,
-      resourceType: details.type,
-      domain: extractDomain(details.url),
-    };
-
-    for (const cb of callbacks) {
-      try {
-        cb(record);
-      } catch (error) {
-        logger.error("Callback error:", error);
-      }
-    }
-  }
-
   function handleInstalled(): void {
-    refreshExtensionList().catch((err) => logger.debug("Refresh on install failed:", err));
+    refreshExtensionList().catch((err) =>
+      logger.debug("Refresh on install failed:", err)
+    );
   }
 
   function handleUninstalled(): void {
-    refreshExtensionList().catch((err) => logger.debug("Refresh on uninstall failed:", err));
+    refreshExtensionList().catch((err) =>
+      logger.debug("Refresh on uninstall failed:", err)
+    );
   }
 
   return {
     async start() {
-      if (isRunning) return;
-      isRunning = true;
+      if (!globalConfig.enabled) {
+        logger.debug("Extension monitor disabled by config");
+        return;
+      }
+
+      // リスナーがまだ登録されていない場合は登録（フォールバック）
+      if (!isListenerRegistered) {
+        registerExtensionMonitorListener();
+      }
 
       await refreshExtensionList();
+      logger.info(`Extension monitor started: ${globalKnownExtensions.size} extensions found`);
 
       // 拡張機能の追加/削除を監視
       chrome.management.onInstalled.addListener(handleInstalled);
       chrome.management.onUninstalled.addListener(handleUninstalled);
-
-      // リクエスト監視開始
-      chrome.webRequest.onBeforeRequest.addListener(
-        handleRequest,
-        { urls: ["<all_urls>"] },
-        ["requestBody"]
-      );
     },
 
     stop() {
-      if (!isRunning) return;
-      isRunning = false;
-
       chrome.management.onInstalled.removeListener(handleInstalled);
       chrome.management.onUninstalled.removeListener(handleUninstalled);
-      chrome.webRequest.onBeforeRequest.removeListener(handleRequest);
+      // webRequestリスナーは維持（Service Workerのライフサイクル対応）
+      globalConfig = { ...globalConfig, enabled: false };
     },
 
     getKnownExtensions() {
-      return knownExtensions;
+      return globalKnownExtensions;
     },
 
     onRequest(callback) {
-      callbacks.push(callback);
+      globalCallbacks.push(callback);
     },
 
     refreshExtensionList,
