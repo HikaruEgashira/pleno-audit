@@ -15,7 +15,7 @@ export function RequestsTab({ violations, networkRequests }: RequestsTabProps) {
   const hasData = violations.length > 0 || networkRequests.length > 0;
 
   return (
-    <div>
+    <div style={styles.tabContent}>
       {!hasData && (
         <div style={styles.section}>
           <p style={styles.emptyText}>
@@ -31,18 +31,18 @@ export function RequestsTab({ violations, networkRequests }: RequestsTabProps) {
       )}
 
       {networkRequests.length > 0 && (
-        <div style={styles.divider}>
+        <div>
           <NetworkList requests={networkRequests} />
         </div>
       )}
 
       {hasData && (
-        <div style={styles.divider}>
+        <div>
           <PolicyGenerator violations={violations} />
         </div>
       )}
 
-      <div style={styles.divider}>
+      <div>
         <CSPSettings />
       </div>
     </div>

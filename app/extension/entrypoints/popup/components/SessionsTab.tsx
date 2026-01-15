@@ -34,15 +34,15 @@ export function SessionsTab({ events, aiPrompts }: SessionsTabProps) {
   }
 
   return (
-    <div>
+    <div style={styles.tabContent}>
       {hasAIPrompts && (
-        <div style={styles.divider}>
+        <div>
           <AIPromptList prompts={aiPrompts} />
         </div>
       )}
 
       {hasEvents && (
-        <div style={styles.divider}>
+        <div>
           <EventLogList
             events={events}
             filterTypes={SESSION_EVENT_TYPES}

@@ -71,7 +71,7 @@ function PromptCard({
           cursor: "pointer",
           display: "flex",
           flexDirection: showProvider ? "column" : "row",
-          gap: "6px",
+          gap: "3px",
           alignItems: showProvider ? "stretch" : "center",
         }}
       >

@@ -27,8 +27,8 @@ export function NetworkList({ requests }: Props) {
           <thead>
             <tr>
               <th style={styles.tableHeader}>時間</th>
-              <th style={styles.tableHeader}>Type</th>
               <th style={styles.tableHeader}>ドメイン</th>
+              <th style={styles.tableHeader}>Type</th>
             </tr>
           </thead>
           <tbody>
@@ -40,10 +40,10 @@ export function NetworkList({ requests }: Props) {
                   </span>
                 </td>
                 <td style={styles.tableCell}>
-                  <Badge>{r.initiator}</Badge>
+                  <code style={styles.code}>{r.domain}</code>
                 </td>
                 <td style={styles.tableCell}>
-                  <code style={styles.code}>{r.domain}</code>
+                  <Badge>{r.initiator}</Badge>
                 </td>
               </tr>
             ))}
