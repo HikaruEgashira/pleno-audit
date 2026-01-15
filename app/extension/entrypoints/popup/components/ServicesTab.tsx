@@ -11,6 +11,7 @@ import {
   type SortType,
 } from "../utils/serviceAggregator";
 import { DetectionSettings } from "./DetectionSettings";
+import { usePopupStyles } from "../styles";
 
 interface ServicesTabProps {
   services: DetectedService[];
@@ -96,6 +97,7 @@ function formatRelativeTime(timestamp: number): string {
 
 export function ServicesTab({ services, violations, networkRequests }: ServicesTabProps) {
   const { colors } = useTheme();
+  const popupStyles = usePopupStyles();
   const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -135,11 +137,6 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
   }
 
   const styles = {
-    container: {
-      display: "flex",
-      flexDirection: "column" as const,
-      gap: "8px",
-    },
     header: {
       fontSize: "12px",
       fontWeight: 500,
@@ -271,14 +268,14 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
 
   if (sortedServices.length === 0) {
     return (
-      <div style={styles.container}>
+      <div style={popupStyles.tabContent}>
         <p style={styles.emptyText}>サービスはまだ検出されていません</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div style={popupStyles.tabContent}>
       <div style={styles.header}>
         <span>サービス ({sortedServices.length})</span>
         <select
