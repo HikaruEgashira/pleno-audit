@@ -13,19 +13,13 @@ import {
   ServicesTab,
   SessionsTab,
   RequestsTab,
-  ShadowITTab,
-  PhishingTab,
-  MalwareTab
 } from "./components";
 import { createStyles } from "./styles";
 import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
 
-type Tab = "shadow-it" | "phishing" | "malware" | "services" | "sessions" | "requests";
+type Tab = "services" | "sessions" | "requests";
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "shadow-it", label: "Shadow IT", count: (d) => d.services.length },
-  { key: "phishing", label: "Phishing", count: (d) => d.services.filter(s => s.nrdResult?.isNRD).length },
-  { key: "malware", label: "Malware", count: (d) => d.violations.length },
   { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
   { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
   { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length },
@@ -58,7 +52,7 @@ function PopupContent() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [data, setData] = useState<StorageData>({ services: {}, events: [] });
-  const [tab, setTab] = useState<Tab>("shadow-it");
+  const [tab, setTab] = useState<Tab>("services");
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
@@ -177,18 +171,6 @@ function PopupContent() {
       return <p style={styles.emptyText}>読み込み中...</p>;
     }
     switch (tab) {
-      case "shadow-it":
-        return (
-          <ShadowITTab
-            services={services}
-            events={data.events}
-            aiPrompts={aiPrompts}
-          />
-        );
-      case "phishing":
-        return <PhishingTab services={services} />;
-      case "malware":
-        return <MalwareTab violations={violations} />;
       case "services":
         return (
           <ServicesTab
