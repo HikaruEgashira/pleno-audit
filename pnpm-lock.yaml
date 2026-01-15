@@ -72,6 +72,9 @@ importers:
       '@pleno-audit/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
+      '@pleno-audit/predictive-analysis':
+        specifier: workspace:*
+        version: link:../../packages/predictive-analysis
       '@pleno-audit/risk-prioritization':
         specifier: workspace:*
         version: link:../../packages/risk-prioritization
@@ -229,6 +232,9 @@ importers:
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
+      '@pleno-audit/predictive-analysis':
+        specifier: workspace:*
+        version: link:../predictive-analysis
 
   packages/identity-security:
     devDependencies:

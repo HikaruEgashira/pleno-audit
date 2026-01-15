@@ -21,8 +21,12 @@ import {
   BarChart3,
   Activity,
   Calendar,
+  AlertTriangle,
+  Shield,
+  Target,
 } from "lucide-preact";
 import type { EventLog } from "@pleno-audit/detectors";
+import type { RiskForecast } from "@pleno-audit/predictive-analysis";
 
 // イベントタイプの色定義
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -79,6 +83,7 @@ export function TimelineTab() {
   const [granularity, setGranularity] = useState<TimeGranularity>("day");
   const [category, setCategory] = useState<EventCategory>("all");
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("7d");
+  const [riskForecast, setRiskForecast] = useState<RiskForecast | null>(null);
 
   // イベントデータを取得
   useEffect(() => {
@@ -118,6 +123,23 @@ export function TimelineTab() {
     }
     loadEvents();
   }, [period]);
+
+  // リスク予測を取得
+  useEffect(() => {
+    async function loadRiskForecast() {
+      try {
+        const result = await chrome.runtime.sendMessage({
+          type: "GET_RISK_FORECAST",
+        });
+        if (result) {
+          setRiskForecast(result);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadRiskForecast();
+  }, []);
 
   // カテゴリでフィルタリング
   const filteredEvents = useMemo(() => {
@@ -281,6 +303,244 @@ export function TimelineTab() {
           </div>
         </div>
       </Card>
+
+      {/* リスク予測 */}
+      {riskForecast && (
+        <Card title="リスク予測" style={{ marginBottom: "24px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {/* 現在のリスクレベル */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px",
+                background: colors.bgSecondary,
+                borderRadius: "8px",
+              }}
+            >
+              <Shield
+                size={32}
+                color={
+                  riskForecast.currentRiskLevel >= 70
+                    ? "#ef4444"
+                    : riskForecast.currentRiskLevel >= 40
+                      ? "#f59e0b"
+                      : "#22c55e"
+                }
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: colors.textMuted,
+                    marginBottom: "2px",
+                  }}
+                >
+                  現在のリスク
+                </div>
+                <div style={{ fontSize: "20px", fontWeight: 600 }}>
+                  {riskForecast.currentRiskLevel}/100
+                </div>
+              </div>
+            </div>
+
+            {/* 予測リスクレベル */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px",
+                background: colors.bgSecondary,
+                borderRadius: "8px",
+              }}
+            >
+              <Target
+                size={32}
+                color={
+                  riskForecast.predictedRiskLevel >= 70
+                    ? "#ef4444"
+                    : riskForecast.predictedRiskLevel >= 40
+                      ? "#f59e0b"
+                      : "#22c55e"
+                }
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: colors.textMuted,
+                    marginBottom: "2px",
+                  }}
+                >
+                  予測（{riskForecast.forecastPeriod}）
+                </div>
+                <div style={{ fontSize: "20px", fontWeight: 600 }}>
+                  {riskForecast.predictedRiskLevel}/100
+                </div>
+              </div>
+            </div>
+
+            {/* トレンド */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px",
+                background: colors.bgSecondary,
+                borderRadius: "8px",
+              }}
+            >
+              {riskForecast.trend.direction === "increasing" ? (
+                <TrendingUp size={32} color="#ef4444" />
+              ) : riskForecast.trend.direction === "decreasing" ? (
+                <TrendingDown size={32} color="#22c55e" />
+              ) : (
+                <Minus size={32} color={colors.textMuted} />
+              )}
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: colors.textMuted,
+                    marginBottom: "2px",
+                  }}
+                >
+                  トレンド
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: 600 }}>
+                  {riskForecast.trend.direction === "increasing"
+                    ? "増加傾向"
+                    : riskForecast.trend.direction === "decreasing"
+                      ? "減少傾向"
+                      : "安定"}
+                  {riskForecast.trend.percentChange !== 0 && (
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color:
+                          riskForecast.trend.percentChange > 0
+                            ? "#ef4444"
+                            : "#22c55e",
+                        marginLeft: "4px",
+                      }}
+                    >
+                      ({riskForecast.trend.percentChange > 0 ? "+" : ""}
+                      {Math.round(riskForecast.trend.percentChange)}%)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 信頼度 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px",
+                background: colors.bgSecondary,
+                borderRadius: "8px",
+              }}
+            >
+              <BarChart3 size={32} color={colors.primary} />
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: colors.textMuted,
+                    marginBottom: "2px",
+                  }}
+                >
+                  信頼度
+                </div>
+                <div style={{ fontSize: "20px", fontWeight: 600 }}>
+                  {Math.round(riskForecast.confidence * 100)}%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 警告 */}
+          {riskForecast.warnings.length > 0 && (
+            <div style={{ marginTop: "16px" }}>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: colors.textMuted,
+                  marginBottom: "8px",
+                }}
+              >
+                警告
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                {riskForecast.warnings.map((warning, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      padding: "8px 12px",
+                      background:
+                        warning.severity === "critical"
+                          ? "rgba(239, 68, 68, 0.1)"
+                          : warning.severity === "high"
+                            ? "rgba(249, 115, 22, 0.1)"
+                            : "rgba(234, 179, 8, 0.1)",
+                      borderRadius: "6px",
+                      borderLeft: `3px solid ${
+                        warning.severity === "critical"
+                          ? "#ef4444"
+                          : warning.severity === "high"
+                            ? "#f97316"
+                            : "#eab308"
+                      }`,
+                    }}
+                  >
+                    <AlertTriangle
+                      size={16}
+                      color={
+                        warning.severity === "critical"
+                          ? "#ef4444"
+                          : warning.severity === "high"
+                            ? "#f97316"
+                            : "#eab308"
+                      }
+                      style={{ flexShrink: 0, marginTop: "2px" }}
+                    />
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: 500 }}>
+                        {warning.message}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: colors.textMuted,
+                          marginTop: "2px",
+                        }}
+                      >
+                        {warning.recommendation}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* サマリーカード */}
       <div
