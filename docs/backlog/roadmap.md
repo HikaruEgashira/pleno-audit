@@ -118,7 +118,7 @@
 | PII検出テスト | 機密データ検出の精度テスト (49テスト) | 高 | #73 |
 | DLPルールテスト | DLPパターン・マネージャーテスト (34テスト) | 高 | #74 |
 
-| UIコンポーネントテスト | Badge, Button, StatCardのテスト (25テスト) | 中 | #75 |
+| UIコンポーネントテスト | Badge, Button, StatCard, Card, Select, EmptyStateのテスト (47テスト) | 中 | #75 |
 
 ## 成功指標
 
