@@ -58,7 +58,9 @@ import {
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
+  DEFAULT_BLOCKING_CONFIG,
   type ApiClient,
+  type BlockingConfig,
   type ConnectionMode,
   type SyncManager,
   type QueryOptions,
@@ -826,6 +828,25 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
   } catch (error) {
     logger.error("Error during data cleanup:", error);
     return { deleted: 0 };
+  }
+}
+
+// ============================================================================
+// Blocking Config
+// ============================================================================
+
+async function getBlockingConfig(): Promise<BlockingConfig> {
+  const storage = await getStorage();
+  return storage.blockingConfig || DEFAULT_BLOCKING_CONFIG;
+}
+
+async function setBlockingConfig(newConfig: BlockingConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ blockingConfig: newConfig });
+    return { success: true };
+  } catch (error) {
+    logger.error("Error setting blocking config:", error);
+    return { success: false };
   }
 }
 
@@ -1883,6 +1904,21 @@ export default defineBackground(() => {
       cleanupOldData()
         .then(sendResponse)
         .catch(() => sendResponse({ deleted: 0 }));
+      return true;
+    }
+
+    // Blocking Config handlers
+    if (message.type === "GET_BLOCKING_CONFIG") {
+      getBlockingConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_BLOCKING_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_BLOCKING_CONFIG") {
+      setBlockingConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 

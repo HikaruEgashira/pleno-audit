@@ -7,6 +7,15 @@ interface Props {
   onExport?: () => void;
 }
 
+interface BlockingConfig {
+  enabled: boolean;
+  blockTyposquat: boolean;
+  blockNRDLogin: boolean;
+  blockHighRiskExtension: boolean;
+  blockSensitiveDataToAI: boolean;
+  userConsentGiven: boolean;
+}
+
 function formatRetentionDays(days: number): string {
   if (days === 0) return "無期限";
   if (days < 30) return `${days}日`;
@@ -18,6 +27,8 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
+  const [blockingConfig, setBlockingConfig] = useState<BlockingConfig | null>(null);
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +53,32 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     }
   }, [isOpen, retentionDays]);
 
+  useEffect(() => {
+    if (isOpen && blockingConfig === null) {
+      chrome.runtime.sendMessage({ type: "GET_BLOCKING_CONFIG" })
+        .then((config) => {
+          setBlockingConfig(config ?? {
+            enabled: false,
+            blockTyposquat: true,
+            blockNRDLogin: true,
+            blockHighRiskExtension: false,
+            blockSensitiveDataToAI: false,
+            userConsentGiven: false,
+          });
+        })
+        .catch(() => {
+          setBlockingConfig({
+            enabled: false,
+            blockTyposquat: true,
+            blockNRDLogin: true,
+            blockHighRiskExtension: false,
+            blockSensitiveDataToAI: false,
+            userConsentGiven: false,
+          });
+        });
+    }
+  }, [isOpen, blockingConfig]);
+
   function handleRetentionChange(days: number) {
     setRetentionDays(days);
     chrome.runtime.sendMessage({
@@ -51,6 +88,38 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
+    }).catch(() => {});
+  }
+
+  function handleBlockingToggle() {
+    if (!blockingConfig) return;
+
+    if (!blockingConfig.userConsentGiven && !blockingConfig.enabled) {
+      setShowConsentDialog(true);
+      return;
+    }
+
+    const newConfig = { ...blockingConfig, enabled: !blockingConfig.enabled };
+    setBlockingConfig(newConfig);
+    chrome.runtime.sendMessage({
+      type: "SET_BLOCKING_CONFIG",
+      data: newConfig,
+    }).catch(() => {});
+  }
+
+  function handleConsentAccept() {
+    if (!blockingConfig) return;
+
+    const newConfig = {
+      ...blockingConfig,
+      enabled: true,
+      userConsentGiven: true,
+    };
+    setBlockingConfig(newConfig);
+    setShowConsentDialog(false);
+    chrome.runtime.sendMessage({
+      type: "SET_BLOCKING_CONFIG",
+      data: newConfig,
     }).catch(() => {});
   }
 
@@ -135,6 +204,49 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: colors.textMuted, marginTop: "2px" }}>
                   <span>無期限</span>
                   <span>1年</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              保護機能
+            </div>
+            {blockingConfig !== null ? (
+              <div>
+                <button
+                  onClick={handleBlockingToggle}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: blockingConfig.enabled ? colors.status.success.bg : colors.bgSecondary,
+                    border: `1px solid ${blockingConfig.enabled ? colors.status.success.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    color: blockingConfig.enabled ? colors.status.success.text : colors.textPrimary,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>リスクブロック</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: blockingConfig.enabled ? colors.status.success.text : colors.textMuted,
+                    color: colors.bgPrimary,
+                  }}>
+                    {blockingConfig.enabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
+                  タイポスクワット、NRDログイン、機密データ送信を検出時にブロック
                 </div>
               </div>
             ) : (
@@ -237,6 +349,83 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
               </span>
               データを削除
             </button>
+          </div>
+        </div>
+      )}
+
+      {showConsentDialog && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+          onClick={() => setShowConsentDialog(false)}
+        >
+          <div
+            style={{
+              backgroundColor: colors.bgPrimary,
+              borderRadius: "12px",
+              padding: "20px",
+              maxWidth: "320px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+              保護機能を有効化
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
+              この機能を有効にすると、以下のリスクを検出時にブロックまたは警告します：
+            </div>
+            <ul style={{ fontSize: "11px", color: colors.textSecondary, margin: "0 0 16px 16px", padding: 0, lineHeight: 1.8 }}>
+              <li>タイポスクワットドメインへのアクセス</li>
+              <li>新規登録ドメイン(NRD)でのログイン</li>
+              <li>AIサービスへの機密データ送信</li>
+            </ul>
+            <div style={{ fontSize: "10px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
+              ※ すべての処理は端末内で完結し、外部へのデータ送信は行いません。
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setShowConsentDialog(false)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "transparent",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.textSecondary,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConsentAccept}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: colors.status.success.bg,
+                  border: `1px solid ${colors.status.success.text}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.status.success.text,
+                  fontWeight: 500,
+                }}
+              >
+                有効化する
+              </button>
+            </div>
           </div>
         </div>
       )}
