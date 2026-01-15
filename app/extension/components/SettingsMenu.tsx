@@ -1,19 +1,14 @@
 import { useState, useRef, useEffect } from "preact/hooks";
 import { useTheme } from "../lib/theme";
 import { ThemeToggle } from "./ThemeToggle";
+import {
+  DEFAULT_BLOCKING_CONFIG,
+  type BlockingConfig,
+} from "@pleno-audit/extension-runtime";
 
 interface Props {
   onClearData: () => void;
   onExport?: () => void;
-}
-
-interface BlockingConfig {
-  enabled: boolean;
-  blockTyposquat: boolean;
-  blockNRDLogin: boolean;
-  blockHighRiskExtension: boolean;
-  blockSensitiveDataToAI: boolean;
-  userConsentGiven: boolean;
 }
 
 function formatRetentionDays(days: number): string {
@@ -57,27 +52,26 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     if (isOpen && blockingConfig === null) {
       chrome.runtime.sendMessage({ type: "GET_BLOCKING_CONFIG" })
         .then((config) => {
-          setBlockingConfig(config ?? {
-            enabled: false,
-            blockTyposquat: true,
-            blockNRDLogin: true,
-            blockHighRiskExtension: false,
-            blockSensitiveDataToAI: false,
-            userConsentGiven: false,
-          });
+          setBlockingConfig(config ?? DEFAULT_BLOCKING_CONFIG);
         })
         .catch(() => {
-          setBlockingConfig({
-            enabled: false,
-            blockTyposquat: true,
-            blockNRDLogin: true,
-            blockHighRiskExtension: false,
-            blockSensitiveDataToAI: false,
-            userConsentGiven: false,
-          });
+          setBlockingConfig(DEFAULT_BLOCKING_CONFIG);
         });
     }
   }, [isOpen, blockingConfig]);
+
+  // Escキーでダイアログを閉じる
+  useEffect(() => {
+    if (!showConsentDialog) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowConsentDialog(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showConsentDialog]);
 
   function handleRetentionChange(days: number) {
     setRetentionDays(days);
@@ -219,6 +213,8 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
               <div>
                 <button
                   onClick={handleBlockingToggle}
+                  aria-pressed={blockingConfig.enabled}
+                  aria-label={`リスクブロック: ${blockingConfig.enabled ? "有効" : "無効"}`}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
@@ -355,6 +351,9 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
 
       {showConsentDialog && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="consent-dialog-title"
           style={{
             position: "fixed",
             top: 0,
@@ -370,6 +369,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
           onClick={() => setShowConsentDialog(false)}
         >
           <div
+            role="document"
             style={{
               backgroundColor: colors.bgPrimary,
               borderRadius: "12px",
@@ -379,7 +379,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+            <div id="consent-dialog-title" style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
               保護機能を有効化
             </div>
             <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
