@@ -55,6 +55,11 @@
 | Firefox対応 | Firefox MV2ビルドサポート、ブラウザ別manifest設定 | #57 |
 | Edge対応 | Edge MV3ビルドサポート（WXT標準機能） | - |
 | Safari対応 | Safari MV2ビルドサポート | #60 |
+| Data Exfiltration検出 | 大量データ転送検出（100KB+）、fetch/XHR/beacon監視 | #62 |
+| Credential Theft検出 | フォーム送信監視、非HTTPS/クロスオリジン検出 | #63 |
+| Supply Chain検出 | 外部スクリプト監視、SRI検証、CDN検出 | #64 |
+| Compliance検出 | クッキーポリシー/バナー検出、GDPR準拠チェック | #65 |
+| Policy Enforcement | ドメイン/ツール/AI/データ転送ポリシールール | #66 |
 
 ### 未実装（外部サーバー連携が必要）
 **注意**: 以下の機能は外部サーバー連携を含むため、現在のプライバシーポリシー（外部通信禁止）では実装不可。
