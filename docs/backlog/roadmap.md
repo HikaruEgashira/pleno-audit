@@ -151,6 +151,8 @@
 | Policy Finder Baseテスト | ポリシー検出基盤テスト (28テスト) | 高 | - |
 | Runtime Protectionテスト | ランタイム保護・脅威検出テスト (25テスト) | 高 | - |
 | Risk Calculatorテスト | リスクスコア計算テスト (46テスト) | 高 | - |
+| Audit Exporterテスト | CSV/JSON監査ログエクスポートテスト (38テスト) | 中 | - |
+| Graph Builderテスト | セキュリティグラフ構築テスト (49テスト) | 高 | - |
 
 ## 成功指標
 
