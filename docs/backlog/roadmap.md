@@ -145,6 +145,9 @@
 | Sensitive Data Detectorテスト | 機密データ検出テスト (49テスト) | 高 | - |
 | Favicon Detectorテスト | ファビコン検出テスト (26テスト) | 中 | - |
 | Report Generatorテスト | コンプライアンスレポート生成テスト (31テスト) | 高 | - |
+| Policy Managerテスト | ポリシー管理・違反検出テスト (54テスト) | 高 | - |
+| Permission Analyzerテスト | 拡張機能権限分析テスト (31テスト) | 高 | - |
+| Risk Prioritizerテスト | リスク優先順位付けテスト (48テスト) | 高 | - |
 
 ## 成功指標
 
