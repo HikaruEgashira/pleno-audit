@@ -8,15 +8,17 @@ export default defineConfig({
     const isDev = env.mode === "development";
     const iconPrefix = isDev ? "icon-dev" : "icon";
     const isFirefox = env.browser === "firefox";
+    const isSafari = env.browser === "safari";
+    const isMV2 = isFirefox || isSafari;
 
     // Base permissions (cross-browser)
     const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
-    // Chrome-specific permissions
-    const chromePermissions = [...basePermissions, "offscreen", "scripting"];
+    // Chrome/Edge MV3 permissions
+    const mv3Permissions = [...basePermissions, "offscreen", "scripting"];
 
-    // Firefox permissions (no offscreen, no scripting in MV2)
-    const firefoxPermissions = basePermissions;
+    // Firefox/Safari MV2 permissions (no offscreen, no scripting)
+    const mv2Permissions = basePermissions;
 
     return {
       name: isDev ? "[DEV] Pleno Audit" : "Pleno Audit",
@@ -35,15 +37,15 @@ export default defineConfig({
           48: `${iconPrefix}-48.png`,
         },
       },
-      permissions: isFirefox ? firefoxPermissions : chromePermissions,
+      permissions: isMV2 ? mv2Permissions : mv3Permissions,
       host_permissions: ["<all_urls>"],
-      content_security_policy: isFirefox
+      content_security_policy: isMV2
         ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
         : {
             extension_pages:
               "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
           },
-      web_accessible_resources: isFirefox
+      web_accessible_resources: isMV2
         ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
         : [
             {
