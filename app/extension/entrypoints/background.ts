@@ -1109,6 +1109,15 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
   });
 }
 
+interface CookieBannerResult {
+  found: boolean;
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 interface PageAnalysis {
   url: string;
   domain: string;
@@ -1116,11 +1125,13 @@ interface PageAnalysis {
   login: LoginDetectedDetails;
   privacy: DetectionResult;
   tos: DetectionResult;
+  cookiePolicy?: DetectionResult;
+  cookieBanner?: CookieBannerResult;
   faviconUrl?: string | null;
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
+  const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
   const storage = await initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
 
@@ -1156,6 +1167,59 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       domain,
       timestamp,
       details: { url: tos.url, method: tos.method },
+    });
+  }
+
+  // Cookie policy detection
+  if (cookiePolicy?.found && cookiePolicy.url) {
+    await addEvent({
+      type: "cookie_policy_found",
+      domain,
+      timestamp,
+      details: { url: cookiePolicy.url, method: cookiePolicy.method },
+    });
+  }
+
+  // Cookie banner detection
+  if (cookieBanner?.found) {
+    await addEvent({
+      type: "cookie_banner_detected",
+      domain,
+      timestamp,
+      details: {
+        selector: cookieBanner.selector,
+        hasAcceptButton: cookieBanner.hasAcceptButton,
+        hasRejectButton: cookieBanner.hasRejectButton,
+        hasSettingsButton: cookieBanner.hasSettingsButton,
+        isGDPRCompliant: cookieBanner.isGDPRCompliant,
+      },
+    });
+  }
+
+  // Compliance alert - check for missing required policies on login pages
+  const hasLoginForm = login.hasPasswordInput || login.isLoginUrl;
+  const hasPrivacyPolicy = privacy.found;
+  const hasTermsOfService = tos.found;
+  const hasCookiePolicy = cookiePolicy?.found ?? false;
+  const hasCookieBanner = cookieBanner?.found ?? false;
+  const isCookieBannerGDPRCompliant = cookieBanner?.isGDPRCompliant ?? false;
+
+  // Only create compliance alert if there are potential violations
+  const hasViolations =
+    (hasLoginForm && (!hasPrivacyPolicy || !hasTermsOfService)) ||
+    !hasCookiePolicy ||
+    !hasCookieBanner ||
+    (hasCookieBanner && !isCookieBannerGDPRCompliant);
+
+  if (hasViolations) {
+    await alertManager.alertCompliance({
+      pageDomain: domain,
+      hasPrivacyPolicy,
+      hasTermsOfService,
+      hasCookiePolicy,
+      hasCookieBanner,
+      isCookieBannerGDPRCompliant,
+      hasLoginForm,
     });
   }
 }

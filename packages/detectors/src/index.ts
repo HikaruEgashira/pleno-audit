@@ -5,6 +5,8 @@ export type {
   LoginDetectedDetails,
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
+  CookiePolicyFoundDetails,
+  CookieBannerDetectedDetails,
   CookieSetDetails,
   NRDDetectedDetails,
   ExtensionRequestDetails,
@@ -56,6 +58,8 @@ export type {
   DetectionResult,
   PrivacyPolicyResult,
   TosResult,
+  CookiePolicyResult,
+  CookieBannerResult,
   LoginDetectionResult,
 } from "./types.js";
 
@@ -81,6 +85,17 @@ export {
   TOS_OG_PATTERNS,
   isTosUrl,
   isTosText,
+  // Cookie Policy Detection
+  COOKIE_POLICY_URL_PATTERNS,
+  COOKIE_POLICY_TEXT_PATTERNS,
+  COOKIE_JSONLD_KEYS,
+  COOKIE_LINK_REL_VALUES,
+  COOKIE_OG_PATTERNS,
+  COOKIE_BANNER_SELECTORS,
+  COOKIE_CONSENT_BUTTON_PATTERNS,
+  isCookiePolicyUrl,
+  isCookiePolicyText,
+  isCookieConsentButton,
   // Session Detection
   SESSION_COOKIE_PATTERNS,
   isSessionCookie,
@@ -97,6 +112,7 @@ export {
 // Detector factories
 export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
+export { createCookiePolicyFinder, createCookieBannerFinder } from "./cookie-finder.js";
 export { createLoginDetector } from "./login-detector.js";
 
 // Favicon Detection
@@ -199,11 +215,16 @@ export type {
   NRDAlertDetails,
   TyposquatAlertDetails,
   DataLeakAlertDetails,
+  DataExfiltrationAlertDetails,
+  CredentialTheftAlertDetails,
+  SupplyChainAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,
+  ShadowAIAlertDetails,
   ExtensionAlertDetails,
   LoginAlertDetails,
   PolicyAlertDetails,
+  ComplianceAlertDetails,
   AlertAction,
   AlertRule,
   AlertCondition,
