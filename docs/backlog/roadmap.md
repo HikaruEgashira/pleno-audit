@@ -121,6 +121,9 @@
 | UIコンポーネントテスト | Badge, Button, StatCard, Card, Select, EmptyStateのテスト (47テスト) | 中 | #75 |
 | Policy Engineテスト | ポリシーエンジンの条件評価・違反管理テスト (35テスト) | 高 | - |
 | Blocking Engineテスト | ブロッキングエンジンの判定・イベント管理テスト (33テスト) | 高 | - |
+| Threat Intelテスト | 脅威インテリジェンス分析テスト (41テスト) | 高 | - |
+| Predictive Analysisテスト | トレンド検出・異常検知テスト (23テスト) | 高 | - |
+| Identity Securityテスト | パスワード強度分析テスト (49テスト) | 高 | - |
 
 ## 成功指標
 
