@@ -11,7 +11,11 @@ export const installCommand = new Command("server")
     console.log("\nPress Ctrl+C to stop\n");
 
     // Dynamic import to avoid starting server on CLI load
-    const { getDebugServer } = await import("../server.js");
+    const { getDebugServer, killPortProcess } = await import("../server.js");
+
+    // Kill existing process if port is in use
+    await killPortProcess(port);
+
     const server = getDebugServer();
 
     server.on("extension-connected", () => {
