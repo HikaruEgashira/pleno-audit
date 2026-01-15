@@ -64,28 +64,32 @@
     const body = init?.body
 
     if (url) {
-      const fullUrl = new URL(url, window.location.origin).href
-      const bodySize = getBodySize(body)
+      try {
+        const fullUrl = new URL(url, window.location.origin).href
+        const bodySize = getBodySize(body)
 
-      sendNetworkEvent({
-        url: fullUrl,
-        method: method.toUpperCase(),
-        initiator: 'fetch',
-        resourceType: 'fetch',
-        timestamp: Date.now(),
-        bodySize: bodySize
-      })
-
-      // Check for potential data exfiltration (large outbound data)
-      if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method.toUpperCase() !== 'GET') {
-        sendDataExfiltrationEvent({
+        sendNetworkEvent({
           url: fullUrl,
           method: method.toUpperCase(),
-          bodySize: bodySize,
           initiator: 'fetch',
+          resourceType: 'fetch',
           timestamp: Date.now(),
-          targetDomain: new URL(fullUrl).hostname
+          bodySize: bodySize
         })
+
+        // Check for potential data exfiltration (large outbound data)
+        if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method.toUpperCase() !== 'GET') {
+          sendDataExfiltrationEvent({
+            url: fullUrl,
+            method: method.toUpperCase(),
+            bodySize: bodySize,
+            initiator: 'fetch',
+            timestamp: Date.now(),
+            targetDomain: new URL(fullUrl).hostname
+          })
+        }
+      } catch {
+        // Skip detection on invalid URL, but don't block original request
       }
     }
 
@@ -101,29 +105,33 @@
 
   XMLHttpRequest.prototype.send = function(body) {
     if (this.__serviceDetectionUrl) {
-      const fullUrl = new URL(this.__serviceDetectionUrl, window.location.origin).href
-      const method = (this.__serviceDetectionMethod || 'GET').toUpperCase()
-      const bodySize = getBodySize(body)
+      try {
+        const fullUrl = new URL(this.__serviceDetectionUrl, window.location.origin).href
+        const method = (this.__serviceDetectionMethod || 'GET').toUpperCase()
+        const bodySize = getBodySize(body)
 
-      sendNetworkEvent({
-        url: fullUrl,
-        method: method,
-        initiator: 'xhr',
-        resourceType: 'xhr',
-        timestamp: Date.now(),
-        bodySize: bodySize
-      })
-
-      // Check for potential data exfiltration (large outbound data)
-      if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method !== 'GET') {
-        sendDataExfiltrationEvent({
+        sendNetworkEvent({
           url: fullUrl,
           method: method,
-          bodySize: bodySize,
           initiator: 'xhr',
+          resourceType: 'xhr',
           timestamp: Date.now(),
-          targetDomain: new URL(fullUrl).hostname
+          bodySize: bodySize
         })
+
+        // Check for potential data exfiltration (large outbound data)
+        if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method !== 'GET') {
+          sendDataExfiltrationEvent({
+            url: fullUrl,
+            method: method,
+            bodySize: bodySize,
+            initiator: 'xhr',
+            timestamp: Date.now(),
+            targetDomain: new URL(fullUrl).hostname
+          })
+        }
+      } catch {
+        // Skip detection on invalid URL, but don't block original request
       }
     }
     return originalXHRSend.call(this, body)
@@ -155,28 +163,32 @@
   // ===== Beacon API HOOK =====
   if (originalSendBeacon) {
     navigator.sendBeacon = function(url, data) {
-      const fullUrl = new URL(url, window.location.origin).href
-      const bodySize = getBodySize(data)
+      try {
+        const fullUrl = new URL(url, window.location.origin).href
+        const bodySize = getBodySize(data)
 
-      sendNetworkEvent({
-        url: fullUrl,
-        method: 'POST',
-        initiator: 'beacon',
-        resourceType: 'beacon',
-        timestamp: Date.now(),
-        bodySize: bodySize
-      })
-
-      // Check for potential data exfiltration (large outbound data)
-      if (bodySize >= DATA_EXFILTRATION_THRESHOLD) {
-        sendDataExfiltrationEvent({
+        sendNetworkEvent({
           url: fullUrl,
           method: 'POST',
-          bodySize: bodySize,
           initiator: 'beacon',
+          resourceType: 'beacon',
           timestamp: Date.now(),
-          targetDomain: new URL(fullUrl).hostname
+          bodySize: bodySize
         })
+
+        // Check for potential data exfiltration (large outbound data)
+        if (bodySize >= DATA_EXFILTRATION_THRESHOLD) {
+          sendDataExfiltrationEvent({
+            url: fullUrl,
+            method: 'POST',
+            bodySize: bodySize,
+            initiator: 'beacon',
+            timestamp: Date.now(),
+            targetDomain: new URL(fullUrl).hostname
+          })
+        }
+      } catch {
+        // Skip detection on invalid URL, but don't block original request
       }
 
       return originalSendBeacon(url, data)
