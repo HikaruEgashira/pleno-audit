@@ -124,6 +124,8 @@
 | Threat Intelテスト | 脅威インテリジェンス分析テスト (41テスト) | 高 | - |
 | Predictive Analysisテスト | トレンド検出・異常検知テスト (23テスト) | 高 | - |
 | Identity Securityテスト | パスワード強度分析テスト (49テスト) | 高 | - |
+| Data Exportテスト | CSV/JSON/Markdown/HTMLエクスポートテスト (38テスト) | 中 | - |
+| CSP Analyzerテスト | CSPポリシー生成・統計・推奨事項テスト (27テスト) | 高 | - |
 
 ## 成功指標
 
