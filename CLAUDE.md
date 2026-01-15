@@ -63,8 +63,8 @@ pnpm --filter @pleno-audit/debugger start status
 
 ### 開発フロー
 
-1. canaryからfeatureブランチを作成
-2. featureブランチで開発・テスト
+1. canaryからworktreeを作成
+2. worktreeで開発・テスト
 3. canaryにマージ → canaryリリース自動作成
 4. 安定版リリース時はcanary→mainへPR作成
 

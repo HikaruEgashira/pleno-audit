@@ -13,3 +13,9 @@ export { SeverityBadge, type Severity } from "./SeverityBadge";
 export { EmptyState } from "./EmptyState";
 export { LoadingState } from "./LoadingState";
 export { StatsGrid } from "./StatsGrid";
+export {
+  TimelineChart,
+  StackedTimelineChart,
+  ActivityHeatmap,
+  type TimeGranularity,
+} from "./TimelineChart";

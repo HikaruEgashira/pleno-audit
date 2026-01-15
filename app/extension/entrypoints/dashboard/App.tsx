@@ -18,6 +18,7 @@ import { PolicyTab } from "./PolicyTab";
 import { ReportTab } from "./ReportTab";
 import { RiskPriorityTab } from "./RiskPriorityTab";
 import { IntegrationsTab } from "./IntegrationsTab";
+import { TimelineTab } from "./TimelineTab";
 
 interface TotalCounts {
   violations: number;
@@ -27,7 +28,7 @@ interface TotalCounts {
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions" | "graph" | "policy" | "reports" | "risks" | "integrations";
+type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "timeline" | "extensions" | "graph" | "policy" | "reports" | "risks" | "integrations";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -419,6 +420,7 @@ function DashboardContent() {
     { id: "services", label: "サービス" },
     { id: "network", label: "ネットワーク" },
     { id: "events", label: "イベント" },
+    { id: "timeline", label: "タイムライン" },
     { id: "extensions", label: "拡張機能" },
     { id: "graph", label: "グラフ" },
     { id: "policy", label: "ポリシー" },
@@ -935,6 +937,12 @@ function DashboardContent() {
               },
             ]}
           />
+        </div>
+      )}
+
+      {activeTab === "timeline" && (
+        <div style={styles.section}>
+          <TimelineTab />
         </div>
       )}
 
