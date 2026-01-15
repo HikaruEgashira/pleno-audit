@@ -175,3 +175,69 @@ export interface ComplianceControlExport {
   status: string;
   evidence: string[];
 }
+
+// ============================================================================
+// Audit Log Export Types
+// ============================================================================
+
+/**
+ * Event log export structure
+ */
+export interface EventLogExport {
+  id: string;
+  timestamp: number;
+  type: string;
+  domain: string;
+  details: string; // JSON stringified details
+}
+
+/**
+ * AI prompt export structure (privacy-safe)
+ */
+export interface AIPromptExport {
+  id: string;
+  timestamp: number;
+  pageUrl: string;
+  provider: string;
+  model?: string;
+  contentSize: number;
+  hasSensitiveData: boolean;
+  sensitiveDataTypes: string[];
+  riskLevel: string;
+  riskScore?: number;
+}
+
+/**
+ * Detected service export structure (extended)
+ */
+export interface DetectedServiceExport {
+  domain: string;
+  detectedAt: number;
+  hasLoginPage: boolean;
+  privacyPolicyUrl: string | null;
+  termsOfServiceUrl: string | null;
+  cookieCount: number;
+  isNRD: boolean;
+  nrdConfidence?: string;
+  nrdDomainAge?: number | null;
+  isTyposquat: boolean;
+  typosquatConfidence?: string;
+  typosquatScore?: number;
+  hasAIActivity: boolean;
+  aiProviders?: string[];
+  aiHasSensitiveData?: boolean;
+  aiRiskLevel?: string;
+}
+
+/**
+ * Audit log export options
+ */
+export interface AuditLogExportOptions {
+  format: "json" | "csv";
+  dateRange?: {
+    start: number;
+    end: number;
+  };
+  eventTypes?: string[];
+  includeDetails?: boolean;
+}

@@ -25,6 +25,7 @@ import {
   DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
   createTyposquatDetector,
+  analyzePrompt,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -270,7 +271,24 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: ExtensionRequestDetails;
+    }
+  | {
+      type: "ai_sensitive_data_detected";
+      domain: string;
+      timestamp: number;
+      details: AISensitiveDataDetectedDetails;
     };
+
+/** AI機密情報検出イベント詳細 */
+interface AISensitiveDataDetectedDetails {
+  provider: string;
+  model?: string;
+  classifications: string[];
+  highestRisk: string | null;
+  detectionCount: number;
+  riskScore: number;
+  riskLevel: string;
+}
 
 async function getOrInitParquetStore(): Promise<ParquetStore> {
   if (!parquetStore) {
@@ -1060,6 +1078,9 @@ async function handleAIPromptCaptured(
     return { success: false };
   }
 
+  // PII/機密情報検出
+  const analysis = analyzePrompt(data.prompt);
+
   // Store AI prompt
   await storeAIPrompt(data);
 
@@ -1084,6 +1105,35 @@ async function handleAIPromptCaptured(
       messageCount: data.prompt.messages?.length,
     },
   });
+
+  // PII/機密情報検出時のアラートとイベント記録
+  if (analysis.pii.hasSensitiveData) {
+    // ai_sensitive_data_detected イベントを追加
+    await addEvent({
+      type: "ai_sensitive_data_detected",
+      domain,
+      timestamp: data.timestamp,
+      details: {
+        provider: data.provider || "unknown",
+        model: data.model,
+        classifications: analysis.pii.classifications,
+        highestRisk: analysis.pii.highestRisk,
+        detectionCount: analysis.pii.detectionCount,
+        riskScore: analysis.risk.riskScore,
+        riskLevel: analysis.risk.riskLevel,
+      },
+    });
+
+    // 高リスク時はアラートを発火
+    if (analysis.risk.shouldAlert) {
+      await getAlertManager().alertAISensitive({
+        domain,
+        provider: data.provider || "unknown",
+        model: data.model,
+        dataTypes: analysis.pii.classifications,
+      });
+    }
+  }
 
   // Add response received event if available
   if (data.response) {
@@ -1124,6 +1174,14 @@ async function handleAIPromptCaptured(
         hasAIActivity: true,
         lastActivityAt: data.timestamp,
         providers,
+        // 機密情報検出情報を追加
+        hasSensitiveData: analysis.pii.hasSensitiveData || existingService?.aiDetected?.hasSensitiveData,
+        sensitiveDataTypes: analysis.pii.hasSensitiveData
+          ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
+          : existingService?.aiDetected?.sensitiveDataTypes,
+        riskLevel: analysis.risk.riskLevel === "critical" || analysis.risk.riskLevel === "high"
+          ? analysis.risk.riskLevel
+          : existingService?.aiDetected?.riskLevel,
       },
     });
   }

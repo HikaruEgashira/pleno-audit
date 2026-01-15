@@ -27,3 +27,15 @@ export {
   extractResponseContent,
   inferProviderFromResponse,
 } from "./detector.js";
+
+// PII Analyzer
+export {
+  analyzePromptPII,
+  calculatePromptRiskScore,
+  scoreToRiskLevel,
+  assessPromptRisk,
+  analyzePrompt,
+  type AIPromptPIIResult,
+  type AIPromptRiskAssessment,
+  type AIPromptAnalysisResult,
+} from "./pii-analyzer.js";
