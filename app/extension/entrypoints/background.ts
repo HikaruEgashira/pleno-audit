@@ -2120,6 +2120,31 @@ async function handleDebugBridgeForward(
         return { success: true, data: { tabId: tab.id, url: tab.url || url } };
       }
 
+      case "DEBUG_TEST_EXTENSION_REQUEST": {
+        // Test if webRequest listener is capturing extension-originated requests
+        // This request should be captured by the extension monitor if working correctly
+        try {
+          const testUrl = "https://httpbin.org/get?test=extension-monitor";
+          logger.debug("Sending test request to verify webRequest listener:", testUrl);
+          const response = await fetch(testUrl);
+          const status = response.status;
+          return {
+            success: true,
+            data: {
+              message: "Test request sent. Check extension_request events.",
+              url: testUrl,
+              status,
+              extensionId: chrome.runtime.id,
+            },
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: `Test request failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          };
+        }
+      }
+
       default:
         return { success: false, error: `Unknown debug message type: ${type}` };
     }
