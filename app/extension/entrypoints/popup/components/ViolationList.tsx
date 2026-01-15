@@ -63,7 +63,7 @@ function ViolationCard({
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: "8px",
+          gap: "3px",
         }}
       >
         <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>

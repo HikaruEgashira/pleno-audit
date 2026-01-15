@@ -97,9 +97,7 @@ export function createStyles(colors: ThemeColors): Record<string, CSSProperties>
       background: colors.bgSecondary,
     },
 
-    section: {
-      marginBottom: "16px",
-    },
+    section: {},
 
     sectionTitle: {
       fontSize: "12px",
@@ -113,8 +111,7 @@ export function createStyles(colors: ThemeColors): Record<string, CSSProperties>
       background: colors.bgPrimary,
       border: `1px solid ${colors.border}`,
       borderRadius: "8px",
-      padding: "16px",
-      marginBottom: "12px",
+      padding: "10px 12px",
     },
 
     table: {
@@ -289,6 +286,12 @@ export function createStyles(colors: ThemeColors): Record<string, CSSProperties>
       borderTop: `1px solid ${colors.border}`,
       marginTop: "16px",
       paddingTop: "16px",
+    },
+
+    tabContent: {
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "8px",
     },
 
     statsGrid: {
