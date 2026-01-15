@@ -56,6 +56,18 @@ pnpm --filter @pleno-audit/debugger start status
 - 未知のサービスへの柔軟性を高める意味があります。
 - 新しいサービスが生まれた場合の継続的なアップデート負荷軽減を考えた上での軽量DB導入はユーザーの同意を得た上でバンドル可能です。
 
+## ブランチ運用
+
+- `main` - 安定版リリース（PR必須、force push禁止）
+- `canary` - 開発版リリース（pushごとにcanaryリリース作成）
+
+### 開発フロー
+
+1. canaryからfeatureブランチを作成
+2. featureブランチで開発・テスト
+3. canaryにマージ → canaryリリース自動作成
+4. 安定版リリース時はcanary→mainへPR作成
+
 ## ADR
 
 @docs/adr/README.md
