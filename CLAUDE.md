@@ -42,6 +42,32 @@ pnpm --filter @pleno-audit/debugger start browser open example.com
 pnpm --filter @pleno-audit/debugger start status
 ```
 
+## Prodct Policy
+
+### 外部通信禁止
+- プライバシー保護のため、外部サーバーとの通信は禁止する
+- oxlintにて違反を検出しています
+- ユーザーの同意を経て、デフォルトで無効化するなどの措置を取る上でoxlintrcでの除外設定とプライバシーポリシーの更新が必要です
+
+### 外部DB禁止
+- GETではあるが、通信しないというポリシーに従って外部DB（脆弱性DB、Blacklist）へのアクセスは禁止する
+- ローカルで完結するアルゴリズムを考案すること。（例：typosquattingはヒューリスティックアルゴリズムのみ適用されています）
+- ローカルであろうと、特定のサービスのみに適用可能なパターン検出も基本禁止です。
+- 未知のサービスへの柔軟性を高める意味があります。
+- 新しいサービスが生まれた場合の継続的なアップデート負荷軽減を考えた上での軽量DB導入はユーザーの同意を得た上でバンドル可能です。
+
+## ブランチ運用
+
+- `main` - 安定版リリース（PR必須、障害対応時はforce push可）
+- `canary` - 開発版リリース（pushごとにcanaryリリース作成）
+
+### 開発フロー
+
+1. canaryからfeatureブランチを作成
+2. featureブランチで開発・テスト
+3. canaryにマージ → canaryリリース自動作成
+4. 安定版リリース時はcanary→mainへPR作成
+
 ## ADR
 
 @docs/adr/README.md

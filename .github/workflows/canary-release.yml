@@ -1,9 +1,9 @@
-name: Release
+name: Canary Release
 
 on:
   push:
     branches:
-      - main
+      - canary
 
 permissions:
   contents: write
@@ -32,20 +32,22 @@ jobs:
       - name: Create zip artifact
         run: |
           cd app/extension/dist/chrome-mv3
-          zip -r ../../../../extension.zip .
+          zip -r ../../../../extension-canary.zip .
 
       - name: Get version
         id: version
         run: |
           VERSION=$(node -p "require('./app/extension/package.json').version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION-canary.$SHORT_SHA" >> $GITHUB_OUTPUT
 
-      - name: Create Release
+      - name: Create Canary Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: Release ${{ steps.version.outputs.tag }}
-          files: extension.zip
+          name: Canary ${{ steps.version.outputs.tag }}
+          files: extension-canary.zip
+          prerelease: true
           generate_release_notes: true
-          make_latest: true
+          make_latest: false
