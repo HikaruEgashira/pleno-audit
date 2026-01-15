@@ -136,7 +136,7 @@ export default function TermsPage() {
 
           {/* Sections */}
           <Section title="第1条（定義）">
-            <p>本規約において使用する用語の定義は以下のとおりです：</p>
+            <p>本規約において使用する用語の定義は以下のとおりです</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
                 <strong>「本拡張機能」:</strong> Pleno Audit Chrome拡張機能およびその関連サービス
@@ -151,7 +151,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="第2条（サービスの内容）">
-            <p>本拡張機能は、以下のサービスを提供します：</p>
+            <p>本拡張機能は、以下のサービスを提供します</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Shadow IT（未許可SaaSサービス）の検出と可視化</li>
               <li>Content Security Policy（CSP）違反の監視</li>
@@ -167,7 +167,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="第3条（利用条件）">
-            <p>ユーザーは、以下の条件に同意の上、本拡張機能を利用するものとします：</p>
+            <p>ユーザーは、以下の条件に同意の上、本拡張機能を利用するものとします</p>
             <div className="space-y-4 mt-4">
               <div>
                 <h4 className="font-medium text-[#171717] dark:text-[#ededed] mb-2">許可される利用</h4>
@@ -197,7 +197,7 @@ export default function TermsPage() {
                 開発者は、本拡張機能の完全性、正確性、信頼性について保証しません。
               </p>
               <p>
-                2. 本拡張機能の使用によって生じたいかなる損害についても、
+                2. 開発者の故意または重大な過失による場合を除き、本拡張機能の使用によって生じた損害について、
                 開発者は責任を負いません。
               </p>
               <p>
@@ -237,7 +237,7 @@ export default function TermsPage() {
               に従います。
             </p>
             <HighlightBox type="success">
-              本拡張機能はサーバーレスで動作し、
+              本拡張機能は端末内で完結して動作し、
               すべてのデータはユーザーの端末内に保存されます。
             </HighlightBox>
           </Section>
@@ -245,7 +245,8 @@ export default function TermsPage() {
           <Section title="第8条（規約の変更）">
             <p>
               開発者は、必要に応じて本規約を変更することができます。
-              変更後の規約は、本拡張機能内または関連ウェブサイトで公開された時点で効力を生じます。
+              重要な変更については14日前までに本拡張機能内または関連ウェブサイトで通知します。
+              通知後の継続利用をもって、変更後の規約に同意したものとみなします。
             </p>
           </Section>
 

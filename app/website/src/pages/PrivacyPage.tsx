@@ -124,20 +124,16 @@ export default function PrivacyPage() {
 
           {/* Sections */}
           <Section title="1. 収集するデータ">
-            <p>本拡張機能は、セキュリティ監視機能を提供するため、以下のデータを収集します：</p>
+            <p>本拡張機能は、セキュリティ監視機能を提供するため、以下のデータを端末内に記録します</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
-                <strong>ネットワークリクエスト情報:</strong> アクセスしたURL、ドメイン名、リクエストタイプ
+                <strong>ネットワーク通信:</strong> URL、ドメイン、リクエスト/レスポンス内容（fetch/XHR hook）
               </li>
               <li>
-                <strong>CSP違反情報:</strong> Content Security Policy違反のレポート
+                <strong>Cookie:</strong> 名前、ドメイン、有効期限
               </li>
               <li>
-                <strong>認証フロー情報:</strong> OAuth/SAMLなどの認証フローの検出結果
-              </li>
-              <li>
-                <strong>AIサービス利用情報:</strong> AIサービスへのリクエストの検出結果（プロンプト内容を含む場合があります）。
-                これらのデータはすべてユーザーの端末内にのみ保存され、開発者を含む第三者がアクセスすることはできません。
+                <strong>ページ情報:</strong> DOM解析によるフォームやリンクの検出結果
               </li>
             </ul>
           </Section>
@@ -150,14 +146,14 @@ export default function PrivacyPage() {
             </p>
             <div className="rounded-lg bg-[#d3f9d8] dark:bg-[#0a3d1a] border border-[#b8f0c0] dark:border-[#166534] p-4 mt-4">
               <p className="text-[#0a7227] dark:text-[#4ade80] text-sm">
-                <strong>重要:</strong> 本拡張機能はサーバーレスで動作します。
+                <strong>重要:</strong> 本拡張機能は端末内で完結して動作します。
                 ブラウジングデータがインターネット経由で送信されることはありません。
               </p>
             </div>
           </Section>
 
           <Section title="3. データの利用目的">
-            <p>収集したデータは、以下の目的でのみ使用されます：</p>
+            <p>収集したデータは、以下の目的でのみ使用されます</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>セキュリティイベントの検出と可視化</li>
               <li>ダッシュボードでの統計情報の表示</li>
@@ -180,7 +176,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="6. ユーザーの権利">
-            <p>ユーザーは以下の権利を有します：</p>
+            <p>ユーザーは以下の権利を有します</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
                 <strong>アクセス権:</strong> ダッシュボードから収集されたすべてのデータを閲覧できます
