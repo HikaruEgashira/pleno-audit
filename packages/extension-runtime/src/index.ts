@@ -52,10 +52,12 @@ export type {
   ExtensionRequestRecord,
   DataRetentionConfig,
   DetectionConfig,
+  BlockingConfig,
 } from "./storage-types.js";
 export {
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
+  DEFAULT_BLOCKING_CONFIG,
 } from "./storage-types.js";
 
 // Extension Monitor
@@ -82,6 +84,15 @@ export {
   type NetworkRisk,
   type RiskFlag,
 } from "./extension-risk-analyzer.js";
+
+// Blocking Engine
+export {
+  createBlockingEngine,
+  type BlockTarget,
+  type BlockDecision,
+  type BlockEvent,
+  type BlockingEngine,
+} from "./blocking-engine.js";
 
 // Logger
 export {
