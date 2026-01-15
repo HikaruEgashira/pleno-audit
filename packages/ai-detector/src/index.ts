@@ -82,3 +82,14 @@ export {
   type ExtensionRiskData,
   type DomainVisitData,
 } from "./policy-generator.js";
+
+// AI Pattern Analyzer
+export {
+  createAIPatternAnalyzer,
+  type AIUsageEvent,
+  type ProviderDistribution,
+  type AIPatternAnalysis,
+  type AIAnomaly,
+  type AIRiskMetrics,
+  type OrganizationAITrend,
+} from "./ai-pattern-analyzer.js";
