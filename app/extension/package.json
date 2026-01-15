@@ -23,6 +23,7 @@
     "@pleno-audit/integrations": "workspace:*",
     "@pleno-audit/storage": "workspace:*",
     "@pleno-audit/threat-intel": "workspace:*",
+    "@pleno-audit/predictive-analysis": "workspace:*",
     "hono": "^4.11.4",
     "lucide-preact": "^0.562.0",
     "preact": "^10.28.2",

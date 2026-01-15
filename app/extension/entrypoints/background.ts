@@ -86,6 +86,14 @@ import {
   type ThreatAnalyzer,
   type ThreatAnalysisResult,
 } from "@pleno-audit/threat-intel";
+import {
+  createRiskForecaster,
+  DEFAULT_FORECAST_CONFIG,
+  type RiskForecaster,
+  type RiskForecast,
+  type RiskEvent,
+  type ForecastConfig,
+} from "@pleno-audit/predictive-analysis";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -166,6 +174,7 @@ const nrdCacheAdapter: NRDCache = {
 const typosquatCache: Map<string, TyposquatResult> = new Map();
 let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
 let threatAnalyzer: ThreatAnalyzer | null = null;
+let riskForecaster: RiskForecaster | null = null;
 
 const typosquatCacheAdapter: TyposquatCache = {
   get: (domain) => typosquatCache.get(domain) ?? null,
@@ -869,6 +878,101 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
   } catch (error) {
     logger.error("Error during data cleanup:", error);
     return { deleted: 0 };
+  }
+}
+
+// ============================================================================
+// Risk Forecasting
+// ============================================================================
+
+function getRiskForecaster(): RiskForecaster {
+  if (!riskForecaster) {
+    riskForecaster = createRiskForecaster(DEFAULT_FORECAST_CONFIG);
+  }
+  return riskForecaster;
+}
+
+async function getForecastConfig(): Promise<ForecastConfig> {
+  const storage = await getStorage();
+  return storage.forecastConfig || DEFAULT_FORECAST_CONFIG;
+}
+
+async function setForecastConfig(newConfig: Partial<ForecastConfig>): Promise<{ success: boolean }> {
+  try {
+    const current = await getForecastConfig();
+    const updated = { ...current, ...newConfig };
+    await setStorage({ forecastConfig: updated });
+    // Update forecaster with new config
+    getRiskForecaster().updateConfig(updated);
+    return { success: true };
+  } catch (error) {
+    logger.error("Error setting forecast config:", error);
+    return { success: false };
+  }
+}
+
+async function getRiskForecast(): Promise<RiskForecast> {
+  try {
+    const store = await getOrInitParquetStore();
+    const forecaster = getRiskForecaster();
+
+    // Load config
+    const config = await getForecastConfig();
+    forecaster.updateConfig(config);
+
+    // Get events from the last windowDays
+    const windowMs = config.windowDays * 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - windowMs).toISOString();
+
+    const result = await store.getEvents({ since, limit: 10000 });
+
+    // Convert to RiskEvent format
+    const riskEvents: RiskEvent[] = result.data
+      .filter((e: any) => {
+        // Only include security-relevant events
+        const securityTypes = [
+          "nrd_detected",
+          "typosquat_detected",
+          "threat_intel_match",
+          "ai_sensitive_data_detected",
+          "extension_request",
+          "csp_violation",
+        ];
+        return securityTypes.includes(e.type);
+      })
+      .map((e: any) => {
+        // Map event type to severity
+        let severity: RiskEvent["severity"] = "low";
+        if (e.type === "nrd_detected" || e.type === "typosquat_detected" || e.type === "ai_sensitive_data_detected") {
+          severity = "high";
+        } else if (e.type === "threat_intel_match") {
+          severity = "critical";
+        } else if (e.type === "csp_violation") {
+          severity = "medium";
+        }
+
+        return {
+          timestamp: new Date(e.timestamp).getTime(),
+          type: e.type,
+          severity,
+          domain: e.domain,
+        };
+      });
+
+    return forecaster.forecast(riskEvents);
+  } catch (error) {
+    logger.error("Error generating risk forecast:", error);
+    // Return empty forecast on error
+    return {
+      currentRiskLevel: 0,
+      predictedRiskLevel: 0,
+      trend: { direction: "stable", slope: 0, confidence: 0, percentChange: 0, dataPoints: 0 },
+      anomalies: [],
+      warnings: [],
+      forecastPeriod: "3日後",
+      confidence: 0,
+      generatedAt: Date.now(),
+    };
   }
 }
 
@@ -1965,6 +2069,28 @@ export default defineBackground(() => {
 
     if (message.type === "SET_BLOCKING_CONFIG") {
       setBlockingConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Risk Forecasting handlers
+    if (message.type === "GET_RISK_FORECAST") {
+      getRiskForecast()
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "GET_FORECAST_CONFIG") {
+      getForecastConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_FORECAST_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_FORECAST_CONFIG") {
+      setForecastConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
