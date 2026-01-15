@@ -25,7 +25,8 @@ export type AlertCategory =
   | "shadow_ai" // Unauthorized/unknown AI service
   | "extension" // Suspicious extension activity
   | "login" // Login on suspicious site
-  | "policy"; // Missing privacy/ToS policy
+  | "policy" // Missing privacy/ToS policy
+  | "compliance"; // GDPR/CCPA compliance violation
 
 /**
  * Alert status
@@ -69,7 +70,8 @@ export type AlertDetails =
   | ShadowAIAlertDetails
   | ExtensionAlertDetails
   | LoginAlertDetails
-  | PolicyAlertDetails;
+  | PolicyAlertDetails
+  | ComplianceAlertDetails;
 
 export interface NRDAlertDetails {
   type: "nrd";
@@ -169,6 +171,18 @@ export interface SupplyChainAlertDetails {
   hasCrossorigin: boolean;
   isCDN: boolean;
   risks: string[];
+}
+
+export interface ComplianceAlertDetails {
+  type: "compliance";
+  pageDomain: string;
+  hasPrivacyPolicy: boolean;
+  hasTermsOfService: boolean;
+  hasCookiePolicy: boolean;
+  hasCookieBanner: boolean;
+  isCookieBannerGDPRCompliant: boolean;
+  hasLoginForm: boolean;
+  violations: string[];
 }
 
 /**

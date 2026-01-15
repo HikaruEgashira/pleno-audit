@@ -554,6 +554,77 @@ export function createAlertManager(
     });
   }
 
+  /**
+   * Create compliance violation alert
+   */
+  async function alertCompliance(params: {
+    pageDomain: string;
+    hasPrivacyPolicy: boolean;
+    hasTermsOfService: boolean;
+    hasCookiePolicy: boolean;
+    hasCookieBanner: boolean;
+    isCookieBannerGDPRCompliant: boolean;
+    hasLoginForm: boolean;
+  }): Promise<SecurityAlert | null> {
+    const violations: string[] = [];
+
+    // Check for violations
+    if (params.hasLoginForm) {
+      if (!params.hasPrivacyPolicy) violations.push("missing_privacy_policy");
+      if (!params.hasTermsOfService) violations.push("missing_terms_of_service");
+    }
+    if (!params.hasCookiePolicy) violations.push("missing_cookie_policy");
+    if (!params.hasCookieBanner) violations.push("missing_cookie_banner");
+    if (params.hasCookieBanner && !params.isCookieBannerGDPRCompliant) {
+      violations.push("non_compliant_cookie_banner");
+    }
+
+    // Don't create alert if no violations
+    if (violations.length === 0) return null;
+
+    // Determine severity based on violations
+    const hasLoginViolations =
+      params.hasLoginForm &&
+      (!params.hasPrivacyPolicy || !params.hasTermsOfService);
+    const severity: AlertSeverity = hasLoginViolations ? "high" : "medium";
+
+    const violationDescriptions: string[] = [];
+    if (violations.includes("missing_privacy_policy")) {
+      violationDescriptions.push("プライバシーポリシーなし");
+    }
+    if (violations.includes("missing_terms_of_service")) {
+      violationDescriptions.push("利用規約なし");
+    }
+    if (violations.includes("missing_cookie_policy")) {
+      violationDescriptions.push("クッキーポリシーなし");
+    }
+    if (violations.includes("missing_cookie_banner")) {
+      violationDescriptions.push("クッキーバナーなし");
+    }
+    if (violations.includes("non_compliant_cookie_banner")) {
+      violationDescriptions.push("GDPR非準拠バナー");
+    }
+
+    return createAlert({
+      category: "compliance",
+      severity,
+      title: `コンプライアンス違反: ${params.pageDomain}`,
+      description: violationDescriptions.join(", "),
+      domain: params.pageDomain,
+      details: {
+        type: "compliance",
+        pageDomain: params.pageDomain,
+        hasPrivacyPolicy: params.hasPrivacyPolicy,
+        hasTermsOfService: params.hasTermsOfService,
+        hasCookiePolicy: params.hasCookiePolicy,
+        hasCookieBanner: params.hasCookieBanner,
+        isCookieBannerGDPRCompliant: params.isCookieBannerGDPRCompliant,
+        hasLoginForm: params.hasLoginForm,
+        violations,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -564,6 +635,7 @@ export function createAlertManager(
     alertDataExfiltration,
     alertCredentialTheft,
     alertSupplyChainRisk,
+    alertCompliance,
     updateAlertStatus,
     getAlerts,
     getAlertCount,

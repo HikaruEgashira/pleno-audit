@@ -2,9 +2,13 @@ import {
   createLoginDetector,
   createPrivacyFinder,
   createTosFinder,
+  createCookiePolicyFinder,
+  createCookieBannerFinder,
   type LoginDetectionResult,
   type PrivacyPolicyResult,
   type TosResult,
+  type CookiePolicyResult,
+  type CookieBannerResult,
 } from "@pleno-audit/detectors";
 import { browserAdapter } from "@pleno-audit/extension-runtime";
 
@@ -12,6 +16,8 @@ import { browserAdapter } from "@pleno-audit/extension-runtime";
 const loginDetector = createLoginDetector(browserAdapter);
 const findPrivacyPolicy = createPrivacyFinder(browserAdapter);
 const findTermsOfService = createTosFinder(browserAdapter);
+const findCookiePolicy = createCookiePolicyFinder(browserAdapter);
+const findCookieBanner = createCookieBannerFinder(browserAdapter);
 
 interface PageAnalysis {
   url: string;
@@ -20,6 +26,8 @@ interface PageAnalysis {
   login: LoginDetectionResult;
   privacy: PrivacyPolicyResult;
   tos: TosResult;
+  cookiePolicy: CookiePolicyResult;
+  cookieBanner: CookieBannerResult;
   faviconUrl: string | null;
 }
 
@@ -50,6 +58,8 @@ function analyzePage(): PageAnalysis {
     login: loginDetector.detectLoginPage(),
     privacy: findPrivacyPolicy(),
     tos: findTermsOfService(),
+    cookiePolicy: findCookiePolicy(),
+    cookieBanner: findCookieBanner(),
     faviconUrl: findFaviconFromDOM(),
   };
 }
@@ -89,10 +99,18 @@ async function checkTyposquat(domain: string) {
 
 async function runAnalysis() {
   const analysis = analyzePage();
-  const { login, privacy, tos, domain, faviconUrl } = analysis;
+  const { login, privacy, tos, cookiePolicy, cookieBanner, domain, faviconUrl } = analysis;
 
-  // Send to background if any info found (including favicon)
-  if (login.hasPasswordInput || login.isLoginUrl || privacy.found || tos.found || faviconUrl) {
+  // Send to background if any info found (including favicon and cookie detection)
+  if (
+    login.hasPasswordInput ||
+    login.isLoginUrl ||
+    privacy.found ||
+    tos.found ||
+    cookiePolicy.found ||
+    cookieBanner.found ||
+    faviconUrl
+  ) {
     await sendToBackground(analysis);
   }
 

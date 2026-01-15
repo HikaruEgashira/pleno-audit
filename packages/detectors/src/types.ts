@@ -22,6 +22,17 @@ export interface PrivacyPolicyResult extends DetectionResult {}
 
 export interface TosResult extends DetectionResult {}
 
+export interface CookiePolicyResult extends DetectionResult {}
+
+export interface CookieBannerResult {
+  found: boolean;
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 export interface LoginDetectionResult {
   hasLoginForm: boolean;
   hasPasswordInput: boolean;

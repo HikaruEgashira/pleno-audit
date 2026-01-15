@@ -108,6 +108,21 @@ export interface TosFoundDetails {
   method: string;
 }
 
+/** クッキーポリシー発見イベントの詳細 */
+export interface CookiePolicyFoundDetails {
+  url: string;
+  method: string;
+}
+
+/** クッキーバナー検出イベントの詳細 */
+export interface CookieBannerDetectedDetails {
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 /** Cookie設定イベントの詳細 */
 export interface CookieSetDetails {
   name: string;
@@ -164,6 +179,8 @@ export type EventLogBase<T extends string, D> = {
  * - login_detected: Shadow IT検出
  * - privacy_policy_found: コンプライアンス監視
  * - terms_of_service_found: リスク評価
+ * - cookie_policy_found: クッキーポリシー検出
+ * - cookie_banner_detected: クッキーバナー検出
  * - cookie_set: セッション追跡
  * - csp_violation: セキュリティ監査
  * - network_request: トラフィック分析
@@ -178,6 +195,8 @@ export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
   | EventLogBase<"privacy_policy_found", PrivacyPolicyFoundDetails>
   | EventLogBase<"terms_of_service_found", TosFoundDetails>
+  | EventLogBase<"cookie_policy_found", CookiePolicyFoundDetails>
+  | EventLogBase<"cookie_banner_detected", CookieBannerDetectedDetails>
   | EventLogBase<"cookie_set", CookieSetDetails>
   | EventLogBase<"csp_violation", CSPViolationDetails>
   | EventLogBase<"network_request", NetworkRequestDetails>

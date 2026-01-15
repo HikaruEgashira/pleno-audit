@@ -171,7 +171,109 @@ export const TOS_LINK_REL_VALUES = ["terms-of-service", "terms", "tos"];
 export const TOS_OG_PATTERNS = [/terms/i, /tos/i, /agb/i];
 
 // ============================================================================
-// 4. Session Detection（セッション検出）
+// 4. Cookie Policy Detection（クッキーポリシー検出）
+// ----------------------------------------------------------------------------
+// GDPR/CCPA等のコンプライアンス監視機能。クッキーポリシーの存在と
+// クッキー同意バナーの有無を検出する。多言語対応。
+// ============================================================================
+
+/** クッキーポリシーURL判定パターン（多言語対応） */
+export const COOKIE_POLICY_URL_PATTERNS = [
+  // Basic patterns
+  /\/cookie[-_]?policy/i,
+  /\/cookies[-_]?policy/i,
+  /\/cookie[-_]?notice/i,
+  /\/cookies/i,
+  /\/legal\/cookies/i,
+  /\/policies\/cookies/i,
+  // German
+  /\/cookie[-_]?richtlinie/i,
+  // French
+  /\/politique[-_]?cookies/i,
+  // Spanish
+  /\/politica[-_]?cookies/i,
+  // Japanese (URL encoded)
+  /\/%E3%82%AF%E3%83%83%E3%82%AD%E3%83%BC/i,
+];
+
+/** クッキーポリシーリンクテキスト判定パターン（多言語対応） */
+export const COOKIE_POLICY_TEXT_PATTERNS = [
+  // English
+  /cookie\s*policy/i,
+  /cookie\s*notice/i,
+  /cookie\s*settings/i,
+  /cookie\s*preferences/i,
+  /manage\s*cookies/i,
+  /about\s*cookies/i,
+  // Japanese
+  /クッキー\s*ポリシー/,
+  /クッキー\s*設定/,
+  /Cookie\s*ポリシー/i,
+  // German
+  /cookie[-_]?richtlinie/i,
+  // French
+  /politique\s*(des\s*)?cookies/i,
+  // Spanish
+  /pol[íi]tica\s*(de\s*)?cookies/i,
+  // Chinese
+  /Cookie\s*政策/i,
+  /Cookie\s*設置/i,
+  // Korean
+  /쿠키\s*정책/,
+];
+
+/** JSON-LDメタデータのクッキーポリシーキー */
+export const COOKIE_JSONLD_KEYS = ["cookiePolicy", "cookiePolicyUrl"];
+
+/** link[rel]属性のクッキーポリシー値 */
+export const COOKIE_LINK_REL_VALUES = ["cookie-policy", "cookies"];
+
+/** OGメタタグのクッキーポリシーパターン */
+export const COOKIE_OG_PATTERNS = [/cookie/i];
+
+/** クッキー同意バナー検出セレクタ */
+export const COOKIE_BANNER_SELECTORS = [
+  // Common consent banner IDs
+  '[id*="cookie-consent"]',
+  '[id*="cookie-banner"]',
+  '[id*="cookie-notice"]',
+  '[id*="gdpr"]',
+  '[id*="consent"]',
+  // Common consent banner classes
+  '[class*="cookie-consent"]',
+  '[class*="cookie-banner"]',
+  '[class*="cookie-notice"]',
+  '[class*="cookie-popup"]',
+  '[class*="gdpr"]',
+  '[class*="consent-banner"]',
+  '[class*="consent-popup"]',
+  // Common cookie management platforms
+  '[id="CybotCookiebotDialog"]', // Cookiebot
+  '[id="onetrust-consent-sdk"]', // OneTrust
+  '[class*="cc-banner"]', // Cookie Consent
+  '[class*="osano"]', // Osano
+  '[id="truste-consent-track"]', // TrustArc
+  '[id="usercentrics"]', // Usercentrics
+  // ARIA role patterns
+  '[role="dialog"][aria-label*="cookie" i]',
+  '[role="dialog"][aria-label*="consent" i]',
+];
+
+/** クッキー同意ボタン検出パターン */
+export const COOKIE_CONSENT_BUTTON_PATTERNS = [
+  /accept\s*(all\s*)?cookies/i,
+  /agree/i,
+  /got\s*it/i,
+  /ok/i,
+  /すべて\s*受け入れる/,
+  /同意/,
+  /accepter/i,
+  /akzeptieren/i,
+  /aceptar/i,
+];
+
+// ============================================================================
+// 5. Session Detection（セッション検出）
 // ----------------------------------------------------------------------------
 // アクセス追跡機能。セッションCookieの検出により、ユーザーの認証状態と
 // サービス利用状況を追跡する。Shadow IT利用頻度の可視化に使用。
@@ -232,4 +334,26 @@ export function isTosUrl(url: string): boolean {
 /** 利用規約リンクテキストか判定 */
 export function isTosText(text: string): boolean {
   return TOS_TEXT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/** クッキーポリシーURLか判定（URLエンコード対応） */
+export function isCookiePolicyUrl(url: string): boolean {
+  try {
+    const decoded = decodeURIComponent(url);
+    return COOKIE_POLICY_URL_PATTERNS.some(
+      (pattern) => pattern.test(url) || pattern.test(decoded)
+    );
+  } catch {
+    return COOKIE_POLICY_URL_PATTERNS.some((pattern) => pattern.test(url));
+  }
+}
+
+/** クッキーポリシーリンクテキストか判定 */
+export function isCookiePolicyText(text: string): boolean {
+  return COOKIE_POLICY_TEXT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/** クッキー同意ボタンテキストか判定 */
+export function isCookieConsentButton(text: string): boolean {
+  return COOKIE_CONSENT_BUTTON_PATTERNS.some((pattern) => pattern.test(text));
 }
