@@ -26,7 +26,8 @@ export type AlertCategory =
   | "extension" // Suspicious extension activity
   | "login" // Login on suspicious site
   | "policy" // Missing privacy/ToS policy
-  | "compliance"; // GDPR/CCPA compliance violation
+  | "compliance" // GDPR/CCPA compliance violation
+  | "policy_violation"; // Enterprise policy violation
 
 /**
  * Alert status
@@ -71,7 +72,8 @@ export type AlertDetails =
   | ExtensionAlertDetails
   | LoginAlertDetails
   | PolicyAlertDetails
-  | ComplianceAlertDetails;
+  | ComplianceAlertDetails
+  | PolicyViolationAlertDetails;
 
 export interface NRDAlertDetails {
   type: "nrd";
@@ -183,6 +185,16 @@ export interface ComplianceAlertDetails {
   isCookieBannerGDPRCompliant: boolean;
   hasLoginForm: boolean;
   violations: string[];
+}
+
+export interface PolicyViolationAlertDetails {
+  type: "policy_violation";
+  ruleId: string;
+  ruleName: string;
+  ruleType: "domain" | "tool" | "ai" | "data_transfer";
+  action: "allow" | "block" | "warn";
+  matchedPattern: string;
+  target: string;
 }
 
 /**
