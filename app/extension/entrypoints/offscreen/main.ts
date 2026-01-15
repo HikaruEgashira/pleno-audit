@@ -178,7 +178,7 @@ initLocalServer()
     chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
   })
   .catch(() => {
-    // Failed to initialize local server
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
   });
 
 if (import.meta.env.DEV) {

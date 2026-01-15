@@ -46,6 +46,7 @@ import {
   onCookieChange,
   getApiClient,
   updateApiClientConfig,
+  ensureOffscreenDocument,
   checkMigrationNeeded,
   migrateToDatabase,
   getSyncManager,
@@ -2132,11 +2133,16 @@ async function handleDebugBridgeForward(
 }
 
 export default defineBackground(() => {
-  // MV3 Service Worker: webRequestリスナーを同期的にトップレベルで登録
-  // Service Workerの再起動時にリスナーが維持されるように、非同期関数の外で呼び出す
   registerExtensionMonitorListener();
-
   registerMainWorldScript();
+
+  if (import.meta.env.DEV) {
+    setTimeout(() => {
+      ensureOffscreenDocument()
+        .then(() => logger.info("Offscreen document initialized for debug bridge"))
+        .catch((err) => logger.error("Failed to initialize offscreen document:", err));
+    }, 1000);
+  }
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitParquetStore()

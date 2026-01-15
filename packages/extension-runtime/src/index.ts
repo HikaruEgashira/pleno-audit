@@ -15,6 +15,7 @@ export {
   ApiClient,
   getApiClient,
   updateApiClientConfig,
+  ensureOffscreenDocument,
   type ConnectionMode,
   type ApiClientConfig,
   type QueryOptions,

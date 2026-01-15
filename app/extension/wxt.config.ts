@@ -4,6 +4,9 @@ export default defineConfig({
   srcDir: ".",
   outDir: "dist",
   imports: false,
+  webExt: {
+    startUrls: ["https://example.com"],
+  },
   manifest: (env) => {
     const isDev = env.mode === "development";
     const iconPrefix = isDev ? "icon-dev" : "icon";
@@ -42,8 +45,9 @@ export default defineConfig({
       content_security_policy: isMV2
         ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
         : {
-            extension_pages:
-              "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+            extension_pages: isDev
+              ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' ws://localhost:*;"
+              : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
           },
       web_accessible_resources: isMV2
         ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
@@ -72,9 +76,14 @@ export default defineConfig({
     },
     build: {
       target: "esnext",
+      modulePreload: false,
       rollupOptions: {
         external: ["parquet-wasm"],
       },
+    },
+    define: {
+      "import.meta.hot": "undefined",
+      "__PLENO_DEV__": "true",
     },
     optimizeDeps: {
       include: [
