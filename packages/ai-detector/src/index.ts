@@ -27,3 +27,58 @@ export {
   extractResponseContent,
   inferProviderFromResponse,
 } from "./detector.js";
+
+// PII Analyzer
+export {
+  analyzePromptPII,
+  calculatePromptRiskScore,
+  scoreToRiskLevel,
+  assessPromptRisk,
+  analyzePrompt,
+  type AIPromptPIIResult,
+  type AIPromptRiskAssessment,
+  type AIPromptAnalysisResult,
+} from "./pii-analyzer.js";
+
+// Provider Classifier (Shadow AI Detection)
+export {
+  classifyByModelName,
+  classifyByUrl,
+  classifyByResponseStructure,
+  classifyProvider,
+  getProviderInfo,
+  isShadowAI,
+  PROVIDER_INFO,
+  type ExtendedProvider,
+  type ProviderClassification,
+  type ProviderInfo,
+} from "./provider-classifier.js";
+
+// DLP Rules
+export {
+  createDLPManager,
+  EXTENDED_DLP_RULES,
+  DEFAULT_DLP_CONFIG,
+  type DLPRule,
+  type DLPConfig,
+  type DLPDetectionResult,
+  type DLPAnalysisResult,
+  type DLPManager,
+} from "./dlp-rules.js";
+
+// Policy Generator
+export {
+  createPolicyGenerator,
+  type PolicyRule,
+  type PolicyCategory,
+  type PolicyAction,
+  type PolicyCondition,
+  type ConditionType,
+  type PolicyGenerationInput,
+  type PolicyGenerationResult,
+  type PolicyGenerator,
+  type AIUsageData,
+  type DLPDetectionData,
+  type ExtensionRiskData,
+  type DomainVisitData,
+} from "./policy-generator.js";

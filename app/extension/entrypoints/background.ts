@@ -25,6 +25,10 @@ import {
   DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
   createTyposquatDetector,
+  analyzePrompt,
+  classifyProvider,
+  isShadowAI,
+  getProviderInfo,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -50,10 +54,13 @@ import {
   clearAIPrompts,
   createExtensionMonitor,
   createLogger,
+  analyzeInstalledExtension,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
+  DEFAULT_BLOCKING_CONFIG,
   type ApiClient,
+  type BlockingConfig,
   type ConnectionMode,
   type SyncManager,
   type QueryOptions,
@@ -62,6 +69,7 @@ import {
   type ExtensionRequestRecord,
   type DataRetentionConfig,
   type DetectionConfig,
+  type ExtensionRiskAnalysis,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -71,7 +79,28 @@ import {
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
 import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
-import { createAlertManager, type AlertManager, type SecurityAlert } from "@pleno-audit/alerts";
+import {
+  createAlertManager,
+  createPolicyManager,
+  DEFAULT_POLICY_CONFIG,
+  type AlertManager,
+  type SecurityAlert,
+  type PolicyManager,
+  type PolicyConfig,
+} from "@pleno-audit/alerts";
+import {
+  createThreatAnalyzer,
+  DEFAULT_THREAT_ANALYZER_CONFIG,
+  type ThreatAnalyzer,
+} from "@pleno-audit/threat-intel";
+import {
+  createRiskForecaster,
+  DEFAULT_FORECAST_CONFIG,
+  type RiskForecaster,
+  type RiskForecast,
+  type RiskEvent,
+  type ForecastConfig,
+} from "@pleno-audit/predictive-analysis";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -80,6 +109,7 @@ interface StorageData {
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
   detectionConfig: DetectionConfig;
+  policyConfig: PolicyConfig;
 }
 
 let storageQueue: Promise<void> = Promise.resolve();
@@ -87,6 +117,7 @@ let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
+let policyManager: PolicyManager | null = null;
 
 // ============================================================================
 // Alert Manager
@@ -108,6 +139,86 @@ function getAlertManager(): AlertManager {
     });
   }
   return alertManager;
+}
+
+// ============================================================================
+// Policy Manager
+// ============================================================================
+
+async function getPolicyManager(): Promise<PolicyManager> {
+  if (!policyManager) {
+    const storage = await initStorage();
+    const config = storage.policyConfig || DEFAULT_POLICY_CONFIG;
+    policyManager = createPolicyManager(config);
+  }
+  return policyManager;
+}
+
+async function checkDomainPolicy(domain: string): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkDomain(domain);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
+}
+
+async function checkAIServicePolicy(params: {
+  domain: string;
+  provider?: string;
+  dataTypes?: string[];
+}): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkAIService(params);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain: params.domain,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
+}
+
+async function checkDataTransferPolicy(params: {
+  destination: string;
+  sizeKB: number;
+}): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkDataTransfer(params);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain: params.destination,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
 }
 
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
@@ -151,6 +262,8 @@ const nrdCacheAdapter: NRDCache = {
 // Typosquatting Detection
 const typosquatCache: Map<string, TyposquatResult> = new Map();
 let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
+let threatAnalyzer: ThreatAnalyzer | null = null;
+let riskForecaster: RiskForecaster | null = null;
 
 const typosquatCacheAdapter: TyposquatCache = {
   get: (domain) => typosquatCache.get(domain) ?? null,
@@ -270,7 +383,75 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: ExtensionRequestDetails;
+    }
+  | {
+      type: "ai_sensitive_data_detected";
+      domain: string;
+      timestamp: number;
+      details: AISensitiveDataDetectedDetails;
+    }
+  | {
+      type: "data_exfiltration_detected";
+      domain: string;
+      timestamp: number;
+      details: DataExfiltrationDetectedDetails;
+    }
+  | {
+      type: "credential_theft_risk";
+      domain: string;
+      timestamp: number;
+      details: CredentialTheftRiskDetails;
+    }
+  | {
+      type: "supply_chain_risk";
+      domain: string;
+      timestamp: number;
+      details: SupplyChainRiskDetails;
     };
+
+/** AI機密情報検出イベント詳細 */
+interface AISensitiveDataDetectedDetails {
+  provider: string;
+  model?: string;
+  classifications: string[];
+  highestRisk: string | null;
+  detectionCount: number;
+  riskScore: number;
+  riskLevel: string;
+}
+
+/** データ漏洩検出イベント詳細 */
+interface DataExfiltrationDetectedDetails {
+  targetUrl: string;
+  targetDomain: string;
+  method: string;
+  bodySize: number;
+  initiator: string;
+  pageUrl: string;
+}
+
+/** 認証情報窃取リスクイベント詳細 */
+interface CredentialTheftRiskDetails {
+  formAction: string;
+  targetDomain: string;
+  method: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
+  pageUrl: string;
+}
+
+/** サプライチェーンリスクイベント詳細 */
+interface SupplyChainRiskDetails {
+  url: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
+  risks: string[];
+  pageUrl: string;
+}
 
 async function getOrInitParquetStore(): Promise<ParquetStore> {
   if (!parquetStore) {
@@ -438,10 +619,44 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
       await initTyposquatDetector();
     }
 
+    // Initialize threat analyzer if not already done
+    if (!threatAnalyzer) {
+      threatAnalyzer = createThreatAnalyzer(DEFAULT_THREAT_ANALYZER_CONFIG);
+      threatAnalyzer.updateConfig({ enabled: true }); // Enable for internal use
+    }
+
     const result = checkTyposquat(domain);
 
+    // Enhance with threat intelligence analysis
+    const threatResult = threatAnalyzer.analyze(domain);
+    if (threatResult.threatScore > 0) {
+      logger.debug("Threat intelligence match:", {
+        domain,
+        threatScore: threatResult.threatScore,
+        riskLevel: threatResult.riskLevel,
+        matches: threatResult.matches.length,
+      });
+    }
+
+    // Boost confidence if threat intelligence also flagged the domain
+    const enhancedResult = { ...result };
+    if (threatResult.threatScore >= 40 && !result.isTyposquat) {
+      // High threat score but not detected as typosquat - add to event log
+      await addEvent({
+        type: "threat_intel_match",
+        domain,
+        timestamp: Date.now(),
+        details: {
+          threatScore: threatResult.threatScore,
+          riskLevel: threatResult.riskLevel,
+          hasHighRiskTLD: threatResult.hasHighRiskTLD,
+          matchCount: threatResult.matches.length,
+        },
+      });
+    }
+
     // Update service with typosquat result if it's a positive detection
-    if (result.isTyposquat) {
+    if (enhancedResult.isTyposquat) {
       await updateService(result.domain, {
         typosquatResult: {
           isTyposquat: result.isTyposquat,
@@ -571,6 +786,103 @@ async function flushExtensionRequestBuffer() {
   requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
 
   await setStorage({ extensionRequests: requests });
+}
+
+// 拡張機能リスク分析結果のキャッシュ（extensionId -> 最後のalert発火時刻）
+const extensionAlertCooldown: Map<string, number> = new Map();
+const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
+
+/**
+ * インストールされている拡張機能のリスク分析を実行
+ */
+async function analyzeExtensionRisks(): Promise<void> {
+  try {
+    const storage = await getStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableExtension) {
+      return;
+    }
+
+    const requests = storage.extensionRequests || [];
+    if (requests.length === 0) return;
+
+    // 拡張機能ごとにリクエストをグループ化
+    const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+    for (const req of requests) {
+      const existing = requestsByExtension.get(req.extensionId) || [];
+      existing.push(req);
+      requestsByExtension.set(req.extensionId, existing);
+    }
+
+    // 各拡張機能のリスク分析
+    for (const [extensionId, extRequests] of requestsByExtension) {
+      // クールダウンチェック
+      const lastAlertTime = extensionAlertCooldown.get(extensionId) || 0;
+      if (Date.now() - lastAlertTime < EXTENSION_ALERT_COOLDOWN_MS) {
+        continue;
+      }
+
+      const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+      if (!analysis) continue;
+
+      // 危険な拡張機能を検出したらアラート
+      if (analysis.riskLevel === "critical" || analysis.riskLevel === "high") {
+        const uniqueDomains = [...new Set(extRequests.map(r => r.domain))];
+        await getAlertManager().alertExtension({
+          extensionId: analysis.extensionId,
+          extensionName: analysis.extensionName,
+          riskLevel: analysis.riskLevel,
+          riskScore: analysis.riskScore,
+          flags: analysis.flags.map(f => f.flag),
+          requestCount: extRequests.length,
+          targetDomains: uniqueDomains.slice(0, 10),
+        });
+
+        // クールダウンを設定
+        extensionAlertCooldown.set(extensionId, Date.now());
+        logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
+      }
+    }
+  } catch (error) {
+    logger.error("Extension risk analysis failed:", error);
+  }
+}
+
+/**
+ * 拡張機能リスク分析結果を取得
+ */
+async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
+  const storage = await getStorage();
+  const requests = (storage.extensionRequests || []).filter(r => r.extensionId === extensionId);
+  return analyzeInstalledExtension(extensionId, requests);
+}
+
+/**
+ * すべての拡張機能のリスク分析結果を取得
+ */
+async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
+  const storage = await getStorage();
+  const requests = storage.extensionRequests || [];
+
+  // 拡張機能ごとにグループ化
+  const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+  for (const req of requests) {
+    const existing = requestsByExtension.get(req.extensionId) || [];
+    existing.push(req);
+    requestsByExtension.set(req.extensionId, existing);
+  }
+
+  const results: ExtensionRiskAnalysis[] = [];
+  for (const [extensionId, extRequests] of requestsByExtension) {
+    const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+    if (analysis) {
+      results.push(analysis);
+    }
+  }
+
+  // リスクスコア降順でソート
+  return results.sort((a, b) => b.riskScore - a.riskScore);
 }
 
 async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
@@ -710,6 +1022,120 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
 }
 
 // ============================================================================
+// Risk Forecasting
+// ============================================================================
+
+function getRiskForecaster(): RiskForecaster {
+  if (!riskForecaster) {
+    riskForecaster = createRiskForecaster(DEFAULT_FORECAST_CONFIG);
+  }
+  return riskForecaster;
+}
+
+async function getForecastConfig(): Promise<ForecastConfig> {
+  const storage = await getStorage();
+  return storage.forecastConfig || DEFAULT_FORECAST_CONFIG;
+}
+
+async function setForecastConfig(newConfig: Partial<ForecastConfig>): Promise<{ success: boolean }> {
+  try {
+    const current = await getForecastConfig();
+    const updated = { ...current, ...newConfig };
+    await setStorage({ forecastConfig: updated });
+    // Update forecaster with new config
+    getRiskForecaster().updateConfig(updated);
+    return { success: true };
+  } catch (error) {
+    logger.error("Error setting forecast config:", error);
+    return { success: false };
+  }
+}
+
+async function getRiskForecast(): Promise<RiskForecast> {
+  try {
+    const store = await getOrInitParquetStore();
+    const forecaster = getRiskForecaster();
+
+    // Load config
+    const config = await getForecastConfig();
+    forecaster.updateConfig(config);
+
+    // Get events from the last windowDays
+    const windowMs = config.windowDays * 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - windowMs).toISOString();
+
+    const result = await store.getEvents({ since, limit: 10000 });
+
+    // Convert to RiskEvent format
+    const riskEvents: RiskEvent[] = result.data
+      .filter((e: any) => {
+        // Only include security-relevant events
+        const securityTypes = [
+          "nrd_detected",
+          "typosquat_detected",
+          "threat_intel_match",
+          "ai_sensitive_data_detected",
+          "extension_request",
+          "csp_violation",
+        ];
+        return securityTypes.includes(e.type);
+      })
+      .map((e: any) => {
+        // Map event type to severity
+        let severity: RiskEvent["severity"] = "low";
+        if (e.type === "nrd_detected" || e.type === "typosquat_detected" || e.type === "ai_sensitive_data_detected") {
+          severity = "high";
+        } else if (e.type === "threat_intel_match") {
+          severity = "critical";
+        } else if (e.type === "csp_violation") {
+          severity = "medium";
+        }
+
+        return {
+          timestamp: new Date(e.timestamp).getTime(),
+          type: e.type,
+          severity,
+          domain: e.domain,
+        };
+      });
+
+    return forecaster.forecast(riskEvents);
+  } catch (error) {
+    logger.error("Error generating risk forecast:", error);
+    // Return empty forecast on error
+    return {
+      currentRiskLevel: 0,
+      predictedRiskLevel: 0,
+      trend: { direction: "stable", slope: 0, confidence: 0, percentChange: 0, dataPoints: 0 },
+      anomalies: [],
+      warnings: [],
+      forecastPeriod: "3日後",
+      confidence: 0,
+      generatedAt: Date.now(),
+    };
+  }
+}
+
+// ============================================================================
+// Blocking Config
+// ============================================================================
+
+async function getBlockingConfig(): Promise<BlockingConfig> {
+  const storage = await getStorage();
+  return storage.blockingConfig || DEFAULT_BLOCKING_CONFIG;
+}
+
+async function setBlockingConfig(newConfig: BlockingConfig): Promise<{ success: boolean }> {
+  try {
+    await setStorage({ blockingConfig: newConfig });
+    return { success: true };
+  } catch (error) {
+    logger.error("Error setting blocking config:", error);
+    return { success: false };
+  }
+}
+
+// ============================================================================
 // Detection Config
 // ============================================================================
 
@@ -741,6 +1167,7 @@ function createDefaultService(domain: string): DetectedService {
 async function updateService(domain: string, update: Partial<DetectedService>) {
   return queueStorageOperation(async () => {
     const storage = await initStorage();
+    const isNewDomain = !storage.services[domain];
     const existing = storage.services[domain] || createDefaultService(domain);
 
     storage.services[domain] = {
@@ -750,6 +1177,13 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
 
     await saveStorage({ services: storage.services });
     await updateBadge();
+
+    // Check domain policy for new domains
+    if (isNewDomain) {
+      checkDomainPolicy(domain).catch(() => {
+        // Ignore policy check errors
+      });
+    }
   });
 }
 
@@ -772,6 +1206,15 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
   });
 }
 
+interface CookieBannerResult {
+  found: boolean;
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 interface PageAnalysis {
   url: string;
   domain: string;
@@ -779,11 +1222,13 @@ interface PageAnalysis {
   login: LoginDetectedDetails;
   privacy: DetectionResult;
   tos: DetectionResult;
+  cookiePolicy?: DetectionResult;
+  cookieBanner?: CookieBannerResult;
   faviconUrl?: string | null;
 }
 
 async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, tos, timestamp, faviconUrl } = analysis;
+  const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
   const storage = await initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
 
@@ -819,6 +1264,59 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
       domain,
       timestamp,
       details: { url: tos.url, method: tos.method },
+    });
+  }
+
+  // Cookie policy detection
+  if (cookiePolicy?.found && cookiePolicy.url) {
+    await addEvent({
+      type: "cookie_policy_found",
+      domain,
+      timestamp,
+      details: { url: cookiePolicy.url, method: cookiePolicy.method },
+    });
+  }
+
+  // Cookie banner detection
+  if (cookieBanner?.found) {
+    await addEvent({
+      type: "cookie_banner_detected",
+      domain,
+      timestamp,
+      details: {
+        selector: cookieBanner.selector,
+        hasAcceptButton: cookieBanner.hasAcceptButton,
+        hasRejectButton: cookieBanner.hasRejectButton,
+        hasSettingsButton: cookieBanner.hasSettingsButton,
+        isGDPRCompliant: cookieBanner.isGDPRCompliant,
+      },
+    });
+  }
+
+  // Compliance alert - check for missing required policies on login pages
+  const hasLoginForm = login.hasPasswordInput || login.isLoginUrl;
+  const hasPrivacyPolicy = privacy.found;
+  const hasTermsOfService = tos.found;
+  const hasCookiePolicy = cookiePolicy?.found ?? false;
+  const hasCookieBanner = cookieBanner?.found ?? false;
+  const isCookieBannerGDPRCompliant = cookieBanner?.isGDPRCompliant ?? false;
+
+  // Only create compliance alert if there are potential violations
+  const hasViolations =
+    (hasLoginForm && (!hasPrivacyPolicy || !hasTermsOfService)) ||
+    !hasCookiePolicy ||
+    !hasCookieBanner ||
+    (hasCookieBanner && !isCookieBannerGDPRCompliant);
+
+  if (hasViolations) {
+    await alertManager.alertCompliance({
+      pageDomain: domain,
+      hasPrivacyPolicy,
+      hasTermsOfService,
+      hasCookiePolicy,
+      hasCookieBanner,
+      isCookieBannerGDPRCompliant,
+      hasLoginForm,
     });
   }
 }
@@ -895,6 +1393,186 @@ async function handleNetworkRequest(
   reportQueue.push(request);
 
   return { success: true };
+}
+
+interface DataExfiltrationData {
+  timestamp: string;
+  pageUrl: string;
+  targetUrl: string;
+  targetDomain: string;
+  method: string;
+  bodySize: number;
+  initiator: string;
+}
+
+async function handleDataExfiltration(
+  data: DataExfiltrationData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the data exfiltration event
+  await addEvent({
+    type: "data_exfiltration_detected",
+    domain: data.targetDomain,
+    timestamp: Date.now(),
+    details: {
+      targetUrl: data.targetUrl,
+      targetDomain: data.targetDomain,
+      method: data.method,
+      bodySize: data.bodySize,
+      initiator: data.initiator,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Fire alert for data exfiltration
+  await getAlertManager().alertDataExfiltration({
+    sourceDomain: pageDomain,
+    targetDomain: data.targetDomain,
+    bodySize: data.bodySize,
+    method: data.method,
+    initiator: data.initiator,
+  });
+
+  logger.warn("Data exfiltration detected:", {
+    from: pageDomain,
+    to: data.targetDomain,
+    size: `${Math.round(data.bodySize / 1024)}KB`,
+    method: data.method,
+  });
+
+  // Check data transfer policy
+  checkDataTransferPolicy({
+    destination: data.targetDomain,
+    sizeKB: Math.round(data.bodySize / 1024),
+  }).catch(() => {
+    // Ignore policy check errors
+  });
+
+  return { success: true };
+}
+
+interface CredentialTheftData {
+  timestamp: string;
+  pageUrl: string;
+  formAction: string;
+  targetDomain: string;
+  method: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
+}
+
+async function handleCredentialTheft(
+  data: CredentialTheftData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the credential theft risk event
+  await addEvent({
+    type: "credential_theft_risk",
+    domain: data.targetDomain,
+    timestamp: Date.now(),
+    details: {
+      formAction: data.formAction,
+      targetDomain: data.targetDomain,
+      method: data.method,
+      isSecure: data.isSecure,
+      isCrossOrigin: data.isCrossOrigin,
+      fieldType: data.fieldType,
+      risks: data.risks,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Only fire alert if there are actual risks
+  if (data.risks.length > 0) {
+    await getAlertManager().alertCredentialTheft({
+      sourceDomain: pageDomain,
+      targetDomain: data.targetDomain,
+      formAction: data.formAction,
+      isSecure: data.isSecure,
+      isCrossOrigin: data.isCrossOrigin,
+      fieldType: data.fieldType,
+      risks: data.risks,
+    });
+
+    logger.warn("Credential theft risk detected:", {
+      from: pageDomain,
+      to: data.targetDomain,
+      fieldType: data.fieldType,
+      risks: data.risks.join(", "),
+    });
+  }
+
+  return { success: true };
+}
+
+interface SupplyChainRiskData {
+  timestamp: string;
+  pageUrl: string;
+  url: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
+  risks: string[];
+}
+
+async function handleSupplyChainRisk(
+  data: SupplyChainRiskData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const resourceDomain = extractDomainFromUrl(data.url);
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the supply chain risk event
+  await addEvent({
+    type: "supply_chain_risk",
+    domain: resourceDomain,
+    timestamp: Date.now(),
+    details: {
+      url: data.url,
+      resourceType: data.resourceType,
+      hasIntegrity: data.hasIntegrity,
+      hasCrossorigin: data.hasCrossorigin,
+      isCDN: data.isCDN,
+      risks: data.risks,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Fire alert for supply chain risk
+  await getAlertManager().alertSupplyChainRisk({
+    pageDomain: pageDomain,
+    resourceUrl: data.url,
+    resourceDomain: resourceDomain,
+    resourceType: data.resourceType,
+    hasIntegrity: data.hasIntegrity,
+    hasCrossorigin: data.hasCrossorigin,
+    isCDN: data.isCDN,
+    risks: data.risks,
+  });
+
+  logger.warn("Supply chain risk detected:", {
+    page: pageDomain,
+    resource: resourceDomain,
+    type: data.resourceType,
+    risks: data.risks.join(", "),
+  });
+
+  return { success: true };
+}
+
+function extractDomainFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "unknown";
+  }
 }
 
 async function storeCSPReport(report: CSPReport) {
@@ -1060,8 +1738,25 @@ async function handleAIPromptCaptured(
     return { success: false };
   }
 
-  // Store AI prompt
-  await storeAIPrompt(data);
+  // PII/機密情報検出
+  const analysis = analyzePrompt(data.prompt);
+
+  // Shadow AI検出（拡張プロバイダー分類）
+  const providerClassification = classifyProvider({
+    modelName: data.model,
+    url: data.apiEndpoint,
+    responseText: data.response?.text,
+  });
+
+  const isShadowAIDetected = isShadowAI(providerClassification.provider);
+  const providerInfo = getProviderInfo(providerClassification.provider);
+
+  // Store AI prompt with enhanced provider info
+  const enhancedData: CapturedAIPrompt = {
+    ...data,
+    provider: providerClassification.provider,
+  };
+  await storeAIPrompt(enhancedData);
 
   // Extract domain from API endpoint
   let domain = "unknown";
@@ -1071,19 +1766,63 @@ async function handleAIPromptCaptured(
     // ignore
   }
 
-  // Add prompt sent event
+  // Add prompt sent event with Shadow AI info
   await addEvent({
     type: "ai_prompt_sent",
     domain,
     timestamp: data.timestamp,
     details: {
-      provider: data.provider || "unknown",
+      provider: providerClassification.provider,
       model: data.model,
       promptPreview: getPromptPreview(data.prompt),
       contentSize: data.prompt.contentSize,
       messageCount: data.prompt.messages?.length,
+      isShadowAI: isShadowAIDetected,
+      providerConfidence: providerClassification.confidence,
     },
   });
+
+  // PII/機密情報検出時のアラートとイベント記録
+  if (analysis.pii.hasSensitiveData) {
+    // ai_sensitive_data_detected イベントを追加
+    await addEvent({
+      type: "ai_sensitive_data_detected",
+      domain,
+      timestamp: data.timestamp,
+      details: {
+        provider: data.provider || "unknown",
+        model: data.model,
+        classifications: analysis.pii.classifications,
+        highestRisk: analysis.pii.highestRisk,
+        detectionCount: analysis.pii.detectionCount,
+        riskScore: analysis.risk.riskScore,
+        riskLevel: analysis.risk.riskLevel,
+      },
+    });
+
+    // 高リスク時はアラートを発火
+    if (analysis.risk.shouldAlert) {
+      await getAlertManager().alertAISensitive({
+        domain,
+        provider: data.provider || "unknown",
+        model: data.model,
+        dataTypes: analysis.pii.classifications,
+      });
+    }
+  }
+
+  // Shadow AI検出時のアラート発火
+  if (isShadowAIDetected) {
+    await getAlertManager().alertShadowAI({
+      domain,
+      provider: providerClassification.provider,
+      providerDisplayName: providerInfo.displayName,
+      category: providerInfo.category,
+      riskLevel: providerInfo.riskLevel,
+      confidence: providerClassification.confidence,
+      model: data.model,
+    });
+  }
 
   // Add response received event if available
   if (data.response) {
@@ -1114,19 +1853,45 @@ async function handleAIPromptCaptured(
     const storage = await getStorage();
     const existingService = storage.services?.[pageDomain];
     const existingProviders = existingService?.aiDetected?.providers || [];
-    const provider = data.provider || "unknown";
+    const provider = providerClassification.provider;
     const providers = existingProviders.includes(provider)
       ? existingProviders
       : [...existingProviders, provider];
+
+    // Shadow AIプロバイダーの追跡
+    const existingShadowProviders = existingService?.aiDetected?.shadowAIProviders || [];
+    const shadowAIProviders = isShadowAIDetected && !existingShadowProviders.includes(provider)
+      ? [...existingShadowProviders, provider]
+      : existingShadowProviders;
 
     await updateService(pageDomain, {
       aiDetected: {
         hasAIActivity: true,
         lastActivityAt: data.timestamp,
         providers,
+        // 機密情報検出情報を追加
+        hasSensitiveData: analysis.pii.hasSensitiveData || existingService?.aiDetected?.hasSensitiveData,
+        sensitiveDataTypes: analysis.pii.hasSensitiveData
+          ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
+          : existingService?.aiDetected?.sensitiveDataTypes,
+        riskLevel: analysis.risk.riskLevel === "critical" || analysis.risk.riskLevel === "high"
+          ? analysis.risk.riskLevel
+          : existingService?.aiDetected?.riskLevel,
+        // Shadow AI情報を追加
+        hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
+        shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
       },
     });
   }
+
+  // Check AI service policy
+  checkAIServicePolicy({
+    domain,
+    provider: providerClassification.provider,
+    dataTypes: analysis.pii.hasSensitiveData ? analysis.pii.classifications : undefined,
+  }).catch(() => {
+    // Ignore policy check errors
+  });
 
   return { success: true };
 }
@@ -1242,6 +2007,13 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 }
 
 async function registerMainWorldScript() {
+  // chrome.scripting is only available in Chrome MV3
+  // Firefox MV2 uses manifest-based content script registration
+  if (typeof chrome.scripting?.registerContentScripts !== "function") {
+    logger.debug("chrome.scripting not available (Firefox MV2), skipping dynamic registration");
+    return;
+  }
+
   try {
     await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
     await chrome.scripting.registerContentScripts([{
@@ -1318,6 +2090,8 @@ export default defineBackground(() => {
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
   chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  // Extension risk analysis (runs every 5 minutes)
+  chrome.alarms.create("extensionRiskAnalysis", { periodInMinutes: 5 });
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
@@ -1331,6 +2105,9 @@ export default defineBackground(() => {
     }
     if (alarm.name === "flushExtensionRequests") {
       flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
+    }
+    if (alarm.name === "extensionRiskAnalysis") {
+      analyzeExtensionRisks().catch((err) => logger.debug("Extension risk analysis failed:", err));
     }
     if (alarm.name === "dataCleanup") {
       cleanupOldData().catch((err) => logger.debug("Data cleanup failed:", err));
@@ -1359,6 +2136,27 @@ export default defineBackground(() => {
 
     if (message.type === "NETWORK_REQUEST") {
       handleNetworkRequest(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "DATA_EXFILTRATION_DETECTED") {
+      handleDataExfiltration(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CREDENTIAL_THEFT_DETECTED") {
+      handleCredentialTheft(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "SUPPLY_CHAIN_RISK_DETECTED") {
+      handleSupplyChainRisk(message.data, sender)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
@@ -1639,6 +2437,28 @@ export default defineBackground(() => {
       return true;
     }
 
+    // Extension Risk Analysis handlers
+    if (message.type === "GET_ALL_EXTENSION_RISKS") {
+      getAllExtensionRisks()
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    }
+
+    if (message.type === "GET_EXTENSION_RISK_ANALYSIS") {
+      getExtensionRiskAnalysis(message.data.extensionId)
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "TRIGGER_EXTENSION_RISK_ANALYSIS") {
+      analyzeExtensionRisks()
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
     // Data Retention handlers
     if (message.type === "GET_DATA_RETENTION_CONFIG") {
       getDataRetentionConfig()
@@ -1658,6 +2478,43 @@ export default defineBackground(() => {
       cleanupOldData()
         .then(sendResponse)
         .catch(() => sendResponse({ deleted: 0 }));
+      return true;
+    }
+
+    // Blocking Config handlers
+    if (message.type === "GET_BLOCKING_CONFIG") {
+      getBlockingConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_BLOCKING_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_BLOCKING_CONFIG") {
+      setBlockingConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Risk Forecasting handlers
+    if (message.type === "GET_RISK_FORECAST") {
+      getRiskForecast()
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "GET_FORECAST_CONFIG") {
+      getForecastConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_FORECAST_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_FORECAST_CONFIG") {
+      setForecastConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 

@@ -77,6 +77,68 @@ export default defineContentScript({
         });
       }) as EventListener
     );
+
+    // Listen for data exfiltration events from main world
+    window.addEventListener(
+      "__DATA_EXFILTRATION_DETECTED__",
+      ((event: CustomEvent) => {
+        safeSendMessage({
+          type: "DATA_EXFILTRATION_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            targetUrl: event.detail.url,
+            targetDomain: event.detail.targetDomain,
+            method: event.detail.method,
+            bodySize: event.detail.bodySize,
+            initiator: event.detail.initiator,
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for credential theft events from main world
+    window.addEventListener(
+      "__CREDENTIAL_THEFT_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "CREDENTIAL_THEFT_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            formAction: detail.formAction || "",
+            targetDomain: detail.targetDomain || "",
+            method: detail.method || "GET",
+            isSecure: detail.isSecure ?? true,
+            isCrossOrigin: detail.isCrossOrigin ?? false,
+            fieldType: detail.fieldType || "unknown",
+            risks: detail.risks || [],
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for supply chain risk events from main world
+    window.addEventListener(
+      "__SUPPLY_CHAIN_RISK_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "SUPPLY_CHAIN_RISK_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            url: detail.url || "",
+            resourceType: detail.resourceType || "script",
+            hasIntegrity: detail.hasIntegrity ?? false,
+            hasCrossorigin: detail.hasCrossorigin ?? false,
+            isCDN: detail.isCDN ?? false,
+            risks: detail.risks || [],
+          },
+        });
+      }) as EventListener
+    );
   },
 });
 

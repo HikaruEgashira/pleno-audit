@@ -7,6 +7,19 @@ export default defineConfig({
   manifest: (env) => {
     const isDev = env.mode === "development";
     const iconPrefix = isDev ? "icon-dev" : "icon";
+    const isFirefox = env.browser === "firefox";
+    const isSafari = env.browser === "safari";
+    const isMV2 = isFirefox || isSafari;
+
+    // Base permissions (cross-browser)
+    const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
+
+    // Chrome/Edge MV3 permissions
+    const mv3Permissions = [...basePermissions, "offscreen", "scripting"];
+
+    // Firefox/Safari MV2 permissions (no offscreen, no scripting)
+    const mv2Permissions = basePermissions;
+
     return {
       name: isDev ? "[DEV] Pleno Audit" : "Pleno Audit",
       version: "0.0.1",
@@ -24,18 +37,31 @@ export default defineConfig({
           48: `${iconPrefix}-48.png`,
         },
       },
-      permissions: ["cookies", "storage", "activeTab", "alarms", "offscreen", "scripting", "webRequest", "management", "notifications"],
+      permissions: isMV2 ? mv2Permissions : mv3Permissions,
       host_permissions: ["<all_urls>"],
-      content_security_policy: {
-        extension_pages:
-          "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-      },
-      web_accessible_resources: [
-        {
-          resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"],
-          matches: ["<all_urls>"],
+      content_security_policy: isMV2
+        ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        : {
+            extension_pages:
+              "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+          },
+      web_accessible_resources: isMV2
+        ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
+        : [
+            {
+              resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"],
+              matches: ["<all_urls>"],
+            },
+          ],
+      // Firefox-specific: browser_specific_settings
+      ...(isFirefox && {
+        browser_specific_settings: {
+          gecko: {
+            id: "pleno-audit@example.com",
+            strict_min_version: "109.0",
+          },
         },
-      ],
+      }),
     };
   },
   vite: () => ({

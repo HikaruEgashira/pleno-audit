@@ -7,13 +7,24 @@ import {
   type ViolationExport,
   type AlertExport,
   type PermissionExport,
+  exportEventsToCSV,
+  exportEventsToJSON,
+  exportAIPromptsToCSV,
+  exportAIPromptsToJSON,
+  exportDetectedServicesToCSV,
+  exportDetectedServicesToJSON,
+  createExportBlob,
+  generateExportFilename,
+  type EventLogExport,
+  type AIPromptExport,
+  type DetectedServiceExport,
 } from "@pleno-audit/data-export";
 import {
   generateComplianceReport,
   exportReportMarkdown,
   type ComplianceFramework,
 } from "@pleno-audit/compliance";
-import type { DetectedService } from "@pleno-audit/detectors";
+import type { DetectedService, CapturedAIPrompt } from "@pleno-audit/detectors";
 import {
   FileText,
   Download,
@@ -26,6 +37,9 @@ import {
   Eye,
   CheckCircle,
   Scale,
+  Activity,
+  Bot,
+  Database,
 } from "lucide-preact";
 import { useTheme } from "../../lib/theme";
 import { Button, Card, Select } from "../../components";
@@ -272,6 +286,127 @@ export function ReportTab() {
       setGenerating(false);
     }
   }, [generateReport]);
+
+  // ========================================================================
+  // Audit Log Export Functions
+  // ========================================================================
+  const [exportingAudit, setExportingAudit] = useState(false);
+
+  const handleExportEvents = useCallback(async (format: "json" | "csv") => {
+    setExportingAudit(true);
+    try {
+      const startTime = getPeriodMs(period);
+      const eventsResult = await chrome.runtime.sendMessage({
+        type: "GET_EVENTS",
+        data: { limit: 10000, since: startTime },
+      });
+      const events = eventsResult?.events ?? [];
+
+      const exportData: EventLogExport[] = events.map((e: { id: string; type: string; domain: string; timestamp: number | string; details: Record<string, unknown> }) => ({
+        id: e.id,
+        timestamp: typeof e.timestamp === "string" ? new Date(e.timestamp).getTime() : e.timestamp,
+        type: e.type,
+        domain: e.domain,
+        details: JSON.stringify(e.details || {}),
+      }));
+
+      const content = format === "json"
+        ? exportEventsToJSON(exportData, { pretty: true })
+        : exportEventsToCSV(exportData);
+
+      const blob = createExportBlob(content, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = generateExportFilename("events", format);
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingAudit(false);
+    }
+  }, [period]);
+
+  const handleExportAIPrompts = useCallback(async (format: "json" | "csv") => {
+    setExportingAudit(true);
+    try {
+      const aiPrompts: CapturedAIPrompt[] = await chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" }) ?? [];
+      const startTime = getPeriodMs(period);
+
+      const filteredPrompts = aiPrompts.filter((p) => p.timestamp >= startTime);
+
+      const exportData: AIPromptExport[] = filteredPrompts.map((p) => ({
+        id: p.id,
+        timestamp: p.timestamp,
+        pageUrl: p.pageUrl,
+        provider: p.provider || "unknown",
+        model: p.model,
+        contentSize: p.prompt.contentSize,
+        hasSensitiveData: false, // NOTE: Detection is done at capture time, not available in stored data yet
+        sensitiveDataTypes: [],
+        riskLevel: "info",
+      }));
+
+      const content = format === "json"
+        ? exportAIPromptsToJSON(exportData, { pretty: true })
+        : exportAIPromptsToCSV(exportData);
+
+      const blob = createExportBlob(content, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = generateExportFilename("ai-prompts", format);
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingAudit(false);
+    }
+  }, [period]);
+
+  const handleExportServices = useCallback(async (format: "json" | "csv") => {
+    setExportingAudit(true);
+    try {
+      const storageResult = await chrome.storage.local.get(["services"]);
+      const services = storageResult.services
+        ? (Object.values(storageResult.services) as DetectedService[])
+        : [];
+
+      const startTime = getPeriodMs(period);
+      const filteredServices = services.filter((s) => s.detectedAt >= startTime);
+
+      const exportData: DetectedServiceExport[] = filteredServices.map((s) => ({
+        domain: s.domain,
+        detectedAt: s.detectedAt,
+        hasLoginPage: s.hasLoginPage,
+        privacyPolicyUrl: s.privacyPolicyUrl,
+        termsOfServiceUrl: s.termsOfServiceUrl,
+        cookieCount: s.cookies?.length || 0,
+        isNRD: s.nrdResult?.isNRD || false,
+        nrdConfidence: s.nrdResult?.confidence,
+        nrdDomainAge: s.nrdResult?.domainAge,
+        isTyposquat: s.typosquatResult?.isTyposquat || false,
+        typosquatConfidence: s.typosquatResult?.confidence,
+        typosquatScore: s.typosquatResult?.totalScore,
+        hasAIActivity: s.aiDetected?.hasAIActivity || false,
+        aiProviders: s.aiDetected?.providers,
+        aiHasSensitiveData: s.aiDetected?.hasSensitiveData,
+        aiRiskLevel: s.aiDetected?.riskLevel,
+      }));
+
+      const content = format === "json"
+        ? exportDetectedServicesToJSON(exportData, { pretty: true })
+        : exportDetectedServicesToCSV(exportData);
+
+      const blob = createExportBlob(content, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = generateExportFilename("services", format);
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingAudit(false);
+    }
+  }, [period]);
 
   const handleComplianceExport = useCallback(async (framework: ComplianceFramework) => {
     setGeneratingCompliance(true);
@@ -567,6 +702,125 @@ export function ReportTab() {
               <Download size={14} style={{ marginRight: "6px" }} />
               {generatingCompliance ? "生成中..." : "GDPRレポート"}
             </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Audit Log Export */}
+      <Card title="監査ログエクスポート" style={{ marginTop: "24px" }}>
+        <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "16px" }}>
+          選択した期間の監査ログを詳細データとしてエクスポートします。
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "12px" }}>
+          {/* Event Log Export */}
+          <div
+            style={{
+              padding: "16px",
+              background: colors.bgSecondary,
+              borderRadius: "8px",
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Activity size={20} color="#3b82f6" />
+              <span style={{ fontWeight: 600 }}>イベントログ</span>
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+              すべての検出イベント（ログイン、Cookie、CSP違反、AI活動など）
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Button
+                onClick={() => handleExportEvents("json")}
+                disabled={exportingAudit}
+                size="sm"
+              >
+                <FileJson size={14} style={{ marginRight: "4px" }} />
+                JSON
+              </Button>
+              <Button
+                onClick={() => handleExportEvents("csv")}
+                disabled={exportingAudit}
+                size="sm"
+                variant="secondary"
+              >
+                <FileSpreadsheet size={14} style={{ marginRight: "4px" }} />
+                CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* AI Prompt Export */}
+          <div
+            style={{
+              padding: "16px",
+              background: colors.bgSecondary,
+              borderRadius: "8px",
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Bot size={20} color="#8b5cf6" />
+              <span style={{ fontWeight: 600 }}>AIプロンプト履歴</span>
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+              AIサービスへのプロンプト送信履歴（機密情報検出情報を含む）
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Button
+                onClick={() => handleExportAIPrompts("json")}
+                disabled={exportingAudit}
+                size="sm"
+              >
+                <FileJson size={14} style={{ marginRight: "4px" }} />
+                JSON
+              </Button>
+              <Button
+                onClick={() => handleExportAIPrompts("csv")}
+                disabled={exportingAudit}
+                size="sm"
+                variant="secondary"
+              >
+                <FileSpreadsheet size={14} style={{ marginRight: "4px" }} />
+                CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* Detected Services Export */}
+          <div
+            style={{
+              padding: "16px",
+              background: colors.bgSecondary,
+              borderRadius: "8px",
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Database size={20} color="#22c55e" />
+              <span style={{ fontWeight: 600 }}>検出サービス</span>
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "12px" }}>
+              検出されたサービス一覧（NRD、タイポスクワット、AI活動情報を含む）
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Button
+                onClick={() => handleExportServices("json")}
+                disabled={exportingAudit}
+                size="sm"
+              >
+                <FileJson size={14} style={{ marginRight: "4px" }} />
+                JSON
+              </Button>
+              <Button
+                onClick={() => handleExportServices("csv")}
+                disabled={exportingAudit}
+                size="sm"
+                variant="secondary"
+              >
+                <FileSpreadsheet size={14} style={{ marginRight: "4px" }} />
+                CSV
+              </Button>
+            </div>
           </div>
         </div>
       </Card>

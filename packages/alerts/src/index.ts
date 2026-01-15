@@ -15,11 +15,17 @@ export type {
   NRDAlertDetails,
   TyposquatAlertDetails,
   DataLeakAlertDetails,
+  DataExfiltrationAlertDetails,
+  CredentialTheftAlertDetails,
+  SupplyChainAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,
+  ShadowAIAlertDetails,
   ExtensionAlertDetails,
   LoginAlertDetails,
   PolicyAlertDetails,
+  ComplianceAlertDetails,
+  PolicyViolationAlertDetails,
   AlertAction,
   AlertRule,
   AlertCondition,
@@ -36,3 +42,30 @@ export {
   type AlertStore,
   type AlertListener,
 } from "./alert-manager.js";
+
+// Policy Types
+export type {
+  PolicyAction,
+  PolicyMatchType,
+  DomainPolicyRule,
+  ToolPolicyRule,
+  AIPolicyRule,
+  DataTransferPolicyRule,
+  PolicyConfig,
+  PolicyViolation,
+} from "./policy-types.js";
+
+export {
+  DEFAULT_POLICY_CONFIG,
+  POLICY_TEMPLATES,
+  SOCIAL_MEDIA_DOMAINS,
+  PRODUCTIVITY_DOMAINS,
+  COMMUNICATION_DOMAINS,
+} from "./policy-types.js";
+
+// Policy Manager
+export {
+  createPolicyManager,
+  type PolicyManager,
+  type PolicyCheckResult,
+} from "./policy-manager.js";

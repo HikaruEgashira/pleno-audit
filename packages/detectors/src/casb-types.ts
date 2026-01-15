@@ -13,6 +13,7 @@ import type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   InferredProvider,
+  ExtendedProvider,
 } from "@pleno-audit/ai-detector";
 import type { TyposquatDetectedDetails } from "@pleno-audit/typosquat";
 
@@ -55,7 +56,17 @@ export interface DetectedService {
   aiDetected?: {
     hasAIActivity: boolean;
     lastActivityAt: number;
-    providers: InferredProvider[];
+    providers: (InferredProvider | ExtendedProvider)[];
+    /** 機密情報が検出されたか */
+    hasSensitiveData?: boolean;
+    /** 検出された機密情報の種類 */
+    sensitiveDataTypes?: string[];
+    /** 最大リスクレベル */
+    riskLevel?: "critical" | "high" | "medium" | "low" | "info";
+    /** Shadow AIが検出されたか（未承認AIサービス） */
+    hasShadowAI?: boolean;
+    /** 検出されたShadow AIプロバイダー */
+    shadowAIProviders?: ExtendedProvider[];
   };
 }
 
@@ -97,6 +108,21 @@ export interface TosFoundDetails {
   method: string;
 }
 
+/** クッキーポリシー発見イベントの詳細 */
+export interface CookiePolicyFoundDetails {
+  url: string;
+  method: string;
+}
+
+/** クッキーバナー検出イベントの詳細 */
+export interface CookieBannerDetectedDetails {
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 /** Cookie設定イベントの詳細 */
 export interface CookieSetDetails {
   name: string;
@@ -125,6 +151,17 @@ export interface ExtensionRequestDetails {
   statusCode?: number;
 }
 
+/** AI機密情報検出イベントの詳細 */
+export interface AISensitiveDataDetectedDetails {
+  provider: string;
+  model?: string;
+  classifications: string[];
+  highestRisk: string | null;
+  detectionCount: number;
+  riskScore: number;
+  riskLevel: string;
+}
+
 /**
  * イベントログ基底型
  * - Discriminated Union パターンで型安全なイベント処理を実現
@@ -142,6 +179,8 @@ export type EventLogBase<T extends string, D> = {
  * - login_detected: Shadow IT検出
  * - privacy_policy_found: コンプライアンス監視
  * - terms_of_service_found: リスク評価
+ * - cookie_policy_found: クッキーポリシー検出
+ * - cookie_banner_detected: クッキーバナー検出
  * - cookie_set: セッション追跡
  * - csp_violation: セキュリティ監査
  * - network_request: トラフィック分析
@@ -150,11 +189,14 @@ export type EventLogBase<T extends string, D> = {
  * - nrd_detected: NRD判定検出
  * - typosquat_detected: タイポスクワッティング検出
  * - extension_request: 拡張機能のネットワークリクエスト
+ * - ai_sensitive_data_detected: AI機密情報検出
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
   | EventLogBase<"privacy_policy_found", PrivacyPolicyFoundDetails>
   | EventLogBase<"terms_of_service_found", TosFoundDetails>
+  | EventLogBase<"cookie_policy_found", CookiePolicyFoundDetails>
+  | EventLogBase<"cookie_banner_detected", CookieBannerDetectedDetails>
   | EventLogBase<"cookie_set", CookieSetDetails>
   | EventLogBase<"csp_violation", CSPViolationDetails>
   | EventLogBase<"network_request", NetworkRequestDetails>
@@ -162,6 +204,7 @@ export type EventLog =
   | EventLogBase<"ai_response_received", AIResponseReceivedDetails>
   | EventLogBase<"nrd_detected", NRDDetectedDetails>
   | EventLogBase<"typosquat_detected", TyposquatDetectedDetails>
-  | EventLogBase<"extension_request", ExtensionRequestDetails>;
+  | EventLogBase<"extension_request", ExtensionRequestDetails>
+  | EventLogBase<"ai_sensitive_data_detected", AISensitiveDataDetectedDetails>;
 
 export type EventLogType = EventLog["type"];

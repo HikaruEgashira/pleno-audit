@@ -283,6 +283,99 @@ export function createAlertManager(
   }
 
   /**
+   * Create Shadow AI alert
+   */
+  async function alertShadowAI(params: {
+    domain: string;
+    provider: string;
+    providerDisplayName: string;
+    category: "major" | "enterprise" | "open_source" | "regional" | "specialized";
+    riskLevel: "low" | "medium" | "high";
+    confidence: "high" | "medium" | "low";
+    model?: string;
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risk level and category
+    let severity: AlertSeverity;
+    if (params.provider === "unknown") {
+      severity = "high";
+    } else if (params.category === "regional") {
+      severity = params.riskLevel === "high" ? "high" : "medium";
+    } else {
+      severity = params.riskLevel === "high" ? "high" : "medium";
+    }
+
+    const isUnknown = params.provider === "unknown";
+    const title = isUnknown
+      ? `未知のAIサービス検出: ${params.domain}`
+      : `Shadow AI検出: ${params.providerDisplayName}`;
+
+    const description = isUnknown
+      ? "未承認のAIサービスへのアクセスを検出しました"
+      : `${params.providerDisplayName}（${params.category}）へのアクセスを検出`;
+
+    return createAlert({
+      category: "shadow_ai",
+      severity,
+      title,
+      description,
+      domain: params.domain,
+      details: {
+        type: "shadow_ai",
+        provider: params.provider,
+        providerDisplayName: params.providerDisplayName,
+        category: params.category,
+        riskLevel: params.riskLevel,
+        confidence: params.confidence,
+        model: params.model,
+      },
+    });
+  }
+
+  /**
+   * Create extension risk alert
+   */
+  async function alertExtension(params: {
+    extensionId: string;
+    extensionName: string;
+    riskLevel: "critical" | "high" | "medium" | "low";
+    riskScore: number;
+    flags: string[];
+    requestCount: number;
+    targetDomains: string[];
+  }): Promise<SecurityAlert | null> {
+    // 危険度に基づいてseverityを決定
+    let severity: AlertSeverity;
+    if (params.riskLevel === "critical") {
+      severity = "critical";
+    } else if (params.riskLevel === "high") {
+      severity = "high";
+    } else if (params.riskLevel === "medium") {
+      severity = "medium";
+    } else {
+      severity = "low";
+    }
+
+    const flagsPreview = params.flags.slice(0, 2).join(", ");
+
+    return createAlert({
+      category: "extension",
+      severity,
+      title: `危険な拡張機能: ${params.extensionName}`,
+      description: flagsPreview
+        ? `リスクフラグ: ${flagsPreview}`
+        : `リスクスコア: ${params.riskScore}`,
+      domain: "chrome-extension://" + params.extensionId,
+      details: {
+        type: "extension",
+        extensionId: params.extensionId,
+        extensionName: params.extensionName,
+        requestCount: params.requestCount,
+        targetDomains: params.targetDomains,
+      },
+    });
+  }
+
+  /**
    * Update alert status
    */
   async function updateAlertStatus(
@@ -339,11 +432,255 @@ export function createAlertManager(
     }
   }
 
+  /**
+   * Create data exfiltration alert
+   */
+  async function alertDataExfiltration(params: {
+    sourceDomain: string;
+    targetDomain: string;
+    bodySize: number;
+    method: string;
+    initiator: string;
+  }): Promise<SecurityAlert | null> {
+    const sizeKB = Math.round(params.bodySize / 1024);
+    const severity: AlertSeverity = sizeKB > 500 ? "critical" : "high";
+
+    return createAlert({
+      category: "data_exfiltration",
+      severity,
+      title: `大量データ送信検出: ${params.targetDomain}`,
+      description: `${params.sourceDomain}から${sizeKB}KBのデータを${params.targetDomain}に送信`,
+      domain: params.targetDomain,
+      details: {
+        type: "data_exfiltration",
+        sourceDomain: params.sourceDomain,
+        targetDomain: params.targetDomain,
+        bodySize: params.bodySize,
+        sizeKB,
+        method: params.method,
+        initiator: params.initiator,
+      },
+    });
+  }
+
+  /**
+   * Create credential theft alert
+   */
+  async function alertCredentialTheft(params: {
+    sourceDomain: string;
+    targetDomain: string;
+    formAction: string;
+    isSecure: boolean;
+    isCrossOrigin: boolean;
+    fieldType: string;
+    risks: string[];
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risks
+    const hasInsecureProtocol = params.risks.includes("insecure_protocol");
+    const severity: AlertSeverity = hasInsecureProtocol ? "critical" : "high";
+
+    const riskDescriptions: string[] = [];
+    if (hasInsecureProtocol) {
+      riskDescriptions.push("非HTTPS通信");
+    }
+    if (params.isCrossOrigin) {
+      riskDescriptions.push("クロスオリジン送信");
+    }
+
+    return createAlert({
+      category: "credential_theft",
+      severity,
+      title: `認証情報リスク: ${params.targetDomain}`,
+      description: `${params.fieldType}フィールドが${riskDescriptions.join(", ")}で送信されます`,
+      domain: params.targetDomain,
+      details: {
+        type: "credential_theft",
+        sourceDomain: params.sourceDomain,
+        targetDomain: params.targetDomain,
+        formAction: params.formAction,
+        isSecure: params.isSecure,
+        isCrossOrigin: params.isCrossOrigin,
+        fieldType: params.fieldType,
+        risks: params.risks,
+      },
+    });
+  }
+
+  /**
+   * Create supply chain risk alert
+   */
+  async function alertSupplyChainRisk(params: {
+    pageDomain: string;
+    resourceUrl: string;
+    resourceDomain: string;
+    resourceType: string;
+    hasIntegrity: boolean;
+    hasCrossorigin: boolean;
+    isCDN: boolean;
+    risks: string[];
+  }): Promise<SecurityAlert | null> {
+    // Determine severity based on risks
+    const isCDNWithoutSRI = params.isCDN && !params.hasIntegrity;
+    const severity: AlertSeverity = isCDNWithoutSRI ? "high" : "medium";
+
+    const riskDescriptions: string[] = [];
+    if (!params.hasIntegrity) {
+      riskDescriptions.push("SRIなし");
+    }
+    if (params.isCDN) {
+      riskDescriptions.push("CDN");
+    }
+    if (!params.hasCrossorigin) {
+      riskDescriptions.push("crossorigin属性なし");
+    }
+
+    return createAlert({
+      category: "supply_chain",
+      severity,
+      title: `サプライチェーンリスク: ${params.resourceDomain}`,
+      description: `${params.resourceType}が${riskDescriptions.join(", ")}で読み込まれています`,
+      domain: params.resourceDomain,
+      details: {
+        type: "supply_chain",
+        pageDomain: params.pageDomain,
+        resourceUrl: params.resourceUrl,
+        resourceDomain: params.resourceDomain,
+        resourceType: params.resourceType,
+        hasIntegrity: params.hasIntegrity,
+        hasCrossorigin: params.hasCrossorigin,
+        isCDN: params.isCDN,
+        risks: params.risks,
+      },
+    });
+  }
+
+  /**
+   * Create compliance violation alert
+   */
+  async function alertCompliance(params: {
+    pageDomain: string;
+    hasPrivacyPolicy: boolean;
+    hasTermsOfService: boolean;
+    hasCookiePolicy: boolean;
+    hasCookieBanner: boolean;
+    isCookieBannerGDPRCompliant: boolean;
+    hasLoginForm: boolean;
+  }): Promise<SecurityAlert | null> {
+    const violations: string[] = [];
+
+    // Check for violations
+    if (params.hasLoginForm) {
+      if (!params.hasPrivacyPolicy) violations.push("missing_privacy_policy");
+      if (!params.hasTermsOfService) violations.push("missing_terms_of_service");
+    }
+    if (!params.hasCookiePolicy) violations.push("missing_cookie_policy");
+    if (!params.hasCookieBanner) violations.push("missing_cookie_banner");
+    if (params.hasCookieBanner && !params.isCookieBannerGDPRCompliant) {
+      violations.push("non_compliant_cookie_banner");
+    }
+
+    // Don't create alert if no violations
+    if (violations.length === 0) return null;
+
+    // Determine severity based on violations
+    const hasLoginViolations =
+      params.hasLoginForm &&
+      (!params.hasPrivacyPolicy || !params.hasTermsOfService);
+    const severity: AlertSeverity = hasLoginViolations ? "high" : "medium";
+
+    const violationDescriptions: string[] = [];
+    if (violations.includes("missing_privacy_policy")) {
+      violationDescriptions.push("プライバシーポリシーなし");
+    }
+    if (violations.includes("missing_terms_of_service")) {
+      violationDescriptions.push("利用規約なし");
+    }
+    if (violations.includes("missing_cookie_policy")) {
+      violationDescriptions.push("クッキーポリシーなし");
+    }
+    if (violations.includes("missing_cookie_banner")) {
+      violationDescriptions.push("クッキーバナーなし");
+    }
+    if (violations.includes("non_compliant_cookie_banner")) {
+      violationDescriptions.push("GDPR非準拠バナー");
+    }
+
+    return createAlert({
+      category: "compliance",
+      severity,
+      title: `コンプライアンス違反: ${params.pageDomain}`,
+      description: violationDescriptions.join(", "),
+      domain: params.pageDomain,
+      details: {
+        type: "compliance",
+        pageDomain: params.pageDomain,
+        hasPrivacyPolicy: params.hasPrivacyPolicy,
+        hasTermsOfService: params.hasTermsOfService,
+        hasCookiePolicy: params.hasCookiePolicy,
+        hasCookieBanner: params.hasCookieBanner,
+        isCookieBannerGDPRCompliant: params.isCookieBannerGDPRCompliant,
+        hasLoginForm: params.hasLoginForm,
+        violations,
+      },
+    });
+  }
+
+  /**
+   * Create policy violation alert
+   */
+  async function alertPolicyViolation(params: {
+    domain: string;
+    ruleId: string;
+    ruleName: string;
+    ruleType: "domain" | "tool" | "ai" | "data_transfer";
+    action: "allow" | "block" | "warn";
+    matchedPattern: string;
+    target: string;
+  }): Promise<SecurityAlert | null> {
+    // Only create alert for block and warn actions
+    if (params.action === "allow") return null;
+
+    const severity: AlertSeverity = params.action === "block" ? "high" : "medium";
+
+    const actionLabel = params.action === "block" ? "ブロック" : "警告";
+    const ruleTypeLabels: Record<string, string> = {
+      domain: "ドメイン",
+      tool: "ツール",
+      ai: "AI",
+      data_transfer: "データ転送",
+    };
+    const ruleTypeLabel = ruleTypeLabels[params.ruleType] || params.ruleType;
+
+    return createAlert({
+      category: "policy_violation",
+      severity,
+      title: `ポリシー違反${actionLabel}: ${params.ruleName}`,
+      description: `${ruleTypeLabel}ルール「${params.ruleName}」に違反: ${params.target}`,
+      domain: params.domain,
+      details: {
+        type: "policy_violation",
+        ruleId: params.ruleId,
+        ruleName: params.ruleName,
+        ruleType: params.ruleType,
+        action: params.action,
+        matchedPattern: params.matchedPattern,
+        target: params.target,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
     alertTyposquat,
     alertAISensitive,
+    alertShadowAI,
+    alertExtension,
+    alertDataExfiltration,
+    alertCredentialTheft,
+    alertSupplyChainRisk,
+    alertCompliance,
+    alertPolicyViolation,
     updateAlertStatus,
     getAlerts,
     getAlertCount,

@@ -52,10 +52,12 @@ export type {
   ExtensionRequestRecord,
   DataRetentionConfig,
   DetectionConfig,
+  BlockingConfig,
 } from "./storage-types.js";
 export {
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
+  DEFAULT_BLOCKING_CONFIG,
 } from "./storage-types.js";
 
 // Extension Monitor
@@ -65,6 +67,32 @@ export {
   type ExtensionMonitor,
   type ExtensionInfo,
 } from "./extension-monitor.js";
+
+// Extension Risk Analyzer
+export {
+  DANGEROUS_PERMISSIONS,
+  analyzePermissions,
+  analyzeNetworkActivity,
+  calculateRiskScore,
+  scoreToRiskLevel,
+  generateRiskFlags,
+  analyzeExtensionRisk,
+  analyzeInstalledExtension,
+  type PermissionRiskCategory,
+  type PermissionRisk,
+  type ExtensionRiskAnalysis,
+  type NetworkRisk,
+  type RiskFlag,
+} from "./extension-risk-analyzer.js";
+
+// Blocking Engine
+export {
+  createBlockingEngine,
+  type BlockTarget,
+  type BlockDecision,
+  type BlockEvent,
+  type BlockingEngine,
+} from "./blocking-engine.js";
 
 // Logger
 export {

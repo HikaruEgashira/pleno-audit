@@ -17,11 +17,17 @@ export type AlertCategory =
   | "nrd" // Newly registered domain
   | "typosquat" // Typosquatting attempt
   | "data_leak" // Sensitive data exposure
+  | "data_exfiltration" // Large data transfer (potential exfiltration)
+  | "credential_theft" // Credential theft risk
+  | "supply_chain" // Supply chain attack risk (missing SRI)
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
+  | "shadow_ai" // Unauthorized/unknown AI service
   | "extension" // Suspicious extension activity
   | "login" // Login on suspicious site
-  | "policy"; // Missing privacy/ToS policy
+  | "policy" // Missing privacy/ToS policy
+  | "compliance" // GDPR/CCPA compliance violation
+  | "policy_violation"; // Enterprise policy violation
 
 /**
  * Alert status
@@ -57,11 +63,17 @@ export type AlertDetails =
   | NRDAlertDetails
   | TyposquatAlertDetails
   | DataLeakAlertDetails
+  | DataExfiltrationAlertDetails
+  | CredentialTheftAlertDetails
+  | SupplyChainAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
+  | ShadowAIAlertDetails
   | ExtensionAlertDetails
   | LoginAlertDetails
-  | PolicyAlertDetails;
+  | PolicyAlertDetails
+  | ComplianceAlertDetails
+  | PolicyViolationAlertDetails;
 
 export interface NRDAlertDetails {
   type: "nrd";
@@ -98,6 +110,16 @@ export interface AISensitiveAlertDetails {
   dataTypes: string[];
 }
 
+export interface ShadowAIAlertDetails {
+  type: "shadow_ai";
+  provider: string;
+  providerDisplayName: string;
+  category: "major" | "enterprise" | "open_source" | "regional" | "specialized";
+  riskLevel: "low" | "medium" | "high";
+  confidence: "high" | "medium" | "low";
+  model?: string;
+}
+
 export interface ExtensionAlertDetails {
   type: "extension";
   extensionId: string;
@@ -118,6 +140,61 @@ export interface PolicyAlertDetails {
   hasPrivacyPolicy: boolean;
   hasTermsOfService: boolean;
   hasLogin: boolean;
+}
+
+export interface DataExfiltrationAlertDetails {
+  type: "data_exfiltration";
+  sourceDomain: string;
+  targetDomain: string;
+  bodySize: number;
+  sizeKB: number;
+  method: string;
+  initiator: string;
+}
+
+export interface CredentialTheftAlertDetails {
+  type: "credential_theft";
+  sourceDomain: string;
+  targetDomain: string;
+  formAction: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
+}
+
+export interface SupplyChainAlertDetails {
+  type: "supply_chain";
+  pageDomain: string;
+  resourceUrl: string;
+  resourceDomain: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
+  risks: string[];
+}
+
+export interface ComplianceAlertDetails {
+  type: "compliance";
+  pageDomain: string;
+  hasPrivacyPolicy: boolean;
+  hasTermsOfService: boolean;
+  hasCookiePolicy: boolean;
+  hasCookieBanner: boolean;
+  isCookieBannerGDPRCompliant: boolean;
+  hasLoginForm: boolean;
+  violations: string[];
+}
+
+export interface PolicyViolationAlertDetails {
+  type: "policy_violation";
+  ruleId: string;
+  ruleName: string;
+  ruleType: "domain" | "tool" | "ai" | "data_transfer";
+  action: "allow" | "block" | "warn";
+  matchedPattern: string;
+  target: string;
 }
 
 /**

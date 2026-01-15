@@ -5,9 +5,12 @@ export type {
   LoginDetectedDetails,
   PrivacyPolicyFoundDetails,
   TosFoundDetails,
+  CookiePolicyFoundDetails,
+  CookieBannerDetectedDetails,
   CookieSetDetails,
   NRDDetectedDetails,
   ExtensionRequestDetails,
+  AISensitiveDataDetectedDetails,
   EventLogBase,
   EventLog,
   EventLogType,
@@ -55,6 +58,8 @@ export type {
   DetectionResult,
   PrivacyPolicyResult,
   TosResult,
+  CookiePolicyResult,
+  CookieBannerResult,
   LoginDetectionResult,
 } from "./types.js";
 
@@ -80,6 +85,17 @@ export {
   TOS_OG_PATTERNS,
   isTosUrl,
   isTosText,
+  // Cookie Policy Detection
+  COOKIE_POLICY_URL_PATTERNS,
+  COOKIE_POLICY_TEXT_PATTERNS,
+  COOKIE_JSONLD_KEYS,
+  COOKIE_LINK_REL_VALUES,
+  COOKIE_OG_PATTERNS,
+  COOKIE_BANNER_SELECTORS,
+  COOKIE_CONSENT_BUTTON_PATTERNS,
+  isCookiePolicyUrl,
+  isCookiePolicyText,
+  isCookieConsentButton,
   // Session Detection
   SESSION_COOKIE_PATTERNS,
   isSessionCookie,
@@ -96,6 +112,7 @@ export {
 // Detector factories
 export { createPrivacyFinder } from "./privacy-finder.js";
 export { createTosFinder } from "./tos-finder.js";
+export { createCookiePolicyFinder, createCookieBannerFinder } from "./cookie-finder.js";
 export { createLoginDetector } from "./login-detector.js";
 
 // Favicon Detection
@@ -112,6 +129,13 @@ export type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   AIMonitorConfig,
+  AIPromptPIIResult,
+  AIPromptRiskAssessment,
+  AIPromptAnalysisResult,
+  // Provider Classification Types
+  ExtendedProvider,
+  ProviderClassification,
+  ProviderInfo,
 } from "@pleno-audit/ai-detector";
 
 export {
@@ -121,6 +145,31 @@ export {
   extractModel,
   extractResponseContent,
   inferProviderFromResponse,
+  analyzePromptPII,
+  calculatePromptRiskScore,
+  scoreToRiskLevel,
+  assessPromptRisk,
+  analyzePrompt,
+  // Provider Classification Functions
+  classifyByModelName,
+  classifyByUrl,
+  classifyByResponseStructure,
+  classifyProvider,
+  getProviderInfo,
+  isShadowAI,
+  PROVIDER_INFO,
+  // DLP Rules
+  createDLPManager,
+  EXTENDED_DLP_RULES,
+  DEFAULT_DLP_CONFIG,
+} from "@pleno-audit/ai-detector";
+
+export type {
+  DLPRule,
+  DLPConfig,
+  DLPDetectionResult,
+  DLPAnalysisResult,
+  DLPManager,
 } from "@pleno-audit/ai-detector";
 
 // Typosquatting Detection (re-export from @pleno-audit/typosquat)
@@ -166,11 +215,17 @@ export type {
   NRDAlertDetails,
   TyposquatAlertDetails,
   DataLeakAlertDetails,
+  DataExfiltrationAlertDetails,
+  CredentialTheftAlertDetails,
+  SupplyChainAlertDetails,
   CSPAlertDetails,
   AISensitiveAlertDetails,
+  ShadowAIAlertDetails,
   ExtensionAlertDetails,
   LoginAlertDetails,
   PolicyAlertDetails,
+  ComplianceAlertDetails,
+  PolicyViolationAlertDetails,
   AlertAction,
   AlertRule,
   AlertCondition,
@@ -178,6 +233,17 @@ export type {
   AlertManager,
   AlertStore,
   AlertListener,
+  // Policy Types
+  PolicyAction,
+  PolicyMatchType,
+  DomainPolicyRule,
+  ToolPolicyRule,
+  AIPolicyRule,
+  DataTransferPolicyRule,
+  PolicyConfig,
+  PolicyViolation,
+  PolicyManager,
+  PolicyCheckResult,
 } from "@pleno-audit/alerts";
 
 export {
@@ -185,4 +251,11 @@ export {
   DEFAULT_ALERT_RULES,
   createAlertManager,
   createInMemoryAlertStore,
+  // Policy Manager
+  DEFAULT_POLICY_CONFIG,
+  POLICY_TEMPLATES,
+  SOCIAL_MEDIA_DOMAINS,
+  PRODUCTIVITY_DOMAINS,
+  COMMUNICATION_DOMAINS,
+  createPolicyManager,
 } from "@pleno-audit/alerts";
