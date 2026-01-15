@@ -63,6 +63,8 @@ export {
 // Extension Monitor
 export {
   createExtensionMonitor,
+  registerExtensionMonitorListener,
+  clearGlobalCallbacks,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   type ExtensionMonitor,
   type ExtensionInfo,

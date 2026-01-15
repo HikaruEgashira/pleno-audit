@@ -54,6 +54,7 @@ import {
   setStorage,
   clearAIPrompts,
   createExtensionMonitor,
+  registerExtensionMonitorListener,
   createLogger,
   analyzeInstalledExtension,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
@@ -2131,6 +2132,10 @@ async function handleDebugBridgeForward(
 }
 
 export default defineBackground(() => {
+  // MV3 Service Worker: webRequestリスナーを同期的にトップレベルで登録
+  // Service Workerの再起動時にリスナーが維持されるように、非同期関数の外で呼び出す
+  registerExtensionMonitorListener();
+
   registerMainWorldScript();
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
@@ -2178,7 +2183,9 @@ export default defineBackground(() => {
   })();
 
   // Extension Monitor初期化
-  initExtensionMonitor().catch((err) => logger.debug("Extension monitor init failed:", err));
+  initExtensionMonitor()
+    .then(() => logger.info("Extension monitor initialization completed"))
+    .catch((err) => logger.error("Extension monitor init failed:", err));
 
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
