@@ -49,3 +49,16 @@ jobs:
           files: extension.zip
           generate_release_notes: true
           make_latest: true
+
+      - name: Cleanup old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          KEEP_COUNT=10
+
+          gh release list --limit 1000 --json tagName,createdAt \
+            --jq "[.[] | select(.tagName | test(\"^v${VERSION}-[a-f0-9]+$\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
+            | while read -r tag; do
+              [ -n "$tag" ] && gh release delete "$tag" --yes --cleanup-tag && echo "Deleted: $tag"
+            done
