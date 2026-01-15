@@ -80,6 +80,12 @@ import {
 } from "@pleno-audit/storage";
 import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
 import { createAlertManager, type AlertManager, type SecurityAlert } from "@pleno-audit/alerts";
+import {
+  createThreatAnalyzer,
+  DEFAULT_THREAT_ANALYZER_CONFIG,
+  type ThreatAnalyzer,
+  type ThreatAnalysisResult,
+} from "@pleno-audit/threat-intel";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -159,6 +165,7 @@ const nrdCacheAdapter: NRDCache = {
 // Typosquatting Detection
 const typosquatCache: Map<string, TyposquatResult> = new Map();
 let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
+let threatAnalyzer: ThreatAnalyzer | null = null;
 
 const typosquatCacheAdapter: TyposquatCache = {
   get: (domain) => typosquatCache.get(domain) ?? null,
@@ -463,10 +470,44 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
       await initTyposquatDetector();
     }
 
+    // Initialize threat analyzer if not already done
+    if (!threatAnalyzer) {
+      threatAnalyzer = createThreatAnalyzer(DEFAULT_THREAT_ANALYZER_CONFIG);
+      threatAnalyzer.updateConfig({ enabled: true }); // Enable for internal use
+    }
+
     const result = checkTyposquat(domain);
 
+    // Enhance with threat intelligence analysis
+    const threatResult = threatAnalyzer.analyze(domain);
+    if (threatResult.threatScore > 0) {
+      logger.debug("Threat intelligence match:", {
+        domain,
+        threatScore: threatResult.threatScore,
+        riskLevel: threatResult.riskLevel,
+        matches: threatResult.matches.length,
+      });
+    }
+
+    // Boost confidence if threat intelligence also flagged the domain
+    const enhancedResult = { ...result };
+    if (threatResult.threatScore >= 40 && !result.isTyposquat) {
+      // High threat score but not detected as typosquat - add to event log
+      await addEvent({
+        type: "threat_intel_match",
+        domain,
+        timestamp: Date.now(),
+        details: {
+          threatScore: threatResult.threatScore,
+          riskLevel: threatResult.riskLevel,
+          hasHighRiskTLD: threatResult.hasHighRiskTLD,
+          matchCount: threatResult.matches.length,
+        },
+      });
+    }
+
     // Update service with typosquat result if it's a positive detection
-    if (result.isTyposquat) {
+    if (enhancedResult.isTyposquat) {
       await updateService(result.domain, {
         typosquatResult: {
           isTyposquat: result.isTyposquat,
