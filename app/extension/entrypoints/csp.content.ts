@@ -118,6 +118,27 @@ export default defineContentScript({
         });
       }) as EventListener
     );
+
+    // Listen for supply chain risk events from main world
+    window.addEventListener(
+      "__SUPPLY_CHAIN_RISK_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "SUPPLY_CHAIN_RISK_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            url: detail.url || "",
+            resourceType: detail.resourceType || "script",
+            hasIntegrity: detail.hasIntegrity ?? false,
+            hasCrossorigin: detail.hasCrossorigin ?? false,
+            isCDN: detail.isCDN ?? false,
+            risks: detail.risks || [],
+          },
+        });
+      }) as EventListener
+    );
   },
 });
 

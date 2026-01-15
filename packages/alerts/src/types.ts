@@ -19,6 +19,7 @@ export type AlertCategory =
   | "data_leak" // Sensitive data exposure
   | "data_exfiltration" // Large data transfer (potential exfiltration)
   | "credential_theft" // Credential theft risk
+  | "supply_chain" // Supply chain attack risk (missing SRI)
   | "csp_violation" // CSP policy violation
   | "ai_sensitive" // Sensitive data in AI prompt
   | "shadow_ai" // Unauthorized/unknown AI service
@@ -62,6 +63,7 @@ export type AlertDetails =
   | DataLeakAlertDetails
   | DataExfiltrationAlertDetails
   | CredentialTheftAlertDetails
+  | SupplyChainAlertDetails
   | CSPAlertDetails
   | AISensitiveAlertDetails
   | ShadowAIAlertDetails
@@ -154,6 +156,18 @@ export interface CredentialTheftAlertDetails {
   isSecure: boolean;
   isCrossOrigin: boolean;
   fieldType: string;
+  risks: string[];
+}
+
+export interface SupplyChainAlertDetails {
+  type: "supply_chain";
+  pageDomain: string;
+  resourceUrl: string;
+  resourceDomain: string;
+  resourceType: string;
+  hasIntegrity: boolean;
+  hasCrossorigin: boolean;
+  isCDN: boolean;
   risks: string[];
 }
 

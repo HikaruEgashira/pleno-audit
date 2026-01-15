@@ -195,6 +195,74 @@
     }
   }
 
+  // ===== SUPPLY CHAIN RISK DETECTION =====
+  // Helper to dispatch supply chain risk event
+  function sendSupplyChainRiskEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__SUPPLY_CHAIN_RISK_DETECTED__', { detail: data })
+    )
+  }
+
+  // Check if URL is from external domain
+  function isExternalResource(url) {
+    try {
+      const resourceUrl = new URL(url, window.location.origin)
+      return resourceUrl.hostname !== window.location.hostname
+    } catch {
+      return false
+    }
+  }
+
+  // Known CDN domains that should use SRI
+  const knownCDNs = [
+    'cdnjs.cloudflare.com',
+    'cdn.jsdelivr.net',
+    'unpkg.com',
+    'ajax.googleapis.com',
+    'code.jquery.com',
+    'stackpath.bootstrapcdn.com',
+    'maxcdn.bootstrapcdn.com',
+    'cdn.bootcdn.net',
+    'lib.baomitu.com',
+    'cdn.staticfile.org'
+  ]
+
+  function isKnownCDN(url) {
+    try {
+      const hostname = new URL(url, window.location.origin).hostname
+      return knownCDNs.some(cdn => hostname.includes(cdn))
+    } catch {
+      return false
+    }
+  }
+
+  // Check SRI (Subresource Integrity) for external scripts/stylesheets
+  function checkSupplyChainRisk(element, resourceType) {
+    const url = resourceType === 'script' ? element.src : element.href
+    if (!url || !isExternalResource(url)) return
+
+    const hasIntegrity = element.hasAttribute('integrity') && element.integrity
+    const hasCrossorigin = element.hasAttribute('crossorigin')
+    const isCDN = isKnownCDN(url)
+
+    // Risk: External resource without SRI
+    if (!hasIntegrity) {
+      const risks = ['missing_sri']
+      if (isCDN) risks.push('cdn_without_sri')
+      if (!hasCrossorigin) risks.push('missing_crossorigin')
+
+      sendSupplyChainRiskEvent({
+        url: url,
+        resourceType: resourceType,
+        hasIntegrity: false,
+        hasCrossorigin: hasCrossorigin,
+        isCDN: isCDN,
+        risks: risks,
+        timestamp: Date.now()
+      })
+    }
+  }
+
   // ===== Dynamic Resource Loading Monitor (MutationObserver) =====
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -221,6 +289,8 @@
             resourceType: 'script',
             timestamp: Date.now()
           })
+          // Check for supply chain risk (external script without SRI)
+          checkSupplyChainRisk(node, 'script')
         }
 
         // Link (stylesheet, etc.)
@@ -233,6 +303,10 @@
             resourceType: type,
             timestamp: Date.now()
           })
+          // Check for supply chain risk (external stylesheet without SRI)
+          if (node.rel === 'stylesheet') {
+            checkSupplyChainRisk(node, 'stylesheet')
+          }
         }
 
         // Iframe
