@@ -1,0 +1,11 @@
+export { ServicesTab } from "./ServicesTab";
+export { SessionsTab } from "./SessionsTab";
+export { RequestsTab } from "./RequestsTab";
+export { ShadowITTab } from "./ShadowITTab";
+export { PhishingTab } from "./PhishingTab";
+export { MalwareTab } from "./MalwareTab";
+export { DataExfiltrationTab } from "./DataExfiltrationTab";
+export { CredentialTheftTab } from "./CredentialTheftTab";
+export { ComplianceTab } from "./ComplianceTab";
+export { SupplyChainTab } from "./SupplyChainTab";
+export { PolicyEnforcementTab } from "./PolicyEnforcementTab";
