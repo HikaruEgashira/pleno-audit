@@ -17,6 +17,7 @@ export type IntegrationType =
   | "github" // GitHub issues
   | "pagerduty" // PagerDuty alerts
   | "splunk" // Splunk SIEM
+  | "wiz" // Wiz Security
   | "custom"; // Custom integration
 
 /**

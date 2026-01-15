@@ -16,6 +16,7 @@ export type {
   EmailConfig,
   JiraConfig,
   GitHubConfig,
+  WizConfig,
   IntegrationTrigger,
   TriggerEvent,
   TriggerCondition,

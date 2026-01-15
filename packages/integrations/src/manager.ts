@@ -4,6 +4,7 @@
  * Manages external integrations and workflow automation.
  */
 
+import { createLogger } from "@pleno-audit/extension-runtime";
 import type {
   Integration,
   IntegrationType,
@@ -12,6 +13,8 @@ import type {
   IntegrationPayload,
   Workflow,
   WorkflowAction,
+  WebhookConfig,
+  SlackConfig,
 } from "./types.js";
 
 export interface IntegrationStore {
@@ -145,16 +148,48 @@ export function createIntegrationManager(
     const integration = integrations.find((i) => i.id === id);
     if (!integration) return false;
 
-    try {
-      // For webhook/slack, try a test request
-      // TODO: Make actual HTTP request in production
+    const logger = createLogger("integrations");
+    logger.info(`Testing integration: ${integration.name}`, {
+      type: integration.type,
+    });
 
-      await updateIntegration(id, { status: "active" });
+    try {
+      const { config } = integration;
+
+      if (config.type === "webhook") {
+        const webhookConfig = config as WebhookConfig;
+        // Use no-cors mode to check endpoint reachability
+        await fetch(webhookConfig.url, {
+          method: "HEAD",
+          mode: "no-cors",
+        });
+        logger.info(`Webhook endpoint reachable`);
+      } else if (config.type === "slack") {
+        const slackConfig = config as SlackConfig;
+        // Send a test message to verify webhook
+        const testPayload = {
+          text: "[Pleno Audit] 接続テスト成功 ✓",
+        };
+        const response = await fetch(slackConfig.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(testPayload),
+        });
+        if (!response.ok) {
+          throw new Error(`Slack: ${response.status}`);
+        }
+        logger.info(`Slack webhook test successful`);
+      }
+
+      await updateIntegration(id, { status: "active", errorMessage: undefined });
       return true;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error(`Integration test failed: ${errorMessage}`);
       await updateIntegration(id, {
         status: "error",
-        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        errorMessage,
       });
       return false;
     }
@@ -189,19 +224,81 @@ export function createIntegrationManager(
     integration: Integration,
     payload: IntegrationPayload
   ): Promise<void> {
+    const logger = createLogger("integrations");
     const { config } = integration;
 
     if (config.type === "webhook") {
-      // TODO: In production, make actual HTTP request to config.url
-      void payload; // Consume payload to avoid unused variable warning
+      const webhookConfig = config as WebhookConfig;
+      logger.info(`Sending webhook to ${webhookConfig.url}`, {
+        event: payload.event,
+      });
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...webhookConfig.headers,
+      };
+
+      if (webhookConfig.secretKey) {
+        headers["X-Signature"] = await computeHmacSignature(
+          JSON.stringify(payload),
+          webhookConfig.secretKey
+        );
+      }
+
+      const response = await fetch(webhookConfig.url, {
+        method: webhookConfig.method,
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+      }
+      logger.info(`Webhook sent successfully`, { status: response.status });
     } else if (config.type === "slack") {
-      // Format Slack message
-      formatSlackMessage(payload);
-      // TODO: In production, send to config.webhookUrl
+      const slackConfig = config as SlackConfig;
+      const slackPayload = formatSlackMessage(payload);
+
+      logger.info(`Sending Slack message`, { event: payload.event });
+
+      const response = await fetch(slackConfig.webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(slackPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Slack webhook failed: ${response.status}`);
+      }
+      logger.info(`Slack message sent successfully`);
     } else if (config.type === "email") {
-      // TODO: In production, send email to config.recipients
-      void payload;
+      logger.warn(`Email integration not supported in browser extension`);
     }
+  }
+
+  /**
+   * Compute HMAC-SHA256 signature using Web Crypto API
+   */
+  async function computeHmacSignature(
+    data: string,
+    secret: string
+  ): Promise<string> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signature = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(data)
+    );
+    return Array.from(new Uint8Array(signature))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   /**
@@ -363,26 +460,57 @@ export function createIntegrationManager(
    */
   async function executeAction(
     action: WorkflowAction,
-    _payload?: IntegrationPayload
+    payload?: IntegrationPayload
   ): Promise<void> {
+    const logger = createLogger("integrations");
+    logger.info(`Executing workflow action: ${action.type}`, {
+      actionId: action.id,
+    });
+
     switch (action.type) {
-      case "send_notification":
+      case "send_notification": {
         // Send notification through configured channel
+        const channel = action.config.channel as string;
+        const integrations = await internalStore.getIntegrations();
+        const targetIntegration = integrations.find(
+          (i) => i.type === channel && i.status === "active"
+        );
+
+        if (targetIntegration && payload) {
+          await triggerIntegration(targetIntegration.id, payload);
+        } else {
+          logger.warn(`No active integration found for channel: ${channel}`);
+        }
         break;
+      }
+      case "log_event": {
+        // Log event with payload details
+        logger.info(`[Workflow Event]`, {
+          actionId: action.id,
+          payload: payload
+            ? {
+                event: payload.event,
+                severity: payload.severity,
+                domain: payload.domain,
+              }
+            : null,
+        });
+        break;
+      }
+      case "run_integration": {
+        // Trigger a specific integration
+        const integrationId = action.config.integrationId as string;
+        if (integrationId && payload) {
+          await triggerIntegration(integrationId, payload);
+        }
+        break;
+      }
       case "create_ticket":
-        // Create ticket in configured system
-        break;
       case "block_domain":
-        // Add domain to blocklist
-        break;
       case "add_to_watchlist":
-        // Add to monitoring watchlist
-        break;
       case "generate_report":
-        // Generate report
-        break;
-      case "log_event":
-        // Log event - handled by integration system
+        // Not implemented - requires external service integration
+        logger.warn(`Action not implemented: ${action.type}`);
         break;
     }
   }

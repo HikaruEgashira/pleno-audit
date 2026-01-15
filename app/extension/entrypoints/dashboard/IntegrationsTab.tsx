@@ -13,13 +13,14 @@ import {
 import {
   Plug,
   Play,
-  Pause,
   Trash2,
   Zap,
   Mail,
   MessageSquare,
   Globe,
   GitBranch,
+  Settings,
+  X,
 } from "lucide-preact";
 import { useTheme, spacing, type ThemeColors } from "../../lib/theme";
 import { Badge, Button, Card, StatCard, EmptyState, StatsGrid } from "../../components";
@@ -44,16 +45,110 @@ function getIntegrationIcon(type: string) {
   }
 }
 
+interface EditDialogProps {
+  integration: Integration;
+  onSave: (id: string, config: IntegrationConfig) => void;
+  onClose: () => void;
+}
+
+function EditDialog({ integration, onSave, onClose }: EditDialogProps) {
+  const { colors } = useTheme();
+  const [url, setUrl] = useState(() => {
+    const config = integration.config;
+    if (config.type === "webhook") return (config as WebhookConfig).url;
+    if (config.type === "slack") return (config as SlackConfig).webhookUrl;
+    return "";
+  });
+
+  const handleSave = () => {
+    let newConfig: IntegrationConfig;
+    if (integration.config.type === "slack") {
+      newConfig = { ...integration.config, webhookUrl: url } as SlackConfig;
+    } else {
+      newConfig = { ...integration.config, url } as WebhookConfig;
+    }
+    onSave(integration.id, newConfig);
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: colors.bgPrimary,
+          borderRadius: "12px",
+          padding: "24px",
+          width: "480px",
+          maxWidth: "90vw",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+          <h3 style={{ margin: 0, fontSize: "16px" }}>{integration.name} 設定</h3>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: colors.textMuted }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontSize: "12px", color: colors.textSecondary, marginBottom: "4px" }}>
+            {integration.config.type === "slack" ? "Slack Webhook URL" : "Webhook URL"}
+          </label>
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl((e.target as HTMLInputElement).value)}
+            placeholder={integration.config.type === "slack" ? "https://hooks.slack.com/services/..." : "https://example.com/webhook"}
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: "6px",
+              border: `1px solid ${colors.border}`,
+              background: colors.bgSecondary,
+              color: colors.textPrimary,
+              fontSize: "13px",
+            }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={onClose}>キャンセル</Button>
+          <Button variant="primary" onClick={handleSave}>保存</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface IntegrationCardProps {
   integration: Integration;
   onToggle: (id: string) => void;
   onTest: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (integration: Integration) => void;
 }
 
-function IntegrationCard({ integration, onToggle, onTest, onDelete }: IntegrationCardProps) {
+function IntegrationCard({ integration, onToggle, onTest, onDelete, onEdit }: IntegrationCardProps) {
   const { colors } = useTheme();
   const statusColor = getStatusColor(integration.status, colors);
+
+  const configUrl = integration.config.type === "slack"
+    ? (integration.config as SlackConfig).webhookUrl
+    : (integration.config as WebhookConfig).url;
 
   return (
     <div
@@ -95,8 +190,23 @@ function IntegrationCard({ integration, onToggle, onTest, onDelete }: Integratio
               {integration.status}
             </span>
           </div>
-          <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "8px" }}>
+          <div style={{ fontSize: "12px", color: colors.textSecondary, marginBottom: "4px" }}>
             {integration.type} • {integration.triggers.filter(t => t.enabled).length} triggers
+          </div>
+          <div
+            style={{
+              fontSize: "11px",
+              color: colors.textMuted,
+              marginBottom: "8px",
+              fontFamily: "monospace",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: "300px",
+            }}
+            title={configUrl}
+          >
+            {configUrl}
           </div>
           {integration.errorMessage && (
             <div style={{ fontSize: "11px", color: colors.dot.danger, marginBottom: "8px" }}>
@@ -109,12 +219,20 @@ function IntegrationCard({ integration, onToggle, onTest, onDelete }: Integratio
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onEdit(integration)}
+            title="設定"
+          >
+            <Settings size={14} />
+          </Button>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => onTest(integration.id)}
-            title="Test"
+            title="テスト"
           >
             <Play size={14} />
           </Button>
@@ -122,15 +240,14 @@ function IntegrationCard({ integration, onToggle, onTest, onDelete }: Integratio
             size="sm"
             variant={integration.status === "active" ? "primary" : "secondary"}
             onClick={() => onToggle(integration.id)}
-            title={integration.status === "active" ? "Disable" : "Enable"}
           >
-            {integration.status === "active" ? <Pause size={14} /> : <Play size={14} />}
+            {integration.status === "active" ? "有効" : "無効"}
           </Button>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => onDelete(integration.id)}
-            title="Delete"
+            title="削除"
           >
             <Trash2 size={14} />
           </Button>
@@ -197,12 +314,12 @@ function WorkflowCard({ workflow, onToggle, onRun, onDelete }: WorkflowCardProps
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => onRun(workflow.id)}
-            title="Run"
+            title="実行"
             disabled={!workflow.enabled}
           >
             <Play size={14} />
@@ -212,12 +329,13 @@ function WorkflowCard({ workflow, onToggle, onRun, onDelete }: WorkflowCardProps
             variant={workflow.enabled ? "primary" : "secondary"}
             onClick={() => onToggle(workflow.id)}
           >
-            {workflow.enabled ? <Pause size={14} /> : <Play size={14} />}
+            {workflow.enabled ? "有効" : "無効"}
           </Button>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => onDelete(workflow.id)}
+            title="削除"
           >
             <Trash2 size={14} />
           </Button>
@@ -233,6 +351,7 @@ export function IntegrationsTab() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activeView, setActiveView] = useState<"integrations" | "workflows">("integrations");
   const [_showAddDialog, setShowAddDialog] = useState(false);
+  const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
 
   const manager = useMemo(() => createIntegrationManager(), []);
 
@@ -263,6 +382,16 @@ export function IntegrationsTab() {
   const handleDeleteIntegration = useCallback(async (id: string) => {
     if (!confirm("この連携を削除しますか？")) return;
     await manager.removeIntegration(id);
+    await loadData();
+  }, [manager, loadData]);
+
+  const handleEditIntegration = useCallback((integration: Integration) => {
+    setEditingIntegration(integration);
+  }, []);
+
+  const handleSaveIntegration = useCallback(async (id: string, config: IntegrationConfig) => {
+    await manager.updateIntegration(id, { config });
+    setEditingIntegration(null);
     await loadData();
   }, [manager, loadData]);
 
@@ -336,6 +465,15 @@ export function IntegrationsTab() {
 
   return (
     <div>
+      {/* Edit Dialog */}
+      {editingIntegration && (
+        <EditDialog
+          integration={editingIntegration}
+          onSave={handleSaveIntegration}
+          onClose={() => setEditingIntegration(null)}
+        />
+      )}
+
       {/* Stats */}
       <div style={{ marginBottom: spacing.xl }}>
         <StatsGrid>
@@ -415,6 +553,7 @@ export function IntegrationsTab() {
                     onToggle={handleToggleIntegration}
                     onTest={handleTestIntegration}
                     onDelete={handleDeleteIntegration}
+                    onEdit={handleEditIntegration}
                   />
                 ))}
               </div>

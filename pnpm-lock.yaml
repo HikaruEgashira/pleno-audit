@@ -227,7 +227,11 @@ importers:
         specifier: workspace:*
         version: link:../detectors
 
-  packages/integrations: {}
+  packages/integrations:
+    dependencies:
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
 
   packages/nrd: {}
 
