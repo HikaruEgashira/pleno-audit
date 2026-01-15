@@ -733,15 +733,15 @@ export function compareToBenchmark(
     {
       metric: "Data Breach Risk",
       organizationScore: metrics.dataBreachRisk,
-      benchmarkScore: benchmark.avgDataBreach Risk,
-      gap: metrics.dataBreachRisk - benchmark.avgDataBreach Risk,
+      benchmarkScore: benchmark.avgDataBreachRisk,
+      gap: metrics.dataBreachRisk - benchmark.avgDataBreachRisk,
       percentile: calculatePercentile(
         metrics.dataBreachRisk,
-        benchmark.avgDataBreach Risk,
+        benchmark.avgDataBreachRisk,
         20
       ),
       recommendation:
-        metrics.dataBreachRisk > benchmark.avgDataBreach Risk
+        metrics.dataBreachRisk > benchmark.avgDataBreachRisk
           ? "データ漏洩リスクが高いです。データ保護メカニズムを強化してください。"
           : "データ保護が良好です。継続して対策を実施してください。",
     },
@@ -884,7 +884,7 @@ function calculateRanking(
   const gaps = [
     metrics.riskScore - benchmark.avgRiskScore,
     benchmark.avgAnomalyDetectionRate - metrics.anomalyDetectionRate,
-    metrics.dataBreachRisk - benchmark.avgDataBreach Risk,
+    metrics.dataBreachRisk - benchmark.avgDataBreachRisk,
     metrics.cspViolationRate - benchmark.avgCSPViolationRate,
     benchmark.avgComplianceScore - metrics.complianceScore,
     metrics.aiSecurityScore - benchmark.avgAISecurityScore,

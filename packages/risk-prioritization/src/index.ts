@@ -26,3 +26,15 @@ export {
   type RiskPrioritizer,
   type RiskInput,
 } from "./prioritizer.js";
+
+// Benchmark
+export {
+  compareToBenchmark,
+  type Industry,
+  type CompanySize,
+  type RiskBenchmark,
+  type OrganizationMetrics,
+  type BenchmarkComparison,
+  type PerformanceGap,
+  type BenchmarkRank,
+} from "./benchmark.js";
