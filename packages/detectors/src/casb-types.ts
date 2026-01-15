@@ -56,6 +56,12 @@ export interface DetectedService {
     hasAIActivity: boolean;
     lastActivityAt: number;
     providers: InferredProvider[];
+    /** 機密情報が検出されたか */
+    hasSensitiveData?: boolean;
+    /** 検出された機密情報の種類 */
+    sensitiveDataTypes?: string[];
+    /** 最大リスクレベル */
+    riskLevel?: "critical" | "high" | "medium" | "low" | "info";
   };
 }
 
@@ -125,6 +131,17 @@ export interface ExtensionRequestDetails {
   statusCode?: number;
 }
 
+/** AI機密情報検出イベントの詳細 */
+export interface AISensitiveDataDetectedDetails {
+  provider: string;
+  model?: string;
+  classifications: string[];
+  highestRisk: string | null;
+  detectionCount: number;
+  riskScore: number;
+  riskLevel: string;
+}
+
 /**
  * イベントログ基底型
  * - Discriminated Union パターンで型安全なイベント処理を実現
@@ -150,6 +167,7 @@ export type EventLogBase<T extends string, D> = {
  * - nrd_detected: NRD判定検出
  * - typosquat_detected: タイポスクワッティング検出
  * - extension_request: 拡張機能のネットワークリクエスト
+ * - ai_sensitive_data_detected: AI機密情報検出
  */
 export type EventLog =
   | EventLogBase<"login_detected", LoginDetectedDetails>
@@ -162,6 +180,7 @@ export type EventLog =
   | EventLogBase<"ai_response_received", AIResponseReceivedDetails>
   | EventLogBase<"nrd_detected", NRDDetectedDetails>
   | EventLogBase<"typosquat_detected", TyposquatDetectedDetails>
-  | EventLogBase<"extension_request", ExtensionRequestDetails>;
+  | EventLogBase<"extension_request", ExtensionRequestDetails>
+  | EventLogBase<"ai_sensitive_data_detected", AISensitiveDataDetectedDetails>;
 
 export type EventLogType = EventLog["type"];

@@ -21,6 +21,11 @@ export type {
   PermissionExport,
   ComplianceExport,
   ComplianceControlExport,
+  // Audit log export types
+  EventLogExport,
+  AIPromptExport,
+  DetectedServiceExport,
+  AuditLogExportOptions,
 } from "./types.js";
 
 // Exporter functions
@@ -36,3 +41,17 @@ export {
   exportReportToMarkdown,
   exportReportToHTML,
 } from "./exporter.js";
+
+// Audit log exporter functions
+export {
+  exportEventsToCSV,
+  exportEventsToJSON,
+  exportAIPromptsToCSV,
+  exportAIPromptsToJSON,
+  exportDetectedServicesToCSV,
+  exportDetectedServicesToJSON,
+  exportAuditLogToJSON,
+  createExportBlob,
+  generateExportFilename,
+  type AuditLogData,
+} from "./audit-exporter.js";

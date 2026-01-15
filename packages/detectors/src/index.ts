@@ -8,6 +8,7 @@ export type {
   CookieSetDetails,
   NRDDetectedDetails,
   ExtensionRequestDetails,
+  AISensitiveDataDetectedDetails,
   EventLogBase,
   EventLog,
   EventLogType,
@@ -112,6 +113,9 @@ export type {
   AIPromptSentDetails,
   AIResponseReceivedDetails,
   AIMonitorConfig,
+  AIPromptPIIResult,
+  AIPromptRiskAssessment,
+  AIPromptAnalysisResult,
 } from "@pleno-audit/ai-detector";
 
 export {
@@ -121,6 +125,11 @@ export {
   extractModel,
   extractResponseContent,
   inferProviderFromResponse,
+  analyzePromptPII,
+  calculatePromptRiskScore,
+  scoreToRiskLevel,
+  assessPromptRisk,
+  analyzePrompt,
 } from "@pleno-audit/ai-detector";
 
 // Typosquatting Detection (re-export from @pleno-audit/typosquat)
