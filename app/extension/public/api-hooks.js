@@ -257,4 +257,89 @@
       observer.observe(document.body, { childList: true, subtree: true })
     })
   }
+
+  // ===== CREDENTIAL THEFT DETECTION =====
+  // Helper to dispatch credential theft event
+  function sendCredentialTheftEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__CREDENTIAL_THEFT_DETECTED__', { detail: data })
+    )
+  }
+
+  // Check if form contains password or sensitive fields
+  function hasSensitiveFields(form) {
+    const sensitiveTypes = ['password', 'email', 'tel', 'credit-card']
+    const sensitiveNames = ['password', 'passwd', 'pwd', 'pass', 'secret', 'token', 'api_key', 'apikey', 'credit', 'card', 'cvv', 'ssn']
+
+    const inputs = form.querySelectorAll('input')
+    for (const input of inputs) {
+      const type = (input.type || '').toLowerCase()
+      const name = (input.name || '').toLowerCase()
+      const id = (input.id || '').toLowerCase()
+      const autocomplete = (input.autocomplete || '').toLowerCase()
+
+      // Check input type
+      if (sensitiveTypes.includes(type)) return { hasSensitive: true, fieldType: type }
+
+      // Check input name/id for sensitive patterns
+      for (const pattern of sensitiveNames) {
+        if (name.includes(pattern) || id.includes(pattern)) {
+          return { hasSensitive: true, fieldType: pattern }
+        }
+      }
+
+      // Check autocomplete attribute
+      if (autocomplete.includes('password') || autocomplete.includes('cc-')) {
+        return { hasSensitive: true, fieldType: autocomplete }
+      }
+    }
+
+    return { hasSensitive: false, fieldType: null }
+  }
+
+  // Monitor form submissions
+  document.addEventListener('submit', (event) => {
+    const form = event.target
+    if (!(form instanceof HTMLFormElement)) return
+
+    try {
+      const action = form.action || window.location.href
+      const actionUrl = new URL(action, window.location.origin)
+      const isSecure = actionUrl.protocol === 'https:'
+      const targetDomain = actionUrl.hostname
+      const currentDomain = window.location.hostname
+      const isCrossOrigin = targetDomain !== currentDomain
+
+      const { hasSensitive, fieldType } = hasSensitiveFields(form)
+
+      // Only alert if form contains sensitive fields
+      if (hasSensitive) {
+        const risks = []
+
+        // Risk 1: Non-HTTPS submission
+        if (!isSecure) {
+          risks.push('insecure_protocol')
+        }
+
+        // Risk 2: Cross-origin submission
+        if (isCrossOrigin) {
+          risks.push('cross_origin')
+        }
+
+        // Always report sensitive form submissions for monitoring
+        sendCredentialTheftEvent({
+          formAction: actionUrl.href,
+          targetDomain: targetDomain,
+          method: (form.method || 'GET').toUpperCase(),
+          isSecure: isSecure,
+          isCrossOrigin: isCrossOrigin,
+          fieldType: fieldType,
+          risks: risks,
+          timestamp: Date.now()
+        })
+      }
+    } catch {
+      // Skip detection on invalid form action
+    }
+  }, true)
 })()

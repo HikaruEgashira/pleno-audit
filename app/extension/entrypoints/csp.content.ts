@@ -96,6 +96,27 @@ export default defineContentScript({
         });
       }) as EventListener
     );
+
+    // Listen for credential theft events from main world
+    window.addEventListener(
+      "__CREDENTIAL_THEFT_DETECTED__",
+      ((event: CustomEvent) => {
+        safeSendMessage({
+          type: "CREDENTIAL_THEFT_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            formAction: event.detail.formAction,
+            targetDomain: event.detail.targetDomain,
+            method: event.detail.method,
+            isSecure: event.detail.isSecure,
+            isCrossOrigin: event.detail.isCrossOrigin,
+            fieldType: event.detail.fieldType,
+            risks: event.detail.risks,
+          },
+        });
+      }) as EventListener
+    );
   },
 });
 

@@ -306,6 +306,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: DataExfiltrationDetectedDetails;
+    }
+  | {
+      type: "credential_theft_risk";
+      domain: string;
+      timestamp: number;
+      details: CredentialTheftRiskDetails;
     };
 
 /** AI機密情報検出イベント詳細 */
@@ -326,6 +332,18 @@ interface DataExfiltrationDetectedDetails {
   method: string;
   bodySize: number;
   initiator: string;
+  pageUrl: string;
+}
+
+/** 認証情報窃取リスクイベント詳細 */
+interface CredentialTheftRiskDetails {
+  formAction: string;
+  targetDomain: string;
+  method: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
   pageUrl: string;
 }
 
@@ -1249,6 +1267,64 @@ async function handleDataExfiltration(
   return { success: true };
 }
 
+interface CredentialTheftData {
+  timestamp: string;
+  pageUrl: string;
+  formAction: string;
+  targetDomain: string;
+  method: string;
+  isSecure: boolean;
+  isCrossOrigin: boolean;
+  fieldType: string;
+  risks: string[];
+}
+
+async function handleCredentialTheft(
+  data: CredentialTheftData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the credential theft risk event
+  await addEvent({
+    type: "credential_theft_risk",
+    domain: data.targetDomain,
+    timestamp: Date.now(),
+    details: {
+      formAction: data.formAction,
+      targetDomain: data.targetDomain,
+      method: data.method,
+      isSecure: data.isSecure,
+      isCrossOrigin: data.isCrossOrigin,
+      fieldType: data.fieldType,
+      risks: data.risks,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Only fire alert if there are actual risks
+  if (data.risks.length > 0) {
+    await getAlertManager().alertCredentialTheft({
+      sourceDomain: pageDomain,
+      targetDomain: data.targetDomain,
+      formAction: data.formAction,
+      isSecure: data.isSecure,
+      isCrossOrigin: data.isCrossOrigin,
+      fieldType: data.fieldType,
+      risks: data.risks,
+    });
+
+    logger.warn("Credential theft risk detected:", {
+      from: pageDomain,
+      to: data.targetDomain,
+      fieldType: data.fieldType,
+      risks: data.risks.join(", "),
+    });
+  }
+
+  return { success: true };
+}
+
 function extractDomainFromUrl(url: string): string {
   try {
     return new URL(url).hostname;
@@ -1816,6 +1892,13 @@ export default defineBackground(() => {
 
     if (message.type === "DATA_EXFILTRATION_DETECTED") {
       handleDataExfiltration(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CREDENTIAL_THEFT_DETECTED") {
+      handleCredentialTheft(message.data, sender)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
