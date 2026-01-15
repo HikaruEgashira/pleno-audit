@@ -202,7 +202,7 @@ export function parquetRecordToCspViolation(
     directive: record.directive as string,
     blockedURL: record.blockedURL as string,
     domain: record.domain as string,
-    disposition: (record.disposition as "enforce" | "report" | null) || undefined,
+    disposition: (record.disposition as "enforce" | "report" | null) ?? "report",
     originalPolicy: (record.originalPolicy as string | null) || undefined,
     sourceFile: (record.sourceFile as string | null) || undefined,
     lineNumber: (record.lineNumber as number | null) || undefined,
@@ -273,14 +273,17 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export function getDateString(timestamp?: number | string): string {
-  const date = new Date(
-    typeof timestamp === "number"
+export function getDateString(timestamp?: number | string | Date): string {
+  const date =
+    timestamp instanceof Date
       ? timestamp
-      : timestamp
-      ? new Date(timestamp).getTime()
-      : Date.now()
-  );
+      : new Date(
+          typeof timestamp === "number"
+            ? timestamp
+            : timestamp
+              ? new Date(timestamp).getTime()
+              : Date.now()
+        );
   return date.toISOString().split("T")[0];
 }
 

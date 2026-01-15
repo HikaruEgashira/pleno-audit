@@ -21,7 +21,8 @@ export type RiskCategory =
   | "policy_violation" // Security policy breach
   | "excessive_permission" // Over-privileged access
   | "ai_data_leak" // AI service data exposure
-  | "extension_risk"; // Browser extension risk
+  | "extension_risk" // Browser extension risk
+  | "unmonitored_service"; // Unclassified/low risk service
 
 /**
  * Risk factor contributing to score

@@ -204,7 +204,7 @@ describe("parquetRecordToCspViolation", () => {
 
     const violation = parquetRecordToCspViolation(record);
 
-    expect(violation.disposition).toBeUndefined();
+    expect(violation.disposition).toBe("report"); // defaults to "report" when null
     expect(violation.originalPolicy).toBeUndefined();
     expect(violation.sourceFile).toBeUndefined();
     expect(violation.lineNumber).toBeUndefined();

@@ -266,9 +266,9 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "chat.openai.com",
           details: {
-            inferredProvider: "openai",
+            provider: "openai",
             model: "gpt-4",
-            promptContent: { text: "Hello world" },
+            promptPreview: "Hello world", contentSize: 100,
           },
         }),
       ];
@@ -287,8 +287,8 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
-            promptContent: { text: "Test prompt" },
+            provider: "openai",
+            promptPreview: "Test prompt", contentSize: 100,
           },
         }),
       ];
@@ -305,18 +305,18 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
+            provider: "openai",
             model: "gpt-4",
-            promptContent: { text: "First prompt" },
+            promptPreview: "First prompt", contentSize: 100,
           },
         }),
         createMockEvent({
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
+            provider: "openai",
             model: "gpt-3.5",
-            promptContent: { text: "Second prompt" },
+            promptPreview: "Second prompt", contentSize: 100,
           },
         }),
       ];
@@ -338,16 +338,16 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
-            promptContent: { text: "First" },
+            provider: "openai",
+            promptPreview: "First", contentSize: 100,
           },
         }),
         createMockEvent({
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
-            promptContent: { text: "Second" },
+            provider: "openai",
+            promptPreview: "Second", contentSize: 100,
           },
         }),
       ];
@@ -365,15 +365,15 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
-            promptContent: { text: "Hello" },
+            provider: "openai",
+            promptPreview: "Hello", contentSize: 100,
           },
         }),
         createMockEvent({
           type: "ai_response_received",
           domain: "example.com",
           details: {
-            inferredProvider: "openai",
+            provider: "openai",
             responseSize: 1000,
           },
         }),
@@ -457,8 +457,8 @@ describe("buildSecurityGraph", () => {
           type: "ai_prompt_sent",
           domain: "suspicious.xyz",
           details: {
-            inferredProvider: "openai",
-            promptContent: { text: "My password is secret123 and my SSN is 123-45-6789" },
+            provider: "openai",
+            promptPreview: "My password is secret123 and my SSN is 123-45-6789", contentSize: 100,
           },
         }),
       ];
@@ -702,7 +702,7 @@ describe("edge cases", () => {
         type: "ai_prompt_sent",
         domain: "example.com",
         details: {
-          promptContent: { text: "test" },
+          promptPreview: "test", contentSize: 100,
         },
       }),
     ];
@@ -719,7 +719,7 @@ describe("edge cases", () => {
         type: "ai_prompt_sent",
         domain: "example.com",
         details: {
-          inferredProvider: "openai",
+          provider: "openai",
         },
       }),
     ];
