@@ -119,6 +119,7 @@
 | DLPルールテスト | DLPパターン・マネージャーテスト (34テスト) | 高 | #74 |
 
 | UIコンポーネントテスト | Badge, Button, StatCard, Card, Select, EmptyStateのテスト (47テスト) | 中 | #75 |
+| Policy Engineテスト | ポリシーエンジンの条件評価・違反管理テスト (35テスト) | 高 | - |
 
 ## 成功指標
 
