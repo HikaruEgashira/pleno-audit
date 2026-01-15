@@ -267,11 +267,7 @@ importers:
 
   packages/policy-engine: {}
 
-  packages/predictive-analysis:
-    devDependencies:
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
+  packages/predictive-analysis: {}
 
   packages/risk-prioritization: {}
 
@@ -289,11 +285,7 @@ importers:
         specifier: workspace:*
         version: link:../detectors
 
-  packages/threat-intel:
-    devDependencies:
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
+  packages/threat-intel: {}
 
   packages/typosquat: {}
 
