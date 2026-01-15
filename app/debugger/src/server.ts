@@ -7,8 +7,63 @@
  */
 import { WebSocketServer, WebSocket } from "ws";
 import { EventEmitter } from "node:events";
+import { execSync } from "node:child_process";
+import { createConnection } from "node:net";
 
 const DEBUG_PORT = 9222;
+
+/**
+ * Check if a port is in use
+ */
+async function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ port }, () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on("error", () => {
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Kill process using the specified port
+ */
+export async function killPortProcess(port: number): Promise<boolean> {
+  const inUse = await isPortInUse(port);
+  if (!inUse) {
+    return false;
+  }
+
+  console.log(`[server] Port ${port} is in use, killing existing process...`);
+
+  try {
+    // macOS/Linux: use lsof to find PID
+    const pid = execSync(`lsof -i :${port} -t 2>/dev/null`, {
+      encoding: "utf-8",
+    }).trim();
+
+    if (pid) {
+      const pids = pid.split("\n").filter(Boolean);
+      for (const p of pids) {
+        try {
+          execSync(`kill -9 ${p} 2>/dev/null`);
+          console.log(`[server] Killed process ${p}`);
+        } catch {
+          // Process may have already exited
+        }
+      }
+      // Wait for port to be released
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return true;
+    }
+  } catch {
+    // lsof not available or no process found
+  }
+
+  return false;
+}
 
 interface DebugMessage {
   type: string;
