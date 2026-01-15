@@ -6,6 +6,7 @@ import {
   type LegacyDBMessage,
   type LegacyDBResponse,
 } from "@pleno-audit/extension-runtime/offscreen";
+import { initDebugWebSocket } from "./debug-websocket.js";
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: ParquetAdapter | null = null;
@@ -179,3 +180,7 @@ initLocalServer()
   .catch(() => {
     // Failed to initialize local server
   });
+
+if (import.meta.env.DEV) {
+  initDebugWebSocket();
+}

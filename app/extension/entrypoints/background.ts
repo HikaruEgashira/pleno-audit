@@ -2072,15 +2072,66 @@ async function registerMainWorldScript() {
   }
 }
 
+async function handleDebugBridgeForward(
+  type: string,
+  data: unknown
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  try {
+    switch (type) {
+      case "DEBUG_EVENTS_LIST": {
+        const params = data as { limit?: number; type?: string } | undefined;
+        const store = await getOrInitParquetStore();
+        const result = await store.getEvents({
+          limit: params?.limit || 100,
+        });
+        const events = result.data.map((e) => ({
+          id: e.id,
+          type: e.type,
+          domain: e.domain,
+          timestamp: e.timestamp,
+          details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
+        }));
+        const filteredEvents = params?.type
+          ? events.filter((e) => e.type === params.type)
+          : events;
+        return { success: true, data: filteredEvents };
+      }
+
+      case "DEBUG_EVENTS_COUNT": {
+        const store = await getOrInitParquetStore();
+        const result = await store.getEvents({ limit: 0 });
+        return { success: true, data: result.total };
+      }
+
+      case "DEBUG_EVENTS_CLEAR": {
+        const store = await getOrInitParquetStore();
+        await store.clearAll();
+        return { success: true };
+      }
+
+      case "DEBUG_TAB_OPEN": {
+        const params = data as { url: string };
+        let url = params.url;
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          url = `https://${url}`;
+        }
+        const tab = await chrome.tabs.create({ url, active: true });
+        return { success: true, data: { tabId: tab.id, url: tab.url || url } };
+      }
+
+      default:
+        return { success: false, error: `Unknown debug message type: ${type}` };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export default defineBackground(() => {
   registerMainWorldScript();
-
-  // Initialize debug bridge in dev mode
-  if (import.meta.env.DEV) {
-    import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
-      initDebugBridge();
-    }).catch((err) => logger.debug("Debug bridge init failed:", err));
-  }
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitParquetStore()
@@ -2160,6 +2211,18 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Messages handled by offscreen document
     if (message.type === "LOCAL_API_REQUEST" || message.type === "OFFSCREEN_READY") {
+      return false;
+    }
+
+    if (message.type === "DEBUG_BRIDGE_FORWARD") {
+      handleDebugBridgeForward(message.debugType, message.debugData)
+        .then(sendResponse)
+        .catch((err) => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.type === "DEBUG_BRIDGE_CONNECTED" || message.type === "DEBUG_BRIDGE_DISCONNECTED") {
+      logger.debug(`Debug bridge: ${message.type === "DEBUG_BRIDGE_CONNECTED" ? "connected" : "disconnected"}`);
       return false;
     }
 

@@ -92,8 +92,8 @@ class DebugServer extends EventEmitter {
       }
     });
 
-    ws.on("close", () => {
-      console.log("[server] Extension disconnected");
+    ws.on("close", (code, reason) => {
+      console.log(`[server] Extension disconnected (code: ${code}, reason: ${reason?.toString() || "none"})`);
       if (this.extensionSocket === ws) {
         this.extensionSocket = null;
       }
