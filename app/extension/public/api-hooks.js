@@ -17,6 +17,9 @@
   const originalWebSocket = window.WebSocket
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator)
 
+  // Configuration for data exfiltration detection
+  const DATA_EXFILTRATION_THRESHOLD = 100 * 1024  // 100KB threshold
+
   // Helper to dispatch network event to content script
   function sendNetworkEvent(data) {
     window.dispatchEvent(
@@ -24,19 +27,66 @@
     )
   }
 
+  // Helper to dispatch data exfiltration event
+  function sendDataExfiltrationEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__DATA_EXFILTRATION_DETECTED__', { detail: data })
+    )
+  }
+
+  // Calculate body size in bytes
+  function getBodySize(body) {
+    if (!body) return 0
+    if (typeof body === 'string') return new Blob([body]).size
+    if (body instanceof Blob) return body.size
+    if (body instanceof ArrayBuffer) return body.byteLength
+    if (body instanceof FormData) {
+      // Estimate FormData size (not exact but reasonable approximation)
+      let size = 0
+      for (const [key, value] of body.entries()) {
+        size += key.length
+        if (typeof value === 'string') {
+          size += value.length
+        } else if (value instanceof Blob) {
+          size += value.size
+        }
+      }
+      return size
+    }
+    if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
+    return 0
+  }
+
   // ===== FETCH API HOOK =====
   window.fetch = function(input, init) {
     const url = typeof input === 'string' ? input : input?.url
     const method = init?.method || (typeof input === 'object' ? input.method : 'GET') || 'GET'
+    const body = init?.body
 
     if (url) {
+      const fullUrl = new URL(url, window.location.origin).href
+      const bodySize = getBodySize(body)
+
       sendNetworkEvent({
-        url: new URL(url, window.location.origin).href,
+        url: fullUrl,
         method: method.toUpperCase(),
         initiator: 'fetch',
         resourceType: 'fetch',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        bodySize: bodySize
       })
+
+      // Check for potential data exfiltration (large outbound data)
+      if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method.toUpperCase() !== 'GET') {
+        sendDataExfiltrationEvent({
+          url: fullUrl,
+          method: method.toUpperCase(),
+          bodySize: bodySize,
+          initiator: 'fetch',
+          timestamp: Date.now(),
+          targetDomain: new URL(fullUrl).hostname
+        })
+      }
     }
 
     return originalFetch.apply(this, arguments)
@@ -51,13 +101,30 @@
 
   XMLHttpRequest.prototype.send = function(body) {
     if (this.__serviceDetectionUrl) {
+      const fullUrl = new URL(this.__serviceDetectionUrl, window.location.origin).href
+      const method = (this.__serviceDetectionMethod || 'GET').toUpperCase()
+      const bodySize = getBodySize(body)
+
       sendNetworkEvent({
-        url: new URL(this.__serviceDetectionUrl, window.location.origin).href,
-        method: (this.__serviceDetectionMethod || 'GET').toUpperCase(),
+        url: fullUrl,
+        method: method,
         initiator: 'xhr',
         resourceType: 'xhr',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        bodySize: bodySize
       })
+
+      // Check for potential data exfiltration (large outbound data)
+      if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method !== 'GET') {
+        sendDataExfiltrationEvent({
+          url: fullUrl,
+          method: method,
+          bodySize: bodySize,
+          initiator: 'xhr',
+          timestamp: Date.now(),
+          targetDomain: new URL(fullUrl).hostname
+        })
+      }
     }
     return originalXHRSend.call(this, body)
   }
@@ -88,13 +155,29 @@
   // ===== Beacon API HOOK =====
   if (originalSendBeacon) {
     navigator.sendBeacon = function(url, data) {
+      const fullUrl = new URL(url, window.location.origin).href
+      const bodySize = getBodySize(data)
+
       sendNetworkEvent({
-        url: new URL(url, window.location.origin).href,
+        url: fullUrl,
         method: 'POST',
         initiator: 'beacon',
         resourceType: 'beacon',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        bodySize: bodySize
       })
+
+      // Check for potential data exfiltration (large outbound data)
+      if (bodySize >= DATA_EXFILTRATION_THRESHOLD) {
+        sendDataExfiltrationEvent({
+          url: fullUrl,
+          method: 'POST',
+          bodySize: bodySize,
+          initiator: 'beacon',
+          timestamp: Date.now(),
+          targetDomain: new URL(fullUrl).hostname
+        })
+      }
 
       return originalSendBeacon(url, data)
     }

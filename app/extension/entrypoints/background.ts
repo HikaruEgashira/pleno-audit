@@ -300,6 +300,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: AISensitiveDataDetectedDetails;
+    }
+  | {
+      type: "data_exfiltration_detected";
+      domain: string;
+      timestamp: number;
+      details: DataExfiltrationDetectedDetails;
     };
 
 /** AI機密情報検出イベント詳細 */
@@ -311,6 +317,16 @@ interface AISensitiveDataDetectedDetails {
   detectionCount: number;
   riskScore: number;
   riskLevel: string;
+}
+
+/** データ漏洩検出イベント詳細 */
+interface DataExfiltrationDetectedDetails {
+  targetUrl: string;
+  targetDomain: string;
+  method: string;
+  bodySize: number;
+  initiator: string;
+  pageUrl: string;
 }
 
 async function getOrInitParquetStore(): Promise<ParquetStore> {
@@ -1183,6 +1199,64 @@ async function handleNetworkRequest(
   return { success: true };
 }
 
+interface DataExfiltrationData {
+  timestamp: string;
+  pageUrl: string;
+  targetUrl: string;
+  targetDomain: string;
+  method: string;
+  bodySize: number;
+  initiator: string;
+}
+
+async function handleDataExfiltration(
+  data: DataExfiltrationData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  // Log the data exfiltration event
+  await addEvent({
+    type: "data_exfiltration_detected",
+    domain: data.targetDomain,
+    timestamp: Date.now(),
+    details: {
+      targetUrl: data.targetUrl,
+      targetDomain: data.targetDomain,
+      method: data.method,
+      bodySize: data.bodySize,
+      initiator: data.initiator,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  // Fire alert for data exfiltration
+  await getAlertManager().alertDataExfiltration({
+    sourceDomain: pageDomain,
+    targetDomain: data.targetDomain,
+    bodySize: data.bodySize,
+    method: data.method,
+    initiator: data.initiator,
+  });
+
+  logger.warn("Data exfiltration detected:", {
+    from: pageDomain,
+    to: data.targetDomain,
+    size: `${Math.round(data.bodySize / 1024)}KB`,
+    method: data.method,
+  });
+
+  return { success: true };
+}
+
+function extractDomainFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "unknown";
+  }
+}
+
 async function storeCSPReport(report: CSPReport) {
   try {
     if (!apiClient) {
@@ -1735,6 +1809,13 @@ export default defineBackground(() => {
 
     if (message.type === "NETWORK_REQUEST") {
       handleNetworkRequest(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "DATA_EXFILTRATION_DETECTED") {
+      handleDataExfiltration(message.data, sender)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

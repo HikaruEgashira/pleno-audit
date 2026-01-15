@@ -432,6 +432,37 @@ export function createAlertManager(
     }
   }
 
+  /**
+   * Create data exfiltration alert
+   */
+  async function alertDataExfiltration(params: {
+    sourceDomain: string;
+    targetDomain: string;
+    bodySize: number;
+    method: string;
+    initiator: string;
+  }): Promise<SecurityAlert | null> {
+    const sizeKB = Math.round(params.bodySize / 1024);
+    const severity: AlertSeverity = sizeKB > 500 ? "critical" : "high";
+
+    return createAlert({
+      category: "data_exfiltration",
+      severity,
+      title: `大量データ送信検出: ${params.targetDomain}`,
+      description: `${params.sourceDomain}から${sizeKB}KBのデータを${params.targetDomain}に送信`,
+      domain: params.targetDomain,
+      details: {
+        type: "data_exfiltration",
+        sourceDomain: params.sourceDomain,
+        targetDomain: params.targetDomain,
+        bodySize: params.bodySize,
+        sizeKB,
+        method: params.method,
+        initiator: params.initiator,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -439,6 +470,7 @@ export function createAlertManager(
     alertAISensitive,
     alertShadowAI,
     alertExtension,
+    alertDataExfiltration,
     updateAlertStatus,
     getAlerts,
     getAlertCount,
