@@ -46,6 +46,7 @@ import {
   onCookieChange,
   getApiClient,
   updateApiClientConfig,
+  ensureOffscreenDocument,
   checkMigrationNeeded,
   migrateToDatabase,
   getSyncManager,
@@ -54,6 +55,7 @@ import {
   setStorage,
   clearAIPrompts,
   createExtensionMonitor,
+  registerExtensionMonitorListener,
   createLogger,
   analyzeInstalledExtension,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
@@ -2131,7 +2133,16 @@ async function handleDebugBridgeForward(
 }
 
 export default defineBackground(() => {
+  registerExtensionMonitorListener();
   registerMainWorldScript();
+
+  if (import.meta.env.DEV) {
+    setTimeout(() => {
+      ensureOffscreenDocument()
+        .then(() => logger.info("Offscreen document initialized for debug bridge"))
+        .catch((err) => logger.error("Failed to initialize offscreen document:", err));
+    }, 1000);
+  }
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
   getOrInitParquetStore()
@@ -2178,7 +2189,9 @@ export default defineBackground(() => {
   })();
 
   // Extension Monitor初期化
-  initExtensionMonitor().catch((err) => logger.debug("Extension monitor init failed:", err));
+  initExtensionMonitor()
+    .then(() => logger.info("Extension monitor initialization completed"))
+    .catch((err) => logger.error("Extension monitor init failed:", err));
 
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });

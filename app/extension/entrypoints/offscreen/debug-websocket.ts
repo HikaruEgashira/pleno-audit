@@ -23,8 +23,6 @@ export function initDebugWebSocket(): void {
     return;
   }
   isInitialized = true;
-
-  console.log("[debug-ws] Initializing in offscreen document...");
   connect();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -68,12 +66,13 @@ function connect(): void {
       }
 
       chrome.runtime.sendMessage({ type: "DEBUG_BRIDGE_CONNECTED" }).catch(() => {});
+      const version = chrome.runtime.getManifest?.()?.version ?? "unknown";
       sendToServer({
         success: true,
         data: {
           type: "connected",
           extensionId: chrome.runtime.id,
-          version: chrome.runtime.getManifest().version,
+          version,
           devMode: true,
           context: "offscreen",
         },
@@ -136,7 +135,7 @@ async function handleMessage(
           success: true,
           data: {
             extensionId: chrome.runtime.id,
-            version: chrome.runtime.getManifest().version,
+            version: chrome.runtime.getManifest?.()?.version ?? "unknown",
             devMode: true,
             timestamp: Date.now(),
             context: "offscreen",

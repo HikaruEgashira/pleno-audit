@@ -15,6 +15,7 @@ export {
   ApiClient,
   getApiClient,
   updateApiClientConfig,
+  ensureOffscreenDocument,
   type ConnectionMode,
   type ApiClientConfig,
   type QueryOptions,
@@ -63,6 +64,8 @@ export {
 // Extension Monitor
 export {
   createExtensionMonitor,
+  registerExtensionMonitorListener,
+  clearGlobalCallbacks,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   type ExtensionMonitor,
   type ExtensionInfo,

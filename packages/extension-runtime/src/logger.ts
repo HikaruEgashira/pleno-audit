@@ -53,15 +53,13 @@ export function hasDebuggerSink(): boolean {
   return debuggerSink !== null;
 }
 
-/**
- * Get minimum log level based on environment
- */
 function getMinLevel(): LogLevel {
-  // Check various ways DEV mode might be indicated
-  if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+  if (typeof globalThis !== "undefined" && (globalThis as Record<string, unknown>).__PLENO_DEV__) {
     return "debug";
   }
-  // Default to info for production
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
+    return "debug";
+  }
   return "info";
 }
 

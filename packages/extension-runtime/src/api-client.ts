@@ -55,7 +55,7 @@ async function waitForOffscreenReady(timeout = 15000): Promise<void> {
   });
 }
 
-async function ensureOffscreenDocument(): Promise<void> {
+export async function ensureOffscreenDocument(): Promise<void> {
   if (offscreenReady) return;
 
   if (offscreenCreating) {
@@ -71,7 +71,6 @@ async function ensureOffscreenDocument(): Promise<void> {
       });
 
       if (contexts.length > 0) {
-        // offscreen created
         await waitForOffscreenReady();
         return;
       }
@@ -81,11 +80,9 @@ async function ensureOffscreenDocument(): Promise<void> {
         reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
         justification: "Running local SQL database with sql.js WASM",
       });
-      // offscreen created
       await waitForOffscreenReady();
     } catch (error) {
       if (error instanceof Error && error.message.includes("already exists")) {
-        // offscreen created
         await waitForOffscreenReady();
       } else {
         throw error;
