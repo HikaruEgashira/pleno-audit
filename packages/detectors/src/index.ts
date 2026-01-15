@@ -225,6 +225,7 @@ export type {
   LoginAlertDetails,
   PolicyAlertDetails,
   ComplianceAlertDetails,
+  PolicyViolationAlertDetails,
   AlertAction,
   AlertRule,
   AlertCondition,
@@ -232,6 +233,17 @@ export type {
   AlertManager,
   AlertStore,
   AlertListener,
+  // Policy Types
+  PolicyAction,
+  PolicyMatchType,
+  DomainPolicyRule,
+  ToolPolicyRule,
+  AIPolicyRule,
+  DataTransferPolicyRule,
+  PolicyConfig,
+  PolicyViolation,
+  PolicyManager,
+  PolicyCheckResult,
 } from "@pleno-audit/alerts";
 
 export {
@@ -239,4 +251,11 @@ export {
   DEFAULT_ALERT_RULES,
   createAlertManager,
   createInMemoryAlertStore,
+  // Policy Manager
+  DEFAULT_POLICY_CONFIG,
+  POLICY_TEMPLATES,
+  SOCIAL_MEDIA_DOMAINS,
+  PRODUCTIVITY_DOMAINS,
+  COMMUNICATION_DOMAINS,
+  createPolicyManager,
 } from "@pleno-audit/alerts";

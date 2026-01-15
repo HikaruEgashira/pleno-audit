@@ -625,6 +625,50 @@ export function createAlertManager(
     });
   }
 
+  /**
+   * Create policy violation alert
+   */
+  async function alertPolicyViolation(params: {
+    domain: string;
+    ruleId: string;
+    ruleName: string;
+    ruleType: "domain" | "tool" | "ai" | "data_transfer";
+    action: "allow" | "block" | "warn";
+    matchedPattern: string;
+    target: string;
+  }): Promise<SecurityAlert | null> {
+    // Only create alert for block and warn actions
+    if (params.action === "allow") return null;
+
+    const severity: AlertSeverity = params.action === "block" ? "high" : "medium";
+
+    const actionLabel = params.action === "block" ? "ブロック" : "警告";
+    const ruleTypeLabels: Record<string, string> = {
+      domain: "ドメイン",
+      tool: "ツール",
+      ai: "AI",
+      data_transfer: "データ転送",
+    };
+    const ruleTypeLabel = ruleTypeLabels[params.ruleType] || params.ruleType;
+
+    return createAlert({
+      category: "policy_violation",
+      severity,
+      title: `ポリシー違反${actionLabel}: ${params.ruleName}`,
+      description: `${ruleTypeLabel}ルール「${params.ruleName}」に違反: ${params.target}`,
+      domain: params.domain,
+      details: {
+        type: "policy_violation",
+        ruleId: params.ruleId,
+        ruleName: params.ruleName,
+        ruleType: params.ruleType,
+        action: params.action,
+        matchedPattern: params.matchedPattern,
+        target: params.target,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -636,6 +680,7 @@ export function createAlertManager(
     alertCredentialTheft,
     alertSupplyChainRisk,
     alertCompliance,
+    alertPolicyViolation,
     updateAlertStatus,
     getAlerts,
     getAlertCount,
