@@ -105,7 +105,7 @@ export function analyzePassword(password: string): PasswordAnalysis {
     lowercase: /[a-z]/.test(password),
     uppercase: /[A-Z]/.test(password),
     numbers: /[0-9]/.test(password),
-    symbols: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?`~]/.test(password),
+    symbols: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password),
     noCommonPatterns: !hasCommonWeakPattern(password),
     noSequentialChars: !hasSequentialChars(password, 4),
     noRepeatedChars: !hasRepeatedChars(password, 3),
