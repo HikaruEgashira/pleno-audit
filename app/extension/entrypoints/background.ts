@@ -2137,11 +2137,9 @@ export default defineBackground(() => {
   registerMainWorldScript();
 
   if (import.meta.env.DEV) {
-    setTimeout(() => {
-      ensureOffscreenDocument()
-        .then(() => logger.info("Offscreen document initialized for debug bridge"))
-        .catch((err) => logger.error("Failed to initialize offscreen document:", err));
-    }, 1000);
+    import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
+      initDebugBridge();
+    });
   }
 
   // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
