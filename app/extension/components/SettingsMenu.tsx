@@ -4,6 +4,8 @@ import { ThemeToggle } from "./ThemeToggle";
 import {
   DEFAULT_BLOCKING_CONFIG,
   type BlockingConfig,
+  type SSOStatus,
+  type SSOProvider,
 } from "@pleno-audit/extension-runtime";
 
 interface Props {
@@ -39,6 +41,10 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const [serverConfig, setServerConfig] = useState<ServerConnectionConfig | null>(null);
   const [showServerConsentDialog, setShowServerConsentDialog] = useState(false);
   const [serverEndpointInput, setServerEndpointInput] = useState("");
+  const [ssoStatus, setSSOStatus] = useState<SSOStatus | null>(null);
+  const [showSSODialog, setShowSSODialog] = useState(false);
+  const [selectedSSOProvider, setSelectedSSOProvider] = useState<SSOProvider>("oidc");
+  const [ssoConfigInput, setSSOConfigInput] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,19 +95,32 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     }
   }, [isOpen, serverConfig]);
 
+  useEffect(() => {
+    if (isOpen && ssoStatus === null) {
+      chrome.runtime.sendMessage({ type: "GET_SSO_STATUS" })
+        .then((status) => {
+          setSSOStatus(status ?? { enabled: false, isAuthenticated: false });
+        })
+        .catch(() => {
+          setSSOStatus({ enabled: false, isAuthenticated: false });
+        });
+    }
+  }, [isOpen, ssoStatus]);
+
   // Escキーでダイアログを閉じる
   useEffect(() => {
-    if (!showConsentDialog && !showServerConsentDialog) return;
+    if (!showConsentDialog && !showServerConsentDialog && !showSSODialog) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setShowConsentDialog(false);
         setShowServerConsentDialog(false);
+        setShowSSODialog(false);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showConsentDialog, showServerConsentDialog]);
+  }, [showConsentDialog, showServerConsentDialog, showSSODialog]);
 
   function handleRetentionChange(days: number) {
     setRetentionDays(days);
@@ -199,6 +218,33 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         mode: "remote",
         endpoint: serverEndpointInput,
       },
+    }).catch(() => {});
+  }
+
+  function handleSSOToggle() {
+    if (!ssoStatus) return;
+
+    if (!ssoStatus.enabled && !ssoStatus.isAuthenticated) {
+      setShowSSODialog(true);
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      type: "SET_SSO_ENABLED",
+      data: { enabled: !ssoStatus.enabled },
+    }).then(() => {
+      setSSOStatus(prev => prev ? { ...prev, enabled: !prev.enabled } : null);
+    }).catch(() => {});
+  }
+
+  function handleDisableSSO() {
+    chrome.runtime.sendMessage({
+      type: "DISABLE_SSO",
+    }).then(() => {
+      setSSOStatus({ enabled: false, isAuthenticated: false });
+      setShowSSODialog(false);
+      setSSOConfigInput("");
+      setSelectedSSOProvider("oidc");
     }).catch(() => {});
   }
 
@@ -377,6 +423,61 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 {serverConfig.enabled && serverConfig.endpoint && (
                   <div style={{ fontSize: "10px", color: colors.status.info.text, marginTop: "4px", wordBreak: "break-all" }}>
                     接続先: {serverConfig.endpoint}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              SSO連携
+            </div>
+            {ssoStatus !== null ? (
+              <div>
+                <button
+                  onClick={handleSSOToggle}
+                  aria-pressed={ssoStatus.enabled}
+                  aria-label={`SSO: ${ssoStatus.enabled ? "有効" : "無効"}`}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: ssoStatus.enabled ? colors.status.success.bg : colors.bgSecondary,
+                    border: `1px solid ${ssoStatus.enabled ? colors.status.success.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    color: ssoStatus.enabled ? colors.status.success.text : colors.textPrimary,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>{ssoStatus.provider ? `SAML/OIDC (${ssoStatus.provider.toUpperCase()})` : "SSO設定"}</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: ssoStatus.enabled ? colors.status.success.text : colors.textMuted,
+                    color: colors.bgPrimary,
+                  }}>
+                    {ssoStatus.enabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
+                  エンタープライズSSO (SAML/OIDC)
+                </div>
+                {ssoStatus.enabled && ssoStatus.isAuthenticated && (
+                  <div style={{ fontSize: "10px", color: colors.status.success.text, marginTop: "4px" }}>
+                    認証済み: {ssoStatus.userEmail || "ユーザー"}
+                  </div>
+                )}
+                {ssoStatus.enabled && ssoStatus.expiresAt && (
+                  <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "2px" }}>
+                    有効期限: {new Date(ssoStatus.expiresAt).toLocaleString("ja-JP")}
                   </div>
                 )}
               </div>
@@ -675,6 +776,121 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 }}
               >
                 有効化する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSSODialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sso-dialog-title"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+          onClick={() => setShowSSODialog(false)}
+        >
+          <div
+            role="document"
+            style={{
+              backgroundColor: colors.bgPrimary,
+              borderRadius: "12px",
+              padding: "20px",
+              maxWidth: "380px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div id="sso-dialog-title" style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+              SSO (SAML/OIDC) 設定
+            </div>
+            <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
+              エンタープライズSSO認証を設定してシングルサインオンを有効にします。
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: colors.status.warning.text,
+              background: colors.status.warning.bg,
+              padding: "10px",
+              borderRadius: "6px",
+              marginBottom: "16px",
+              lineHeight: 1.6,
+            }}>
+              SAML/OIDC設定により、組織のアイデンティティプロバイダーと連携できます。トークンはローカルに保存されます。
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "11px", color: colors.textSecondary, display: "block", marginBottom: "6px" }}>
+                SSO タイプ
+              </label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {(["oidc", "saml"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedSSOProvider(type)}
+                    style={{
+                      flex: 1,
+                      padding: "8px",
+                      background: selectedSSOProvider === type ? colors.status.info.bg : colors.bgSecondary,
+                      border: `1px solid ${selectedSSOProvider === type ? colors.status.info.text : colors.border}`,
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      color: selectedSSOProvider === type ? colors.status.info.text : colors.textPrimary,
+                      fontWeight: 500,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {type === "oidc" ? "OpenID Connect" : "SAML 2.0"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: "10px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
+              ※ トークンと設定はローカルに保存され、外部に送信されません。
+              詳細は<a href="https://github.com/HikaruEgashira/pleno-audit/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener noreferrer" style={{ color: colors.status.info.text }}>プライバシーポリシー</a>をご確認ください。
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setShowSSODialog(false)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "transparent",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.textSecondary,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDisableSSO}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: colors.status.danger.bg,
+                  border: `1px solid ${colors.status.danger.text}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: colors.status.danger.text,
+                  fontWeight: 500,
+                }}
+              >
+                設定
               </button>
             </div>
           </div>
