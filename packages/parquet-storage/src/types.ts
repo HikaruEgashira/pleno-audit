@@ -79,9 +79,3 @@ export interface ExportOptions {
   since?: string;
   until?: string;
 }
-
-export interface MigrationResult {
-  success: boolean;
-  migratedRecords: number;
-  timestamp?: number;
-}

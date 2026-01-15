@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@pleno-audit/csp": "workspace:*",
-    "@pleno-audit/detectors": "workspace:*"
+    "@pleno-audit/detectors": "workspace:*",
+    "apache-arrow": "^18.0.0",
+    "parquet-wasm": "^0.6.1"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

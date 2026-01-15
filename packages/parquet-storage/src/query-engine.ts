@@ -1,10 +1,63 @@
 import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
-import type { ParquetEvent, QueryOptions, PaginatedResult, DynamicIndex } from "./types";
+import type { ParquetEvent, QueryOptions, PaginatedResult, DynamicIndex, ParquetLogType } from "./types";
 import {
   parquetRecordToCspViolation,
   parquetRecordToNetworkRequest,
   parquetRecordToEvent,
 } from "./schema";
+
+// 列プルーニング: 各タイプで必要な列を定義
+export const REQUIRED_COLUMNS: Record<ParquetLogType, string[]> = {
+  "csp-violations": [
+    "timestamp",
+    "pageUrl",
+    "directive",
+    "blockedURL",
+    "domain",
+    "disposition",
+    "originalPolicy",
+    "sourceFile",
+    "lineNumber",
+    "columnNumber",
+    "statusCode",
+  ],
+  "network-requests": [
+    "timestamp",
+    "pageUrl",
+    "url",
+    "method",
+    "initiator",
+    "domain",
+    "resourceType",
+  ],
+  events: ["id", "type", "domain", "timestamp", "details"],
+  "ai-prompts": ["id", "timestamp", "url", "prompt", "service"],
+};
+
+// クエリで使用する列のみを取得（列プルーニング用）
+export function getColumnsForQuery(
+  type: ParquetLogType,
+  options?: QueryOptions
+): string[] {
+  const baseColumns = REQUIRED_COLUMNS[type] || [];
+
+  // 常に必要な列: timestamp, domain
+  const requiredBase = ["timestamp", "domain"];
+
+  // オプションに応じて追加の列を含める
+  const extraColumns: string[] = [];
+
+  if (options?.domain) {
+    // ドメインフィルタがある場合はdomainが必要
+    if (!extraColumns.includes("domain")) {
+      extraColumns.push("domain");
+    }
+  }
+
+  // 重複を除去
+  const allColumns = [...new Set([...requiredBase, ...baseColumns, ...extraColumns])];
+  return allColumns;
+}
 
 export class QueryEngine {
   queryReports(

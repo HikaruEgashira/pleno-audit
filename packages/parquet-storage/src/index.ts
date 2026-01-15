@@ -1,8 +1,20 @@
 export { ParquetStore } from "./parquet-store";
+export type { RetentionPolicy, CapacityConfig, CapacityInfo } from "./parquet-store";
 export { ParquetIndexedDBAdapter } from "./indexeddb-adapter";
 export { WriteBuffer } from "./write-buffer";
 export { DynamicIndexCache, DynamicIndexBuilder } from "./dynamic-index";
-export { QueryEngine } from "./query-engine";
+export { QueryEngine, REQUIRED_COLUMNS, getColumnsForQuery } from "./query-engine";
+export { PartitionManager } from "./partition-manager";
+export type { PartitionInfo, PartitionStats, CompactionResult } from "./partition-manager";
+export { StatsCache } from "./stats-cache";
+export type { ParquetFileStats, ColumnStats, QueryPredicate } from "./stats-cache";
+export {
+  encodeToParquet,
+  decodeFromParquet,
+  decodeFromParquetWithColumns,
+  isParquetWasmAvailable,
+  getArrowSchema,
+} from "./parquet-encoder";
 
 export type {
   ParquetLogType,
@@ -15,7 +27,6 @@ export type {
   ParquetEvent,
   QueryResult,
   ExportOptions,
-  MigrationResult,
 } from "./types";
 
 export {

@@ -78,7 +78,7 @@ export default defineConfig({
       target: "esnext",
       modulePreload: false,
       rollupOptions: {
-        external: ["parquet-wasm"],
+        external: ["parquet-wasm", "parquet-wasm/node", "parquet-wasm/bundler", "parquet-wasm/esm"],
       },
     },
     define: {

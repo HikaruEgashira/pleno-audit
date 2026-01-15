@@ -6,6 +6,7 @@ import type {
   DatabaseStats,
   ParquetEvent,
   ParquetFileRecord,
+  ExportOptions,
 } from "./types";
 import { WriteBuffer } from "./write-buffer";
 import { ParquetIndexedDBAdapter } from "./indexeddb-adapter";
@@ -17,6 +18,33 @@ import {
   eventToParquetRecord,
   getDateString,
 } from "./schema";
+import {
+  encodeToParquet,
+  decodeFromParquet,
+  isParquetWasmAvailable,
+} from "./parquet-encoder";
+import { PartitionManager, type CompactionResult } from "./partition-manager";
+
+// 保持ポリシー設定
+export interface RetentionPolicy {
+  maxAgeDays: number; // データの最大保持日数（デフォルト: 730日 = 2年）
+  enabled: boolean;
+}
+
+// 容量監視設定
+export interface CapacityConfig {
+  maxSizeBytes: number; // IndexedDBの最大使用量
+  warningThreshold: number; // 警告閾値（0.0-1.0）
+}
+
+// 容量情報
+export interface CapacityInfo {
+  usedBytes: number;
+  maxBytes: number;
+  usagePercent: number;
+  isWarning: boolean;
+  isFull: boolean;
+}
 
 export class ParquetStore {
   private indexedDB: ParquetIndexedDBAdapter;
@@ -24,12 +52,26 @@ export class ParquetStore {
   private indexCache: DynamicIndexCache;
   private indexBuilder: DynamicIndexBuilder;
   private queryEngine: QueryEngine;
+  private partitionManager: PartitionManager;
+
+  // 保持ポリシー（デフォルト: 2年）
+  private retentionPolicy: RetentionPolicy = {
+    maxAgeDays: 730,
+    enabled: true,
+  };
+
+  // 容量設定（デフォルト: 2GB）
+  private capacityConfig: CapacityConfig = {
+    maxSizeBytes: 2 * 1024 * 1024 * 1024,
+    warningThreshold: 0.8,
+  };
 
   constructor() {
     this.indexedDB = new ParquetIndexedDBAdapter();
     this.indexCache = new DynamicIndexCache();
     this.indexBuilder = new DynamicIndexBuilder();
     this.queryEngine = new QueryEngine();
+    this.partitionManager = new PartitionManager();
     this.writeBuffer = new WriteBuffer((type, records, date) =>
       this.flushBuffer(type, records, date)
     );
@@ -59,7 +101,7 @@ export class ParquetStore {
 
     if (existingRecord) {
       // 既存データとマージ
-      const existingData = this.deserializeParquetData(existingRecord.data);
+      const existingData = await this.deserializeParquetData(existingRecord.data);
       allRecords = [...existingData, ...records];
     }
 
@@ -241,7 +283,7 @@ export class ParquetStore {
     const allData: Record<string, unknown>[] = [];
 
     for (const record of records) {
-      const data = this.deserializeParquetData(record.data);
+      const data = await this.deserializeParquetData(record.data);
       allData.push(...data);
     }
 
@@ -249,20 +291,50 @@ export class ParquetStore {
   }
 
   private async encodeParquet(
-    _type: ParquetLogType,
+    type: ParquetLogType,
     records: unknown[]
   ): Promise<Uint8Array> {
-    // JSON形式でエンコード（parquet-wasmが利用可能になったら切り替え）
-    const json = JSON.stringify(records);
-    return new TextEncoder().encode(json);
+    // parquet-wasmでエンコード（失敗時はJSONフォールバック）
+    return encodeToParquet(type, records as Record<string, unknown>[]);
   }
 
-  private deserializeParquetData(
+  private async deserializeParquetData(
     data: Uint8Array
-  ): Record<string, unknown>[] {
-    // 仮の実装: Uint8Array → JSON
-    const json = new TextDecoder().decode(data);
-    return JSON.parse(json);
+  ): Promise<Record<string, unknown>[]> {
+    // parquet-wasmでデコード（Parquetフォーマットでない場合はJSONとして解析）
+    return decodeFromParquet(data);
+  }
+
+  // parquet-wasmが利用可能かチェック
+  async isParquetSupported(): Promise<boolean> {
+    return isParquetWasmAvailable();
+  }
+
+  // Parquetファイルをエクスポート
+  async exportToParquet(options?: ExportOptions): Promise<Map<string, Uint8Array>> {
+    await this.writeBuffer.flushAll();
+
+    const result = new Map<string, Uint8Array>();
+    const types = options?.type ? [options.type] : ["csp-violations", "network-requests", "events", "ai-prompts"] as ParquetLogType[];
+
+    const dateRange = this.getDateRange({
+      since: options?.since,
+      until: options?.until,
+    });
+
+    for (const type of types) {
+      const records = await this.indexedDB.listByDateRange(
+        type,
+        dateRange.start,
+        dateRange.end
+      );
+
+      for (const record of records) {
+        result.set(record.key, record.data);
+      }
+    }
+
+    return result;
   }
 
   private getDateRange(
@@ -285,5 +357,206 @@ export class ParquetStore {
       startMs: startDate.getTime(),
       endMs: endDate.getTime(),
     };
+  }
+
+  // === Phase 4: 運用機能 ===
+
+  // 保持ポリシーを設定
+  setRetentionPolicy(policy: Partial<RetentionPolicy>): void {
+    this.retentionPolicy = { ...this.retentionPolicy, ...policy };
+  }
+
+  // 保持ポリシーを取得
+  getRetentionPolicy(): RetentionPolicy {
+    return { ...this.retentionPolicy };
+  }
+
+  // 容量設定を更新
+  setCapacityConfig(config: Partial<CapacityConfig>): void {
+    this.capacityConfig = { ...this.capacityConfig, ...config };
+  }
+
+  // 容量情報を取得
+  async getCapacityInfo(): Promise<CapacityInfo> {
+    const usedBytes = await this.indexedDB.getSize();
+    const maxBytes = this.capacityConfig.maxSizeBytes;
+    const usagePercent = usedBytes / maxBytes;
+
+    return {
+      usedBytes,
+      maxBytes,
+      usagePercent,
+      isWarning: usagePercent >= this.capacityConfig.warningThreshold,
+      isFull: usagePercent >= 1.0,
+    };
+  }
+
+  // 保持ポリシーを適用（古いデータを削除）
+  async applyRetentionPolicy(): Promise<number> {
+    if (!this.retentionPolicy.enabled) {
+      return 0;
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - this.retentionPolicy.maxAgeDays);
+    const cutoffDateStr = getDateString(cutoffDate);
+
+    return this.deleteOldReports(cutoffDateStr);
+  }
+
+  // 自動コンパクション（小さなパーティションを結合）
+  async compactPartitions(
+    type: ParquetLogType,
+    targetMonth?: string
+  ): Promise<CompactionResult> {
+    await this.writeBuffer.flushAll();
+
+    // 小さなパーティション（100KB未満）を取得
+    const smallPartitions = this.partitionManager.getSmallPartitions(type);
+
+    if (smallPartitions.length < 2) {
+      return {
+        compactedPartitions: 0,
+        reducedSizeBytes: 0,
+        timestamp: Date.now(),
+      };
+    }
+
+    // 月ごとにグループ化
+    const monthGroups = new Map<string, typeof smallPartitions>();
+    for (const partition of smallPartitions) {
+      const month = partition.date.substring(0, 7);
+      if (targetMonth && month !== targetMonth) continue;
+
+      if (!monthGroups.has(month)) {
+        monthGroups.set(month, []);
+      }
+      monthGroups.get(month)!.push(partition);
+    }
+
+    let compactedPartitions = 0;
+    let reducedSizeBytes = 0;
+
+    // 各月のパーティションを結合
+    for (const [, partitions] of monthGroups) {
+      if (partitions.length < 2) continue;
+
+      // 全レコードを読み込み
+      const allRecords: Record<string, unknown>[] = [];
+      let totalOriginalSize = 0;
+
+      for (const partition of partitions) {
+        const record = await this.indexedDB.load(partition.key);
+        if (record) {
+          const data = await this.deserializeParquetData(record.data);
+          allRecords.push(...data);
+          totalOriginalSize += record.sizeBytes;
+        }
+      }
+
+      if (allRecords.length === 0) continue;
+
+      // 最初のパーティションの日付を使用
+      const targetDate = partitions[0].date;
+      const newKey = `${type}-${targetDate}`;
+
+      // 新しいパーティションを作成
+      const newData = await this.encodeParquet(type, allRecords);
+      const newRecord: ParquetFileRecord = {
+        key: newKey,
+        type,
+        date: targetDate,
+        data: newData,
+        recordCount: allRecords.length,
+        sizeBytes: newData.byteLength,
+        createdAt: Date.now(),
+        lastModified: Date.now(),
+      };
+
+      await this.indexedDB.save(newRecord);
+
+      // 古いパーティションを削除（最初のもの以外）
+      for (let i = 1; i < partitions.length; i++) {
+        await this.indexedDB.delete(partitions[i].key);
+        this.partitionManager.removePartition(partitions[i].key);
+      }
+
+      // パーティション情報を更新
+      this.partitionManager.updatePartitionInfo(newRecord);
+
+      compactedPartitions += partitions.length;
+      reducedSizeBytes += totalOriginalSize - newData.byteLength;
+    }
+
+    this.indexCache.clear();
+
+    return {
+      compactedPartitions,
+      reducedSizeBytes,
+      timestamp: Date.now(),
+    };
+  }
+
+  // Parquetファイルをインポート
+  async importFromParquet(
+    key: string,
+    type: ParquetLogType,
+    date: string,
+    data: Uint8Array
+  ): Promise<{ success: boolean; recordCount: number }> {
+    try {
+      // データをデコードして検証
+      const records = await this.deserializeParquetData(data);
+
+      if (records.length === 0) {
+        return { success: false, recordCount: 0 };
+      }
+
+      // 既存データがあればマージ
+      const existingRecord = await this.indexedDB.load(key);
+      let allRecords = records;
+
+      if (existingRecord) {
+        const existingData = await this.deserializeParquetData(existingRecord.data);
+        allRecords = [...existingData, ...records];
+      }
+
+      // 再エンコード（統一フォーマット）
+      const newData = await this.encodeParquet(type, allRecords);
+
+      const record: ParquetFileRecord = {
+        key,
+        type,
+        date,
+        data: newData,
+        recordCount: allRecords.length,
+        sizeBytes: newData.byteLength,
+        createdAt: existingRecord?.createdAt ?? Date.now(),
+        lastModified: Date.now(),
+      };
+
+      await this.indexedDB.save(record);
+      this.partitionManager.updatePartitionInfo(record);
+      this.indexCache.clear();
+
+      return { success: true, recordCount: records.length };
+    } catch {
+      return { success: false, recordCount: 0 };
+    }
+  }
+
+  // パーティション統計を取得
+  getPartitionStats() {
+    return this.partitionManager.getStats();
+  }
+
+  // 月別統計を取得
+  getMonthlyStats() {
+    return this.partitionManager.getMonthlyStats();
+  }
+
+  // 古いパーティション一覧を取得
+  getOldPartitions(days: number = 730) {
+    return this.partitionManager.getPartitionsOlderThan(days);
   }
 }

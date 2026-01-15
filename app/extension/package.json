@@ -14,16 +14,16 @@
     "@pleno-audit/data-export": "workspace:*",
     "@pleno-audit/detectors": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
+    "@pleno-audit/integrations": "workspace:*",
     "@pleno-audit/parquet-storage": "workspace:*",
     "@pleno-audit/permission-analyzer": "workspace:*",
     "@pleno-audit/policy-engine": "workspace:*",
+    "@pleno-audit/predictive-analysis": "workspace:*",
     "@pleno-audit/risk-prioritization": "workspace:*",
     "@pleno-audit/runtime-protection": "workspace:*",
     "@pleno-audit/security-graph": "workspace:*",
-    "@pleno-audit/integrations": "workspace:*",
     "@pleno-audit/storage": "workspace:*",
     "@pleno-audit/threat-intel": "workspace:*",
-    "@pleno-audit/predictive-analysis": "workspace:*",
     "hono": "^4.11.4",
     "lucide-preact": "^0.562.0",
     "preact": "^10.28.2",
@@ -32,6 +32,8 @@
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",
     "typescript": "^5.9.3",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0",
     "wxt": "^0.20.13"
   }
 }
