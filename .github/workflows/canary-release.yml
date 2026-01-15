@@ -51,3 +51,16 @@ jobs:
           prerelease: true
           generate_release_notes: true
           make_latest: false
+
+      - name: Cleanup old canary releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          KEEP_COUNT=10
+
+          gh release list --limit 1000 --json tagName,createdAt \
+            --jq "[.[] | select(.tagName | test(\"^v${VERSION}-canary\\\\.\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
+            | while read -r tag; do
+              [ -n "$tag" ] && gh release delete "$tag" --yes --cleanup-tag && echo "Deleted: $tag"
+            done
