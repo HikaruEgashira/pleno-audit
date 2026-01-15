@@ -79,7 +79,15 @@ import {
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
 import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
-import { createAlertManager, type AlertManager, type SecurityAlert } from "@pleno-audit/alerts";
+import {
+  createAlertManager,
+  createPolicyManager,
+  DEFAULT_POLICY_CONFIG,
+  type AlertManager,
+  type SecurityAlert,
+  type PolicyManager,
+  type PolicyConfig,
+} from "@pleno-audit/alerts";
 import {
   createThreatAnalyzer,
   DEFAULT_THREAT_ANALYZER_CONFIG,
@@ -102,6 +110,7 @@ interface StorageData {
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
   detectionConfig: DetectionConfig;
+  policyConfig: PolicyConfig;
 }
 
 let storageQueue: Promise<void> = Promise.resolve();
@@ -109,6 +118,7 @@ let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
+let policyManager: PolicyManager | null = null;
 
 // ============================================================================
 // Alert Manager
@@ -130,6 +140,39 @@ function getAlertManager(): AlertManager {
     });
   }
   return alertManager;
+}
+
+// ============================================================================
+// Policy Manager
+// ============================================================================
+
+async function getPolicyManager(): Promise<PolicyManager> {
+  if (!policyManager) {
+    const storage = await initStorage();
+    const config = storage.policyConfig || DEFAULT_POLICY_CONFIG;
+    policyManager = createPolicyManager(config);
+  }
+  return policyManager;
+}
+
+async function checkDomainPolicy(domain: string): Promise<void> {
+  const pm = await getPolicyManager();
+  const result = pm.checkDomain(domain);
+
+  if (result.violations.length > 0) {
+    const am = getAlertManager();
+    for (const violation of result.violations) {
+      await am.alertPolicyViolation({
+        domain,
+        ruleId: violation.ruleId,
+        ruleName: violation.ruleName,
+        ruleType: violation.ruleType,
+        action: violation.action,
+        matchedPattern: violation.matchedPattern,
+        target: violation.target,
+      });
+    }
+  }
 }
 
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
@@ -1078,6 +1121,7 @@ function createDefaultService(domain: string): DetectedService {
 async function updateService(domain: string, update: Partial<DetectedService>) {
   return queueStorageOperation(async () => {
     const storage = await initStorage();
+    const isNewDomain = !storage.services[domain];
     const existing = storage.services[domain] || createDefaultService(domain);
 
     storage.services[domain] = {
@@ -1087,6 +1131,13 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
 
     await saveStorage({ services: storage.services });
     await updateBadge();
+
+    // Check domain policy for new domains
+    if (isNewDomain) {
+      checkDomainPolicy(domain).catch(() => {
+        // Ignore policy check errors
+      });
+    }
   });
 }
 
