@@ -8,6 +8,9 @@ const mockIndexedDBListByDateRange = vi.hoisted(() => vi.fn());
 const mockIndexedDBDeleteBeforeDate = vi.hoisted(() => vi.fn());
 const mockIndexedDBClear = vi.hoisted(() => vi.fn());
 
+const mockEncodeToParquet = vi.hoisted(() => vi.fn());
+const mockDecodeFromParquet = vi.hoisted(() => vi.fn());
+
 vi.mock("./indexeddb-adapter", () => ({
   ParquetIndexedDBAdapter: class MockParquetIndexedDBAdapter {
     init = mockIndexedDBInit;
@@ -17,6 +20,12 @@ vi.mock("./indexeddb-adapter", () => ({
     deleteBeforeDate = mockIndexedDBDeleteBeforeDate;
     clear = mockIndexedDBClear;
   },
+}));
+
+vi.mock("./parquet-encoder", () => ({
+  encodeToParquet: mockEncodeToParquet,
+  decodeFromParquet: mockDecodeFromParquet,
+  isParquetWasmAvailable: vi.fn().mockResolvedValue(true),
 }));
 
 import { ParquetStore } from "./parquet-store";
@@ -32,6 +41,8 @@ describe("ParquetStore", () => {
     mockIndexedDBListByDateRange.mockResolvedValue([]);
     mockIndexedDBDeleteBeforeDate.mockResolvedValue(0);
     mockIndexedDBClear.mockResolvedValue(undefined);
+    mockEncodeToParquet.mockResolvedValue(new Uint8Array([0x50, 0x41, 0x52, 0x31])); // PAR1 magic
+    mockDecodeFromParquet.mockResolvedValue([]);
     store = new ParquetStore();
   });
 
@@ -61,20 +72,25 @@ describe("ParquetStore", () => {
     });
 
     it("queries violations and requests", async () => {
-      const violationData = JSON.stringify([
+      const mockViolations = [
         { domain: "example.com", directive: "script-src", timestamp: "2024-01-01T00:00:00.000Z" },
-      ]);
-      const requestData = JSON.stringify([
+      ];
+      const mockRequests = [
         { domain: "example.com", url: "https://example.com/api", timestamp: "2024-01-01T00:00:00.000Z" },
-      ]);
+      ];
 
       mockIndexedDBListByDateRange
-        .mockResolvedValueOnce([{ data: new TextEncoder().encode(violationData) }])
-        .mockResolvedValueOnce([{ data: new TextEncoder().encode(requestData) }]);
+        .mockResolvedValueOnce([{ data: new Uint8Array([1]) }])
+        .mockResolvedValueOnce([{ data: new Uint8Array([2]) }]);
+
+      mockDecodeFromParquet
+        .mockResolvedValueOnce(mockViolations)
+        .mockResolvedValueOnce(mockRequests);
 
       const result = await store.getReports();
 
       expect(mockIndexedDBListByDateRange).toHaveBeenCalledTimes(2);
+      expect(mockDecodeFromParquet).toHaveBeenCalledTimes(2);
       expect(result.total).toBeGreaterThanOrEqual(0);
     });
 
@@ -93,14 +109,15 @@ describe("ParquetStore", () => {
 
   describe("getViolations", () => {
     it("returns paginated violations", async () => {
-      const data = JSON.stringify([
+      const mockData = [
         { domain: "example.com", directive: "script-src", timestamp: "2024-01-01T00:00:00.000Z" },
         { domain: "test.com", directive: "style-src", timestamp: "2024-01-02T00:00:00.000Z" },
-      ]);
+      ];
 
       mockIndexedDBListByDateRange.mockResolvedValue([
-        { data: new TextEncoder().encode(data) },
+        { data: new Uint8Array([1]) },
       ]);
+      mockDecodeFromParquet.mockResolvedValue(mockData);
 
       const result = await store.getViolations({ limit: 10 });
 
@@ -110,13 +127,14 @@ describe("ParquetStore", () => {
 
   describe("getNetworkRequests", () => {
     it("returns paginated network requests", async () => {
-      const data = JSON.stringify([
+      const mockData = [
         { domain: "api.example.com", url: "https://api.example.com/v1", method: "GET", timestamp: "2024-01-01T00:00:00.000Z" },
-      ]);
+      ];
 
       mockIndexedDBListByDateRange.mockResolvedValue([
-        { data: new TextEncoder().encode(data) },
+        { data: new Uint8Array([1]) },
       ]);
+      mockDecodeFromParquet.mockResolvedValue(mockData);
 
       const result = await store.getNetworkRequests();
 
@@ -126,13 +144,14 @@ describe("ParquetStore", () => {
 
   describe("getEvents", () => {
     it("returns paginated events", async () => {
-      const data = JSON.stringify([
+      const mockData = [
         { type: "page_visit", domain: "example.com", timestamp: "2024-01-01T00:00:00.000Z" },
-      ]);
+      ];
 
       mockIndexedDBListByDateRange.mockResolvedValue([
-        { data: new TextEncoder().encode(data) },
+        { data: new Uint8Array([1]) },
       ]);
+      mockDecodeFromParquet.mockResolvedValue(mockData);
 
       const result = await store.getEvents();
 
@@ -142,17 +161,21 @@ describe("ParquetStore", () => {
 
   describe("getStats", () => {
     it("returns database statistics", async () => {
-      const violationData = JSON.stringify([
+      const mockViolations = [
         { domain: "example.com", directive: "script-src" },
         { domain: "test.com", directive: "style-src" },
-      ]);
-      const requestData = JSON.stringify([
+      ];
+      const mockRequests = [
         { domain: "api.example.com", url: "https://api.example.com" },
-      ]);
+      ];
 
       mockIndexedDBListByDateRange
-        .mockResolvedValueOnce([{ data: new TextEncoder().encode(violationData) }])
-        .mockResolvedValueOnce([{ data: new TextEncoder().encode(requestData) }]);
+        .mockResolvedValueOnce([{ data: new Uint8Array([1]) }])
+        .mockResolvedValueOnce([{ data: new Uint8Array([2]) }]);
+
+      mockDecodeFromParquet
+        .mockResolvedValueOnce(mockViolations)
+        .mockResolvedValueOnce(mockRequests);
 
       const stats = await store.getStats();
 
@@ -248,13 +271,17 @@ describe("ParquetStore", () => {
 
   describe("data serialization", () => {
     it("handles multiple files for same date range", async () => {
-      const data1 = JSON.stringify([{ domain: "a.com" }]);
-      const data2 = JSON.stringify([{ domain: "b.com" }]);
+      const mockData1 = [{ domain: "a.com" }];
+      const mockData2 = [{ domain: "b.com" }];
 
       mockIndexedDBListByDateRange.mockResolvedValue([
-        { data: new TextEncoder().encode(data1) },
-        { data: new TextEncoder().encode(data2) },
+        { data: new Uint8Array([1]) },
+        { data: new Uint8Array([2]) },
       ]);
+
+      mockDecodeFromParquet
+        .mockResolvedValueOnce(mockData1)
+        .mockResolvedValueOnce(mockData2);
 
       const result = await store.getViolations();
 
