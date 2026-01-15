@@ -126,6 +126,8 @@
 | Identity Securityテスト | パスワード強度分析テスト (49テスト) | 高 | - |
 | Data Exportテスト | CSV/JSON/Markdown/HTMLエクスポートテスト (38テスト) | 中 | - |
 | CSP Analyzerテスト | CSPポリシー生成・統計・推奨事項テスト (27テスト) | 高 | - |
+| Alert Managerテスト | アラート管理・通知・ライフサイクルテスト (48テスト) | 高 | - |
+| Policy Generatorテスト | ポリシー自動生成テスト (27テスト) | 高 | - |
 
 ## 成功指標
 
