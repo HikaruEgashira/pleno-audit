@@ -84,6 +84,9 @@ importers:
       '@pleno-audit/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@pleno-audit/threat-intel':
+        specifier: workspace:*
+        version: link:../../packages/threat-intel
       hono:
         specifier: ^4.11.4
         version: 4.11.4
