@@ -1461,6 +1461,13 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 }
 
 async function registerMainWorldScript() {
+  // chrome.scripting is only available in Chrome MV3
+  // Firefox MV2 uses manifest-based content script registration
+  if (typeof chrome.scripting?.registerContentScripts !== "function") {
+    logger.debug("chrome.scripting not available (Firefox MV2), skipping dynamic registration");
+    return;
+  }
+
   try {
     await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
     await chrome.scripting.registerContentScripts([{
