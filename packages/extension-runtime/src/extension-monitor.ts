@@ -37,6 +37,15 @@ let globalOwnExtensionId: string = "";
 let globalKnownExtensions = new Map<string, ExtensionInfo>();
 let globalCallbacks: ((request: ExtensionRequestRecord) => void)[] = [];
 let isListenerRegistered = false;
+let isExtensionListInitialized = false;
+
+/**
+ * グローバルコールバックをクリア
+ * 設定変更時のメモリリーク防止のため
+ */
+export function clearGlobalCallbacks(): void {
+  globalCallbacks = [];
+}
 
 function isExtensionRequest(
   details: chrome.webRequest.WebRequestDetails
@@ -81,11 +90,17 @@ function handleWebRequest(
   if (globalConfig.excludedExtensions.includes(extensionId)) return;
 
   const extInfo = globalKnownExtensions.get(extensionId);
+  const extensionName = extInfo?.name || "Unknown Extension";
+
+  // 拡張機能リストが初期化されていない場合は警告
+  if (!isExtensionListInitialized && !extInfo) {
+    logger.debug("Extension request before list initialized:", extensionId);
+  }
 
   const record: ExtensionRequestRecord = {
     id: crypto.randomUUID(),
     extensionId,
-    extensionName: extInfo?.name || "Unknown Extension",
+    extensionName,
     timestamp: Date.now(),
     url: details.url,
     method: details.method,
@@ -95,7 +110,7 @@ function handleWebRequest(
 
   logger.debug("Extension request detected:", {
     extensionId,
-    extensionName: record.extensionName,
+    extensionName,
     url: record.url.substring(0, 100),
   });
 
@@ -165,6 +180,7 @@ export function createExtensionMonitor(
           });
         }
       }
+      isExtensionListInitialized = true;
       logger.debug(`Extension list refreshed: ${globalKnownExtensions.size} extensions`);
     } catch (error) {
       logger.warn("Failed to get extension list:", error);
@@ -208,6 +224,8 @@ export function createExtensionMonitor(
       chrome.management.onUninstalled.removeListener(handleUninstalled);
       // webRequestリスナーは維持（Service Workerのライフサイクル対応）
       globalConfig = { ...globalConfig, enabled: false };
+      // コールバックをクリア（メモリリーク防止）
+      clearGlobalCallbacks();
     },
 
     getKnownExtensions() {
