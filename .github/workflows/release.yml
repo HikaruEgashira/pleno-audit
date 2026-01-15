@@ -48,3 +48,4 @@ jobs:
           name: Release ${{ steps.version.outputs.tag }}
           files: extension.zip
           generate_release_notes: true
+          make_latest: true
