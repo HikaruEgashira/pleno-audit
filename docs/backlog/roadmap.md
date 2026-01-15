@@ -131,6 +131,11 @@
 | Password Reuse Detectorテスト | パスワード再利用検出テスト (28テスト) | 高 | - |
 | Extension Risk Analyzerテスト | 拡張機能リスク分析テスト (48テスト) | 高 | - |
 | Risk Forecasterテスト | リスク予測テスト (24テスト) | 高 | - |
+| Login Detectorテスト | ログイン検出テスト (31テスト) | 高 | - |
+| Privacy Finderテスト | プライバシーポリシー検出テスト (33テスト) | 高 | - |
+| NRD Detectorテスト | NRD検出器テスト (19テスト) | 高 | - |
+| DDNSテスト | DDNS検出テスト (36テスト) | 高 | - |
+| RDAPテスト | RDAP APIクライアントテスト (14テスト) | 高 | - |
 
 ## 成功指標
 
