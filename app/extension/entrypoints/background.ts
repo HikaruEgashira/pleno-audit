@@ -54,6 +54,7 @@ import {
   clearAIPrompts,
   createExtensionMonitor,
   createLogger,
+  analyzeInstalledExtension,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
@@ -66,6 +67,7 @@ import {
   type ExtensionRequestRecord,
   type DataRetentionConfig,
   type DetectionConfig,
+  type ExtensionRiskAnalysis,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -592,6 +594,103 @@ async function flushExtensionRequestBuffer() {
   requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
 
   await setStorage({ extensionRequests: requests });
+}
+
+// 拡張機能リスク分析結果のキャッシュ（extensionId -> 最後のalert発火時刻）
+const extensionAlertCooldown: Map<string, number> = new Map();
+const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
+
+/**
+ * インストールされている拡張機能のリスク分析を実行
+ */
+async function analyzeExtensionRisks(): Promise<void> {
+  try {
+    const storage = await getStorage();
+    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+
+    if (!detectionConfig.enableExtension) {
+      return;
+    }
+
+    const requests = storage.extensionRequests || [];
+    if (requests.length === 0) return;
+
+    // 拡張機能ごとにリクエストをグループ化
+    const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+    for (const req of requests) {
+      const existing = requestsByExtension.get(req.extensionId) || [];
+      existing.push(req);
+      requestsByExtension.set(req.extensionId, existing);
+    }
+
+    // 各拡張機能のリスク分析
+    for (const [extensionId, extRequests] of requestsByExtension) {
+      // クールダウンチェック
+      const lastAlertTime = extensionAlertCooldown.get(extensionId) || 0;
+      if (Date.now() - lastAlertTime < EXTENSION_ALERT_COOLDOWN_MS) {
+        continue;
+      }
+
+      const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+      if (!analysis) continue;
+
+      // 危険な拡張機能を検出したらアラート
+      if (analysis.riskLevel === "critical" || analysis.riskLevel === "high") {
+        const uniqueDomains = [...new Set(extRequests.map(r => r.domain))];
+        await getAlertManager().alertExtension({
+          extensionId: analysis.extensionId,
+          extensionName: analysis.extensionName,
+          riskLevel: analysis.riskLevel,
+          riskScore: analysis.riskScore,
+          flags: analysis.flags.map(f => f.flag),
+          requestCount: extRequests.length,
+          targetDomains: uniqueDomains.slice(0, 10),
+        });
+
+        // クールダウンを設定
+        extensionAlertCooldown.set(extensionId, Date.now());
+        logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
+      }
+    }
+  } catch (error) {
+    logger.error("Extension risk analysis failed:", error);
+  }
+}
+
+/**
+ * 拡張機能リスク分析結果を取得
+ */
+async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
+  const storage = await getStorage();
+  const requests = (storage.extensionRequests || []).filter(r => r.extensionId === extensionId);
+  return analyzeInstalledExtension(extensionId, requests);
+}
+
+/**
+ * すべての拡張機能のリスク分析結果を取得
+ */
+async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
+  const storage = await getStorage();
+  const requests = storage.extensionRequests || [];
+
+  // 拡張機能ごとにグループ化
+  const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+  for (const req of requests) {
+    const existing = requestsByExtension.get(req.extensionId) || [];
+    existing.push(req);
+    requestsByExtension.set(req.extensionId, existing);
+  }
+
+  const results: ExtensionRiskAnalysis[] = [];
+  for (const [extensionId, extRequests] of requestsByExtension) {
+    const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+    if (analysis) {
+      results.push(analysis);
+    }
+  }
+
+  // リスクスコア降順でソート
+  return results.sort((a, b) => b.riskScore - a.riskScore);
 }
 
 async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
@@ -1417,6 +1516,8 @@ export default defineBackground(() => {
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
   chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  // Extension risk analysis (runs every 5 minutes)
+  chrome.alarms.create("extensionRiskAnalysis", { periodInMinutes: 5 });
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
@@ -1430,6 +1531,9 @@ export default defineBackground(() => {
     }
     if (alarm.name === "flushExtensionRequests") {
       flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
+    }
+    if (alarm.name === "extensionRiskAnalysis") {
+      analyzeExtensionRisks().catch((err) => logger.debug("Extension risk analysis failed:", err));
     }
     if (alarm.name === "dataCleanup") {
       cleanupOldData().catch((err) => logger.debug("Data cleanup failed:", err));
@@ -1734,6 +1838,28 @@ export default defineBackground(() => {
     if (message.type === "SET_EXTENSION_MONITOR_CONFIG") {
       setExtensionMonitorConfig(message.data)
         .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Extension Risk Analysis handlers
+    if (message.type === "GET_ALL_EXTENSION_RISKS") {
+      getAllExtensionRisks()
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    }
+
+    if (message.type === "GET_EXTENSION_RISK_ANALYSIS") {
+      getExtensionRiskAnalysis(message.data.extensionId)
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "TRIGGER_EXTENSION_RISK_ANALYSIS") {
+      analyzeExtensionRisks()
+        .then(() => sendResponse({ success: true }))
         .catch(() => sendResponse({ success: false }));
       return true;
     }

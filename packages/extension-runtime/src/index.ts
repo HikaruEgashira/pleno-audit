@@ -66,6 +66,23 @@ export {
   type ExtensionInfo,
 } from "./extension-monitor.js";
 
+// Extension Risk Analyzer
+export {
+  DANGEROUS_PERMISSIONS,
+  analyzePermissions,
+  analyzeNetworkActivity,
+  calculateRiskScore,
+  scoreToRiskLevel,
+  generateRiskFlags,
+  analyzeExtensionRisk,
+  analyzeInstalledExtension,
+  type PermissionRiskCategory,
+  type PermissionRisk,
+  type ExtensionRiskAnalysis,
+  type NetworkRisk,
+  type RiskFlag,
+} from "./extension-risk-analyzer.js";
+
 // Logger
 export {
   createLogger,
