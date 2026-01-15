@@ -58,7 +58,7 @@ pnpm --filter @pleno-audit/debugger start status
 
 ## ブランチ運用
 
-- `main` - 安定版リリース（PR必須、force push禁止）
+- `main` - 安定版リリース（PR必須、障害対応時はforce push可）
 - `canary` - 開発版リリース（pushごとにcanaryリリース作成）
 
 ### 開発フロー
