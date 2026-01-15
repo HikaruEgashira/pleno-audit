@@ -12,10 +12,15 @@
     "server:dev": "pnpm -C app/server dev",
     "website": "pnpm -C app/website dev",
     "website:build": "pnpm -C app/website build",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.17",
     "concurrently": "^9.1.2",
-    "oxlint": "^1.38.0"
+    "oxlint": "^1.38.0",
+    "vitest": "^4.0.17"
   }
 }
