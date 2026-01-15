@@ -142,6 +142,18 @@ export {
   getProviderInfo,
   isShadowAI,
   PROVIDER_INFO,
+  // DLP Rules
+  createDLPManager,
+  EXTENDED_DLP_RULES,
+  DEFAULT_DLP_CONFIG,
+} from "@pleno-audit/ai-detector";
+
+export type {
+  DLPRule,
+  DLPConfig,
+  DLPDetectionResult,
+  DLPAnalysisResult,
+  DLPManager,
 } from "@pleno-audit/ai-detector";
 
 // Typosquatting Detection (re-export from @pleno-audit/typosquat)
