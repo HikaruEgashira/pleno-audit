@@ -6,6 +6,7 @@ export default defineConfig({
   imports: false,
   webExt: {
     startUrls: ["https://example.com"],
+    args: ["--load-extension=../pleno-battacker/dist/chrome-mv3"],
   },
   manifest: (env) => {
     const isDev = env.mode === "development";
