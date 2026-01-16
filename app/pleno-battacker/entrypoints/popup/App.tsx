@@ -1,6 +1,9 @@
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { useState, useEffect } from "preact/hooks";
 import type { DefenseScore } from "../../lib/types";
 import { CATEGORY_LABELS } from "../../lib/types";
+
+const logger = createLogger("battacker-popup");
 
 export function App() {
   const [score, setScore] = useState<DefenseScore | null>(null);
@@ -16,7 +19,7 @@ export function App() {
       const result = await chrome.runtime.sendMessage({ type: "GET_LAST_RESULT" });
       setScore(result);
     } catch (error) {
-      console.error("Failed to load result:", error);
+      logger.error("Failed to load result:", error);
     } finally {
       setLoading(false);
     }
@@ -27,12 +30,12 @@ export function App() {
     try {
       const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
       if ("error" in result) {
-        console.error("Test error:", result.error);
+        logger.error("Test error:", result.error);
       } else {
         setScore(result);
       }
     } catch (error) {
-      console.error("Failed to run tests:", error);
+      logger.error("Failed to run tests:", error);
     } finally {
       setRunning(false);
     }

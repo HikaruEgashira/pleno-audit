@@ -1,22 +1,19 @@
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { allAttacks } from "../lib/attacks";
 import { calculateDefenseScore, runAllTests } from "../lib/scorer";
-import type { DefenseScore, TestResult } from "../lib/types";
+import type { DefenseScore } from "../lib/types";
+
+const logger = createLogger("battacker");
 
 interface MessageRequest {
   type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY";
-}
-
-interface TestProgress {
-  completed: number;
-  total: number;
-  currentTest: string;
 }
 
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
 
 export default defineBackground(() => {
-  console.log("[Pleno Battacker] Background started");
+  logger.info("Background started");
 
   chrome.runtime.onMessage.addListener(
     (
@@ -51,11 +48,11 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
   }
 
   isRunning = true;
-  console.log("[Pleno Battacker] Starting security tests...");
+  logger.info("Starting security tests...");
 
   try {
     const results = await runAllTests(allAttacks, (completed, total, current) => {
-      console.log(`[Pleno Battacker] Progress: ${completed}/${total} - ${current.name}`);
+      logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
     });
 
     const score = calculateDefenseScore(results);
@@ -63,11 +60,11 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
 
     await saveResult(score);
 
-    console.log(`[Pleno Battacker] Tests complete. Score: ${score.totalScore} (${score.grade})`);
+    logger.info(`Tests complete. Score: ${score.totalScore} (${score.grade})`);
 
     return score;
   } catch (error) {
-    console.error("[Pleno Battacker] Test error:", error);
+    logger.error("Test error:", error);
     return { error: error instanceof Error ? error.message : String(error) };
   } finally {
     isRunning = false;

@@ -8,6 +8,7 @@
     "build": "wxt build"
   },
   "dependencies": {
+    "@pleno-audit/extension-runtime": "workspace:*",
     "preact": "^10.25.4"
   },
   "devDependencies": {

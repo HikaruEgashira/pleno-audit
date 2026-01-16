@@ -1,6 +1,9 @@
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { useState, useEffect } from "preact/hooks";
 import type { DefenseScore, CategoryScore, TestResult } from "../../lib/types";
 import { CATEGORY_LABELS } from "../../lib/types";
+
+const logger = createLogger("battacker-dashboard");
 
 type TabType = "overview" | "results" | "history";
 
@@ -24,7 +27,7 @@ export function App() {
       setScore(result);
       setHistory(historyData);
     } catch (error) {
-      console.error("Failed to load data:", error);
+      logger.error("Failed to load data:", error);
     } finally {
       setLoading(false);
     }
@@ -39,7 +42,7 @@ export function App() {
         setHistory((prev) => [...prev, result]);
       }
     } catch (error) {
-      console.error("Failed to run tests:", error);
+      logger.error("Failed to run tests:", error);
     } finally {
       setRunning(false);
     }
