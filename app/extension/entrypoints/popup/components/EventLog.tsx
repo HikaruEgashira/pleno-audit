@@ -27,7 +27,7 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length > 50 ? "50+" : filteredEvents.length})</h3>
+      <h3 style={styles.sectionTitle}>{title} ({filteredEvents.length > 20000 ? "20000+" : filteredEvents.length})</h3>
       <div style={styles.card}>
         <table style={styles.table}>
           <thead>
@@ -38,7 +38,7 @@ export function EventLogList({ events, filterTypes, title = "イベント" }: Pr
             </tr>
           </thead>
           <tbody>
-            {filteredEvents.slice(0, 50).map((event) => (
+            {filteredEvents.slice(0, 20000).map((event) => (
               <EventRow key={event.id} event={event} styles={styles} colors={colors} />
             ))}
           </tbody>

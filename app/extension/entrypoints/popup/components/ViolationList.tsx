@@ -20,9 +20,9 @@ export function ViolationList({ violations }: ViolationProps) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>CSP違反 ({violations.length > 50 ? "50+" : violations.length})</h3>
+      <h3 style={styles.sectionTitle}>CSP違反 ({violations.length > 20000 ? "20000+" : violations.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {violations.slice(0, 50).map((v, i) => {
+        {violations.slice(0, 20000).map((v, i) => {
           const id = `${v.timestamp}-${i}`;
           return (
             <ViolationCard
