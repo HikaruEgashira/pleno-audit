@@ -411,7 +411,7 @@ async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
  * DoH Monitor operations
  */
 const DEFAULT_DOH_CONFIG = {
-  action: "pass" as const,
+  action: "detect" as const,
   maxStoredRequests: 1000,
 };
 

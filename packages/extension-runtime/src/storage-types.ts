@@ -113,7 +113,7 @@ export type DoHDetectionMethod =
   | "url-path"
   | "dns-param";
 
-export type DoHAction = "pass" | "alert" | "block";
+export type DoHAction = "detect" | "alert" | "block";
 
 export interface DoHMonitorConfig {
   action: DoHAction;

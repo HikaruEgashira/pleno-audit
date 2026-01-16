@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getExtensionClient } from "../extension-client.js";
 
 interface DoHConfig {
-  action: "pass" | "alert" | "block";
+  action: "detect" | "alert" | "block";
   maxStoredRequests: number;
 }
 
@@ -31,8 +31,8 @@ dohCommand
       const client = await getExtensionClient();
 
       if (options.action) {
-        if (!["pass", "alert", "block"].includes(options.action)) {
-          console.error("Invalid action. Use: pass, alert, or block");
+        if (!["detect", "alert", "block"].includes(options.action)) {
+          console.error("Invalid action. Use: detect, alert, or block");
           process.exit(1);
         }
         const response = await client.send("DEBUG_DOH_CONFIG_SET", {

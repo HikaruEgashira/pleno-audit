@@ -19,7 +19,7 @@ const logger = createLogger("doh-monitor");
 export type { DoHAction, DoHDetectionMethod, DoHMonitorConfig, DoHRequestRecord };
 
 export const DEFAULT_DOH_MONITOR_CONFIG: DoHMonitorConfig = {
-  action: "pass",
+  action: "detect",
   maxStoredRequests: 1000,
 };
 
@@ -157,8 +157,6 @@ async function disableDoHBlocking(): Promise<void> {
 function handleBeforeSendHeaders(
   details: chrome.webRequest.WebRequestHeadersDetails
 ): void {
-  if (globalConfig.action === "pass") return;
-
   const { isDoH, method } = detectDoHRequest(details.url, details.requestHeaders);
 
   if (!isDoH || !method) return;
@@ -228,11 +226,6 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
 
   return {
     async start() {
-      if (globalConfig.action === "pass") {
-        logger.debug("DoH monitor disabled (action: pass)");
-        return;
-      }
-
       if (!isListenerRegistered) {
         registerDoHMonitorListener();
       }
@@ -245,7 +238,7 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
     },
 
     async stop() {
-      globalConfig = { ...globalConfig, action: "pass" };
+      globalConfig = { ...globalConfig, action: "detect" };
       clearDoHCallbacks();
       await disableDoHBlocking();
       logger.info("DoH monitor stopped");

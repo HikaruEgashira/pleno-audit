@@ -126,7 +126,7 @@ describe("createDoHMonitor", () => {
       const callback = vi.fn();
       monitor.onRequest(callback);
       monitor.stop();
-      expect(monitor.getConfig().action).toBe("pass");
+      expect(monitor.getConfig().action).toBe("detect");
     });
   });
 
@@ -174,7 +174,7 @@ describe("createDoHMonitor", () => {
       const newMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
       // No way to verify callback count without exposing internals
       // but this tests the API doesn't throw
-      expect(newMonitor.getConfig().action).toBe("pass");
+      expect(newMonitor.getConfig().action).toBe("detect");
     });
   });
 });
