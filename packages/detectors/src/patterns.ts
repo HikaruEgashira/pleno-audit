@@ -31,7 +31,9 @@ export const LOGIN_URL_PATTERNS = [
   /\/sso/i,
   /\/saml/i,
   /\/oidc/i,
-  /\/callback/i,
+  /\/oauth\/callback/i,
+  /\/auth\/callback/i,
+  /\/sso\/callback/i,
   /\/authorize/i,
 ];
 
@@ -42,9 +44,9 @@ export const SOCIAL_LOGIN_TEXT_PATTERNS = [
   /continue\s*with/i,
   /log\s*in\s*with/i,
   // Japanese
-  /でログイン$/,
-  /で続行$/,
-  /でサインイン$/,
+  /でログイン/,
+  /で続行/,
+  /でサインイン/,
   // Generic patterns
   /oauth/i,
   /sso/i,
