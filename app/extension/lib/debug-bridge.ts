@@ -235,6 +235,15 @@ async function handleMessage(
       case "DEBUG_TAB_OPEN":
         return await openTab(data as { url: string });
 
+      case "DEBUG_DOH_CONFIG_GET":
+        return await getDoHConfig();
+
+      case "DEBUG_DOH_CONFIG_SET":
+        return await setDoHConfig(data as { action?: string; maxStoredRequests?: number });
+
+      case "DEBUG_DOH_REQUESTS":
+        return await getDoHRequests(data as { limit?: number; offset?: number });
+
       default:
         // Forward to background script as a regular message
         return await forwardToBackground(type, data);
@@ -394,6 +403,82 @@ async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to clear events",
+    };
+  }
+}
+
+/**
+ * DoH Monitor operations
+ */
+const DEFAULT_DOH_CONFIG = {
+  action: "detect" as const,
+  maxStoredRequests: 1000,
+};
+
+async function getDoHConfig(): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("doHMonitorConfig");
+    return {
+      success: true,
+      data: storage.doHMonitorConfig || DEFAULT_DOH_CONFIG,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get DoH config",
+    };
+  }
+}
+
+async function setDoHConfig(params: {
+  action?: string;
+  maxStoredRequests?: number;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("doHMonitorConfig");
+    const currentConfig = storage.doHMonitorConfig || DEFAULT_DOH_CONFIG;
+    const newConfig = { ...currentConfig, ...params };
+    await chrome.storage.local.set({ doHMonitorConfig: newConfig });
+
+    // Notify background to update monitor config via message
+    chrome.runtime.sendMessage({
+      type: "SET_DOH_MONITOR_CONFIG",
+      data: params,
+    }).catch(() => {});
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to set DoH config",
+    };
+  }
+}
+
+async function getDoHRequests(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("doHRequests");
+    const allRequests = storage.doHRequests || [];
+    const total = allRequests.length;
+
+    const limit = params?.limit ?? 100;
+    const offset = params?.offset ?? 0;
+
+    // Sort by timestamp descending (newest first)
+    const sorted = [...allRequests].sort((a: { timestamp: number }, b: { timestamp: number }) => b.timestamp - a.timestamp);
+    const requests = sorted.slice(offset, offset + limit);
+
+    return {
+      success: true,
+      data: { requests, total },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get DoH requests",
     };
   }
 }

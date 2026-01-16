@@ -10,6 +10,7 @@ import { watchCommand } from "./commands/watch.js";
 import { logsCommand } from "./commands/logs.js";
 import { installCommand as serverCommand } from "./commands/install.js";
 import { browserCommand } from "./commands/browser.js";
+import { dohCommand } from "./commands/doh.js";
 
 const program = new Command();
 
@@ -37,5 +38,8 @@ program.addCommand(logsCommand);
 
 // Browser control
 program.addCommand(browserCommand);
+
+// DoH monitoring
+program.addCommand(dohCommand);
 
 program.parse();
