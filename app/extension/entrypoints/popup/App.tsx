@@ -8,7 +8,7 @@ import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { StorageData } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
-import { Badge, Button, SettingsMenu } from "../../components";
+import { Badge, Button, PopupSettingsMenu } from "../../components";
 import {
   ServicesTab,
   SessionsTab,
@@ -130,23 +130,6 @@ function PopupContent() {
     }
   }
 
-  async function handleClearData() {
-    if (!confirm("すべてのデータを削除しますか？")) return;
-    try {
-      await chrome.storage.local.remove(["services"]);
-      await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
-      await chrome.runtime.sendMessage({ type: "CLEAR_AI_DATA" });
-      await chrome.runtime.sendMessage({ type: "CLEAR_EVENTS" });
-      setData({ services: {}, events: [] });
-      setViolations([]);
-      setNetworkRequests([]);
-      setAIPrompts([]);
-      setUnifiedServices([]);
-    } catch {
-      // Failed to clear data
-    }
-  }
-
   // Update unified services when dependencies change
   useEffect(() => {
     const services = Object.values(data.services) as DetectedService[];
@@ -200,7 +183,7 @@ function PopupContent() {
           <Button variant="secondary" size="sm" onClick={openDashboard}>
             Dashboard
           </Button>
-          <SettingsMenu onClearData={handleClearData} />
+          <PopupSettingsMenu />
         </div>
       </header>
 
