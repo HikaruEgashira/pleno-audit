@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@pleno-audit/extension-runtime": "workspace:*",
+    "motion": "^12.26.2",
     "preact": "^10.25.4"
   },
   "devDependencies": {

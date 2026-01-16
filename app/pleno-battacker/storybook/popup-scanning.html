@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup - Scanning State</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Battacker</h1>
+    </div>
+
+    <div class="score-section">
+      <div class="unified-gauge" style="position: relative; width: 180px; height: 180px;">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <linearGradient id="scanBeam" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="transparent" />
+              <stop offset="50%" stop-color="white" stop-opacity="0.9" />
+              <stop offset="100%" stop-color="transparent" />
+            </linearGradient>
+          </defs>
+
+          <!-- Base circle -->
+          <circle cx="90" cy="90" r="70" fill="none" stroke="#1a1a1a" stroke-width="6" />
+
+          <!-- Outer rotating ring 1 -->
+          <circle
+            cx="90"
+            cy="90"
+            r="85"
+            fill="none"
+            stroke="rgba(255,255,255,0.12)"
+            stroke-width="1"
+            stroke-dasharray="10 5"
+            class="rotate-cw-slow"
+          />
+
+          <!-- Outer rotating ring 2 -->
+          <circle
+            cx="90"
+            cy="90"
+            r="92"
+            fill="none"
+            stroke="rgba(255,255,255,0.06)"
+            stroke-width="1"
+            stroke-dasharray="5 10"
+            class="rotate-ccw-slow"
+          />
+
+          <!-- Pulsing outer ring -->
+          <circle
+            cx="90"
+            cy="90"
+            r="100"
+            fill="none"
+            stroke="rgba(255,255,255,0.08)"
+            stroke-width="1"
+            class="pulse-ring"
+          />
+
+          <!-- Scan beam -->
+          <g class="rotate-scan">
+            <path
+              d="M 90 20 A 70 70 0 0 1 149.5 60"
+              fill="none"
+              stroke="url(#scanBeam)"
+              stroke-width="6"
+              stroke-linecap="round"
+              filter="url(#glow)"
+            />
+          </g>
+
+          <!-- Progress arc (65%) -->
+          <circle
+            cx="90"
+            cy="90"
+            r="70"
+            fill="none"
+            stroke="#ffffff"
+            stroke-width="6"
+            stroke-linecap="round"
+            stroke-dasharray="439.82"
+            stroke-dashoffset="153.94"
+            filter="url(#glow)"
+            style="transform: rotate(-90deg); transform-origin: 90px 90px;"
+          />
+
+          <!-- Inner ring -->
+          <circle
+            cx="90"
+            cy="90"
+            r="52"
+            fill="none"
+            stroke="rgba(255,255,255,0.08)"
+            stroke-width="1"
+            stroke-dasharray="3 6"
+            class="rotate-ccw-med"
+          />
+
+          <!-- Data particles -->
+          <circle cx="150" cy="90" r="2" fill="white" class="particle p1" />
+          <circle cx="120" cy="147" r="2" fill="white" class="particle p2" />
+          <circle cx="60" cy="147" r="2" fill="white" class="particle p3" />
+          <circle cx="30" cy="90" r="2" fill="white" class="particle p4" />
+          <circle cx="60" cy="33" r="2" fill="white" class="particle p5" />
+          <circle cx="120" cy="33" r="2" fill="white" class="particle p6" />
+        </svg>
+
+        <div class="gauge-center">
+          <div class="scan-value">65</div>
+          <div class="scan-phase">SCAN</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary">[ View Analysis ]</button>
+    </div>
+  </div>
+
+  <style>
+    .rotate-cw-slow {
+      animation: rotate-cw 20s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    .rotate-ccw-slow {
+      animation: rotate-ccw 15s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    .rotate-ccw-med {
+      animation: rotate-ccw 10s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    .rotate-scan {
+      animation: rotate-cw 2.5s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    .pulse-ring {
+      animation: pulse-expand 2s ease-in-out infinite;
+      transform-origin: 90px 90px;
+    }
+    @keyframes rotate-cw {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes rotate-ccw {
+      to { transform: rotate(-360deg); }
+    }
+    @keyframes pulse-expand {
+      0%, 100% { r: 100; opacity: 0.08; }
+      50% { r: 108; opacity: 0.2; }
+    }
+    .particle {
+      animation: particle-pulse 1.8s ease-in-out infinite;
+    }
+    .particle.p1 { animation-delay: 0s; }
+    .particle.p2 { animation-delay: 0.3s; }
+    .particle.p3 { animation-delay: 0.6s; }
+    .particle.p4 { animation-delay: 0.9s; }
+    .particle.p5 { animation-delay: 1.2s; }
+    .particle.p6 { animation-delay: 1.5s; }
+    @keyframes particle-pulse {
+      0%, 100% { opacity: 0; transform: scale(0.5); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    .scan-value {
+      font-size: 40px;
+      font-weight: 800;
+      font-family: 'SF Mono', monospace;
+      color: #fff;
+      letter-spacing: 2px;
+      animation: value-pulse 0.8s ease-in-out infinite;
+    }
+    .scan-phase {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: #555;
+      margin-top: 4px;
+    }
+    @keyframes value-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+</body>
+</html>
