@@ -2844,9 +2844,8 @@ export default defineBackground(() => {
       await setStorage(storage);
       logger.debug("DoH request stored:", record.domain);
 
-      // Send notification if enabled
       const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
-      if (config.notifyEnabled) {
+      if (config.action === "alert" || config.action === "block") {
         await chrome.notifications.create(`doh-${record.id}`, {
           type: "basic",
           iconUrl: "icon-128.png",

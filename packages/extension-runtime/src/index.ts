@@ -141,6 +141,7 @@ export {
   DEFAULT_DOH_MONITOR_CONFIG,
   DOH_URL_PATTERNS,
   type DoHMonitor,
+  type DoHAction,
   type DoHMonitorConfig,
   type DoHRequestRecord,
   type DoHDetectionMethod,

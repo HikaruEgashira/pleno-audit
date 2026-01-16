@@ -7,6 +7,7 @@
 
 import { createLogger } from "./logger.js";
 import type {
+  DoHAction,
   DoHDetectionMethod,
   DoHMonitorConfig,
   DoHRequestRecord,
@@ -15,12 +16,10 @@ import type {
 const logger = createLogger("doh-monitor");
 
 // Re-export types from storage-types.ts for backward compatibility
-export type { DoHDetectionMethod, DoHMonitorConfig, DoHRequestRecord };
+export type { DoHAction, DoHDetectionMethod, DoHMonitorConfig, DoHRequestRecord };
 
 export const DEFAULT_DOH_MONITOR_CONFIG: DoHMonitorConfig = {
-  enabled: true,
-  blockEnabled: false,
-  notifyEnabled: false,
+  action: "pass",
   maxStoredRequests: 1000,
 };
 
@@ -158,7 +157,7 @@ async function disableDoHBlocking(): Promise<void> {
 function handleBeforeSendHeaders(
   details: chrome.webRequest.WebRequestHeadersDetails
 ): void {
-  if (!globalConfig.enabled) return;
+  if (globalConfig.action === "pass") return;
 
   const { isDoH, method } = detectDoHRequest(details.url, details.requestHeaders);
 
@@ -172,7 +171,7 @@ function handleBeforeSendHeaders(
     method: details.method,
     detectionMethod: method,
     initiator: details.initiator,
-    blocked: globalConfig.blockEnabled,
+    blocked: globalConfig.action === "block",
   };
 
   logger.debug("DoH request detected:", {
@@ -229,8 +228,8 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
 
   return {
     async start() {
-      if (!globalConfig.enabled) {
-        logger.debug("DoH monitor disabled by config");
+      if (globalConfig.action === "pass") {
+        logger.debug("DoH monitor disabled (action: pass)");
         return;
       }
 
@@ -238,8 +237,7 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
         registerDoHMonitorListener();
       }
 
-      // ブロックが有効なら declarativeNetRequest ルールを追加
-      if (globalConfig.blockEnabled) {
+      if (globalConfig.action === "block") {
         await enableDoHBlocking();
       }
 
@@ -247,7 +245,7 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
     },
 
     async stop() {
-      globalConfig = { ...globalConfig, enabled: false };
+      globalConfig = { ...globalConfig, action: "pass" };
       clearDoHCallbacks();
       await disableDoHBlocking();
       logger.info("DoH monitor stopped");
@@ -258,12 +256,11 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
     },
 
     async updateConfig(newConfig) {
-      const prevBlockEnabled = globalConfig.blockEnabled;
+      const prevAction = globalConfig.action;
       globalConfig = { ...globalConfig, ...newConfig };
 
-      // ブロック設定が変更された場合、declarativeNetRequest ルールを更新
-      if (newConfig.blockEnabled !== undefined && newConfig.blockEnabled !== prevBlockEnabled) {
-        if (newConfig.blockEnabled) {
+      if (newConfig.action !== undefined && newConfig.action !== prevAction) {
+        if (newConfig.action === "block") {
           await enableDoHBlocking();
         } else {
           await disableDoHBlocking();

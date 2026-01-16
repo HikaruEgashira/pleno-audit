@@ -116,8 +116,8 @@ describe("createDoHMonitor", () => {
 
     it("updates config correctly", () => {
       const monitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
-      monitor.updateConfig({ enabled: false });
-      expect(monitor.getConfig().enabled).toBe(false);
+      monitor.updateConfig({ action: "alert" });
+      expect(monitor.getConfig().action).toBe("alert");
       expect(monitor.getConfig().maxStoredRequests).toBe(1000);
     });
 
@@ -126,7 +126,7 @@ describe("createDoHMonitor", () => {
       const callback = vi.fn();
       monitor.onRequest(callback);
       monitor.stop();
-      expect(monitor.getConfig().enabled).toBe(false);
+      expect(monitor.getConfig().action).toBe("pass");
     });
   });
 
@@ -174,7 +174,7 @@ describe("createDoHMonitor", () => {
       const newMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
       // No way to verify callback count without exposing internals
       // but this tests the API doesn't throw
-      expect(newMonitor.getConfig().enabled).toBe(true);
+      expect(newMonitor.getConfig().action).toBe("pass");
     });
   });
 });

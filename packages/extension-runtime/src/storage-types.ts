@@ -113,10 +113,10 @@ export type DoHDetectionMethod =
   | "url-path"
   | "dns-param";
 
+export type DoHAction = "pass" | "alert" | "block";
+
 export interface DoHMonitorConfig {
-  enabled: boolean;
-  blockEnabled: boolean;
-  notifyEnabled: boolean;
+  action: DoHAction;
   maxStoredRequests: number;
 }
 
@@ -159,6 +159,7 @@ export type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
+  DoHAction,
   DoHDetectionMethod,
   DoHMonitorConfig,
   DoHRequestRecord,
