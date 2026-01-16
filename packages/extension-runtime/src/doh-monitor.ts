@@ -17,7 +17,7 @@ export interface DoHMonitorConfig {
 
 export const DEFAULT_DOH_MONITOR_CONFIG: DoHMonitorConfig = {
   enabled: true,
-  blockEnabled: false,
+  blockEnabled: false, // デフォルトオフ
   maxStoredRequests: 1000,
 };
 
@@ -38,10 +38,24 @@ export type DoHDetectionMethod =
   | "url-path"
   | "dns-param";
 
+/**
+ * DoHリクエストを検出するためのURLパターン
+ * 全URLではなく、DoHの可能性があるURLのみをフィルタリング
+ */
+export const DOH_URL_PATTERNS = [
+  "*://*/dns-query",
+  "*://*/dns-query?*",
+  "*://*/*?dns=*",
+];
+
 // グローバル状態
 let globalConfig: DoHMonitorConfig = DEFAULT_DOH_MONITOR_CONFIG;
 let globalCallbacks: ((request: DoHRequestRecord) => void)[] = [];
 let isListenerRegistered = false;
+let isBlockingRuleRegistered = false;
+
+// declarativeNetRequest用のルールID
+const DOH_BLOCK_RULE_ID = 9999;
 
 /**
  * グローバルコールバックをクリア
@@ -69,11 +83,11 @@ export function detectDoHRequest(
   url: string,
   headers?: { name: string; value?: string }[]
 ): { isDoH: boolean; method: DoHDetectionMethod | null } {
-  // 1. Content-Type検出（POST DoH）
+  // 1. Content-Type検出（POST DoH）- charset等の付加情報に対応
   const contentType = headers?.find(
     (h) => h.name.toLowerCase() === "content-type"
   )?.value;
-  if (contentType === "application/dns-message") {
+  if (contentType?.startsWith("application/dns-message")) {
     return { isDoH: true, method: "content-type" };
   }
 
@@ -98,10 +112,58 @@ export function detectDoHRequest(
       return { isDoH: true, method: "dns-param" };
     }
   } catch {
-    // URL解析エラーは無視
+    // URL解析エラーは無視（無効なURLは非DoHとして扱う）
   }
 
   return { isDoH: false, method: null };
+}
+
+/**
+ * DoHブロッキングルールを有効化
+ */
+async function enableDoHBlocking(): Promise<void> {
+  if (isBlockingRuleRegistered) return;
+
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      addRules: [
+        {
+          id: DOH_BLOCK_RULE_ID,
+          priority: 1,
+          action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
+          condition: {
+            urlFilter: "*/dns-query*",
+            resourceTypes: [
+              chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
+              chrome.declarativeNetRequest.ResourceType.OTHER,
+            ],
+          },
+        },
+      ],
+      removeRuleIds: [DOH_BLOCK_RULE_ID],
+    });
+    isBlockingRuleRegistered = true;
+    logger.info("DoH blocking rule enabled");
+  } catch (error) {
+    logger.error("Failed to enable DoH blocking:", error);
+  }
+}
+
+/**
+ * DoHブロッキングルールを無効化
+ */
+async function disableDoHBlocking(): Promise<void> {
+  if (!isBlockingRuleRegistered) return;
+
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [DOH_BLOCK_RULE_ID],
+    });
+    isBlockingRuleRegistered = false;
+    logger.info("DoH blocking rule disabled");
+  } catch (error) {
+    logger.error("Failed to disable DoH blocking:", error);
+  }
 }
 
 /**
@@ -124,7 +186,7 @@ function handleBeforeSendHeaders(
     method: details.method,
     detectionMethod: method,
     initiator: details.initiator,
-    blocked: false,
+    blocked: globalConfig.blockEnabled,
   };
 
   logger.debug("DoH request detected:", {
@@ -166,10 +228,10 @@ export function registerDoHMonitorListener(): void {
 }
 
 export interface DoHMonitor {
-  start(): void;
-  stop(): void;
+  start(): Promise<void>;
+  stop(): Promise<void>;
   onRequest(callback: (request: DoHRequestRecord) => void): void;
-  updateConfig(config: Partial<DoHMonitorConfig>): void;
+  updateConfig(config: Partial<DoHMonitorConfig>): Promise<void>;
   getConfig(): DoHMonitorConfig;
 }
 
@@ -180,7 +242,7 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
   globalConfig = { ...config };
 
   return {
-    start() {
+    async start() {
       if (!globalConfig.enabled) {
         logger.debug("DoH monitor disabled by config");
         return;
@@ -190,12 +252,18 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
         registerDoHMonitorListener();
       }
 
+      // ブロックが有効なら declarativeNetRequest ルールを追加
+      if (globalConfig.blockEnabled) {
+        await enableDoHBlocking();
+      }
+
       logger.info("DoH monitor started");
     },
 
-    stop() {
+    async stop() {
       globalConfig = { ...globalConfig, enabled: false };
       clearDoHCallbacks();
+      await disableDoHBlocking();
       logger.info("DoH monitor stopped");
     },
 
@@ -203,8 +271,19 @@ export function createDoHMonitor(config: DoHMonitorConfig): DoHMonitor {
       globalCallbacks.push(callback);
     },
 
-    updateConfig(newConfig) {
+    async updateConfig(newConfig) {
+      const prevBlockEnabled = globalConfig.blockEnabled;
       globalConfig = { ...globalConfig, ...newConfig };
+
+      // ブロック設定が変更された場合、declarativeNetRequest ルールを更新
+      if (newConfig.blockEnabled !== undefined && newConfig.blockEnabled !== prevBlockEnabled) {
+        if (newConfig.blockEnabled) {
+          await enableDoHBlocking();
+        } else {
+          await disableDoHBlocking();
+        }
+      }
+
       logger.debug("DoH monitor config updated:", globalConfig);
     },
 

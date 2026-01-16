@@ -295,7 +295,7 @@ async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{
 
   // Update running monitor
   if (doHMonitor) {
-    doHMonitor.updateConfig(storage.doHMonitorConfig);
+    await doHMonitor.updateConfig(storage.doHMonitorConfig);
   }
 
   return { success: true };
@@ -2824,7 +2824,7 @@ export default defineBackground(() => {
   // Initialize DoH Monitor
   registerDoHMonitorListener();
   doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
-  doHMonitor.start();
+  doHMonitor.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
 
   doHMonitor.onRequest(async (record: DoHRequestRecord) => {
     try {

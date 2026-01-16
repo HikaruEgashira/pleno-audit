@@ -139,6 +139,7 @@ export {
   clearDoHCallbacks,
   detectDoHRequest,
   DEFAULT_DOH_MONITOR_CONFIG,
+  DOH_URL_PATTERNS,
   type DoHMonitor,
   type DoHMonitorConfig,
   type DoHRequestRecord,
