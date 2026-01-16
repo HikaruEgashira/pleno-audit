@@ -107,9 +107,16 @@ export interface ExtensionRequestRecord {
   statusCode?: number;
 }
 
+export type DoHDetectionMethod =
+  | "content-type"
+  | "accept-header"
+  | "url-path"
+  | "dns-param";
+
 export interface DoHMonitorConfig {
   enabled: boolean;
   blockEnabled: boolean;
+  notifyEnabled: boolean;
   maxStoredRequests: number;
 }
 
@@ -119,7 +126,7 @@ export interface DoHRequestRecord {
   url: string;
   domain: string;
   method: string;
-  detectionMethod: "content-type" | "accept-header" | "url-path" | "dns-param";
+  detectionMethod: DoHDetectionMethod;
   initiator?: string;
   blocked: boolean;
 }
@@ -152,6 +159,7 @@ export type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
+  DoHDetectionMethod,
   DoHMonitorConfig,
   DoHRequestRecord,
   DataRetentionConfig,

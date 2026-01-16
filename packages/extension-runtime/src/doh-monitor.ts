@@ -6,37 +6,23 @@
  */
 
 import { createLogger } from "./logger.js";
+import type {
+  DoHDetectionMethod,
+  DoHMonitorConfig,
+  DoHRequestRecord,
+} from "./storage-types.js";
 
 const logger = createLogger("doh-monitor");
 
-export interface DoHMonitorConfig {
-  enabled: boolean;
-  blockEnabled: boolean;
-  maxStoredRequests: number;
-}
+// Re-export types from storage-types.ts for backward compatibility
+export type { DoHDetectionMethod, DoHMonitorConfig, DoHRequestRecord };
 
 export const DEFAULT_DOH_MONITOR_CONFIG: DoHMonitorConfig = {
   enabled: true,
-  blockEnabled: false, // デフォルトオフ
+  blockEnabled: false,
+  notifyEnabled: false,
   maxStoredRequests: 1000,
 };
-
-export interface DoHRequestRecord {
-  id: string;
-  timestamp: number;
-  url: string;
-  domain: string;
-  method: string;
-  detectionMethod: DoHDetectionMethod;
-  initiator?: string;
-  blocked: boolean;
-}
-
-export type DoHDetectionMethod =
-  | "content-type"
-  | "accept-header"
-  | "url-path"
-  | "dns-param";
 
 /**
  * DoHリクエストを検出するためのURLパターン

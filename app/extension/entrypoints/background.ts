@@ -2240,7 +2240,9 @@ async function handleDebugBridgeForward(
 }
 
 export default defineBackground(() => {
+  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
+  registerDoHMonitorListener();
   registerMainWorldScript();
 
   if (import.meta.env.DEV) {
@@ -2822,7 +2824,6 @@ export default defineBackground(() => {
   });
 
   // Initialize DoH Monitor
-  registerDoHMonitorListener();
   doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
   doHMonitor.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
 
@@ -2842,6 +2843,18 @@ export default defineBackground(() => {
 
       await setStorage(storage);
       logger.debug("DoH request stored:", record.domain);
+
+      // Send notification if enabled
+      const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
+      if (config.notifyEnabled) {
+        await chrome.notifications.create(`doh-${record.id}`, {
+          type: "basic",
+          iconUrl: "icon-128.png",
+          title: "DoH Traffic Detected",
+          message: `DNS over HTTPS request to ${record.domain} (${record.detectionMethod})`,
+          priority: 0,
+        });
+      }
     } catch (error) {
       logger.error("Failed to store DoH request:", error);
     }
