@@ -21,7 +21,7 @@ export function NetworkList({ requests }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>ネットワーク ({requests.length > 50 ? "50+" : requests.length})</h3>
+      <h3 style={styles.sectionTitle}>ネットワーク ({requests.length > 20000 ? "20000+" : requests.length})</h3>
       <div style={styles.card}>
         <table style={styles.table}>
           <thead>
@@ -32,7 +32,7 @@ export function NetworkList({ requests }: Props) {
             </tr>
           </thead>
           <tbody>
-            {requests.slice(0, 50).map((r, i) => (
+            {requests.slice(0, 20000).map((r, i) => (
               <tr key={i} style={styles.tableRow}>
                 <td style={styles.tableCell}>
                   <span style={{ fontFamily: "monospace", fontSize: "11px", color: colors.textSecondary }}>
