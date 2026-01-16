@@ -73,6 +73,28 @@ export const DEFAULT_BLOCKING_CONFIG: BlockingConfig = {
   consentTimestamp: 0,
 };
 
+/**
+ * 通知設定（デフォルト無効）
+ */
+export interface NotificationConfig {
+  enabled: boolean; // 通知全体の有効/無効
+  severityFilter: ("critical" | "high" | "medium" | "low" | "info")[]; // 通知する重大度
+}
+
+export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
+  enabled: false, // デフォルト無効
+  severityFilter: ["critical", "high"],
+};
+
+/**
+ * アラートクールダウン永続化用
+ * キー: アラートの種類とドメイン/IDの組み合わせ
+ * 値: 最後のアラート発火時刻
+ */
+export interface AlertCooldownData {
+  [key: string]: number;
+}
+
 export interface ExtensionRequestRecord {
   id: string;
   extensionId: string;
@@ -85,6 +107,30 @@ export interface ExtensionRequestRecord {
   statusCode?: number;
 }
 
+export type DoHDetectionMethod =
+  | "content-type"
+  | "accept-header"
+  | "url-path"
+  | "dns-param";
+
+export type DoHAction = "detect" | "alert" | "block";
+
+export interface DoHMonitorConfig {
+  action: DoHAction;
+  maxStoredRequests: number;
+}
+
+export interface DoHRequestRecord {
+  id: string;
+  timestamp: number;
+  url: string;
+  domain: string;
+  method: string;
+  detectionMethod: DoHDetectionMethod;
+  initiator?: string;
+  blocked: boolean;
+}
+
 export interface StorageData {
   services: Record<string, DetectedService>;
   events: EventLog[];
@@ -95,10 +141,14 @@ export interface StorageData {
   nrdConfig?: NRDConfig;
   extensionRequests?: ExtensionRequestRecord[];
   extensionMonitorConfig?: ExtensionMonitorConfig;
+  doHRequests?: DoHRequestRecord[];
+  doHMonitorConfig?: DoHMonitorConfig;
   dataRetentionConfig?: DataRetentionConfig;
   detectionConfig?: DetectionConfig;
   blockingConfig?: BlockingConfig;
   forecastConfig?: ForecastConfig;
+  notificationConfig?: NotificationConfig;
+  alertCooldown?: AlertCooldownData;
 }
 
 export type {
@@ -109,7 +159,13 @@ export type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
+  DoHAction,
+  DoHDetectionMethod,
+  DoHMonitorConfig,
+  DoHRequestRecord,
   DataRetentionConfig,
   DetectionConfig,
   ForecastConfig,
+  NotificationConfig,
+  AlertCooldownData,
 };

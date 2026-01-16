@@ -1,4 +1,4 @@
-# ADR-014: Arrow IPC によるストレージ最適化
+# ADR-015: Arrow IPC によるストレージ最適化
 
 ## Status
 Accepted (Modified)

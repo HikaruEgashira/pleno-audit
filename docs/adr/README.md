@@ -15,4 +15,5 @@
 | [011](./011-ai-prompt-monitoring.md) | AIプロンプト監視機能 | Accepted |
 | [012](./012-dashboard-data-fetching.md) | Dashboardデータ取得の設計原則 | Accepted |
 | [013](./013-debug-cli.md) | デバッグCLI (pleno-debug) | Accepted |
-| [014](./014-parquet-wasm-storage.md) | Arrow IPCによるストレージ最適化 | Accepted |
+| [014](./014-doh-monitoring.md) | DoH（DNS over HTTPS）監視機能 | Accepted |
+| [015](./015-arrow-ipc-storage.md) | Arrow IPCによるストレージ最適化 | Accepted |

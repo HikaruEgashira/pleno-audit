@@ -54,11 +54,14 @@ export type {
   DataRetentionConfig,
   DetectionConfig,
   BlockingConfig,
+  NotificationConfig,
+  AlertCooldownData,
 } from "./storage-types.js";
 export {
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
 } from "./storage-types.js";
 
 // Extension Monitor
@@ -118,3 +121,28 @@ export {
   type SSOSession,
   type SSOStatus,
 } from "./sso-manager.js";
+
+// Cooldown Manager
+export {
+  createCooldownManager,
+  createInMemoryCooldownStorage,
+  createPersistentCooldownStorage,
+  type CooldownStorage,
+  type CooldownManager,
+  type CooldownManagerConfig,
+} from "./cooldown-manager.js";
+
+// DoH Monitor
+export {
+  createDoHMonitor,
+  registerDoHMonitorListener,
+  clearDoHCallbacks,
+  detectDoHRequest,
+  DEFAULT_DOH_MONITOR_CONFIG,
+  DOH_URL_PATTERNS,
+  type DoHMonitor,
+  type DoHAction,
+  type DoHMonitorConfig,
+  type DoHRequestRecord,
+  type DoHDetectionMethod,
+} from "./doh-monitor.js";

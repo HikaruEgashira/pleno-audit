@@ -38,4 +38,6 @@ export interface LoginDetectionResult {
   hasPasswordInput: boolean;
   isLoginUrl: boolean;
   formAction: string | null;
+  hasSocialLogin: boolean;
+  hasWebAuthn: boolean;
 }

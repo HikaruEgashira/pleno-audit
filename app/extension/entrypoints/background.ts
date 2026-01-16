@@ -62,6 +62,12 @@ import {
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
+  createCooldownManager,
+  createPersistentCooldownStorage,
+  createDoHMonitor,
+  registerDoHMonitorListener,
+  DEFAULT_DOH_MONITOR_CONFIG,
   type ApiClient,
   type BlockingConfig,
   type ConnectionMode,
@@ -73,6 +79,11 @@ import {
   type DataRetentionConfig,
   type DetectionConfig,
   type ExtensionRiskAnalysis,
+  type NotificationConfig,
+  type CooldownManager,
+  type DoHMonitor,
+  type DoHMonitorConfig,
+  type DoHRequestRecord,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -121,6 +132,7 @@ let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
+let doHMonitor: DoHMonitor | null = null;
 
 // ============================================================================
 // Alert Manager
@@ -226,6 +238,21 @@ async function checkDataTransferPolicy(params: {
 
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
   try {
+    // 通知設定をチェック（デフォルト無効）
+    const storage = await getStorage();
+    const notificationConfig = storage.notificationConfig || DEFAULT_NOTIFICATION_CONFIG;
+
+    if (!notificationConfig.enabled) {
+      logger.debug("Notification disabled, skipping:", alert.title);
+      return;
+    }
+
+    // severityFilterをチェック
+    if (!notificationConfig.severityFilter.includes(alert.severity)) {
+      logger.debug("Notification filtered by severity:", alert.severity);
+      return;
+    }
+
     const iconUrl = alert.severity === "critical" || alert.severity === "high"
       ? "icon-dev-128.png"
       : "icon-128.png";
@@ -251,6 +278,43 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   });
   chrome.notifications.clear(notificationId);
 });
+
+// ============================================================================
+// DoH Monitor Config
+// ============================================================================
+
+async function getDoHMonitorConfig(): Promise<DoHMonitorConfig> {
+  const storage = await getStorage();
+  return storage.doHMonitorConfig || DEFAULT_DOH_MONITOR_CONFIG;
+}
+
+async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{ success: boolean }> {
+  const storage = await getStorage();
+  storage.doHMonitorConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
+  await setStorage(storage);
+
+  // Update running monitor
+  if (doHMonitor) {
+    await doHMonitor.updateConfig(storage.doHMonitorConfig);
+  }
+
+  return { success: true };
+}
+
+async function getDoHRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: DoHRequestRecord[]; total: number }> {
+  const storage = await getStorage();
+  const allRequests = storage.doHRequests || [];
+  const total = allRequests.length;
+
+  const limit = options?.limit ?? 100;
+  const offset = options?.offset ?? 0;
+
+  // Sort by timestamp descending (newest first)
+  const sorted = [...allRequests].sort((a, b) => b.timestamp - a.timestamp);
+  const requests = sorted.slice(offset, offset + limit);
+
+  return { requests, total };
+}
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -791,9 +855,32 @@ async function flushExtensionRequestBuffer() {
   await setStorage({ extensionRequests: requests });
 }
 
-// 拡張機能リスク分析結果のキャッシュ（extensionId -> 最後のalert発火時刻）
-const extensionAlertCooldown: Map<string, number> = new Map();
+// クールダウン定数
 const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
+
+/**
+ * クールダウンマネージャー（永続ストレージ使用）
+ * Service Worker再起動後もクールダウン状態を維持
+ */
+let cooldownManager: CooldownManager | null = null;
+
+function getCooldownManager(): CooldownManager {
+  if (!cooldownManager) {
+    const storage = createPersistentCooldownStorage(
+      async () => {
+        const data = await getStorage();
+        return { alertCooldown: data.alertCooldown };
+      },
+      async (data) => {
+        await setStorage({ alertCooldown: data.alertCooldown });
+      }
+    );
+    cooldownManager = createCooldownManager(storage, {
+      defaultCooldownMs: EXTENSION_ALERT_COOLDOWN_MS,
+    });
+  }
+  return cooldownManager;
+}
 
 /**
  * インストールされている拡張機能のリスク分析を実行
@@ -818,11 +905,13 @@ async function analyzeExtensionRisks(): Promise<void> {
       requestsByExtension.set(req.extensionId, existing);
     }
 
+    const manager = getCooldownManager();
+
     // 各拡張機能のリスク分析
     for (const [extensionId, extRequests] of requestsByExtension) {
-      // クールダウンチェック
-      const lastAlertTime = extensionAlertCooldown.get(extensionId) || 0;
-      if (Date.now() - lastAlertTime < EXTENSION_ALERT_COOLDOWN_MS) {
+      // クールダウンチェック（永続ストレージから取得）
+      const cooldownKey = `extension:${extensionId}`;
+      if (await manager.isOnCooldown(cooldownKey)) {
         continue;
       }
 
@@ -842,8 +931,8 @@ async function analyzeExtensionRisks(): Promise<void> {
           targetDomains: uniqueDomains.slice(0, 10),
         });
 
-        // クールダウンを設定
-        extensionAlertCooldown.set(extensionId, Date.now());
+        // クールダウンを永続ストレージに保存
+        await manager.setCooldown(cooldownKey);
         logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
       }
     }
@@ -1195,6 +1284,24 @@ async function setDetectionConfig(
   const current = await getDetectionConfig();
   const updated = { ...current, ...newConfig };
   await saveStorage({ detectionConfig: updated });
+  return { success: true };
+}
+
+// ============================================================================
+// Notification Config
+// ============================================================================
+
+async function getNotificationConfig(): Promise<NotificationConfig> {
+  const storage = await initStorage();
+  return storage.notificationConfig || DEFAULT_NOTIFICATION_CONFIG;
+}
+
+async function setNotificationConfig(
+  newConfig: Partial<NotificationConfig>
+): Promise<{ success: boolean }> {
+  const current = await getNotificationConfig();
+  const updated = { ...current, ...newConfig };
+  await saveStorage({ notificationConfig: updated });
   return { success: true };
 }
 
@@ -2121,6 +2228,23 @@ async function handleDebugBridgeForward(
         return { success: true, data: { tabId: tab.id, url: tab.url || url } };
       }
 
+      case "DEBUG_DOH_CONFIG_GET": {
+        const config = await getDoHMonitorConfig();
+        return { success: true, data: config };
+      }
+
+      case "DEBUG_DOH_CONFIG_SET": {
+        const params = data as Partial<DoHMonitorConfig>;
+        await setDoHMonitorConfig(params);
+        return { success: true };
+      }
+
+      case "DEBUG_DOH_REQUESTS": {
+        const params = data as { limit?: number; offset?: number } | undefined;
+        const result = await getDoHRequests(params);
+        return { success: true, data: result };
+      }
+
       default:
         return { success: false, error: `Unknown debug message type: ${type}` };
     }
@@ -2133,7 +2257,9 @@ async function handleDebugBridgeForward(
 }
 
 export default defineBackground(() => {
+  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
+  registerDoHMonitorListener();
   registerMainWorldScript();
 
   if (import.meta.env.DEV) {
@@ -2672,9 +2798,82 @@ export default defineBackground(() => {
       return true;
     }
 
+    // Notification Config handlers
+    if (message.type === "GET_NOTIFICATION_CONFIG") {
+      getNotificationConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_NOTIFICATION_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_NOTIFICATION_CONFIG") {
+      setNotificationConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // DoH Monitor handlers
+    if (message.type === "GET_DOH_MONITOR_CONFIG") {
+      getDoHMonitorConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_DOH_MONITOR_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_DOH_MONITOR_CONFIG") {
+      setDoHMonitorConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_DOH_REQUESTS") {
+      getDoHRequests(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ requests: [], total: 0 }));
+      return true;
+    }
+
     // 未知のメッセージタイプはレスポンスを返さず同期的に処理
     logger.warn("Unknown message type:", message.type);
     return false;
+  });
+
+  // Initialize DoH Monitor
+  doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
+  doHMonitor.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
+
+  doHMonitor.onRequest(async (record: DoHRequestRecord) => {
+    try {
+      const storage = await getStorage();
+      if (!storage.doHRequests) {
+        storage.doHRequests = [];
+      }
+      storage.doHRequests.push(record);
+
+      // Keep only recent requests
+      const maxRequests = storage.doHMonitorConfig?.maxStoredRequests ?? 1000;
+      if (storage.doHRequests.length > maxRequests) {
+        storage.doHRequests = storage.doHRequests.slice(-maxRequests);
+      }
+
+      await setStorage(storage);
+      logger.debug("DoH request stored:", record.domain);
+
+      const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
+      if (config.action === "alert" || config.action === "block") {
+        await chrome.notifications.create(`doh-${record.id}`, {
+          type: "basic",
+          iconUrl: "icon-128.png",
+          title: "DoH Traffic Detected",
+          message: `DNS over HTTPS request to ${record.domain} (${record.detectionMethod})`,
+          priority: 0,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to store DoH request:", error);
+    }
   });
 
   startCookieMonitor();

@@ -5,10 +5,10 @@ import type {
   CapturedAIPrompt,
 } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
-import type { StorageData } from "@pleno-audit/extension-runtime";
+import type { StorageData, DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
-import { Badge, Button, SettingsMenu } from "../../components";
+import { Badge, Button, PopupSettingsMenu } from "../../components";
 import {
   ServicesTab,
   SessionsTab,
@@ -22,7 +22,7 @@ type Tab = "services" | "sessions" | "requests";
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
   { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
   { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
-  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length },
+  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length + d.doHRequests.length },
 ];
 
 interface TabData {
@@ -32,6 +32,7 @@ interface TabData {
   events: EventLog[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
+  doHRequests: DoHRequestRecord[];
 }
 
 interface EventQueryResult {
@@ -57,12 +58,14 @@ function PopupContent() {
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
   const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [doHRequests, setDoHRequests] = useState<DoHRequestRecord[]>([]);
   const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
 
   useEffect(() => {
     loadData();
     loadCSPData();
     loadAIData();
+    loadDoHData();
     const listener = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
@@ -74,6 +77,9 @@ function PopupContent() {
       }
       if (changes.aiPrompts) {
         loadAIData();
+      }
+      if (changes.doHRequests) {
+        loadDoHData();
       }
     };
     chrome.storage.onChanged.addListener(listener);
@@ -130,20 +136,12 @@ function PopupContent() {
     }
   }
 
-  async function handleClearData() {
-    if (!confirm("すべてのデータを削除しますか？")) return;
+  async function loadDoHData() {
     try {
-      await chrome.storage.local.remove(["services"]);
-      await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
-      await chrome.runtime.sendMessage({ type: "CLEAR_AI_DATA" });
-      await chrome.runtime.sendMessage({ type: "CLEAR_EVENTS" });
-      setData({ services: {}, events: [] });
-      setViolations([]);
-      setNetworkRequests([]);
-      setAIPrompts([]);
-      setUnifiedServices([]);
+      const result = await chrome.runtime.sendMessage({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
+      if (result?.requests) setDoHRequests(result.requests);
     } catch {
-      // Failed to clear data
+      // Failed to load DoH data
     }
   }
 
@@ -163,7 +161,7 @@ function PopupContent() {
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events;
 
-  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests };
+  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests, doHRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
@@ -182,7 +180,7 @@ function PopupContent() {
       case "sessions":
         return <SessionsTab events={events} aiPrompts={aiPrompts} />;
       case "requests":
-        return <RequestsTab violations={violations} networkRequests={networkRequests} />;
+        return <RequestsTab violations={violations} networkRequests={networkRequests} doHRequests={doHRequests} />;
       default:
         return null;
     }
@@ -200,7 +198,7 @@ function PopupContent() {
           <Button variant="secondary" size="sm" onClick={openDashboard}>
             Dashboard
           </Button>
-          <SettingsMenu onClearData={handleClearData} />
+          <PopupSettingsMenu />
         </div>
       </header>
 
@@ -222,7 +220,7 @@ function PopupContent() {
                   ...styles.tabCount,
                   ...(tab === t.key ? styles.tabCountActive : styles.tabCountInactive),
                 }}>
-                  {count > 50 ? "50+" : count}
+                  {count > 20000 ? "20000+" : count}
                 </span>
               )}
             </button>

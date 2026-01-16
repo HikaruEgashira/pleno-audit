@@ -18,7 +18,7 @@ export default defineConfig({
     const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
     // Chrome/Edge MV3 permissions
-    const mv3Permissions = [...basePermissions, "offscreen", "scripting"];
+    const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest"];
 
     // Firefox/Safari MV2 permissions (no offscreen, no scripting)
     const mv2Permissions = basePermissions;
