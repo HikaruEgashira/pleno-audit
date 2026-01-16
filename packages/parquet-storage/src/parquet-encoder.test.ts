@@ -40,7 +40,7 @@ describe("parquet-encoder", () => {
       expect(result.length).toBe(0);
     });
 
-    it("encodes records to Parquet format", async () => {
+    it("encodes records to Arrow IPC format", async () => {
       const records = [
         {
           timestamp: "2024-01-01T00:00:00.000Z",
@@ -53,11 +53,11 @@ describe("parquet-encoder", () => {
 
       const result = await encodeToParquet("csp-violations", records);
       expect(result.length).toBeGreaterThan(0);
-      // PAR1 magic number check
-      expect(result[0]).toBe(0x50); // P
-      expect(result[1]).toBe(0x41); // A
-      expect(result[2]).toBe(0x52); // R
-      expect(result[3]).toBe(0x31); // 1
+      // Arrow IPC stream format - continuation indicator (0xFFFFFFFF)
+      expect(result[0]).toBe(0xff);
+      expect(result[1]).toBe(0xff);
+      expect(result[2]).toBe(0xff);
+      expect(result[3]).toBe(0xff);
     });
   });
 

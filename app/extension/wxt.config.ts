@@ -50,10 +50,10 @@ export default defineConfig({
               : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
           },
       web_accessible_resources: isMV2
-        ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
+        ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm"]
         : [
             {
-              resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"],
+              resources: ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm"],
               matches: ["<all_urls>"],
             },
           ],
@@ -77,9 +77,6 @@ export default defineConfig({
     build: {
       target: "esnext",
       modulePreload: false,
-      rollupOptions: {
-        external: ["parquet-wasm", "parquet-wasm/node", "parquet-wasm/bundler", "parquet-wasm/esm"],
-      },
     },
     define: {
       "import.meta.hot": "undefined",
@@ -93,7 +90,6 @@ export default defineConfig({
         "@pleno-audit/extension-runtime",
         "@pleno-audit/parquet-storage",
       ],
-      exclude: ["parquet-wasm"],
     },
   }),
 });

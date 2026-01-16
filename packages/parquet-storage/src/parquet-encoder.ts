@@ -1,37 +1,6 @@
 import * as arrow from "apache-arrow";
 import type { ParquetLogType } from "./types";
 
-// parquet-wasmの初期化状態
-let parquetWasm: typeof import("parquet-wasm") | null = null;
-let initPromise: Promise<typeof import("parquet-wasm")> | null = null;
-
-// 遅延ロードでparquet-wasmを初期化
-async function initParquetWasm(): Promise<typeof import("parquet-wasm")> {
-  if (parquetWasm) return parquetWasm;
-
-  if (!initPromise) {
-    initPromise = (async () => {
-      // Node.js環境かブラウザ環境かを判定
-      const isNode = typeof window === "undefined";
-
-      if (isNode) {
-        // Node.js環境ではnode版を使用
-        const module = await import("parquet-wasm/node");
-        parquetWasm = module;
-        return module;
-      } else {
-        // ブラウザ環境ではbundler版を使用
-        const module = await import("parquet-wasm/bundler");
-        await module.default();
-        parquetWasm = module;
-        return module;
-      }
-    })();
-  }
-
-  return initPromise;
-}
-
 // Arrow Field定義
 interface ArrowFieldDef {
   name: string;
@@ -150,7 +119,7 @@ function arrowTableToRecords(table: arrow.Table): Record<string, unknown>[] {
   return records;
 }
 
-// レコードをParquetにエンコード
+// レコードをArrow IPC形式にエンコード（Parquet-WASMの代わり）
 export async function encodeToParquet(
   type: ParquetLogType,
   records: Record<string, unknown>[]
@@ -159,26 +128,14 @@ export async function encodeToParquet(
     return new Uint8Array(0);
   }
 
-  const wasm = await initParquetWasm();
-
   // レコードをArrow Tableに変換
   const arrowTable = recordsToArrowTable(type, records);
 
   // Arrow TableをIPC Stream形式に変換
-  const ipcStream = arrow.tableToIPC(arrowTable, "stream");
-
-  // IPC StreamからparquetのTableに変換
-  const wasmTable = wasm.Table.fromIPCStream(ipcStream);
-
-  // Parquetに変換（Snappy圧縮）
-  const writerProperties = new wasm.WriterPropertiesBuilder()
-    .setCompression(wasm.Compression.SNAPPY)
-    .build();
-
-  return wasm.writeParquet(wasmTable, writerProperties);
+  return arrow.tableToIPC(arrowTable, "stream");
 }
 
-// Parquetデータをデコード
+// Arrow IPCデータをデコード
 export async function decodeFromParquet(
   data: Uint8Array
 ): Promise<Record<string, unknown>[]> {
@@ -186,29 +143,16 @@ export async function decodeFromParquet(
     return [];
   }
 
-  const wasm = await initParquetWasm();
-
-  // ParquetをArrow Tableに変換
-  const wasmTable = wasm.readParquet(data);
-
-  // Arrow TableをIPC Stream形式に変換
-  const ipcStream = wasmTable.intoIPCStream();
-
   // IPC StreamからJSのArrow Tableに変換
-  const arrowTable = arrow.tableFromIPC(ipcStream);
+  const arrowTable = arrow.tableFromIPC(data);
 
   // Arrow Tableからレコード配列に変換
   return arrowTableToRecords(arrowTable);
 }
 
-// parquet-wasmが利用可能かチェック
+// Arrow IPCは常に利用可能
 export async function isParquetWasmAvailable(): Promise<boolean> {
-  try {
-    await initParquetWasm();
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 // Arrowスキーマを取得
@@ -225,12 +169,32 @@ export async function decodeFromParquetWithColumns(
     return [];
   }
 
-  const wasm = await initParquetWasm();
+  // IPC StreamからJSのArrow Tableに変換
+  const arrowTable = arrow.tableFromIPC(data);
 
-  // 列プルーニングオプション付きで読み込み
-  const wasmTable = wasm.readParquet(data, { columns });
-  const ipcStream = wasmTable.intoIPCStream();
-  const arrowTable = arrow.tableFromIPC(ipcStream);
+  // 指定された列のみを含むレコードを返す
+  const records: Record<string, unknown>[] = [];
+  const schema = arrowTable.schema;
 
-  return arrowTableToRecords(arrowTable);
+  for (let i = 0; i < arrowTable.numRows; i++) {
+    const record: Record<string, unknown> = {};
+
+    for (const colName of columns) {
+      const field = schema.fields.find(f => f.name === colName);
+      if (field) {
+        const column = arrowTable.getChild(colName);
+        if (column) {
+          let value = column.get(i);
+          if (typeof value === "bigint") {
+            value = Number(value);
+          }
+          record[colName] = value;
+        }
+      }
+    }
+
+    records.push(record);
+  }
+
+  return records;
 }
