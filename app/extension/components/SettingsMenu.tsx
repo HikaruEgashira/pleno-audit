@@ -3,7 +3,9 @@ import { useTheme } from "../lib/theme";
 import { ThemeToggle } from "./ThemeToggle";
 import {
   DEFAULT_BLOCKING_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
   type BlockingConfig,
+  type NotificationConfig,
   type SSOStatus,
   type SSOProvider,
 } from "@pleno-audit/extension-runtime";
@@ -45,6 +47,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const [showSSODialog, setShowSSODialog] = useState(false);
   const [selectedSSOProvider, setSelectedSSOProvider] = useState<SSOProvider>("oidc");
   const [ssoConfigInput, setSSOConfigInput] = useState("");
+  const [notificationConfig, setNotificationConfig] = useState<NotificationConfig | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,6 +109,18 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         });
     }
   }, [isOpen, ssoStatus]);
+
+  useEffect(() => {
+    if (isOpen && notificationConfig === null) {
+      chrome.runtime.sendMessage({ type: "GET_NOTIFICATION_CONFIG" })
+        .then((config) => {
+          setNotificationConfig(config ?? DEFAULT_NOTIFICATION_CONFIG);
+        })
+        .catch(() => {
+          setNotificationConfig(DEFAULT_NOTIFICATION_CONFIG);
+        });
+    }
+  }, [isOpen, notificationConfig]);
 
   // Escキーでダイアログを閉じる
   useEffect(() => {
@@ -248,6 +263,17 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
     }).catch(() => {});
   }
 
+  function handleNotificationToggle() {
+    if (!notificationConfig) return;
+
+    const newConfig = { ...notificationConfig, enabled: !notificationConfig.enabled };
+    setNotificationConfig(newConfig);
+    chrome.runtime.sendMessage({
+      type: "SET_NOTIFICATION_CONFIG",
+      data: newConfig,
+    }).catch(() => {});
+  }
+
   return (
     <div ref={menuRef} style={{ position: "relative" }}>
       <button
@@ -374,6 +400,51 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 </button>
                 <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
                   タイポスクワット、NRDログイン、機密データ送信を検出時にブロック
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>
+            )}
+          </div>
+
+          <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
+              通知
+            </div>
+            {notificationConfig !== null ? (
+              <div>
+                <button
+                  onClick={handleNotificationToggle}
+                  aria-pressed={notificationConfig.enabled}
+                  aria-label={`デスクトップ通知: ${notificationConfig.enabled ? "有効" : "無効"}`}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: notificationConfig.enabled ? colors.status.info.bg : colors.bgSecondary,
+                    border: `1px solid ${notificationConfig.enabled ? colors.status.info.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    color: notificationConfig.enabled ? colors.status.info.text : colors.textPrimary,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>デスクトップ通知</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: notificationConfig.enabled ? colors.status.info.text : colors.textMuted,
+                    color: colors.bgPrimary,
+                  }}>
+                    {notificationConfig.enabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <div style={{ fontSize: "10px", color: colors.textMuted, marginTop: "6px", lineHeight: 1.4 }}>
+                  重大なセキュリティイベントを通知
                 </div>
               </div>
             ) : (

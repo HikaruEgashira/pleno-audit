@@ -62,6 +62,7 @@ import {
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
   type ApiClient,
   type BlockingConfig,
   type ConnectionMode,
@@ -73,6 +74,8 @@ import {
   type DataRetentionConfig,
   type DetectionConfig,
   type ExtensionRiskAnalysis,
+  type NotificationConfig,
+  type AlertCooldownData,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -226,6 +229,21 @@ async function checkDataTransferPolicy(params: {
 
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
   try {
+    // 通知設定をチェック（デフォルト無効）
+    const storage = await getStorage();
+    const notificationConfig = storage.notificationConfig || DEFAULT_NOTIFICATION_CONFIG;
+
+    if (!notificationConfig.enabled) {
+      logger.debug("Notification disabled, skipping:", alert.title);
+      return;
+    }
+
+    // severityFilterをチェック
+    if (!notificationConfig.severityFilter.includes(alert.severity)) {
+      logger.debug("Notification filtered by severity:", alert.severity);
+      return;
+    }
+
     const iconUrl = alert.severity === "critical" || alert.severity === "high"
       ? "icon-dev-128.png"
       : "icon-128.png";
@@ -791,9 +809,27 @@ async function flushExtensionRequestBuffer() {
   await setStorage({ extensionRequests: requests });
 }
 
-// 拡張機能リスク分析結果のキャッシュ（extensionId -> 最後のalert発火時刻）
-const extensionAlertCooldown: Map<string, number> = new Map();
+// クールダウン定数
 const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
+
+/**
+ * ストレージからクールダウンを取得
+ */
+async function getAlertCooldown(key: string): Promise<number> {
+  const storage = await getStorage();
+  const cooldown = storage.alertCooldown || {};
+  return cooldown[key] || 0;
+}
+
+/**
+ * ストレージにクールダウンを保存
+ */
+async function setAlertCooldown(key: string, timestamp: number): Promise<void> {
+  const storage = await getStorage();
+  const cooldown = storage.alertCooldown || {};
+  cooldown[key] = timestamp;
+  await setStorage({ alertCooldown: cooldown });
+}
 
 /**
  * インストールされている拡張機能のリスク分析を実行
@@ -820,8 +856,9 @@ async function analyzeExtensionRisks(): Promise<void> {
 
     // 各拡張機能のリスク分析
     for (const [extensionId, extRequests] of requestsByExtension) {
-      // クールダウンチェック
-      const lastAlertTime = extensionAlertCooldown.get(extensionId) || 0;
+      // クールダウンチェック（ストレージから取得）
+      const cooldownKey = `extension:${extensionId}`;
+      const lastAlertTime = await getAlertCooldown(cooldownKey);
       if (Date.now() - lastAlertTime < EXTENSION_ALERT_COOLDOWN_MS) {
         continue;
       }
@@ -842,8 +879,8 @@ async function analyzeExtensionRisks(): Promise<void> {
           targetDomains: uniqueDomains.slice(0, 10),
         });
 
-        // クールダウンを設定
-        extensionAlertCooldown.set(extensionId, Date.now());
+        // クールダウンをストレージに保存
+        await setAlertCooldown(cooldownKey, Date.now());
         logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
       }
     }
@@ -1195,6 +1232,24 @@ async function setDetectionConfig(
   const current = await getDetectionConfig();
   const updated = { ...current, ...newConfig };
   await saveStorage({ detectionConfig: updated });
+  return { success: true };
+}
+
+// ============================================================================
+// Notification Config
+// ============================================================================
+
+async function getNotificationConfig(): Promise<NotificationConfig> {
+  const storage = await initStorage();
+  return storage.notificationConfig || DEFAULT_NOTIFICATION_CONFIG;
+}
+
+async function setNotificationConfig(
+  newConfig: Partial<NotificationConfig>
+): Promise<{ success: boolean }> {
+  const current = await getNotificationConfig();
+  const updated = { ...current, ...newConfig };
+  await saveStorage({ notificationConfig: updated });
   return { success: true };
 }
 
@@ -2667,6 +2722,21 @@ export default defineBackground(() => {
 
     if (message.type === "SET_DETECTION_CONFIG") {
       setDetectionConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    // Notification Config handlers
+    if (message.type === "GET_NOTIFICATION_CONFIG") {
+      getNotificationConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_NOTIFICATION_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_NOTIFICATION_CONFIG") {
+      setNotificationConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

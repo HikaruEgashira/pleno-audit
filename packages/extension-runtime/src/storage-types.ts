@@ -73,6 +73,28 @@ export const DEFAULT_BLOCKING_CONFIG: BlockingConfig = {
   consentTimestamp: 0,
 };
 
+/**
+ * 通知設定（デフォルト無効）
+ */
+export interface NotificationConfig {
+  enabled: boolean; // 通知全体の有効/無効
+  severityFilter: ("critical" | "high" | "medium" | "low" | "info")[]; // 通知する重大度
+}
+
+export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
+  enabled: false, // デフォルト無効
+  severityFilter: ["critical", "high"],
+};
+
+/**
+ * アラートクールダウン永続化用
+ * キー: アラートの種類とドメイン/IDの組み合わせ
+ * 値: 最後のアラート発火時刻
+ */
+export interface AlertCooldownData {
+  [key: string]: number;
+}
+
 export interface ExtensionRequestRecord {
   id: string;
   extensionId: string;
@@ -99,6 +121,8 @@ export interface StorageData {
   detectionConfig?: DetectionConfig;
   blockingConfig?: BlockingConfig;
   forecastConfig?: ForecastConfig;
+  notificationConfig?: NotificationConfig;
+  alertCooldown?: AlertCooldownData;
 }
 
 export type {
@@ -112,4 +136,6 @@ export type {
   DataRetentionConfig,
   DetectionConfig,
   ForecastConfig,
+  NotificationConfig,
+  AlertCooldownData,
 };
