@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Results State</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard">
+    <div class="header">
+      <div>
+        <h1 class="title">Battacker</h1>
+        <p class="subtitle">// Browser Defense Resistance Testing System</p>
+      </div>
+      <button class="btn btn-primary">[ Execute Scan ]</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">Overview</button>
+      <button class="tab">Audit Log</button>
+      <button class="tab">Archives</button>
+    </div>
+
+    <div class="overview">
+      <div class="score-card">
+        <div class="score-gauge">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle class="score-bg" cx="100" cy="100" r="80" />
+            <circle
+              class="score-fill"
+              cx="100"
+              cy="100"
+              r="80"
+              stroke="#cccccc"
+              stroke-dasharray="502.65"
+              stroke-dashoffset="145.77"
+            />
+          </svg>
+          <div class="score-text">
+            <div class="score-value grade-B">71</div>
+            <div class="score-grade">Grade B</div>
+          </div>
+        </div>
+        <div class="score-meta">
+          Timestamp: 2026/01/16 23:30:00
+        </div>
+      </div>
+
+      <div class="categories-overview">
+        <h3>Category Analysis</h3>
+        <div class="category-bars">
+          <div class="category-bar">
+            <div class="category-bar-header">
+              <span class="category-bar-name">Network Attacks</span>
+              <span class="category-bar-value">0%</span>
+            </div>
+            <div class="category-bar-track">
+              <div class="category-bar-fill" style="width: 0%; background-color: #444444;"></div>
+            </div>
+          </div>
+
+          <div class="category-bar">
+            <div class="category-bar-header">
+              <span class="category-bar-name">Phishing Attacks</span>
+              <span class="category-bar-value">40%</span>
+            </div>
+            <div class="category-bar-track">
+              <div class="category-bar-fill" style="width: 40%; background-color: #999999;"></div>
+            </div>
+          </div>
+
+          <div class="category-bar">
+            <div class="category-bar-header">
+              <span class="category-bar-name">Client-Side Attacks</span>
+              <span class="category-bar-value">100%</span>
+            </div>
+            <div class="category-bar-track">
+              <div class="category-bar-fill" style="width: 100%; background-color: #ffffff;"></div>
+            </div>
+          </div>
+
+          <div class="category-bar">
+            <div class="category-bar-header">
+              <span class="category-bar-name">Extension Abuse</span>
+              <span class="category-bar-value">0%</span>
+            </div>
+            <div class="category-bar-track">
+              <div class="category-bar-fill" style="width: 0%; background-color: #444444;"></div>
+            </div>
+          </div>
+
+          <div class="category-bar">
+            <div class="category-bar-header">
+              <span class="category-bar-name">Download Attacks</span>
+              <span class="category-bar-value">71%</span>
+            </div>
+            <div class="category-bar-track">
+              <div class="category-bar-fill" style="width: 71%; background-color: #cccccc;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-results" style="margin-top: 32px;">
+      <h3>Security Audit Results // 15 Tests Executed</h3>
+      <div class="test-list">
+        <div class="test-item">
+          <div class="test-status blocked">&#10003;</div>
+          <div class="test-info">
+            <div class="test-name">Beacon Data Exfiltration</div>
+            <div class="test-description">Attempts to send data via navigator.sendBeacon</div>
+          </div>
+          <div class="test-details">
+            <span class="severity-badge severity-high">HIGH</span>
+            <div class="test-time">12ms</div>
+          </div>
+        </div>
+
+        <div class="test-item">
+          <div class="test-status detected">!</div>
+          <div class="test-info">
+            <div class="test-name">Tab Nabbing Attack</div>
+            <div class="test-description">Opens popup and attempts to modify opener</div>
+          </div>
+          <div class="test-details">
+            <span class="severity-badge severity-critical">CRITICAL</span>
+            <div class="test-time">45ms</div>
+          </div>
+        </div>
+
+        <div class="test-item">
+          <div class="test-status success">&#10007;</div>
+          <div class="test-info">
+            <div class="test-name">Clipboard Hijacking</div>
+            <div class="test-description">Attempts to read/write clipboard data</div>
+          </div>
+          <div class="test-details">
+            <span class="severity-badge severity-medium">MEDIUM</span>
+            <div class="test-time">8ms</div>
+          </div>
+        </div>
+
+        <div class="test-item">
+          <div class="test-status blocked">&#10003;</div>
+          <div class="test-info">
+            <div class="test-name">XSS Payload Injection</div>
+            <div class="test-description">Tests for DOM-based XSS vulnerabilities</div>
+          </div>
+          <div class="test-details">
+            <span class="severity-badge severity-critical">CRITICAL</span>
+            <div class="test-time">23ms</div>
+          </div>
+        </div>
+
+        <div class="test-item">
+          <div class="test-status blocked">&#10003;</div>
+          <div class="test-info">
+            <div class="test-name">Cookie Theft Attempt</div>
+            <div class="test-description">Attempts to access and exfiltrate cookies</div>
+          </div>
+          <div class="test-details">
+            <span class="severity-badge severity-high">HIGH</span>
+            <div class="test-time">5ms</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

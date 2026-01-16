@@ -78,6 +78,11 @@
     {
       "files": ["packages/integrations/src/manager.ts"],
       "rules": { "no-restricted-globals": "off" }
+    },
+    // Pleno Battacker - intentionally simulates attacks including network communication
+    {
+      "files": ["app/pleno-battacker/**/*"],
+      "rules": { "no-console": "off", "no-restricted-globals": "off" }
     }
   ]
 }

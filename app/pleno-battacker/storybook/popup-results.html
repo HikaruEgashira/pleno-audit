@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup - Results State</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Battacker</h1>
+    </div>
+
+    <div class="score-section">
+      <div class="unified-gauge" style="position: relative; cursor: pointer; width: 180px; height: 180px;">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- Base circle -->
+          <circle cx="90" cy="90" r="70" fill="none" stroke="#1a1a1a" stroke-width="6" />
+
+          <!-- Interactive hover ring -->
+          <circle cx="90" cy="90" r="78" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4 4" class="rotate-slow" />
+
+          <!-- Progress arc (75% = B grade) -->
+          <circle
+            cx="90"
+            cy="90"
+            r="70"
+            fill="none"
+            stroke="#d0d0d0"
+            stroke-width="6"
+            stroke-linecap="round"
+            stroke-dasharray="439.82"
+            stroke-dashoffset="109.96"
+            style="transform: rotate(-90deg); transform-origin: 90px 90px;"
+          />
+
+          <!-- Corner markers -->
+          <line x1="12" y1="12" x2="28" y2="12" stroke="#333" stroke-width="1" />
+          <line x1="12" y1="12" x2="12" y2="28" stroke="#333" stroke-width="1" />
+          <line x1="168" y1="12" x2="152" y2="12" stroke="#333" stroke-width="1" />
+          <line x1="168" y1="12" x2="168" y2="28" stroke="#333" stroke-width="1" />
+          <line x1="12" y1="168" x2="28" y2="168" stroke="#333" stroke-width="1" />
+          <line x1="12" y1="168" x2="12" y2="152" stroke="#333" stroke-width="1" />
+          <line x1="168" y1="168" x2="152" y2="168" stroke="#333" stroke-width="1" />
+          <line x1="168" y1="168" x2="168" y2="152" stroke="#333" stroke-width="1" />
+        </svg>
+
+        <div class="gauge-center">
+          <div class="score-value grade-B">75</div>
+          <div class="score-grade">Grade B</div>
+          <div class="tap-hint">TAP TO RESCAN</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="categories">
+      <div class="category-item">
+        <span class="category-name">Network Attacks</span>
+        <span class="category-score">80%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Phishing Attacks</span>
+        <span class="category-score">60%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Client-Side Attacks</span>
+        <span class="category-score">100%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Extension Abuse</span>
+        <span class="category-score">50%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Download Attacks</span>
+        <span class="category-score">85%</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary">[ View Analysis ]</button>
+    </div>
+  </div>
+
+  <style>
+    .rotate-slow {
+      animation: rotate 30s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    @keyframes rotate {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "@pleno-audit/pleno-battacker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build"
+  },
+  "dependencies": {
+    "@pleno-audit/extension-runtime": "workspace:*",
+    "motion": "^12.26.2",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.4",
+    "wxt": "^0.20.13"
+  }
+}

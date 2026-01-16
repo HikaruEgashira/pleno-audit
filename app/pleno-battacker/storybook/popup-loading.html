@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup - Loading State</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Battacker</h1>
+    </div>
+
+    <div class="score-section">
+      <div class="unified-gauge" style="position: relative; width: 180px; height: 180px;">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- Base circle -->
+          <circle cx="90" cy="90" r="70" fill="none" stroke="#1a1a1a" stroke-width="6" />
+
+          <!-- Loading spinner - main -->
+          <circle
+            cx="90"
+            cy="90"
+            r="70"
+            fill="none"
+            stroke="rgba(255,255,255,0.3)"
+            stroke-width="6"
+            stroke-linecap="round"
+            stroke-dasharray="109.96 329.87"
+            filter="url(#glow)"
+            class="spin-cw"
+          />
+
+          <!-- Loading spinner - inner -->
+          <circle
+            cx="90"
+            cy="90"
+            r="58"
+            fill="none"
+            stroke="rgba(255,255,255,0.15)"
+            stroke-width="2"
+            stroke-dasharray="65.97 285.88"
+            class="spin-ccw"
+          />
+        </svg>
+
+        <div class="gauge-center">
+          <div class="pulse-text" style="font-size: 10px; letter-spacing: 3px; color: #666; text-transform: uppercase;">
+            INIT
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary">[ View Analysis ]</button>
+    </div>
+  </div>
+
+  <style>
+    .spin-cw {
+      animation: spin-clockwise 1.2s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    .spin-ccw {
+      animation: spin-counter 0.8s linear infinite;
+      transform-origin: 90px 90px;
+    }
+    @keyframes spin-clockwise {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes spin-counter {
+      to { transform: rotate(-360deg); }
+    }
+    .pulse-text {
+      animation: pulse-opacity 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-opacity {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+  </style>
+</body>
+</html>
