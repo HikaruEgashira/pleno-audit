@@ -26,6 +26,30 @@ export const LOGIN_URL_PATTERNS = [
   /\/auth/i,
   /\/authenticate/i,
   /\/session\/new/i,
+  // Passwordless & OAuth patterns
+  /\/oauth/i,
+  /\/sso/i,
+  /\/saml/i,
+  /\/oidc/i,
+  /\/oauth\/callback/i,
+  /\/auth\/callback/i,
+  /\/sso\/callback/i,
+  /\/authorize/i,
+];
+
+/** ソーシャルログインボタンテキスト判定パターン（多言語対応） */
+export const SOCIAL_LOGIN_TEXT_PATTERNS = [
+  // English
+  /sign\s*in\s*with/i,
+  /continue\s*with/i,
+  /log\s*in\s*with/i,
+  // Japanese
+  /でログイン/,
+  /で続行/,
+  /でサインイン/,
+  // Generic patterns
+  /oauth/i,
+  /sso/i,
 ];
 
 // ============================================================================
