@@ -26,13 +26,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build extension
-        run: pnpm build
+      - name: Build extensions
+        run: |
+          pnpm build
+          pnpm -C app/pleno-battacker build
 
-      - name: Create zip artifact
+      - name: Create zip artifacts
         run: |
           cd app/extension/dist/chrome-mv3
-          zip -r ../../../../extension.zip .
+          zip -r ../../../../pleno-audit.zip .
+          cd ../../../../app/pleno-battacker/dist/chrome-mv3
+          zip -r ../../../../pleno-battacker.zip .
 
       - name: Get version
         id: version
@@ -46,7 +50,9 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
-          files: extension.zip
+          files: |
+            pleno-audit.zip
+            pleno-battacker.zip
           generate_release_notes: true
           make_latest: true
 
