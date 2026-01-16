@@ -63,6 +63,8 @@ import {
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
   DEFAULT_NOTIFICATION_CONFIG,
+  createCooldownManager,
+  createPersistentCooldownStorage,
   type ApiClient,
   type BlockingConfig,
   type ConnectionMode,
@@ -75,7 +77,7 @@ import {
   type DetectionConfig,
   type ExtensionRiskAnalysis,
   type NotificationConfig,
-  type AlertCooldownData,
+  type CooldownManager,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -813,22 +815,27 @@ async function flushExtensionRequestBuffer() {
 const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
 
 /**
- * ストレージからクールダウンを取得
+ * クールダウンマネージャー（永続ストレージ使用）
+ * Service Worker再起動後もクールダウン状態を維持
  */
-async function getAlertCooldown(key: string): Promise<number> {
-  const storage = await getStorage();
-  const cooldown = storage.alertCooldown || {};
-  return cooldown[key] || 0;
-}
+let cooldownManager: CooldownManager | null = null;
 
-/**
- * ストレージにクールダウンを保存
- */
-async function setAlertCooldown(key: string, timestamp: number): Promise<void> {
-  const storage = await getStorage();
-  const cooldown = storage.alertCooldown || {};
-  cooldown[key] = timestamp;
-  await setStorage({ alertCooldown: cooldown });
+function getCooldownManager(): CooldownManager {
+  if (!cooldownManager) {
+    const storage = createPersistentCooldownStorage(
+      async () => {
+        const data = await getStorage();
+        return { alertCooldown: data.alertCooldown };
+      },
+      async (data) => {
+        await setStorage({ alertCooldown: data.alertCooldown });
+      }
+    );
+    cooldownManager = createCooldownManager(storage, {
+      defaultCooldownMs: EXTENSION_ALERT_COOLDOWN_MS,
+    });
+  }
+  return cooldownManager;
 }
 
 /**
@@ -854,12 +861,13 @@ async function analyzeExtensionRisks(): Promise<void> {
       requestsByExtension.set(req.extensionId, existing);
     }
 
+    const manager = getCooldownManager();
+
     // 各拡張機能のリスク分析
     for (const [extensionId, extRequests] of requestsByExtension) {
-      // クールダウンチェック（ストレージから取得）
+      // クールダウンチェック（永続ストレージから取得）
       const cooldownKey = `extension:${extensionId}`;
-      const lastAlertTime = await getAlertCooldown(cooldownKey);
-      if (Date.now() - lastAlertTime < EXTENSION_ALERT_COOLDOWN_MS) {
+      if (await manager.isOnCooldown(cooldownKey)) {
         continue;
       }
 
@@ -879,8 +887,8 @@ async function analyzeExtensionRisks(): Promise<void> {
           targetDomains: uniqueDomains.slice(0, 10),
         });
 
-        // クールダウンをストレージに保存
-        await setAlertCooldown(cooldownKey, Date.now());
+        // クールダウンを永続ストレージに保存
+        await manager.setCooldown(cooldownKey);
         logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
       }
     }

@@ -121,3 +121,13 @@ export {
   type SSOSession,
   type SSOStatus,
 } from "./sso-manager.js";
+
+// Cooldown Manager
+export {
+  createCooldownManager,
+  createInMemoryCooldownStorage,
+  createPersistentCooldownStorage,
+  type CooldownStorage,
+  type CooldownManager,
+  type CooldownManagerConfig,
+} from "./cooldown-manager.js";
