@@ -23,9 +23,9 @@ export function AIPromptList({ prompts }: Props) {
 
   return (
     <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length > 50 ? "50+" : prompts.length})</h3>
+      <h3 style={styles.sectionTitle}>AIプロンプト ({prompts.length > 20000 ? "20000+" : prompts.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {prompts.slice(0, 50).map((prompt) => (
+        {prompts.slice(0, 20000).map((prompt) => (
           <PromptCard
             key={prompt.id}
             prompt={prompt}
