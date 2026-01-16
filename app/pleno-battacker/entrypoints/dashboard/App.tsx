@@ -53,7 +53,7 @@ export function App() {
       <div class="dashboard">
         <div class="loading">
           <div class="spinner" />
-          <span>Loading...</span>
+          <span>Initializing System...</span>
         </div>
       </div>
     );
@@ -63,11 +63,11 @@ export function App() {
     <div class="dashboard">
       <div class="header">
         <div>
-          <h1 class="title">Pleno Battacker</h1>
-          <p class="subtitle">Browser Defense Resistance Testing Tool</p>
+          <h1 class="title">Battacker</h1>
+          <p class="subtitle">// Browser Defense Resistance Testing System</p>
         </div>
         <button class="btn btn-primary" onClick={runTests} disabled={running}>
-          {running ? "Running Tests..." : "Run Security Tests"}
+          {running ? "[ Executing... ]" : "[ Execute Scan ]"}
         </button>
       </div>
 
@@ -84,13 +84,13 @@ export function App() {
               class={`tab ${activeTab === "results" ? "active" : ""}`}
               onClick={() => setActiveTab("results")}
             >
-              Test Results
+              Audit Log
             </button>
             <button
               class={`tab ${activeTab === "history" ? "active" : ""}`}
               onClick={() => setActiveTab("history")}
             >
-              History
+              Archives
             </button>
           </div>
 
@@ -100,8 +100,8 @@ export function App() {
         </>
       ) : (
         <div class="empty-state">
-          <h3>No test results yet</h3>
-          <p>Run security tests to evaluate your browser's defense capabilities</p>
+          <h3>System Standby</h3>
+          <p>Execute security scan to evaluate browser defense capabilities</p>
         </div>
       )}
     </div>
@@ -114,12 +114,12 @@ function OverviewTab({ score }: { score: DefenseScore }) {
       <div class="score-card">
         <ScoreGauge score={score.totalScore} grade={score.grade} />
         <div class="score-meta">
-          Last tested: {new Date(score.testedAt).toLocaleString()}
+          Timestamp: {new Date(score.testedAt).toLocaleString()}
         </div>
       </div>
 
       <div class="categories-overview">
-        <h3>Category Scores</h3>
+        <h3>Category Analysis</h3>
         <div class="category-bars">
           {score.categories.map((cat) => (
             <CategoryBar key={cat.category} category={cat} />
@@ -135,7 +135,7 @@ function ResultsTab({ score }: { score: DefenseScore }) {
 
   return (
     <div class="test-results">
-      <h3>All Test Results ({allResults.length} tests)</h3>
+      <h3>Security Audit Results // {allResults.length} Tests Executed</h3>
       <div class="test-list">
         {allResults.map((result) => (
           <TestResultItem key={result.test.id} result={result} />
@@ -149,8 +149,8 @@ function HistoryTab({ history }: { history: DefenseScore[] }) {
   if (history.length === 0) {
     return (
       <div class="empty-state">
-        <h3>No history yet</h3>
-        <p>Run tests multiple times to see your score history</p>
+        <h3>No Archives Available</h3>
+        <p>Execute multiple scans to build historical records</p>
       </div>
     );
   }
@@ -159,7 +159,7 @@ function HistoryTab({ history }: { history: DefenseScore[] }) {
 
   return (
     <div class="test-results">
-      <h3>Test History</h3>
+      <h3>Archived Scan Results</h3>
       <div class="test-list">
         {sortedHistory.map((entry, index) => (
           <div class="test-item" key={index}>
@@ -167,7 +167,7 @@ function HistoryTab({ history }: { history: DefenseScore[] }) {
               {entry.totalScore}
             </div>
             <div class="test-info">
-              <div class="test-name">Grade {entry.grade}</div>
+              <div class="test-name">Classification: Grade {entry.grade}</div>
               <div class="test-description">
                 {new Date(entry.testedAt).toLocaleString()}
               </div>
@@ -180,28 +180,29 @@ function HistoryTab({ history }: { history: DefenseScore[] }) {
 }
 
 function ScoreGauge({ score, grade }: { score: number; grade: string }) {
-  const circumference = 2 * Math.PI * 70;
+  const circumference = 2 * Math.PI * 80;
   const dashOffset = circumference * (1 - score / 100);
 
+  // Monochrome grade colors - white to dark gray
   const gradeColors: Record<string, string> = {
-    A: "#22c55e",
-    B: "#84cc16",
-    C: "#eab308",
-    D: "#f97316",
-    F: "#dc2626",
+    A: "#ffffff",
+    B: "#cccccc",
+    C: "#999999",
+    D: "#666666",
+    F: "#444444",
   };
 
   const color = gradeColors[grade] || gradeColors.F;
 
   return (
     <div class="score-gauge">
-      <svg width="180" height="180" viewBox="0 0 180 180">
-        <circle class="score-bg" cx="90" cy="90" r="70" />
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle class="score-bg" cx="100" cy="100" r="80" />
         <circle
           class="score-fill"
-          cx="90"
-          cy="90"
-          r="70"
+          cx="100"
+          cy="100"
+          r="80"
           stroke={color}
           stroke-dasharray={circumference}
           stroke-dashoffset={dashOffset}
@@ -221,12 +222,13 @@ function CategoryBar({ category }: { category: CategoryScore }) {
       ? Math.round((category.score / category.maxScore) * 100)
       : 0;
 
+  // Monochrome bar colors - white to dark gray based on percentage
   const getBarColor = (pct: number) => {
-    if (pct >= 80) return "#22c55e";
-    if (pct >= 60) return "#84cc16";
-    if (pct >= 40) return "#eab308";
-    if (pct >= 20) return "#f97316";
-    return "#dc2626";
+    if (pct >= 80) return "#ffffff";
+    if (pct >= 60) return "#cccccc";
+    if (pct >= 40) return "#999999";
+    if (pct >= 20) return "#666666";
+    return "#444444";
   };
 
   return (

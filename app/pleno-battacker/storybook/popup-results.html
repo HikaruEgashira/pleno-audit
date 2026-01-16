@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup - Results State</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Battacker</h1>
+    </div>
+
+    <div class="score-section">
+      <div class="score-gauge">
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle class="score-bg" cx="80" cy="80" r="60" />
+          <circle
+            class="score-fill"
+            cx="80"
+            cy="80"
+            r="60"
+            stroke="#ffffff"
+            stroke-dasharray="376.99"
+            stroke-dashoffset="94.25"
+          />
+        </svg>
+        <div class="score-text">
+          <div class="score-value grade-A">75</div>
+          <div class="score-grade">Grade B</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="categories">
+      <div class="category-item">
+        <span class="category-name">Network Attacks</span>
+        <span class="category-score">80%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Phishing Attacks</span>
+        <span class="category-score">60%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Client-Side Attacks</span>
+        <span class="category-score">100%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Extension Abuse</span>
+        <span class="category-score">50%</span>
+      </div>
+      <div class="category-item">
+        <span class="category-name">Download Attacks</span>
+        <span class="category-score">85%</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary">Execute</button>
+      <button class="btn btn-secondary">[ View Analysis ]</button>
+    </div>
+  </div>
+</body>
+</html>

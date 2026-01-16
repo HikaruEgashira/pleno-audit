@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battacker UI Storybook</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "SF Mono", Monaco, monospace;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 40px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .preview-section {
+      background: #0a0a0a;
+      border: 1px solid #333;
+      padding: 24px;
+    }
+    .preview-section h2 {
+      margin-bottom: 20px;
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: #888;
+      text-transform: uppercase;
+    }
+    .preview-frame {
+      border: 1px solid #333;
+      background: #000;
+    }
+    iframe {
+      width: 100%;
+      border: none;
+      display: block;
+    }
+    .popup-frame { height: 500px; }
+    .dashboard-frame { height: 600px; }
+    .state-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .state-tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #444;
+      color: #888;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .state-tab:hover { border-color: #666; color: #ccc; }
+    .state-tab.active { border-color: #fff; color: #fff; background: #222; }
+  </style>
+</head>
+<body>
+  <h1>Battacker UI Storybook</h1>
+
+  <div class="preview-grid">
+    <div class="preview-section">
+      <h2>Popup Preview</h2>
+      <div class="state-tabs">
+        <button class="state-tab active" onclick="setPopupState('empty')">Empty State</button>
+        <button class="state-tab" onclick="setPopupState('loading')">Loading</button>
+        <button class="state-tab" onclick="setPopupState('results')">With Results</button>
+      </div>
+      <div class="preview-frame">
+        <iframe id="popup-frame" class="popup-frame" src="popup-empty.html"></iframe>
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <h2>Dashboard Preview</h2>
+      <div class="state-tabs">
+        <button class="state-tab active" onclick="setDashboardState('empty')">Empty State</button>
+        <button class="state-tab" onclick="setDashboardState('loading')">Loading</button>
+        <button class="state-tab" onclick="setDashboardState('results')">With Results</button>
+      </div>
+      <div class="preview-frame">
+        <iframe id="dashboard-frame" class="dashboard-frame" src="dashboard-empty.html"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setPopupState(state) {
+      document.getElementById('popup-frame').src = `popup-${state}.html`;
+      document.querySelectorAll('.preview-section:first-child .state-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.textContent.toLowerCase().includes(state === 'results' ? 'results' : state)) {
+          tab.classList.add('active');
+        }
+      });
+    }
+
+    function setDashboardState(state) {
+      document.getElementById('dashboard-frame').src = `dashboard-${state}.html`;
+      document.querySelectorAll('.preview-section:last-child .state-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.textContent.toLowerCase().includes(state === 'results' ? 'results' : state)) {
+          tab.classList.add('active');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

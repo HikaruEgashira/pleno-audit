@@ -50,7 +50,7 @@ export function App() {
       <div class="container">
         <div class="loading">
           <div class="spinner" />
-          <span>Loading...</span>
+          <span>Initializing...</span>
         </div>
       </div>
     );
@@ -59,7 +59,7 @@ export function App() {
   return (
     <div class="container">
       <div class="header">
-        <h1 class="title">Pleno Battacker</h1>
+        <h1 class="title">Battacker</h1>
       </div>
 
       {score ? (
@@ -69,17 +69,17 @@ export function App() {
         </>
       ) : (
         <div class="empty-state">
-          <h3>No test results yet</h3>
-          <p>Run security tests to evaluate browser defense</p>
+          <h3>System Ready</h3>
+          <p>Execute security scan to evaluate browser defense capabilities</p>
         </div>
       )}
 
       <div class="actions">
         <button class="btn btn-primary" onClick={runTests} disabled={running}>
-          {running ? "Running..." : "Run Tests"}
+          {running ? "Scanning..." : "Execute"}
         </button>
         <button class="btn btn-secondary" onClick={openDashboard}>
-          Details
+          [ View Analysis ]
         </button>
       </div>
     </div>
@@ -87,15 +87,16 @@ export function App() {
 }
 
 function ScoreGauge({ score, grade }: { score: number; grade: string }) {
-  const circumference = 2 * Math.PI * 55;
+  const circumference = 2 * Math.PI * 60;
   const dashOffset = circumference * (1 - score / 100);
 
+  // Monochrome grade colors - white to dark gray
   const gradeColors: Record<string, string> = {
-    A: "#22c55e",
-    B: "#84cc16",
-    C: "#eab308",
-    D: "#f97316",
-    F: "#dc2626",
+    A: "#ffffff",
+    B: "#cccccc",
+    C: "#999999",
+    D: "#666666",
+    F: "#444444",
   };
 
   const color = gradeColors[grade] || gradeColors.F;
@@ -103,13 +104,13 @@ function ScoreGauge({ score, grade }: { score: number; grade: string }) {
   return (
     <div class="score-section">
       <div class="score-gauge">
-        <svg width="140" height="140" viewBox="0 0 140 140">
-          <circle class="score-bg" cx="70" cy="70" r="55" />
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle class="score-bg" cx="80" cy="80" r="60" />
           <circle
             class="score-fill"
-            cx="70"
-            cy="70"
-            r="55"
+            cx="80"
+            cy="80"
+            r="60"
             stroke={color}
             stroke-dasharray={circumference}
             stroke-dashoffset={dashOffset}
