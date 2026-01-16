@@ -107,6 +107,30 @@ export interface ExtensionRequestRecord {
   statusCode?: number;
 }
 
+export type DoHDetectionMethod =
+  | "content-type"
+  | "accept-header"
+  | "url-path"
+  | "dns-param";
+
+export type DoHAction = "detect" | "alert" | "block";
+
+export interface DoHMonitorConfig {
+  action: DoHAction;
+  maxStoredRequests: number;
+}
+
+export interface DoHRequestRecord {
+  id: string;
+  timestamp: number;
+  url: string;
+  domain: string;
+  method: string;
+  detectionMethod: DoHDetectionMethod;
+  initiator?: string;
+  blocked: boolean;
+}
+
 export interface StorageData {
   services: Record<string, DetectedService>;
   events: EventLog[];
@@ -117,6 +141,8 @@ export interface StorageData {
   nrdConfig?: NRDConfig;
   extensionRequests?: ExtensionRequestRecord[];
   extensionMonitorConfig?: ExtensionMonitorConfig;
+  doHRequests?: DoHRequestRecord[];
+  doHMonitorConfig?: DoHMonitorConfig;
   dataRetentionConfig?: DataRetentionConfig;
   detectionConfig?: DetectionConfig;
   blockingConfig?: BlockingConfig;
@@ -133,6 +159,10 @@ export type {
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,
+  DoHAction,
+  DoHDetectionMethod,
+  DoHMonitorConfig,
+  DoHRequestRecord,
   DataRetentionConfig,
   DetectionConfig,
   ForecastConfig,

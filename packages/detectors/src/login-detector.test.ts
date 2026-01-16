@@ -5,15 +5,30 @@ import type { DOMAdapter } from "./types.js";
 function createMockDOMAdapter(options: {
   passwordInputs?: Array<{ closest: (selector: string) => unknown }>;
   location?: { origin: string; pathname: string; href: string };
+  socialLoginButtons?: Array<{ textContent: string }>;
+  webAuthnElements?: Element[];
 }): DOMAdapter {
   const {
     passwordInputs = [],
     location = { origin: "https://example.com", pathname: "/", href: "https://example.com/" },
+    socialLoginButtons = [],
+    webAuthnElements = [],
   } = options;
 
   return {
     querySelector: vi.fn(() => null),
-    querySelectorAll: vi.fn(() => passwordInputs as unknown as NodeListOf<Element>),
+    querySelectorAll: vi.fn((selector: string) => {
+      if (selector.includes('input[type="password"]')) {
+        return passwordInputs as unknown as NodeListOf<Element>;
+      }
+      if (selector.includes('button') || selector.includes('[role="button"]')) {
+        return socialLoginButtons as unknown as NodeListOf<Element>;
+      }
+      if (selector.includes('webauthn') || selector.includes('passkey')) {
+        return webAuthnElements as unknown as NodeListOf<Element>;
+      }
+      return [] as unknown as NodeListOf<Element>;
+    }),
     getLocation: vi.fn(() => location),
   };
 }
@@ -284,6 +299,125 @@ describe("createLoginDetector", () => {
 
         expect(result.isLoginUrl).toBe(false);
       });
+    });
+  });
+
+  describe("Passwordless authentication detection", () => {
+    it("detects OAuth URL pattern", () => {
+      const dom = createMockDOMAdapter({
+        location: {
+          origin: "https://example.com",
+          pathname: "/oauth",
+          href: "https://example.com/oauth",
+        },
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.isLoginUrl).toBe(true);
+    });
+
+    it("detects SSO URL pattern", () => {
+      const dom = createMockDOMAdapter({
+        location: {
+          origin: "https://example.com",
+          pathname: "/sso",
+          href: "https://example.com/sso",
+        },
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.isLoginUrl).toBe(true);
+    });
+
+    it("detects social login button with 'Sign in with' text", () => {
+      const dom = createMockDOMAdapter({
+        socialLoginButtons: [
+          { textContent: "Sign in with Google" },
+        ],
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.hasSocialLogin).toBe(true);
+    });
+
+    it("detects social login button with 'Continue with' text", () => {
+      const dom = createMockDOMAdapter({
+        socialLoginButtons: [
+          { textContent: "Continue with Apple" },
+        ],
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.hasSocialLogin).toBe(true);
+    });
+
+    it("detects social login with Japanese text", () => {
+      const dom = createMockDOMAdapter({
+        socialLoginButtons: [
+          { textContent: "Googleでログイン" },
+        ],
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.hasSocialLogin).toBe(true);
+    });
+
+    it("detects WebAuthn support", () => {
+      const mockElement = {} as Element;
+      const dom = createMockDOMAdapter({
+        webAuthnElements: [mockElement],
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.hasWebAuthn).toBe(true);
+    });
+
+    it("isLoginPage returns true with social login", () => {
+      const dom = createMockDOMAdapter({
+        socialLoginButtons: [
+          { textContent: "Sign in with GitHub" },
+        ],
+      });
+      const detector = createLoginDetector(dom);
+
+      expect(detector.isLoginPage()).toBe(true);
+    });
+
+    it("isLoginPage returns true with WebAuthn", () => {
+      const mockElement = {} as Element;
+      const dom = createMockDOMAdapter({
+        webAuthnElements: [mockElement],
+      });
+      const detector = createLoginDetector(dom);
+
+      expect(detector.isLoginPage()).toBe(true);
+    });
+
+    it("combines traditional and passwordless detection", () => {
+      const mockForm = { action: "https://example.com/auth" };
+      const dom = createMockDOMAdapter({
+        passwordInputs: [{ closest: () => mockForm }],
+        socialLoginButtons: [
+          { textContent: "Sign in with Google" },
+        ],
+        location: {
+          origin: "https://example.com",
+          pathname: "/login",
+          href: "https://example.com/login",
+        },
+      });
+      const detector = createLoginDetector(dom);
+      const result = detector.detectLoginPage();
+
+      expect(result.hasPasswordInput).toBe(true);
+      expect(result.hasSocialLogin).toBe(true);
+      expect(result.isLoginUrl).toBe(true);
     });
   });
 });

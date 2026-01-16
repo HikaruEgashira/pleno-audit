@@ -5,7 +5,7 @@ import type {
   CapturedAIPrompt,
 } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
-import type { StorageData } from "@pleno-audit/extension-runtime";
+import type { StorageData, DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, PopupSettingsMenu } from "../../components";
@@ -22,7 +22,7 @@ type Tab = "services" | "sessions" | "requests";
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
   { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
   { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
-  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length },
+  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length + d.doHRequests.length },
 ];
 
 interface TabData {
@@ -32,6 +32,7 @@ interface TabData {
   events: EventLog[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
+  doHRequests: DoHRequestRecord[];
 }
 
 interface EventQueryResult {
@@ -57,12 +58,14 @@ function PopupContent() {
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
   const [aiPrompts, setAIPrompts] = useState<CapturedAIPrompt[]>([]);
+  const [doHRequests, setDoHRequests] = useState<DoHRequestRecord[]>([]);
   const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
 
   useEffect(() => {
     loadData();
     loadCSPData();
     loadAIData();
+    loadDoHData();
     const listener = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
@@ -74,6 +77,9 @@ function PopupContent() {
       }
       if (changes.aiPrompts) {
         loadAIData();
+      }
+      if (changes.doHRequests) {
+        loadDoHData();
       }
     };
     chrome.storage.onChanged.addListener(listener);
@@ -130,6 +136,15 @@ function PopupContent() {
     }
   }
 
+  async function loadDoHData() {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
+      if (result?.requests) setDoHRequests(result.requests);
+    } catch {
+      // Failed to load DoH data
+    }
+  }
+
   // Update unified services when dependencies change
   useEffect(() => {
     const services = Object.values(data.services) as DetectedService[];
@@ -146,7 +161,7 @@ function PopupContent() {
   const services = Object.values(data.services) as DetectedService[];
   const events = data.events;
 
-  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests };
+  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests, doHRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
@@ -165,7 +180,7 @@ function PopupContent() {
       case "sessions":
         return <SessionsTab events={events} aiPrompts={aiPrompts} />;
       case "requests":
-        return <RequestsTab violations={violations} networkRequests={networkRequests} />;
+        return <RequestsTab violations={violations} networkRequests={networkRequests} doHRequests={doHRequests} />;
       default:
         return null;
     }
