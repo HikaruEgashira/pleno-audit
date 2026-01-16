@@ -5,6 +5,7 @@ import { NetworkList } from "./NetworkList";
 import { DoHList } from "./DoHList";
 import { PolicyGenerator } from "./PolicyGenerator";
 import { CSPSettings } from "./CSPSettings";
+import { DoHSettings } from "./DoHSettings";
 import { usePopupStyles } from "../styles";
 
 interface RequestsTabProps {
@@ -53,6 +54,10 @@ export function RequestsTab({ violations, networkRequests, doHRequests }: Reques
 
       <div>
         <CSPSettings />
+      </div>
+
+      <div>
+        <DoHSettings />
       </div>
     </div>
   );
