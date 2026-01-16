@@ -26,13 +26,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build extension
-        run: pnpm build
+      - name: Build extensions
+        run: |
+          pnpm build
+          pnpm -C app/pleno-battacker build
 
-      - name: Create zip artifact
+      - name: Create zip artifacts
         run: |
           cd app/extension/dist/chrome-mv3
-          zip -r ../../../../extension-canary.zip .
+          zip -r ../../../../pleno-audit-canary.zip .
+          cd ../../../../app/pleno-battacker/dist/chrome-mv3
+          zip -r ../../../../pleno-battacker-canary.zip .
 
       - name: Get version
         id: version
@@ -47,7 +51,9 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Canary ${{ steps.version.outputs.tag }}
-          files: extension-canary.zip
+          files: |
+            pleno-audit-canary.zip
+            pleno-battacker-canary.zip
           prerelease: true
           generate_release_notes: true
           make_latest: false
