@@ -2228,6 +2228,23 @@ async function handleDebugBridgeForward(
         return { success: true, data: { tabId: tab.id, url: tab.url || url } };
       }
 
+      case "DEBUG_DOH_CONFIG_GET": {
+        const config = await getDoHMonitorConfig();
+        return { success: true, data: config };
+      }
+
+      case "DEBUG_DOH_CONFIG_SET": {
+        const params = data as Partial<DoHMonitorConfig>;
+        await setDoHMonitorConfig(params);
+        return { success: true };
+      }
+
+      case "DEBUG_DOH_REQUESTS": {
+        const params = data as { limit?: number; offset?: number } | undefined;
+        const result = await getDoHRequests(params);
+        return { success: true, data: result };
+      }
+
       default:
         return { success: false, error: `Unknown debug message type: ${type}` };
     }
