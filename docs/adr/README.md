@@ -16,3 +16,4 @@
 | [012](./012-dashboard-data-fetching.md) | Dashboardデータ取得の設計原則 | Accepted |
 | [013](./013-debug-cli.md) | デバッグCLI (pleno-debug) | Accepted |
 | [014](./014-doh-monitoring.md) | DoH（DNS over HTTPS）監視機能 | Accepted |
+| [015](./015-pleno-battacker.md) | Pleno Battacker - ブラウザ防御耐性テストツール | Accepted |
