@@ -131,3 +131,16 @@ export {
   type CooldownManager,
   type CooldownManagerConfig,
 } from "./cooldown-manager.js";
+
+// DoH Monitor
+export {
+  createDoHMonitor,
+  registerDoHMonitorListener,
+  clearDoHCallbacks,
+  detectDoHRequest,
+  DEFAULT_DOH_MONITOR_CONFIG,
+  type DoHMonitor,
+  type DoHMonitorConfig,
+  type DoHRequestRecord,
+  type DoHDetectionMethod,
+} from "./doh-monitor.js";

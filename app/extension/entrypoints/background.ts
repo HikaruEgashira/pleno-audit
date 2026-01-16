@@ -65,6 +65,9 @@ import {
   DEFAULT_NOTIFICATION_CONFIG,
   createCooldownManager,
   createPersistentCooldownStorage,
+  createDoHMonitor,
+  registerDoHMonitorListener,
+  DEFAULT_DOH_MONITOR_CONFIG,
   type ApiClient,
   type BlockingConfig,
   type ConnectionMode,
@@ -78,6 +81,9 @@ import {
   type ExtensionRiskAnalysis,
   type NotificationConfig,
   type CooldownManager,
+  type DoHMonitor,
+  type DoHMonitorConfig,
+  type DoHRequestRecord,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -126,6 +132,7 @@ let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
+let doHMonitor: DoHMonitor | null = null;
 
 // ============================================================================
 // Alert Manager
@@ -271,6 +278,43 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   });
   chrome.notifications.clear(notificationId);
 });
+
+// ============================================================================
+// DoH Monitor Config
+// ============================================================================
+
+async function getDoHMonitorConfig(): Promise<DoHMonitorConfig> {
+  const storage = await getStorage();
+  return storage.doHMonitorConfig || DEFAULT_DOH_MONITOR_CONFIG;
+}
+
+async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{ success: boolean }> {
+  const storage = await getStorage();
+  storage.doHMonitorConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
+  await setStorage(storage);
+
+  // Update running monitor
+  if (doHMonitor) {
+    doHMonitor.updateConfig(storage.doHMonitorConfig);
+  }
+
+  return { success: true };
+}
+
+async function getDoHRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: DoHRequestRecord[]; total: number }> {
+  const storage = await getStorage();
+  const allRequests = storage.doHRequests || [];
+  const total = allRequests.length;
+
+  const limit = options?.limit ?? 100;
+  const offset = options?.offset ?? 0;
+
+  // Sort by timestamp descending (newest first)
+  const sorted = [...allRequests].sort((a, b) => b.timestamp - a.timestamp);
+  const requests = sorted.slice(offset, offset + limit);
+
+  return { requests, total };
+}
 
 // NRD Detection
 const nrdCache: Map<string, NRDResult> = new Map();
@@ -2750,9 +2794,57 @@ export default defineBackground(() => {
       return true;
     }
 
+    // DoH Monitor handlers
+    if (message.type === "GET_DOH_MONITOR_CONFIG") {
+      getDoHMonitorConfig()
+        .then(sendResponse)
+        .catch(() => sendResponse(DEFAULT_DOH_MONITOR_CONFIG));
+      return true;
+    }
+
+    if (message.type === "SET_DOH_MONITOR_CONFIG") {
+      setDoHMonitorConfig(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "GET_DOH_REQUESTS") {
+      getDoHRequests(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ requests: [], total: 0 }));
+      return true;
+    }
+
     // 未知のメッセージタイプはレスポンスを返さず同期的に処理
     logger.warn("Unknown message type:", message.type);
     return false;
+  });
+
+  // Initialize DoH Monitor
+  registerDoHMonitorListener();
+  doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
+  doHMonitor.start();
+
+  doHMonitor.onRequest(async (record: DoHRequestRecord) => {
+    try {
+      const storage = await getStorage();
+      if (!storage.doHRequests) {
+        storage.doHRequests = [];
+      }
+      storage.doHRequests.push(record);
+
+      // Keep only recent requests
+      const maxRequests = storage.doHMonitorConfig?.maxStoredRequests ?? 1000;
+      if (storage.doHRequests.length > maxRequests) {
+        storage.doHRequests = storage.doHRequests.slice(-maxRequests);
+      }
+
+      await setStorage(storage);
+      logger.debug("DoH request stored:", record.domain);
+    } catch (error) {
+      logger.error("Failed to store DoH request:", error);
+    }
   });
 
   startCookieMonitor();
