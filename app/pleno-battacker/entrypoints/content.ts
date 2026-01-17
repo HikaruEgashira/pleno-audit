@@ -18,6 +18,11 @@ export default defineContentScript({
   main() {
     logger.debug("Content script loaded");
 
+    // Notify background script that content script is ready
+    chrome.runtime.sendMessage({ type: "BATTACKER_CONTENT_READY" }).catch(() => {
+      // Background might not be listening yet, that's ok
+    });
+
     chrome.runtime.onMessage.addListener(
       (
         message: BattackerMessage,
