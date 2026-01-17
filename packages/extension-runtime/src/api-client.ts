@@ -56,30 +56,20 @@ async function waitForOffscreenReady(timeout = 15000): Promise<void> {
 }
 
 export async function ensureOffscreenDocument(): Promise<void> {
+  // 既にreadyなら即座にreturn
   if (offscreenReady) return;
 
+  // 作成中のプロミスがあれば待機
   if (offscreenCreating) {
     await offscreenCreating;
     return;
   }
 
   offscreenCreating = (async () => {
+    // 再度チェック（待機中に別の呼び出しが完了した可能性）
+    if (offscreenReady) return;
+
     try {
-      const contexts = await chrome.runtime.getContexts({
-        contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
-      });
-
-      if (contexts.length > 0) {
-        offscreenReady = true;
-        return;
-      }
-
-      try {
-        await chrome.offscreen.closeDocument();
-      } catch {
-        // Ignore - document may not exist
-      }
-
       await chrome.offscreen.createDocument({
         url: "offscreen.html",
         reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
@@ -87,15 +77,16 @@ export async function ensureOffscreenDocument(): Promise<void> {
       });
       await waitForOffscreenReady();
     } catch (error) {
-      offscreenCreating = null;
+      // ドキュメントが既に存在する場合は成功として扱う
       if (error instanceof Error && (
         error.message.includes("already exists") ||
         error.message.includes("Only a single offscreen document")
       )) {
         offscreenReady = true;
-      } else {
-        throw error;
+        return;
       }
+      offscreenCreating = null;
+      throw error;
     }
   })();
 
