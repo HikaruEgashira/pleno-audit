@@ -26,6 +26,7 @@ import { quantumThreats } from "./quantum-threats";
 import { metaLevelAttacks } from "./meta-level-attacks";
 import { ecosystemAttacks } from "./ecosystem-attacks";
 import { userDeviceLayerAttacks } from "./user-device-layer";
+import { protocolStandardsAttacks } from "./protocol-standards";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -55,6 +56,7 @@ export const allAttacks: AttackTest[] = [
   ...metaLevelAttacks,
   ...ecosystemAttacks,
   ...userDeviceLayerAttacks,
+  ...protocolStandardsAttacks,
 ];
 
 export {
@@ -85,4 +87,5 @@ export {
   metaLevelAttacks,
   ecosystemAttacks,
   userDeviceLayerAttacks,
+  protocolStandardsAttacks,
 };
