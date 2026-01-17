@@ -5,6 +5,9 @@ import { clientSideAttacks } from "./client-side";
 import { downloadAttacks } from "./download";
 import { persistenceAttacks } from "./persistence";
 import { sideChannelAttacks } from "./side-channel";
+import { fingerprintingAttacks } from "./fingerprinting";
+import { cryptojackingAttacks } from "./cryptojacking";
+import { privacyAttacks } from "./privacy";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -13,6 +16,9 @@ export const allAttacks: AttackTest[] = [
   ...downloadAttacks,
   ...persistenceAttacks,
   ...sideChannelAttacks,
+  ...fingerprintingAttacks,
+  ...cryptojackingAttacks,
+  ...privacyAttacks,
 ];
 
 export {
@@ -22,4 +28,7 @@ export {
   downloadAttacks,
   persistenceAttacks,
   sideChannelAttacks,
+  fingerprintingAttacks,
+  cryptojackingAttacks,
+  privacyAttacks,
 };
