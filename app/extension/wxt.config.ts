@@ -2,11 +2,12 @@ import { defineConfig } from "wxt";
 
 export default defineConfig({
   srcDir: ".",
-  outDir: "dist",
+  // Use separate output dir for dev to avoid conflicts with manually loaded extensions
+  outDir: process.env.DEBUG_PORT ? ".wxt-dev" : "dist",
   imports: false,
   webExt: {
     startUrls: ["https://example.com"],
-    args: ["--load-extension=../pleno-battacker/dist/chrome-mv3"],
+    args: [`--load-extension=../pleno-battacker/${process.env.DEBUG_PORT ? ".wxt-dev" : "dist"}/chrome-mv3`],
   },
   manifest: (env) => {
     const isDev = env.mode === "development";

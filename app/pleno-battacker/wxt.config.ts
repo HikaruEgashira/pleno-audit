@@ -2,7 +2,8 @@ import { defineConfig } from "wxt";
 import preact from "@preact/preset-vite";
 
 export default defineConfig({
-  outDir: "dist",
+  // Use separate output dir for dev to avoid conflicts with manually loaded extensions
+  outDir: process.env.DEBUG_PORT ? ".wxt-dev" : "dist",
   vite: () => ({
     plugins: [preact()],
     esbuild: {
