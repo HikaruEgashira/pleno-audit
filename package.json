@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "DEBUG_PORT=9223 pnpm -C app/pleno-battacker build && DEBUG_PORT=9223 concurrently --kill-others -n debug,ext,logs -c blue,green,yellow \"pnpm -C app/debugger start server\" \"sleep 2 && pnpm -C app/extension dev\" \"sleep 2 && pnpm -C app/debugger start logs\"; pkill -f 'chrome.*tmp-web-ext' 2>/dev/null || true",
+    "dev": "pnpm --filter @pleno-audit/debugger start dev start",
+    "dev:stop": "pnpm --filter @pleno-audit/debugger start dev stop",
     "dev:ext": "pnpm -C app/extension dev",
     "build": "pnpm -C app/extension build",
     "server": "pnpm -C app/server start",
