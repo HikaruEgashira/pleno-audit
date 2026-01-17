@@ -37,5 +37,13 @@ export default defineConfig({
       "activeTab",
     ],
     host_permissions: ["<all_urls>"],
+    // Explicitly define content_scripts to ensure they're included in dev mode
+    content_scripts: [
+      {
+        matches: ["<all_urls>"],
+        js: ["content-scripts/content.js"],
+        run_at: "document_idle",
+      },
+    ],
   },
 });

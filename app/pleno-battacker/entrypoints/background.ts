@@ -4,8 +4,11 @@ import type { DefenseScore } from "@pleno-audit/battacker";
 const logger = createLogger("battacker");
 
 interface MessageRequest {
-  type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY";
+  type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY" | "BATTACKER_CONTENT_READY";
 }
+
+// Track which tabs have content script ready
+const readyTabs = new Set<number>();
 
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
@@ -16,7 +19,7 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener(
     (
       message: MessageRequest,
-      _sender: chrome.runtime.MessageSender,
+      sender: chrome.runtime.MessageSender,
       sendResponse: (response: unknown) => void,
     ) => {
       switch (message.type) {
@@ -32,12 +35,25 @@ export default defineBackground(() => {
           handleGetHistory().then(sendResponse);
           return true;
 
+        case "BATTACKER_CONTENT_READY":
+          if (sender.tab?.id) {
+            readyTabs.add(sender.tab.id);
+            logger.debug(`Content script ready in tab ${sender.tab.id}`);
+          }
+          sendResponse({ ok: true });
+          return false;
+
         default:
           sendResponse({ error: "Unknown message type" });
           return false;
       }
     },
   );
+
+  // Clean up readyTabs when tab is closed
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    readyTabs.delete(tabId);
+  });
 });
 
 async function handleRunTests(): Promise<DefenseScore | { error: string }> {
@@ -61,20 +77,36 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
       return { error: "Cannot run tests on browser internal pages. Please navigate to a regular web page." };
     }
 
-    // Inject content script (needed for dev mode where content_scripts is not in manifest)
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: activeTab.id },
-        files: ["content-scripts/content.js"],
-      });
-      logger.debug("Content script injected");
-    } catch (injectError) {
-      // Script might already be injected or page doesn't allow injection
-      logger.debug("Content script injection skipped:", injectError);
-    }
+    // Check if content script is already ready (from manifest-based auto-injection)
+    if (!readyTabs.has(activeTab.id)) {
+      // Inject content script (needed for dev mode where content_scripts is not in manifest)
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          files: ["content-scripts/content.js"],
+        });
+        logger.debug("Content script injected");
+      } catch (injectError) {
+        // Script might already be injected or page doesn't allow injection
+        logger.debug("Content script injection skipped:", injectError);
+      }
 
-    // Wait for content script to initialize
-    await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for content script to signal readiness (with timeout)
+      const maxWaitTime = 5000; // 5 seconds max
+      const checkInterval = 100;
+      let waited = 0;
+
+      while (!readyTabs.has(activeTab.id) && waited < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waited += checkInterval;
+      }
+
+      if (!readyTabs.has(activeTab.id)) {
+        logger.warn("Content script did not signal ready within timeout, attempting anyway...");
+      }
+    } else {
+      logger.debug("Content script already ready");
+    }
 
     logger.info("Sending message to content script...");
 
