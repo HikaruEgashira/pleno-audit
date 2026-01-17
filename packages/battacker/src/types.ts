@@ -7,7 +7,11 @@ export type AttackCategory =
   | "side-channel"
   | "fingerprinting"
   | "cryptojacking"
-  | "privacy";
+  | "privacy"
+  | "media"
+  | "storage"
+  | "worker"
+  | "injection";
 
 export type Severity = "critical" | "high" | "medium" | "low";
 
@@ -57,15 +61,19 @@ export interface StoredTestHistory {
 }
 
 export const CATEGORY_WEIGHTS: Record<AttackCategory, number> = {
-  network: 0.15,
-  phishing: 0.1,
-  "client-side": 0.15,
-  download: 0.1,
-  persistence: 0.1,
-  "side-channel": 0.08,
-  fingerprinting: 0.12,
-  cryptojacking: 0.1,
-  privacy: 0.1,
+  network: 0.12,
+  phishing: 0.08,
+  "client-side": 0.12,
+  download: 0.08,
+  persistence: 0.08,
+  "side-channel": 0.06,
+  fingerprinting: 0.1,
+  cryptojacking: 0.08,
+  privacy: 0.08,
+  media: 0.1,
+  storage: 0.06,
+  worker: 0.1,
+  injection: 0.08,
 };
 
 export const CATEGORY_LABELS: Record<AttackCategory, string> = {
@@ -78,6 +86,10 @@ export const CATEGORY_LABELS: Record<AttackCategory, string> = {
   fingerprinting: "Fingerprinting Attacks",
   cryptojacking: "Cryptojacking Attacks",
   privacy: "Privacy Attacks",
+  media: "Media Capture Attacks",
+  storage: "Storage Attacks",
+  worker: "Worker Attacks",
+  injection: "Injection Attacks",
 };
 
 export function scoreToGrade(score: number): Grade {

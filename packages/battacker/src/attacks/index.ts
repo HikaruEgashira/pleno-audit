@@ -8,6 +8,10 @@ import { sideChannelAttacks } from "./side-channel";
 import { fingerprintingAttacks } from "./fingerprinting";
 import { cryptojackingAttacks } from "./cryptojacking";
 import { privacyAttacks } from "./privacy";
+import { mediaAttacks } from "./media";
+import { storageAttacks } from "./storage";
+import { workerAttacks } from "./worker";
+import { injectionAttacks } from "./injection";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -19,6 +23,10 @@ export const allAttacks: AttackTest[] = [
   ...fingerprintingAttacks,
   ...cryptojackingAttacks,
   ...privacyAttacks,
+  ...mediaAttacks,
+  ...storageAttacks,
+  ...workerAttacks,
+  ...injectionAttacks,
 ];
 
 export {
@@ -31,4 +39,8 @@ export {
   fingerprintingAttacks,
   cryptojackingAttacks,
   privacyAttacks,
+  mediaAttacks,
+  storageAttacks,
+  workerAttacks,
+  injectionAttacks,
 };
