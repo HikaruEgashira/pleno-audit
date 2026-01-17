@@ -31,6 +31,7 @@ import { renderingEngineAttacks } from "./rendering-engine";
 import { ipcLayerAttacks } from "./ipc-layer";
 import { extensionSandboxAttacks } from "./extension-sandbox";
 import { firmwareHardwareAttacks } from "./firmware-hardware";
+import { metaRecursiveAttacks } from "./meta-recursive";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -65,6 +66,7 @@ export const allAttacks: AttackTest[] = [
   ...ipcLayerAttacks,
   ...extensionSandboxAttacks,
   ...firmwareHardwareAttacks,
+  ...metaRecursiveAttacks,
 ];
 
 export {
@@ -100,4 +102,5 @@ export {
   ipcLayerAttacks,
   extensionSandboxAttacks,
   firmwareHardwareAttacks,
+  metaRecursiveAttacks,
 };
