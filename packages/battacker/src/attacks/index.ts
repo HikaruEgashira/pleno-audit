@@ -30,6 +30,7 @@ import { protocolStandardsAttacks } from "./protocol-standards";
 import { renderingEngineAttacks } from "./rendering-engine";
 import { ipcLayerAttacks } from "./ipc-layer";
 import { extensionSandboxAttacks } from "./extension-sandbox";
+import { firmwareHardwareAttacks } from "./firmware-hardware";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -63,6 +64,7 @@ export const allAttacks: AttackTest[] = [
   ...renderingEngineAttacks,
   ...ipcLayerAttacks,
   ...extensionSandboxAttacks,
+  ...firmwareHardwareAttacks,
 ];
 
 export {
@@ -97,4 +99,5 @@ export {
   renderingEngineAttacks,
   ipcLayerAttacks,
   extensionSandboxAttacks,
+  firmwareHardwareAttacks,
 };
