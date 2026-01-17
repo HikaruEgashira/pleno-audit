@@ -28,6 +28,7 @@ jobs:
 
       - name: Build extensions
         run: |
+          pnpm --filter @pleno-audit/battacker build
           pnpm build
           pnpm -C app/pleno-battacker build
 

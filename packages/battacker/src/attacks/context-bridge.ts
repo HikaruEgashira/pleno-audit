@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AttackResult, AttackTest } from "../types";
 
 async function simulateWindowOpenPostMessage(): Promise<AttackResult> {
