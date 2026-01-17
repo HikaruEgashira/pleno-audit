@@ -17,3 +17,4 @@
 | [013](./013-debug-cli.md) | デバッグCLI (pleno-debug) | Accepted |
 | [014](./014-doh-monitoring.md) | DoH（DNS over HTTPS）監視機能 | Accepted |
 | [015](./015-pleno-battacker.md) | Pleno Battacker - ブラウザ防御耐性テストツール | Accepted |
+| [016](./016-battacker-signature-expansion.md) | Battacker攻撃シグネチャ拡張 | Accepted |
