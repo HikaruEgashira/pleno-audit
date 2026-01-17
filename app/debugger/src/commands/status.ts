@@ -13,6 +13,9 @@ export const statusCommand = new Command("status")
         console.log(`Extension ID: ${response.data?.extensionId || "unknown"}`);
         console.log(`Version: ${response.data?.version || "unknown"}`);
         console.log(`Dev mode: ${response.data?.devMode ? "yes" : "no"}`);
+        if (response.data?.context) {
+          console.log(`Context: ${response.data.context}`);
+        }
       } else {
         console.log("Status: Error");
         console.log(`Error: ${response.error}`);

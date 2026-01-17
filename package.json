@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n debug,battacker-build,ext,logs -c blue,magenta,green,yellow \"pnpm -C app/debugger start server\" \"pnpm -C app/pleno-battacker build\" \"sleep 3 && pnpm -C app/extension dev\" \"sleep 3 && pnpm -C app/debugger start logs\"",
+    "dev": "DEBUG_PORT=9223 concurrently -n debug,battacker-build,ext,logs -c blue,magenta,green,yellow \"pnpm -C app/debugger start server\" \"pnpm -C app/pleno-battacker build\" \"sleep 3 && pnpm -C app/extension dev\" \"sleep 3 && pnpm -C app/debugger start logs\"",
     "dev:ext": "pnpm -C app/extension dev",
     "build": "pnpm -C app/extension build",
     "server": "pnpm -C app/server start",

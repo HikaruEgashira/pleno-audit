@@ -85,6 +85,7 @@ export default defineConfig({
     define: {
       "import.meta.hot": "undefined",
       "__PLENO_DEV__": "true",
+      "__DEBUG_PORT__": JSON.stringify(process.env.DEBUG_PORT || "9222"),
     },
     optimizeDeps: {
       include: [

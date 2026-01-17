@@ -21,7 +21,9 @@ async function getParquetStore(): Promise<ParquetStore> {
   return parquetStore;
 }
 
-const DEBUG_SERVER_URL = "ws://localhost:9222/debug";
+declare const __DEBUG_PORT__: string;
+const DEBUG_PORT = typeof __DEBUG_PORT__ !== "undefined" ? __DEBUG_PORT__ : "9222";
+const DEBUG_SERVER_URL = `ws://localhost:${DEBUG_PORT}/debug`;
 const RECONNECT_INTERVAL = 5000;
 const LOG_BUFFER_SIZE = 100;
 

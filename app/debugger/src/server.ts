@@ -10,7 +10,7 @@ import { EventEmitter } from "node:events";
 import { execSync } from "node:child_process";
 import { createConnection } from "node:net";
 
-const DEBUG_PORT = 9222;
+const DEBUG_PORT = parseInt(process.env.DEBUG_PORT || "9222", 10);
 
 /**
  * Check if a port is in use
@@ -84,9 +84,19 @@ interface PendingRequest {
   timeout: NodeJS.Timeout;
 }
 
+interface ExtensionConnection {
+  socket: WebSocket;
+  extensionId: string;
+  version: string;
+  devMode: boolean;
+  context?: string;
+  connectedAt: number;
+}
+
 class DebugServer extends EventEmitter {
   private wss: WebSocketServer;
-  private extensionSocket: WebSocket | null = null;
+  private extensionConnections: Map<string, ExtensionConnection> = new Map();
+  private activeExtensionId: string | null = null;
   private cliSockets: Set<WebSocket> = new Set();
   private pendingRequests = new Map<string, PendingRequest>();
   private messageId = 0;
@@ -121,17 +131,41 @@ class DebugServer extends EventEmitter {
   }
 
   private handleExtensionConnection(ws: WebSocket): void {
-    if (this.extensionSocket) {
-      console.log("[server] Closing previous extension connection");
-      this.extensionSocket.close();
-    }
-
-    this.extensionSocket = ws;
-    this.emit("extension-connected");
+    let connectionId: string | null = null;
 
     ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
+
+        // Handle initial connection message with extension info
+        if (message.data?.type === "connected" && message.data?.extensionId) {
+          connectionId = message.data.extensionId;
+          const connInfo: ExtensionConnection = {
+            socket: ws,
+            extensionId: message.data.extensionId,
+            version: message.data.version || "unknown",
+            devMode: message.data.devMode || false,
+            context: message.data.context,
+            connectedAt: Date.now(),
+          };
+
+          // Check if this extension is already connected
+          const existing = this.extensionConnections.get(connectionId);
+          if (existing) {
+            console.log(`[server] Extension ${connectionId} reconnected, closing old connection`);
+            existing.socket.close();
+          }
+
+          this.extensionConnections.set(connectionId, connInfo);
+
+          // Always use the most recent connection as active
+          this.activeExtensionId = connectionId;
+          console.log(`[server] Extension connected: ${connectionId} (${connInfo.context || "background"})`);
+          console.log(`[server] Active connections: ${this.extensionConnections.size}`);
+
+          this.emit("extension-connected", connInfo);
+          return;
+        }
 
         // Handle DEBUG_LOG messages - broadcast to CLI clients
         if (message.type === "DEBUG_LOG") {
@@ -149,17 +183,29 @@ class DebugServer extends EventEmitter {
 
     ws.on("close", (code, reason) => {
       console.log(`[server] Extension disconnected (code: ${code}, reason: ${reason?.toString() || "none"})`);
-      if (this.extensionSocket === ws) {
-        this.extensionSocket = null;
-      }
-      this.emit("extension-disconnected");
 
-      // Reject all pending requests
-      for (const [, pending] of this.pendingRequests) {
-        clearTimeout(pending.timeout);
-        pending.reject(new Error("Extension disconnected"));
+      if (connectionId) {
+        this.extensionConnections.delete(connectionId);
+
+        // If the active extension disconnected, switch to another if available
+        if (this.activeExtensionId === connectionId) {
+          const remaining = Array.from(this.extensionConnections.keys());
+          this.activeExtensionId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+          if (this.activeExtensionId) {
+            console.log(`[server] Switched to extension: ${this.activeExtensionId}`);
+          }
+        }
       }
-      this.pendingRequests.clear();
+
+      if (this.extensionConnections.size === 0) {
+        this.emit("extension-disconnected");
+        // Reject all pending requests
+        for (const [, pending] of this.pendingRequests) {
+          clearTimeout(pending.timeout);
+          pending.reject(new Error("Extension disconnected"));
+        }
+        this.pendingRequests.clear();
+      }
     });
 
     ws.on("error", (error) => {
@@ -230,10 +276,21 @@ class DebugServer extends EventEmitter {
   }
 
   /**
+   * Get the active extension socket
+   */
+  private getActiveSocket(): WebSocket | null {
+    if (!this.activeExtensionId) return null;
+    const conn = this.extensionConnections.get(this.activeExtensionId);
+    if (!conn || conn.socket.readyState !== WebSocket.OPEN) return null;
+    return conn.socket;
+  }
+
+  /**
    * Send a message to the extension and wait for response
    */
   async send(type: string, data?: unknown, timeoutMs = 10000): Promise<DebugResponse> {
-    if (!this.extensionSocket || this.extensionSocket.readyState !== WebSocket.OPEN) {
+    const socket = this.getActiveSocket();
+    if (!socket) {
       throw new Error("Extension not connected");
     }
 
@@ -247,7 +304,7 @@ class DebugServer extends EventEmitter {
       }, timeoutMs);
 
       this.pendingRequests.set(id, { resolve, reject, timeout });
-      this.extensionSocket!.send(JSON.stringify(message));
+      socket.send(JSON.stringify(message));
     });
   }
 
@@ -255,10 +312,34 @@ class DebugServer extends EventEmitter {
    * Check if extension is connected
    */
   isExtensionConnected(): boolean {
-    return (
-      this.extensionSocket !== null &&
-      this.extensionSocket.readyState === WebSocket.OPEN
-    );
+    return this.getActiveSocket() !== null;
+  }
+
+  /**
+   * Get active extension info
+   */
+  getActiveExtension(): ExtensionConnection | null {
+    if (!this.activeExtensionId) return null;
+    return this.extensionConnections.get(this.activeExtensionId) || null;
+  }
+
+  /**
+   * Get all connected extensions
+   */
+  getConnections(): ExtensionConnection[] {
+    return Array.from(this.extensionConnections.values());
+  }
+
+  /**
+   * Set active extension by ID
+   */
+  setActiveExtension(extensionId: string): boolean {
+    if (this.extensionConnections.has(extensionId)) {
+      this.activeExtensionId = extensionId;
+      console.log(`[server] Active extension set to: ${extensionId}`);
+      return true;
+    }
+    return false;
   }
 
   /**
