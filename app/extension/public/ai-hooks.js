@@ -397,6 +397,20 @@
     // Always check for data exfiltration (even for non-AI requests)
     if (body && method !== 'GET') {
       checkDataExfiltration(url, method, body)
+
+      // Check for tracking beacons
+      const bodySize = getBodySize(body)
+      if (isTrackingBeacon(url, bodySize, body)) {
+        try {
+          sendTrackingBeaconEvent({
+            url: new URL(url, window.location.origin).href,
+            bodySize: bodySize,
+            initiator: 'fetch',
+            timestamp: Date.now(),
+            targetDomain: new URL(url, window.location.origin).hostname
+          })
+        } catch { /* Skip on URL parse error */ }
+      }
     }
 
     // Only check POST/PUT requests with body for AI capture
@@ -469,6 +483,24 @@
     const url = this.__aiCaptureUrl
     const method = this.__aiCaptureMethod
 
+    // Check for data exfiltration and tracking beacons (all XHR POST/PUT)
+    if (body && method && method.toUpperCase() !== 'GET') {
+      checkDataExfiltration(url, method, body)
+
+      const bodySize = getBodySize(body)
+      if (isTrackingBeacon(url, bodySize, body)) {
+        try {
+          sendTrackingBeaconEvent({
+            url: new URL(url, window.location.origin).href,
+            bodySize: bodySize,
+            initiator: 'xhr',
+            timestamp: Date.now(),
+            targetDomain: new URL(url, window.location.origin).hostname
+          })
+        } catch { /* Skip on URL parse error */ }
+      }
+    }
+
     if (!body || method === 'GET') {
       return originalXHRSend.call(this, body)
     }
@@ -520,5 +552,182 @@
     return originalXHRSend.call(this, body)
   }
 
-  // AI Prompt Capture initialized
+  // ===== TRACKING BEACON DETECTION =====
+  const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
+
+  function isTrackingBeacon(url, bodySize, body) {
+    const isSmallPayload = bodySize < 2048  // 2KB typical beacon size
+    const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
+    let hasTrackingPayload = false
+    if (body) {
+      let text = typeof body === 'string' ? body : JSON.stringify(body)
+      hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
+    }
+    return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
+  }
+
+  function sendTrackingBeaconEvent(data) {
+    window.dispatchEvent(new CustomEvent('__TRACKING_BEACON_DETECTED__', { detail: data }))
+  }
+
+  // ===== CLIPBOARD HIJACK DETECTION =====
+  const CRYPTO_PATTERNS = {
+    bitcoin: /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/,
+    ethereum: /^0x[a-fA-F0-9]{40}$/,
+    litecoin: /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/,
+  }
+
+  function detectCryptoAddress(text) {
+    for (const [type, pattern] of Object.entries(CRYPTO_PATTERNS)) {
+      if (pattern.test(text)) return { detected: true, type }
+    }
+    return { detected: false, type: null }
+  }
+
+  function sendClipboardHijackEvent(data) {
+    window.dispatchEvent(new CustomEvent('__CLIPBOARD_HIJACK_DETECTED__', { detail: data }))
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
+    navigator.clipboard.writeText = function(text) {
+      const cryptoCheck = detectCryptoAddress(text)
+      if (cryptoCheck.detected) {
+        sendClipboardHijackEvent({
+          text: text.substring(0, 20) + '...',
+          cryptoType: cryptoCheck.type,
+          fullLength: text.length,
+          timestamp: Date.now()
+        })
+      }
+      return originalWriteText(text)
+    }
+  }
+
+  // ===== COOKIE ACCESS DETECTION =====
+  let lastCookieAccessTime = 0
+  const COOKIE_ACCESS_THROTTLE = 1000
+
+  function sendCookieAccessEvent(data) {
+    window.dispatchEvent(new CustomEvent('__COOKIE_ACCESS_DETECTED__', { detail: data }))
+  }
+
+  try {
+    const originalCookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')
+    if (originalCookieDescriptor && originalCookieDescriptor.get) {
+      const originalCookieGetter = originalCookieDescriptor.get
+      Object.defineProperty(document, 'cookie', {
+        get: function() {
+          const now = Date.now()
+          if (now - lastCookieAccessTime > COOKIE_ACCESS_THROTTLE) {
+            lastCookieAccessTime = now
+            sendCookieAccessEvent({ timestamp: now, readCount: 1, pageUrl: window.location.href })
+          }
+          return originalCookieGetter.call(document)
+        },
+        set: originalCookieDescriptor.set,
+        configurable: true
+      })
+    }
+  } catch { /* Cookie descriptor modification not supported */ }
+
+  // ===== XSS AND DOM SCRAPING DETECTION =====
+  let querySelectorAllCount = 0
+  let querySelectorAllResetTime = Date.now()
+  const SCRAPING_THRESHOLD = 50
+  const SCRAPING_WINDOW = 5000
+
+  function sendDOMScrapingEvent(data) {
+    window.dispatchEvent(new CustomEvent('__DOM_SCRAPING_DETECTED__', { detail: data }))
+  }
+
+  function sendXSSEvent(data) {
+    window.dispatchEvent(new CustomEvent('__XSS_DETECTED__', { detail: data }))
+  }
+
+  const originalQuerySelectorAll = document.querySelectorAll.bind(document)
+  document.querySelectorAll = function(selector) {
+    const now = Date.now()
+    if (now - querySelectorAllResetTime > SCRAPING_WINDOW) {
+      querySelectorAllCount = 0
+      querySelectorAllResetTime = now
+    }
+    querySelectorAllCount++
+    if (querySelectorAllCount === SCRAPING_THRESHOLD) {
+      sendDOMScrapingEvent({ selector, callCount: querySelectorAllCount, timestamp: now })
+    }
+    return originalQuerySelectorAll(selector)
+  }
+
+  const XSS_PATTERNS = [/<script[^>]*>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i]
+
+  function detectXSSPayload(html) {
+    for (const pattern of XSS_PATTERNS) {
+      if (pattern.test(html)) return true
+    }
+    return false
+  }
+
+  const originalInnerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')
+  if (originalInnerHTMLDescriptor && originalInnerHTMLDescriptor.set) {
+    Object.defineProperty(Element.prototype, 'innerHTML', {
+      get: originalInnerHTMLDescriptor.get,
+      set: function(value) {
+        if (typeof value === 'string' && detectXSSPayload(value)) {
+          sendXSSEvent({ type: 'innerHTML', payloadPreview: value.substring(0, 100), timestamp: Date.now() })
+        }
+        return originalInnerHTMLDescriptor.set.call(this, value)
+      },
+      configurable: true
+    })
+  }
+
+  // ===== SUSPICIOUS DOWNLOAD DETECTION =====
+  function sendSuspiciousDownloadEvent(data) {
+    window.dispatchEvent(new CustomEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', { detail: data }))
+  }
+
+  const originalCreateObjectURL = URL.createObjectURL
+  URL.createObjectURL = function(blob) {
+    if (blob instanceof Blob) {
+      sendSuspiciousDownloadEvent({ type: 'blob', size: blob.size, mimeType: blob.type, timestamp: Date.now() })
+    }
+    return originalCreateObjectURL.call(this, blob)
+  }
+
+  const SUSPICIOUS_EXTENSIONS = ['.exe', '.msi', '.bat', '.ps1', '.cmd', '.scr', '.vbs', '.js', '.jar', '.dll']
+
+  document.addEventListener('click', (event) => {
+    const target = event.target
+    if (!(target instanceof HTMLAnchorElement)) return
+    if (!target.download && !target.href) return
+
+    try {
+      const href = target.href || ''
+      const download = target.download || ''
+
+      if (href.startsWith('blob:') || href.startsWith('data:')) {
+        sendSuspiciousDownloadEvent({
+          type: href.startsWith('blob:') ? 'blob_link' : 'data_url',
+          filename: download,
+          timestamp: Date.now()
+        })
+        return
+      }
+
+      const filename = download || href.split('/').pop() || ''
+      const extension = '.' + filename.split('.').pop().toLowerCase()
+      if (SUSPICIOUS_EXTENSIONS.includes(extension)) {
+        sendSuspiciousDownloadEvent({
+          type: 'suspicious_extension',
+          filename,
+          extension,
+          url: href,
+          timestamp: Date.now()
+        })
+      }
+    } catch { /* Skip on error */ }
+  }, true)
+
+  // AI Prompt Capture + Security Detection initialized
 })()

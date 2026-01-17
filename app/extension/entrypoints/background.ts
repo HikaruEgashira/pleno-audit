@@ -2420,17 +2420,16 @@ async function registerMainWorldScript() {
     // Unregister existing scripts first
     await chrome.scripting.unregisterContentScripts({ ids: ["ai-hooks", "api-hooks"] }).catch(() => {});
 
-    // Register only api-hooks for now
-    // api-hooks provides all security detection functionality
-    // AI monitoring (ai-hooks) is temporarily disabled to ensure detection works
+    // Register ai-hooks.js which now includes both AI monitoring and security detection
+    // This eliminates script execution order issues
     await chrome.scripting.registerContentScripts([
       {
-        id: "api-hooks",
-        js: ["api-hooks.js"],
+        id: "ai-hooks",
+        js: ["ai-hooks.js"],
         matches: ["<all_urls>"],
         runAt: "document_start",
         world: "MAIN",
-        persistAcrossSessions: true,
+        persistAcrossSessions: false,
       },
     ]);
   } catch (error) {
