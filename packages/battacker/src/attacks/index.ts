@@ -21,6 +21,8 @@ import { contextBridgeAttacks } from "./context-bridge";
 import { sandboxEscapeAttacks } from "./sandbox-escape";
 import { futureApiAttacks } from "./future-api";
 import { cpuMemoryAttacks } from "./cpu-memory-attacks";
+import { zeroDayAttacks } from "./zero-day-simulation";
+import { quantumThreats } from "./quantum-threats";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -45,6 +47,8 @@ export const allAttacks: AttackTest[] = [
   ...sandboxEscapeAttacks,
   ...futureApiAttacks,
   ...cpuMemoryAttacks,
+  ...zeroDayAttacks,
+  ...quantumThreats,
 ];
 
 export {
@@ -70,4 +74,6 @@ export {
   sandboxEscapeAttacks,
   futureApiAttacks,
   cpuMemoryAttacks,
+  zeroDayAttacks,
+  quantumThreats,
 };

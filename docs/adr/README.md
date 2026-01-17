@@ -24,3 +24,4 @@
 | [020](./020-battacker-sandbox-escape.md) | Battacker サンドボックス脱出攻撃 (Phase 8) | Accepted |
 | [021](./021-battacker-future-api.md) | Battacker 次世代API脆弱性 (Phase 9) | Accepted |
 | [022](./022-battacker-cpu-memory-attacks.md) | Battacker CPU/メモリ層攻撃 (Phase 10) | Accepted |
+| [023](./023-battacker-zero-day-quantum-threats.md) | Battacker Zero-Day & Quantum脅威層 (Phase 11) | Accepted |
