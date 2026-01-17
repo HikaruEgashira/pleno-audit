@@ -20,3 +20,4 @@
 | [016](./016-battacker-signature-expansion.md) | Battacker攻撃シグネチャ拡張 | Accepted |
 | [017](./017-battacker-advanced-signatures.md) | Battacker高度攻撃シグネチャ拡張 (Phase 1-2) | Accepted |
 | [018](./018-battacker-hybrid-attacks.md) | Battacker ハイブリッド攻撃シグネチャ (Phase 6) | Accepted |
+| [019](./019-battacker-context-bridge.md) | Battacker コンテキストブリッジ攻撃 (Phase 7) | Accepted |

@@ -17,6 +17,7 @@ import { advancedAttacks } from "./advanced";
 import { finalAttacks } from "./final";
 import { deepestAttacks } from "./deepest";
 import { hybridAttacks } from "./hybrid";
+import { contextBridgeAttacks } from "./context-bridge";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -37,6 +38,7 @@ export const allAttacks: AttackTest[] = [
   ...finalAttacks,
   ...deepestAttacks,
   ...hybridAttacks,
+  ...contextBridgeAttacks,
 ];
 
 export {
@@ -58,4 +60,5 @@ export {
   finalAttacks,
   deepestAttacks,
   hybridAttacks,
+  contextBridgeAttacks,
 };
