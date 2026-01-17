@@ -16,6 +16,16 @@ import { covertAttacks } from "./covert";
 import { advancedAttacks } from "./advanced";
 import { finalAttacks } from "./final";
 import { deepestAttacks } from "./deepest";
+import { hybridAttacks } from "./hybrid";
+import { contextBridgeAttacks } from "./context-bridge";
+import { sandboxEscapeAttacks } from "./sandbox-escape";
+import { futureApiAttacks } from "./future-api";
+import { zeroDayAttacks } from "./zero-day-simulation";
+import { metaLevelAttacks } from "./meta-level-attacks";
+import { userDeviceLayerAttacks } from "./user-device-layer";
+import { protocolStandardsAttacks } from "./protocol-standards";
+import { renderingEngineAttacks } from "./rendering-engine";
+import { extensionSandboxAttacks } from "./extension-sandbox";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -35,6 +45,16 @@ export const allAttacks: AttackTest[] = [
   ...advancedAttacks,
   ...finalAttacks,
   ...deepestAttacks,
+  ...hybridAttacks,
+  ...contextBridgeAttacks,
+  ...sandboxEscapeAttacks,
+  ...futureApiAttacks,
+  ...zeroDayAttacks,
+  ...metaLevelAttacks,
+  ...userDeviceLayerAttacks,
+  ...protocolStandardsAttacks,
+  ...renderingEngineAttacks,
+  ...extensionSandboxAttacks,
 ];
 
 export {
@@ -55,4 +75,14 @@ export {
   advancedAttacks,
   finalAttacks,
   deepestAttacks,
+  hybridAttacks,
+  contextBridgeAttacks,
+  sandboxEscapeAttacks,
+  futureApiAttacks,
+  zeroDayAttacks,
+  metaLevelAttacks,
+  userDeviceLayerAttacks,
+  protocolStandardsAttacks,
+  renderingEngineAttacks,
+  extensionSandboxAttacks,
 };
