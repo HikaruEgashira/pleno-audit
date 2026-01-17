@@ -13,6 +13,8 @@
     "server:dev": "pnpm -C app/server dev",
     "website": "pnpm -C app/website dev",
     "website:build": "pnpm -C app/website build",
+    "battacker-web": "pnpm -C app/battacker-web dev",
+    "battacker-web:build": "pnpm --filter @pleno-audit/battacker build && pnpm -C app/battacker-web build",
     "lint": "oxlint .",
     "test": "vitest run",
     "test:ui": "vitest run --config app/extension/vitest.config.ts",

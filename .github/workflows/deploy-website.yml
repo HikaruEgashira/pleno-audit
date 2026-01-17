@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'app/website/**'
+      - 'app/battacker-web/**'
+      - 'packages/battacker/**'
       - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 
@@ -35,8 +37,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build battacker package
+        run: pnpm --filter @pleno-audit/battacker build
+
+      - name: Build battacker-web
+        run: pnpm --filter @pleno-audit/battacker-web build
+
       - name: Build website
         run: pnpm website:build
+
+      - name: Merge battacker-web into website
+        run: |
+          mkdir -p app/website/dist/battacker
+          cp -r app/battacker-web/dist/* app/website/dist/battacker/
+          cp app/battacker-web/dist/index.html app/website/dist/battacker/404.html
 
       - name: Copy 404.html for SPA routing
         run: cp app/website/dist/index.html app/website/dist/404.html
