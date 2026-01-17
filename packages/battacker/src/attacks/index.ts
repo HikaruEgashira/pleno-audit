@@ -20,6 +20,7 @@ import { hybridAttacks } from "./hybrid";
 import { contextBridgeAttacks } from "./context-bridge";
 import { sandboxEscapeAttacks } from "./sandbox-escape";
 import { futureApiAttacks } from "./future-api";
+import { cpuMemoryAttacks } from "./cpu-memory-attacks";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -43,6 +44,7 @@ export const allAttacks: AttackTest[] = [
   ...contextBridgeAttacks,
   ...sandboxEscapeAttacks,
   ...futureApiAttacks,
+  ...cpuMemoryAttacks,
 ];
 
 export {
@@ -67,4 +69,5 @@ export {
   contextBridgeAttacks,
   sandboxEscapeAttacks,
   futureApiAttacks,
+  cpuMemoryAttacks,
 };
