@@ -3,10 +3,11 @@ Chrome拡張機能のデバッグ手順ガイドです。
 ## デバッグの流れ
 
 ### 1. 開発環境を起動（バックグラウンド）
+Bash Toolの`run_in_background: true`オプションを使用して起動。
 ```bash
-pnpm dev &
+pnpm dev
 ```
-WXTが専用プロファイル(.wxt-dev)でChromeを起動します。
+WXTが専用プロファイル(.wxt-dev)でChromeを起動します。起動完了まで約15秒待機。
 
 ### 2. 接続確認
 ```bash
