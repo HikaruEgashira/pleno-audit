@@ -60,7 +60,6 @@ export async function ensureOffscreenDocument(): Promise<void> {
 
   if (offscreenCreating) {
     await offscreenCreating;
-    await waitForOffscreenReady();
     return;
   }
 
@@ -71,8 +70,14 @@ export async function ensureOffscreenDocument(): Promise<void> {
       });
 
       if (contexts.length > 0) {
-        await waitForOffscreenReady();
+        offscreenReady = true;
         return;
+      }
+
+      try {
+        await chrome.offscreen.closeDocument();
+      } catch {
+        // Ignore - document may not exist
       }
 
       await chrome.offscreen.createDocument({
@@ -82,13 +87,15 @@ export async function ensureOffscreenDocument(): Promise<void> {
       });
       await waitForOffscreenReady();
     } catch (error) {
-      if (error instanceof Error && error.message.includes("already exists")) {
-        await waitForOffscreenReady();
+      offscreenCreating = null;
+      if (error instanceof Error && (
+        error.message.includes("already exists") ||
+        error.message.includes("Only a single offscreen document")
+      )) {
+        offscreenReady = true;
       } else {
         throw error;
       }
-    } finally {
-      offscreenCreating = null;
     }
   })();
 
