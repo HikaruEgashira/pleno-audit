@@ -16,6 +16,7 @@ import { covertAttacks } from "./covert";
 import { advancedAttacks } from "./advanced";
 import { finalAttacks } from "./final";
 import { deepestAttacks } from "./deepest";
+import { hybridAttacks } from "./hybrid";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -35,6 +36,7 @@ export const allAttacks: AttackTest[] = [
   ...advancedAttacks,
   ...finalAttacks,
   ...deepestAttacks,
+  ...hybridAttacks,
 ];
 
 export {
@@ -55,4 +57,5 @@ export {
   advancedAttacks,
   finalAttacks,
   deepestAttacks,
+  hybridAttacks,
 };
