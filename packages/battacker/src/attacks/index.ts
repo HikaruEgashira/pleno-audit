@@ -28,6 +28,7 @@ import { ecosystemAttacks } from "./ecosystem-attacks";
 import { userDeviceLayerAttacks } from "./user-device-layer";
 import { protocolStandardsAttacks } from "./protocol-standards";
 import { renderingEngineAttacks } from "./rendering-engine";
+import { ipcLayerAttacks } from "./ipc-layer";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -59,6 +60,7 @@ export const allAttacks: AttackTest[] = [
   ...userDeviceLayerAttacks,
   ...protocolStandardsAttacks,
   ...renderingEngineAttacks,
+  ...ipcLayerAttacks,
 ];
 
 export {
@@ -91,4 +93,5 @@ export {
   userDeviceLayerAttacks,
   protocolStandardsAttacks,
   renderingEngineAttacks,
+  ipcLayerAttacks,
 };
