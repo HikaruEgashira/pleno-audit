@@ -10,6 +10,8 @@
   if (window.__AI_PROMPT_CAPTURE_INITIALIZED__) return
   window.__AI_PROMPT_CAPTURE_INITIALIZED__ = true
 
+  console.log('[ai-hooks] Initializing security hooks')
+
   // Configuration
   const MAX_CONTENT_SIZE = 50000  // 50KB max capture
   const TRUNCATE_SIZE = 10000     // Truncate after 10KB

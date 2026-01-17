@@ -1,6 +1,7 @@
 /**
  * AI Monitor Content Script
- * ai-hooks.jsからのイベントを受信しBackgroundへ転送
+ * ai-hooks.jsからのイベントを受信してBackgroundへ転送
+ * ai-hooks.jsはbackground.tsのregisterContentScriptsで注入される
  */
 
 import type { CapturedAIPrompt } from "@pleno-audit/detectors";
@@ -24,18 +25,25 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   runAt: "document_start",
   main() {
-    // ai-hooks.js is now registered via chrome.scripting.registerContentScripts
-    // in background.ts, so no need to inject it here
-
-    // Listen for AI capture events from main world
-    window.addEventListener(
+    // Listen for security detection events from main world (ai-hooks.js)
+    const securityEvents = [
       "__AI_PROMPT_CAPTURED__",
-      ((event: CustomEvent<CapturedAIPrompt>) => {
+      "__DATA_EXFILTRATION_DETECTED__",
+      "__TRACKING_BEACON_DETECTED__",
+      "__CLIPBOARD_HIJACK_DETECTED__",
+      "__COOKIE_ACCESS_DETECTED__",
+      "__XSS_DETECTED__",
+      "__DOM_SCRAPING_DETECTED__",
+      "__SUSPICIOUS_DOWNLOAD_DETECTED__",
+    ];
+
+    for (const eventType of securityEvents) {
+      window.addEventListener(eventType, ((event: CustomEvent) => {
         safeSendMessage({
-          type: "AI_PROMPT_CAPTURED",
+          type: eventType.replace(/^__|__$/g, ""),
           data: event.detail,
         });
-      }) as EventListener
-    );
+      }) as EventListener);
+    }
   },
 });

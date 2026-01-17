@@ -2408,34 +2408,8 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
   }
 }
 
-async function registerMainWorldScript() {
-  // chrome.scripting is only available in Chrome MV3
-  // Firefox MV2 uses manifest-based content script registration
-  if (typeof chrome.scripting?.registerContentScripts !== "function") {
-    logger.debug("chrome.scripting not available (Firefox MV2), skipping dynamic registration");
-    return;
-  }
-
-  try {
-    // Unregister existing scripts first
-    await chrome.scripting.unregisterContentScripts({ ids: ["ai-hooks", "api-hooks"] }).catch(() => {});
-
-    // Register ai-hooks.js which now includes both AI monitoring and security detection
-    // This eliminates script execution order issues
-    await chrome.scripting.registerContentScripts([
-      {
-        id: "ai-hooks",
-        js: ["ai-hooks.js"],
-        matches: ["<all_urls>"],
-        runAt: "document_start",
-        world: "MAIN",
-        persistAcrossSessions: false,
-      },
-    ]);
-  } catch (error) {
-    logger.error("Failed to register main world script:", error);
-  }
-}
+// Main world script is now registered statically via manifest.json content_scripts
+// Dynamic registration removed to avoid caching issues
 
 async function handleDebugBridgeForward(
   type: string,
@@ -2516,7 +2490,7 @@ export default defineBackground(() => {
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
   registerDoHMonitorListener();
-  registerMainWorldScript();
+  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
 
   if (import.meta.env.DEV) {
     import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
