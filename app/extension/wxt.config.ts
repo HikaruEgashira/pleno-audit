@@ -1,4 +1,9 @@
 import { defineConfig } from "wxt";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const battackerPath = resolve(__dirname, "../pleno-battacker/dist/chrome-mv3");
 
 export default defineConfig({
   srcDir: ".",
@@ -7,7 +12,7 @@ export default defineConfig({
   imports: false,
   webExt: {
     startUrls: ["https://example.com"],
-    args: [`--load-extension=../pleno-battacker/${process.env.DEBUG_PORT ? ".wxt-dev" : "dist"}/chrome-mv3`],
+    chromiumArgs: [`--load-extension=${battackerPath}`],
   },
   manifest: (env) => {
     const isDev = env.mode === "development";
