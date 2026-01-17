@@ -11,7 +11,9 @@ export type AttackCategory =
   | "media"
   | "storage"
   | "worker"
-  | "injection";
+  | "injection"
+  | "covert"
+  | "advanced";
 
 export type Severity = "critical" | "high" | "medium" | "low";
 
@@ -61,19 +63,21 @@ export interface StoredTestHistory {
 }
 
 export const CATEGORY_WEIGHTS: Record<AttackCategory, number> = {
-  network: 0.12,
-  phishing: 0.08,
-  "client-side": 0.12,
-  download: 0.08,
-  persistence: 0.08,
-  "side-channel": 0.06,
-  fingerprinting: 0.1,
-  cryptojacking: 0.08,
-  privacy: 0.08,
-  media: 0.1,
-  storage: 0.06,
-  worker: 0.1,
-  injection: 0.08,
+  network: 0.1,
+  phishing: 0.06,
+  "client-side": 0.1,
+  download: 0.06,
+  persistence: 0.06,
+  "side-channel": 0.05,
+  fingerprinting: 0.08,
+  cryptojacking: 0.06,
+  privacy: 0.06,
+  media: 0.08,
+  storage: 0.05,
+  worker: 0.08,
+  injection: 0.06,
+  covert: 0.1,
+  advanced: 0.08,
 };
 
 export const CATEGORY_LABELS: Record<AttackCategory, string> = {
@@ -90,6 +94,8 @@ export const CATEGORY_LABELS: Record<AttackCategory, string> = {
   storage: "Storage Attacks",
   worker: "Worker Attacks",
   injection: "Injection Attacks",
+  covert: "Covert Channel Attacks",
+  advanced: "Advanced Exploitation",
 };
 
 export function scoreToGrade(score: number): Grade {

@@ -12,6 +12,8 @@ import { mediaAttacks } from "./media";
 import { storageAttacks } from "./storage";
 import { workerAttacks } from "./worker";
 import { injectionAttacks } from "./injection";
+import { covertAttacks } from "./covert";
+import { advancedAttacks } from "./advanced";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -27,6 +29,8 @@ export const allAttacks: AttackTest[] = [
   ...storageAttacks,
   ...workerAttacks,
   ...injectionAttacks,
+  ...covertAttacks,
+  ...advancedAttacks,
 ];
 
 export {
@@ -43,4 +47,6 @@ export {
   storageAttacks,
   workerAttacks,
   injectionAttacks,
+  covertAttacks,
+  advancedAttacks,
 };
