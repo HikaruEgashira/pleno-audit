@@ -18,4 +18,4 @@
 | [014](./014-doh-monitoring.md) | DoH（DNS over HTTPS）監視機能 | Accepted |
 | [015](./015-pleno-battacker.md) | Pleno Battacker - ブラウザ防御耐性テストツール | Accepted |
 | [016](./016-battacker-signature-expansion.md) | Battacker攻撃シグネチャ拡張 | Accepted |
-| [017](./017-battacker-advanced-signatures.md) | Battacker高度攻撃シグネチャ拡張 | Proposed |
+| [017](./017-battacker-advanced-signatures.md) | Battacker高度攻撃シグネチャ拡張 (Phase 1-2) | Accepted |
