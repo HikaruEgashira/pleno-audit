@@ -31,4 +31,5 @@
 | [027](./027-battacker-ipc-layer.md) | Battacker IPC層 (Phase 16) | Accepted |
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
 | [029](./029-battacker-firmware-hardware.md) | Battacker ファームウェア・ハードウェア層 (Phase 18) | Accepted |
-| [030](./030-battacker-meta-recursive.md) | Battacker メタ再帰的セキュリティパラドックス層 (Phase 19 - FINAL) | Accepted |
+| [030](./030-battacker-meta-recursive.md) | Battacker メタ再帰的セキュリティパラドックス層 (Phase 19) | Accepted |
+| [031](./031-battacker-quantum-information-theory.md) | Battacker 量子情報理論層 (Phase 20 - FINAL) | Accepted |

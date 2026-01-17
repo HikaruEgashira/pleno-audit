@@ -32,6 +32,7 @@ import { ipcLayerAttacks } from "./ipc-layer";
 import { extensionSandboxAttacks } from "./extension-sandbox";
 import { firmwareHardwareAttacks } from "./firmware-hardware";
 import { metaRecursiveAttacks } from "./meta-recursive";
+import { quantumInformationTheoryAttacks } from "./quantum-information-theory";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -67,6 +68,7 @@ export const allAttacks: AttackTest[] = [
   ...extensionSandboxAttacks,
   ...firmwareHardwareAttacks,
   ...metaRecursiveAttacks,
+  ...quantumInformationTheoryAttacks,
 ];
 
 export {
@@ -103,4 +105,5 @@ export {
   extensionSandboxAttacks,
   firmwareHardwareAttacks,
   metaRecursiveAttacks,
+  quantumInformationTheoryAttacks,
 };
