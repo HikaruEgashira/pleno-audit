@@ -1,10 +1,5 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
-import {
-  allAttacks,
-  calculateDefenseScore,
-  runAllTests,
-  type DefenseScore,
-} from "@pleno-audit/battacker";
+import type { DefenseScore } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
 
@@ -51,23 +46,70 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
   }
 
   isRunning = true;
-  logger.info("Starting security tests...");
+  logger.info("Starting security tests via content script...");
 
   try {
-    const results = await runAllTests(allAttacks, (completed, total, current) => {
-      logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
-    });
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeTab = tabs[0];
 
-    const score = calculateDefenseScore(results);
-    lastResult = score;
+    if (!activeTab?.id) {
+      return { error: "No active tab found" };
+    }
 
-    await saveResult(score);
+    const url = activeTab.url || "";
+    if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
+      return { error: "Cannot run tests on browser internal pages. Please navigate to a regular web page." };
+    }
 
-    logger.info(`Tests complete. Score: ${score.totalScore} (${score.grade})`);
+    // Inject content script (needed for dev mode where content_scripts is not in manifest)
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        files: ["content-scripts/content.js"],
+      });
+      logger.debug("Content script injected");
+    } catch (injectError) {
+      // Script might already be injected or page doesn't allow injection
+      logger.debug("Content script injection skipped:", injectError);
+    }
 
-    return score;
+    // Wait for content script to initialize
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    logger.info("Sending message to content script...");
+
+    let response: DefenseScore | { error: string };
+    try {
+      response = await chrome.tabs.sendMessage(activeTab.id, {
+        type: "BATTACKER_RUN_TESTS",
+      }) as DefenseScore | { error: string };
+    } catch (sendError) {
+      logger.error("sendMessage error:", sendError);
+      if (sendError instanceof Error && sendError.message.includes("Receiving end does not exist")) {
+        return { error: "Content script not loaded. Please refresh the page and try again." };
+      }
+      return { error: `Message send failed: ${sendError instanceof Error ? sendError.message : String(sendError)}` };
+    }
+
+    logger.info("Received response from content script:", response);
+
+    if (!response) {
+      return { error: "No response from content script" };
+    }
+
+    if ("error" in response) {
+      logger.error("Content script returned error:", response.error);
+      return response;
+    }
+
+    lastResult = response;
+    await saveResult(response);
+
+    logger.info(`Tests complete. Score: ${response.totalScore} (${response.grade})`);
+
+    return response;
   } catch (error) {
-    logger.error("Test error:", error);
+    logger.error("Unexpected error:", error);
     return { error: error instanceof Error ? error.message : String(error) };
   } finally {
     isRunning = false;

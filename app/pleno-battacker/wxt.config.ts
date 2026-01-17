@@ -4,6 +4,10 @@ import preact from "@preact/preset-vite";
 export default defineConfig({
   // Use separate output dir for dev to avoid conflicts with manually loaded extensions
   outDir: process.env.DEBUG_PORT ? ".wxt-dev" : "dist",
+  webExt: {
+    startUrls: ["https://example.com"],
+    chromiumArgs: ["--remote-debugging-port=9223"],
+  },
   vite: () => ({
     plugins: [preact()],
     esbuild: {
@@ -30,6 +34,7 @@ export default defineConfig({
       "history",
       "scripting",
       "management",
+      "activeTab",
     ],
     host_permissions: ["<all_urls>"],
   },
