@@ -1,7 +1,10 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
-import { allAttacks } from "../lib/attacks";
-import { calculateDefenseScore, runAllTests } from "../lib/scorer";
-import type { DefenseScore } from "../lib/types";
+import {
+  allAttacks,
+  calculateDefenseScore,
+  runAllTests,
+  type DefenseScore,
+} from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
 

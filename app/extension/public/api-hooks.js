@@ -10,27 +10,34 @@
   if (window.__SERVICE_DETECTION_CSP_INITIALIZED__) return
   window.__SERVICE_DETECTION_CSP_INITIALIZED__ = true
 
-  // Save original APIs
+  // Save current APIs (may be already hooked by ai-hooks.js)
+  // This allows chaining - our hook calls the previous hook
   const originalFetch = window.fetch
   const originalXHROpen = XMLHttpRequest.prototype.open
   const originalXHRSend = XMLHttpRequest.prototype.send
   const originalWebSocket = window.WebSocket
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator)
 
+  // Debug: log if we're wrapping another hook
+  if (window.__AI_PROMPT_CAPTURE_INITIALIZED__) {
+    console.debug('[api-hooks] Chaining with ai-hooks.js')
+  }
+
   // Configuration for data exfiltration detection
   const DATA_EXFILTRATION_THRESHOLD = 10 * 1024  // 10KB threshold (lowered for better detection)
 
   // Sensitive data patterns for exfiltration detection
+  // Note: Patterns are designed to work with both plain text and JSON strings
   const SENSITIVE_PATTERNS = [
-    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,  // email
-    /\b4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}\b/, // credit card (Visa)
-    /\b5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}\b/, // credit card (Mastercard)
-    /\b\d{3}-\d{2}-\d{4}\b/,  // SSN
-    /["']?password["']?\s*[:=]\s*["']?[^"'\s]+["']?/i,  // password patterns
-    /["']?api[_-]?key["']?\s*[:=]\s*["']?[^"'\s]+["']?/i,  // API key patterns
-    /["']?secret["']?\s*[:=]\s*["']?[^"'\s]+["']?/i,  // secret patterns
-    /["']?token["']?\s*[:=]\s*["']?[^"'\s]+["']?/i,  // token patterns
-    /\b[A-Za-z0-9]{32,}\b/,  // Long alphanumeric strings (potential keys/tokens)
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,  // email (works in JSON too)
+    /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Visa)
+    /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Mastercard)
+    /\d{3}-\d{2}-\d{4}/,  // SSN
+    /["']password["']\s*:\s*["'][^"']+["']/i,  // password in JSON: "password":"value"
+    /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,  // API key in JSON
+    /["']secret["']\s*:\s*["'][^"']+["']/i,  // secret in JSON
+    /["']token["']\s*:\s*["'][^"']+["']/i,  // token in JSON
+    /[A-Za-z0-9]{32,}/,  // Long alphanumeric strings (potential keys/tokens)
   ]
 
   // Check if body contains sensitive data

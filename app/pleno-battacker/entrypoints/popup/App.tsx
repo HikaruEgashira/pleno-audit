@@ -1,8 +1,8 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
 import { useState, useEffect } from "preact/hooks";
 import { motion } from "motion/react";
-import type { DefenseScore } from "../../lib/types";
-import { CATEGORY_LABELS } from "../../lib/types";
+import type { DefenseScore } from "@pleno-audit/battacker";
+import { CATEGORY_LABELS } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker-popup");
 
