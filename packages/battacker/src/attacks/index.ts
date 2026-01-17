@@ -23,6 +23,8 @@ import { futureApiAttacks } from "./future-api";
 import { cpuMemoryAttacks } from "./cpu-memory-attacks";
 import { zeroDayAttacks } from "./zero-day-simulation";
 import { quantumThreats } from "./quantum-threats";
+import { metaLevelAttacks } from "./meta-level-attacks";
+import { ecosystemAttacks } from "./ecosystem-attacks";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -49,6 +51,8 @@ export const allAttacks: AttackTest[] = [
   ...cpuMemoryAttacks,
   ...zeroDayAttacks,
   ...quantumThreats,
+  ...metaLevelAttacks,
+  ...ecosystemAttacks,
 ];
 
 export {
@@ -76,4 +80,6 @@ export {
   cpuMemoryAttacks,
   zeroDayAttacks,
   quantumThreats,
+  metaLevelAttacks,
+  ecosystemAttacks,
 };
