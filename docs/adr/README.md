@@ -23,13 +23,9 @@
 | [019](./019-battacker-context-bridge.md) | Battacker コンテキストブリッジ攻撃 (Phase 7) | Accepted |
 | [020](./020-battacker-sandbox-escape.md) | Battacker サンドボックス脱出攻撃 (Phase 8) | Accepted |
 | [021](./021-battacker-future-api.md) | Battacker 次世代API脆弱性 (Phase 9) | Accepted |
-| [022](./022-battacker-cpu-memory-attacks.md) | Battacker CPU/メモリ層攻撃 (Phase 10) | Accepted |
 | [023](./023-battacker-zero-day-quantum-threats.md) | Battacker Zero-Day & Quantum脅威層 (Phase 11) | Accepted |
 | [024](./024-battacker-meta-ecosystem-attacks.md) | Battacker メタレベル & エコシステム層 (Phase 12) | Accepted |
 | [025](./025-battacker-protocol-standards.md) | Battacker プロトコル & スタンダード層 (Phase 14) | Accepted |
 | [026](./026-battacker-rendering-engine.md) | Battacker レンダリングエンジン層 (Phase 15) | Accepted |
 | [027](./027-battacker-ipc-layer.md) | Battacker IPC層 (Phase 16) | Accepted |
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
-| [029](./029-battacker-firmware-hardware.md) | Battacker ファームウェア・ハードウェア層 (Phase 18) | Accepted |
-| [030](./030-battacker-meta-recursive.md) | Battacker メタ再帰的セキュリティパラドックス層 (Phase 19) | Accepted |
-| [031](./031-battacker-quantum-information-theory.md) | Battacker 量子情報理論層 (Phase 20 - FINAL) | Accepted |
