@@ -8,6 +8,7 @@
     "build": "wxt build"
   },
   "dependencies": {
+    "@pleno-audit/battacker": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
     "motion": "^12.26.2",
     "preact": "^10.25.4"
