@@ -53,13 +53,23 @@ export function useBattacker(): UseBattackerReturn {
 
     try {
       const resultPromise = (async () => {
+        console.log("Starting tests with", allAttacks.length, "attacks");
+        console.log("Attacks:", allAttacks.map(a => a.name));
         const testResults = await runAllTests(
           allAttacks,
           (completed, total, current) => {
             console.log(`Testing: ${current.name} (${completed}/${total})`);
           }
         );
-        return calculateDefenseScore(testResults);
+        console.log("Test results:", testResults.map(r => ({
+          name: r.test.name,
+          blocked: r.result.blocked,
+          detected: r.result.detected,
+          details: r.result.details,
+        })));
+        const score = calculateDefenseScore(testResults);
+        console.log("Final score:", score.totalScore, "Grade:", score.grade);
+        return score;
       })();
 
       setScanPhase("INITIALIZING");
