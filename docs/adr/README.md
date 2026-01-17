@@ -27,3 +27,4 @@
 | [023](./023-battacker-zero-day-quantum-threats.md) | Battacker Zero-Day & Quantum脅威層 (Phase 11) | Accepted |
 | [024](./024-battacker-meta-ecosystem-attacks.md) | Battacker メタレベル & エコシステム層 (Phase 12) | Accepted |
 | [025](./025-battacker-protocol-standards.md) | Battacker プロトコル & スタンダード層 (Phase 14) | Accepted |
+| [026](./026-battacker-rendering-engine.md) | Battacker レンダリングエンジン層 (Phase 15) | Accepted |

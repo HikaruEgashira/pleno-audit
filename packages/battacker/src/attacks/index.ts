@@ -27,6 +27,7 @@ import { metaLevelAttacks } from "./meta-level-attacks";
 import { ecosystemAttacks } from "./ecosystem-attacks";
 import { userDeviceLayerAttacks } from "./user-device-layer";
 import { protocolStandardsAttacks } from "./protocol-standards";
+import { renderingEngineAttacks } from "./rendering-engine";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -57,6 +58,7 @@ export const allAttacks: AttackTest[] = [
   ...ecosystemAttacks,
   ...userDeviceLayerAttacks,
   ...protocolStandardsAttacks,
+  ...renderingEngineAttacks,
 ];
 
 export {
@@ -88,4 +90,5 @@ export {
   ecosystemAttacks,
   userDeviceLayerAttacks,
   protocolStandardsAttacks,
+  renderingEngineAttacks,
 };
