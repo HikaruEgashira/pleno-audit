@@ -6,6 +6,7 @@ export default defineConfig({
   imports: false,
   webExt: {
     startUrls: ["https://example.com"],
+    args: ["--load-extension=../pleno-battacker/dist/chrome-mv3"],
   },
   manifest: (env) => {
     const isDev = env.mode === "development";
@@ -84,6 +85,7 @@ export default defineConfig({
     define: {
       "import.meta.hot": "undefined",
       "__PLENO_DEV__": "true",
+      "__DEBUG_PORT__": JSON.stringify(process.env.DEBUG_PORT || "9222"),
     },
     optimizeDeps: {
       include: [

@@ -8,7 +8,8 @@ import { EventEmitter } from "node:events";
 import WebSocket from "ws";
 import type { NativeResponse } from "./types.js";
 
-const DEBUG_SERVER_URL = "ws://localhost:9222/cli";
+const DEBUG_PORT = process.env.DEBUG_PORT || "9222";
+const DEBUG_SERVER_URL = `ws://localhost:${DEBUG_PORT}/cli`;
 const CONNECT_TIMEOUT = 5000;
 const RESPONSE_TIMEOUT = 10000;
 
