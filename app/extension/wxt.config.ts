@@ -59,6 +59,17 @@ export default defineConfig({
               matches: ["<all_urls>"],
             },
           ],
+      // Static content script registration for MAIN world (MV3 only)
+      ...(!isMV2 && {
+        content_scripts: [
+          {
+            js: ["ai-hooks.js"],
+            matches: ["<all_urls>"],
+            run_at: "document_start",
+            world: "MAIN",
+          },
+        ],
+      }),
       // Firefox-specific: browser_specific_settings
       ...(isFirefox && {
         browser_specific_settings: {

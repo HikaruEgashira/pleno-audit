@@ -1,6 +1,7 @@
 import type { AttackResult, AttackTest } from "../types";
+import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateBeacon(): Promise<AttackResult> {
+async function simulateBeaconCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -36,7 +37,12 @@ async function simulateBeacon(): Promise<AttackResult> {
   }
 }
 
-async function simulateDataExfiltration(): Promise<AttackResult> {
+const simulateBeacon = withDetectionMonitor(
+  simulateBeaconCore,
+  ["__TRACKING_BEACON_DETECTED__"]
+);
+
+async function simulateDataExfiltrationCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   const sensitiveData = {
@@ -76,7 +82,12 @@ async function simulateDataExfiltration(): Promise<AttackResult> {
   }
 }
 
-async function simulateC2Communication(): Promise<AttackResult> {
+const simulateDataExfiltration = withDetectionMonitor(
+  simulateDataExfiltrationCore,
+  ["__DATA_EXFILTRATION_DETECTED__"]
+);
+
+async function simulateC2CommunicationCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -104,6 +115,9 @@ async function simulateC2Communication(): Promise<AttackResult> {
     };
   }
 }
+
+// C2 Communication is harder to detect specifically, use network request monitoring
+const simulateC2Communication = simulateC2CommunicationCore;
 
 async function simulateWebSocketC2(): Promise<AttackResult> {
   const startTime = performance.now();

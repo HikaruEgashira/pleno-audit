@@ -1,6 +1,7 @@
 import type { AttackResult, AttackTest } from "../types";
+import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateClipboardHijack(): Promise<AttackResult> {
+async function simulateClipboardHijackCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -28,6 +29,11 @@ async function simulateClipboardHijack(): Promise<AttackResult> {
     };
   }
 }
+
+const simulateClipboardHijack = withDetectionMonitor(
+  simulateClipboardHijackCore,
+  ["__CLIPBOARD_HIJACK_DETECTED__"]
+);
 
 async function simulateCredentialAPIHarvest(): Promise<AttackResult> {
   const startTime = performance.now();

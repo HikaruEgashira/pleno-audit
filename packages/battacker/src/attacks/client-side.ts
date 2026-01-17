@@ -1,6 +1,7 @@
 import type { AttackResult, AttackTest } from "../types";
+import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateXSSPayload(): Promise<AttackResult> {
+async function simulateXSSPayloadCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -43,7 +44,12 @@ async function simulateXSSPayload(): Promise<AttackResult> {
   }
 }
 
-async function simulateDOMManipulation(): Promise<AttackResult> {
+const simulateXSSPayload = withDetectionMonitor(
+  simulateXSSPayloadCore,
+  ["__XSS_DETECTED__"]
+);
+
+async function simulateDOMManipulationCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -72,7 +78,12 @@ async function simulateDOMManipulation(): Promise<AttackResult> {
   }
 }
 
-async function simulateCookieTheft(): Promise<AttackResult> {
+const simulateDOMManipulation = withDetectionMonitor(
+  simulateDOMManipulationCore,
+  ["__DOM_SCRAPING_DETECTED__"]
+);
+
+async function simulateCookieTheftCore(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -98,6 +109,11 @@ async function simulateCookieTheft(): Promise<AttackResult> {
     };
   }
 }
+
+const simulateCookieTheft = withDetectionMonitor(
+  simulateCookieTheftCore,
+  ["__COOKIE_ACCESS_DETECTED__"]
+);
 
 export const clientSideAttacks: AttackTest[] = [
   {
