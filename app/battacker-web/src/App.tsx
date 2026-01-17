@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import type { DefenseScore, CategoryScore, TestResult } from "@pleno-audit/battacker";
 import { CATEGORY_LABELS } from "@pleno-audit/battacker";
 import { useBattacker } from "./hooks/useBattacker";
