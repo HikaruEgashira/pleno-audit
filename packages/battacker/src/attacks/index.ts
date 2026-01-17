@@ -25,6 +25,7 @@ import { zeroDayAttacks } from "./zero-day-simulation";
 import { quantumThreats } from "./quantum-threats";
 import { metaLevelAttacks } from "./meta-level-attacks";
 import { ecosystemAttacks } from "./ecosystem-attacks";
+import { userDeviceLayerAttacks } from "./user-device-layer";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -53,6 +54,7 @@ export const allAttacks: AttackTest[] = [
   ...quantumThreats,
   ...metaLevelAttacks,
   ...ecosystemAttacks,
+  ...userDeviceLayerAttacks,
 ];
 
 export {
@@ -82,4 +84,5 @@ export {
   quantumThreats,
   metaLevelAttacks,
   ecosystemAttacks,
+  userDeviceLayerAttacks,
 };
