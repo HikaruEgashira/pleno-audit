@@ -24,8 +24,8 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   runAt: "document_start",
   main() {
-    // Inject AI hooks script into main world
-    injectAIHooksScript();
+    // ai-hooks.js is now registered via chrome.scripting.registerContentScripts
+    // in background.ts, so no need to inject it here
 
     // Listen for AI capture events from main world
     window.addEventListener(
@@ -39,13 +39,3 @@ export default defineContentScript({
     );
   },
 });
-
-function injectAIHooksScript() {
-  if (!isExtensionContextValid()) return;
-  const script = document.createElement("script");
-  script.src = chrome.runtime.getURL("/ai-hooks.js");
-  script.onload = () => {
-    script.remove();
-  };
-  (document.head || document.documentElement).appendChild(script);
-}

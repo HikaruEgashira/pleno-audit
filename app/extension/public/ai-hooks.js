@@ -14,10 +14,16 @@
   const MAX_CONTENT_SIZE = 50000  // 50KB max capture
   const TRUNCATE_SIZE = 10000     // Truncate after 10KB
 
-  // Save original APIs
+  // Save current APIs (may be already hooked by api-hooks.js)
+  // This allows chaining - our hook calls the previous hook
   const originalFetch = window.fetch
   const originalXHROpen = XMLHttpRequest.prototype.open
   const originalXHRSend = XMLHttpRequest.prototype.send
+
+  // Debug: log if we're wrapping another hook
+  if (window.__SERVICE_DETECTION_CSP_INITIALIZED__) {
+    console.debug('[ai-hooks] Chaining with api-hooks.js')
+  }
 
   function isAIRequestBody(body) {
     if (!body) return false
@@ -296,12 +302,104 @@
     )
   }
 
+  // ===== SENSITIVE DATA DETECTION (integrated from api-hooks.js) =====
+  const DATA_EXFILTRATION_THRESHOLD = 10 * 1024  // 10KB threshold
+
+  const SENSITIVE_PATTERNS = [
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,  // email
+    /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // Visa
+    /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // Mastercard
+    /\d{3}-\d{2}-\d{4}/,  // SSN
+    /["']password["']\s*:\s*["'][^"']+["']/i,  // password in JSON
+    /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,  // API key
+    /["']secret["']\s*:\s*["'][^"']+["']/i,  // secret
+    /["']token["']\s*:\s*["'][^"']+["']/i,  // token
+    /[A-Za-z0-9]{32,}/,  // Long alphanumeric
+  ]
+
+  function containsSensitiveData(body) {
+    if (!body) return { hasSensitive: false, types: [] }
+    let text = ''
+    if (typeof body === 'string') {
+      text = body
+    } else if (body instanceof FormData) {
+      for (const [key, value] of body.entries()) {
+        if (typeof value === 'string') text += key + '=' + value + '&'
+      }
+    } else if (typeof body === 'object') {
+      try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
+    }
+
+    const types = []
+    if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
+    if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
+    if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
+    if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
+    if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
+    if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
+    if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
+
+    return { hasSensitive: types.length > 0, types }
+  }
+
+  function getBodySize(body) {
+    if (!body) return 0
+    if (typeof body === 'string') return new Blob([body]).size
+    if (body instanceof Blob) return body.size
+    if (body instanceof ArrayBuffer) return body.byteLength
+    if (body instanceof FormData) {
+      let size = 0
+      for (const [key, value] of body.entries()) {
+        size += key.length
+        if (typeof value === 'string') size += value.length
+        else if (value instanceof Blob) size += value.size
+      }
+      return size
+    }
+    if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
+    return 0
+  }
+
+  function sendDataExfiltrationEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__DATA_EXFILTRATION_DETECTED__', { detail: data })
+    )
+  }
+
+  function checkDataExfiltration(url, method, body) {
+    if (method === 'GET') return
+    try {
+      const fullUrl = new URL(url, window.location.origin).href
+      const bodySize = getBodySize(body)
+      const sensitiveCheck = containsSensitiveData(body)
+
+      if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
+        sendDataExfiltrationEvent({
+          url: fullUrl,
+          method: method.toUpperCase(),
+          bodySize: bodySize,
+          initiator: 'fetch',
+          timestamp: Date.now(),
+          targetDomain: new URL(fullUrl).hostname,
+          sensitiveDataTypes: sensitiveCheck.types
+        })
+      }
+    } catch {
+      // Skip on error
+    }
+  }
+
   window.fetch = async function(input, init) {
     const url = typeof input === 'string' ? input : input?.url
     const method = init?.method || (typeof input === 'object' ? input.method : 'GET') || 'GET'
     const body = init?.body
 
-    // Only check POST/PUT requests with body
+    // Always check for data exfiltration (even for non-AI requests)
+    if (body && method !== 'GET') {
+      checkDataExfiltration(url, method, body)
+    }
+
+    // Only check POST/PUT requests with body for AI capture
     if (!body || method === 'GET') {
       return originalFetch.apply(this, arguments)
     }
