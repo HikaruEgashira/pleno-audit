@@ -19,6 +19,7 @@ import { deepestAttacks } from "./deepest";
 import { hybridAttacks } from "./hybrid";
 import { contextBridgeAttacks } from "./context-bridge";
 import { sandboxEscapeAttacks } from "./sandbox-escape";
+import { futureApiAttacks } from "./future-api";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -41,6 +42,7 @@ export const allAttacks: AttackTest[] = [
   ...hybridAttacks,
   ...contextBridgeAttacks,
   ...sandboxEscapeAttacks,
+  ...futureApiAttacks,
 ];
 
 export {
@@ -64,4 +66,5 @@ export {
   hybridAttacks,
   contextBridgeAttacks,
   sandboxEscapeAttacks,
+  futureApiAttacks,
 };

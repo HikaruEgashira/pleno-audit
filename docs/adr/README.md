@@ -22,3 +22,4 @@
 | [018](./018-battacker-hybrid-attacks.md) | Battacker ハイブリッド攻撃シグネチャ (Phase 6) | Accepted |
 | [019](./019-battacker-context-bridge.md) | Battacker コンテキストブリッジ攻撃 (Phase 7) | Accepted |
 | [020](./020-battacker-sandbox-escape.md) | Battacker サンドボックス脱出攻撃 (Phase 8) | Accepted |
+| [021](./021-battacker-future-api.md) | Battacker 次世代API脆弱性 (Phase 9) | Accepted |
