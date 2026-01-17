@@ -20,19 +20,11 @@ import { hybridAttacks } from "./hybrid";
 import { contextBridgeAttacks } from "./context-bridge";
 import { sandboxEscapeAttacks } from "./sandbox-escape";
 import { futureApiAttacks } from "./future-api";
-import { cpuMemoryAttacks } from "./cpu-memory-attacks";
 import { zeroDayAttacks } from "./zero-day-simulation";
-import { quantumThreats } from "./quantum-threats";
-import { metaLevelAttacks } from "./meta-level-attacks";
-import { ecosystemAttacks } from "./ecosystem-attacks";
 import { userDeviceLayerAttacks } from "./user-device-layer";
 import { protocolStandardsAttacks } from "./protocol-standards";
 import { renderingEngineAttacks } from "./rendering-engine";
-import { ipcLayerAttacks } from "./ipc-layer";
 import { extensionSandboxAttacks } from "./extension-sandbox";
-import { firmwareHardwareAttacks } from "./firmware-hardware";
-import { metaRecursiveAttacks } from "./meta-recursive";
-import { quantumInformationTheoryAttacks } from "./quantum-information-theory";
 import { createDetectionListener } from "./detection-listener";
 
 export const allAttacks: AttackTest[] = [
@@ -57,19 +49,11 @@ export const allAttacks: AttackTest[] = [
   ...contextBridgeAttacks,
   ...sandboxEscapeAttacks,
   ...futureApiAttacks,
-  ...cpuMemoryAttacks,
   ...zeroDayAttacks,
-  ...quantumThreats,
-  ...metaLevelAttacks,
-  ...ecosystemAttacks,
   ...userDeviceLayerAttacks,
   ...protocolStandardsAttacks,
   ...renderingEngineAttacks,
-  ...ipcLayerAttacks,
   ...extensionSandboxAttacks,
-  ...firmwareHardwareAttacks,
-  ...metaRecursiveAttacks,
-  ...quantumInformationTheoryAttacks,
 ];
 
 export {
@@ -94,18 +78,10 @@ export {
   contextBridgeAttacks,
   sandboxEscapeAttacks,
   futureApiAttacks,
-  cpuMemoryAttacks,
   zeroDayAttacks,
-  quantumThreats,
-  metaLevelAttacks,
-  ecosystemAttacks,
   userDeviceLayerAttacks,
   protocolStandardsAttacks,
   renderingEngineAttacks,
-  ipcLayerAttacks,
   extensionSandboxAttacks,
-  firmwareHardwareAttacks,
-  metaRecursiveAttacks,
-  quantumInformationTheoryAttacks,
   createDetectionListener,
 };
