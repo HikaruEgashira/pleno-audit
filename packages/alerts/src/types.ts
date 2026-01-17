@@ -27,7 +27,13 @@ export type AlertCategory =
   | "login" // Login on suspicious site
   | "policy" // Missing privacy/ToS policy
   | "compliance" // GDPR/CCPA compliance violation
-  | "policy_violation"; // Enterprise policy violation
+  | "policy_violation" // Enterprise policy violation
+  | "tracking_beacon" // Tracking beacon detected
+  | "clipboard_hijack" // Clipboard hijack attempt (crypto address)
+  | "cookie_access" // Suspicious cookie access
+  | "xss_injection" // XSS payload detected
+  | "dom_scraping" // DOM scraping detected
+  | "suspicious_download"; // Suspicious file download
 
 /**
  * Alert status
@@ -73,7 +79,13 @@ export type AlertDetails =
   | LoginAlertDetails
   | PolicyAlertDetails
   | ComplianceAlertDetails
-  | PolicyViolationAlertDetails;
+  | PolicyViolationAlertDetails
+  | TrackingBeaconAlertDetails
+  | ClipboardHijackAlertDetails
+  | CookieAccessAlertDetails
+  | XSSInjectionAlertDetails
+  | DOMScrapingAlertDetails
+  | SuspiciousDownloadAlertDetails;
 
 export interface NRDAlertDetails {
   type: "nrd";
@@ -195,6 +207,52 @@ export interface PolicyViolationAlertDetails {
   action: "allow" | "block" | "warn";
   matchedPattern: string;
   target: string;
+}
+
+export interface TrackingBeaconAlertDetails {
+  type: "tracking_beacon";
+  sourceDomain: string;
+  targetDomain: string;
+  url: string;
+  bodySize: number;
+  initiator: string;
+}
+
+export interface ClipboardHijackAlertDetails {
+  type: "clipboard_hijack";
+  domain: string;
+  cryptoType: string;
+  textPreview: string;
+}
+
+export interface CookieAccessAlertDetails {
+  type: "cookie_access";
+  domain: string;
+  readCount: number;
+}
+
+export interface XSSInjectionAlertDetails {
+  type: "xss_injection";
+  domain: string;
+  injectionType: string;
+  payloadPreview: string;
+}
+
+export interface DOMScrapingAlertDetails {
+  type: "dom_scraping";
+  domain: string;
+  selector: string;
+  callCount: number;
+}
+
+export interface SuspiciousDownloadAlertDetails {
+  type: "suspicious_download";
+  domain: string;
+  downloadType: string;
+  filename: string;
+  extension: string;
+  size: number;
+  mimeType: string;
 }
 
 /**

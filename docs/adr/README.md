@@ -17,3 +17,15 @@
 | [013](./013-debug-cli.md) | デバッグCLI (pleno-debug) | Accepted |
 | [014](./014-doh-monitoring.md) | DoH（DNS over HTTPS）監視機能 | Accepted |
 | [015](./015-pleno-battacker.md) | Pleno Battacker - ブラウザ防御耐性テストツール | Accepted |
+| [016](./016-battacker-signature-expansion.md) | Battacker攻撃シグネチャ拡張 | Accepted |
+| [017](./017-battacker-advanced-signatures.md) | Battacker高度攻撃シグネチャ拡張 (Phase 1-2) | Accepted |
+| [018](./018-battacker-hybrid-attacks.md) | Battacker ハイブリッド攻撃シグネチャ (Phase 6) | Accepted |
+| [019](./019-battacker-context-bridge.md) | Battacker コンテキストブリッジ攻撃 (Phase 7) | Accepted |
+| [020](./020-battacker-sandbox-escape.md) | Battacker サンドボックス脱出攻撃 (Phase 8) | Accepted |
+| [021](./021-battacker-future-api.md) | Battacker 次世代API脆弱性 (Phase 9) | Accepted |
+| [023](./023-battacker-zero-day-quantum-threats.md) | Battacker Zero-Day & Quantum脅威層 (Phase 11) | Accepted |
+| [024](./024-battacker-meta-ecosystem-attacks.md) | Battacker メタレベル & エコシステム層 (Phase 12) | Accepted |
+| [025](./025-battacker-protocol-standards.md) | Battacker プロトコル & スタンダード層 (Phase 14) | Accepted |
+| [026](./026-battacker-rendering-engine.md) | Battacker レンダリングエンジン層 (Phase 15) | Accepted |
+| [027](./027-battacker-ipc-layer.md) | Battacker IPC層 (Phase 16) | Accepted |
+| [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |

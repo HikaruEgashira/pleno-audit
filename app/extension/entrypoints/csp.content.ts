@@ -139,6 +139,114 @@ export default defineContentScript({
         });
       }) as EventListener
     );
+
+    // Listen for tracking beacon events from main world
+    window.addEventListener(
+      "__TRACKING_BEACON_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "TRACKING_BEACON_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            url: detail.url || "",
+            targetDomain: detail.targetDomain || "",
+            bodySize: detail.bodySize ?? 0,
+            initiator: detail.initiator || "unknown",
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for clipboard hijack events from main world
+    window.addEventListener(
+      "__CLIPBOARD_HIJACK_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "CLIPBOARD_HIJACK_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            text: detail.text || "",
+            cryptoType: detail.cryptoType || "unknown",
+            fullLength: detail.fullLength ?? 0,
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for cookie access events from main world
+    window.addEventListener(
+      "__COOKIE_ACCESS_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "COOKIE_ACCESS_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            readCount: detail.readCount ?? 1,
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for XSS detection events from main world
+    window.addEventListener(
+      "__XSS_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "XSS_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            type: detail.type || "unknown",
+            payloadPreview: detail.payloadPreview || "",
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for DOM scraping events from main world
+    window.addEventListener(
+      "__DOM_SCRAPING_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "DOM_SCRAPING_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            selector: detail.selector || "",
+            callCount: detail.callCount ?? 0,
+          },
+        });
+      }) as EventListener
+    );
+
+    // Listen for suspicious download events from main world
+    window.addEventListener(
+      "__SUSPICIOUS_DOWNLOAD_DETECTED__",
+      ((event: CustomEvent) => {
+        const detail = event.detail || {};
+        safeSendMessage({
+          type: "SUSPICIOUS_DOWNLOAD_DETECTED",
+          data: {
+            timestamp: new Date().toISOString(),
+            pageUrl: document.location.href,
+            type: detail.type || "unknown",
+            filename: detail.filename || "",
+            extension: detail.extension || "",
+            url: detail.url || "",
+            size: detail.size ?? 0,
+            mimeType: detail.mimeType || "",
+          },
+        });
+      }) as EventListener
+    );
   },
 });
 

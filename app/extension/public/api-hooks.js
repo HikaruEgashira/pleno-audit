@@ -10,15 +10,79 @@
   if (window.__SERVICE_DETECTION_CSP_INITIALIZED__) return
   window.__SERVICE_DETECTION_CSP_INITIALIZED__ = true
 
-  // Save original APIs
+  // Save current APIs (may be already hooked by ai-hooks.js)
+  // This allows chaining - our hook calls the previous hook
   const originalFetch = window.fetch
   const originalXHROpen = XMLHttpRequest.prototype.open
   const originalXHRSend = XMLHttpRequest.prototype.send
   const originalWebSocket = window.WebSocket
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator)
 
+  // Debug: log if we're wrapping another hook
+  if (window.__AI_PROMPT_CAPTURE_INITIALIZED__) {
+    console.debug('[api-hooks] Chaining with ai-hooks.js')
+  }
+
   // Configuration for data exfiltration detection
-  const DATA_EXFILTRATION_THRESHOLD = 100 * 1024  // 100KB threshold
+  const DATA_EXFILTRATION_THRESHOLD = 10 * 1024  // 10KB threshold (lowered for better detection)
+
+  // Sensitive data patterns for exfiltration detection
+  // Note: Patterns are designed to work with both plain text and JSON strings
+  const SENSITIVE_PATTERNS = [
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,  // email (works in JSON too)
+    /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Visa)
+    /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Mastercard)
+    /\d{3}-\d{2}-\d{4}/,  // SSN
+    /["']password["']\s*:\s*["'][^"']+["']/i,  // password in JSON: "password":"value"
+    /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,  // API key in JSON
+    /["']secret["']\s*:\s*["'][^"']+["']/i,  // secret in JSON
+    /["']token["']\s*:\s*["'][^"']+["']/i,  // token in JSON
+    /[A-Za-z0-9]{32,}/,  // Long alphanumeric strings (potential keys/tokens)
+  ]
+
+  // Check if body contains sensitive data
+  function containsSensitiveData(body) {
+    if (!body) return { hasSensitive: false, types: [] }
+    let text = ''
+    if (typeof body === 'string') {
+      text = body
+    } else if (body instanceof FormData) {
+      for (const [key, value] of body.entries()) {
+        if (typeof value === 'string') text += key + '=' + value + '&'
+      }
+    } else if (typeof body === 'object') {
+      try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
+    }
+
+    const types = []
+    if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
+    if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
+    if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
+    if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
+    if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
+    if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
+    if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
+
+    return { hasSensitive: types.length > 0, types }
+  }
+
+  // Tracking beacon detection patterns
+  const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
+  const TRACKING_BEACON_SIZE_LIMIT = 2048  // 2KB - typical beacon size
+
+  function isTrackingBeacon(url, bodySize, body) {
+    const isSmallPayload = bodySize < TRACKING_BEACON_SIZE_LIMIT
+    const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
+    // Check body for tracking-like data
+    let hasTrackingPayload = false
+    if (body) {
+      let text = ''
+      if (typeof body === 'string') text = body
+      else if (typeof body === 'object') try { text = JSON.stringify(body) } catch {}
+      hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
+    }
+    return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
+  }
 
   // Helper to dispatch network event to content script
   function sendNetworkEvent(data) {
@@ -31,6 +95,48 @@
   function sendDataExfiltrationEvent(data) {
     window.dispatchEvent(
       new CustomEvent('__DATA_EXFILTRATION_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch tracking beacon event
+  function sendTrackingBeaconEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__TRACKING_BEACON_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch clipboard hijack event
+  function sendClipboardHijackEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__CLIPBOARD_HIJACK_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch cookie access event
+  function sendCookieAccessEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__COOKIE_ACCESS_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch XSS detection event
+  function sendXSSEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__XSS_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch DOM scraping event
+  function sendDOMScrapingEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__DOM_SCRAPING_DETECTED__', { detail: data })
+    )
+  }
+
+  // Helper to dispatch suspicious download event
+  function sendSuspiciousDownloadEvent(data) {
+    window.dispatchEvent(
+      new CustomEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', { detail: data })
     )
   }
 
@@ -77,16 +183,32 @@
           bodySize: bodySize
         })
 
-        // Check for potential data exfiltration (large outbound data)
-        if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method.toUpperCase() !== 'GET') {
-          sendDataExfiltrationEvent({
+        // Check for tracking beacon
+        if (method.toUpperCase() === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
+          sendTrackingBeaconEvent({
             url: fullUrl,
-            method: method.toUpperCase(),
             bodySize: bodySize,
             initiator: 'fetch',
             timestamp: Date.now(),
             targetDomain: new URL(fullUrl).hostname
           })
+        }
+
+        // Check for potential data exfiltration
+        if (method.toUpperCase() !== 'GET') {
+          const sensitiveCheck = containsSensitiveData(body)
+          // Alert if large body OR sensitive data detected
+          if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
+            sendDataExfiltrationEvent({
+              url: fullUrl,
+              method: method.toUpperCase(),
+              bodySize: bodySize,
+              initiator: 'fetch',
+              timestamp: Date.now(),
+              targetDomain: new URL(fullUrl).hostname,
+              sensitiveDataTypes: sensitiveCheck.types
+            })
+          }
         }
       } catch {
         // Skip detection on invalid URL, but don't block original request
@@ -119,16 +241,31 @@
           bodySize: bodySize
         })
 
-        // Check for potential data exfiltration (large outbound data)
-        if (bodySize >= DATA_EXFILTRATION_THRESHOLD && method !== 'GET') {
-          sendDataExfiltrationEvent({
+        // Check for tracking beacon
+        if (method === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
+          sendTrackingBeaconEvent({
             url: fullUrl,
-            method: method,
             bodySize: bodySize,
             initiator: 'xhr',
             timestamp: Date.now(),
             targetDomain: new URL(fullUrl).hostname
           })
+        }
+
+        // Check for potential data exfiltration
+        if (method !== 'GET') {
+          const sensitiveCheck = containsSensitiveData(body)
+          if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
+            sendDataExfiltrationEvent({
+              url: fullUrl,
+              method: method,
+              bodySize: bodySize,
+              initiator: 'xhr',
+              timestamp: Date.now(),
+              targetDomain: new URL(fullUrl).hostname,
+              sensitiveDataTypes: sensitiveCheck.types
+            })
+          }
         }
       } catch {
         // Skip detection on invalid URL, but don't block original request
@@ -176,15 +313,28 @@
           bodySize: bodySize
         })
 
-        // Check for potential data exfiltration (large outbound data)
-        if (bodySize >= DATA_EXFILTRATION_THRESHOLD) {
+        // sendBeacon is typically used for tracking - always check
+        if (isTrackingBeacon(fullUrl, bodySize, data)) {
+          sendTrackingBeaconEvent({
+            url: fullUrl,
+            bodySize: bodySize,
+            initiator: 'beacon',
+            timestamp: Date.now(),
+            targetDomain: new URL(fullUrl).hostname
+          })
+        }
+
+        // Check for potential data exfiltration
+        const sensitiveCheck = containsSensitiveData(data)
+        if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
           sendDataExfiltrationEvent({
             url: fullUrl,
             method: 'POST',
             bodySize: bodySize,
             initiator: 'beacon',
             timestamp: Date.now(),
-            targetDomain: new URL(fullUrl).hostname
+            targetDomain: new URL(fullUrl).hostname,
+            sensitiveDataTypes: sensitiveCheck.types
           })
         }
       } catch {
@@ -414,6 +564,188 @@
       }
     } catch {
       // Skip detection on invalid form action
+    }
+  }, true)
+
+  // ===== CLIPBOARD HIJACK DETECTION =====
+  // Crypto wallet address patterns
+  const CRYPTO_PATTERNS = {
+    bitcoin: /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/,
+    ethereum: /^0x[a-fA-F0-9]{40}$/,
+    litecoin: /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/,
+    ripple: /^r[0-9a-zA-Z]{24,34}$/,
+  }
+
+  function detectCryptoAddress(text) {
+    for (const [type, pattern] of Object.entries(CRYPTO_PATTERNS)) {
+      if (pattern.test(text)) return { detected: true, type }
+    }
+    return { detected: false, type: null }
+  }
+
+  // Hook Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
+    navigator.clipboard.writeText = function(text) {
+      const cryptoCheck = detectCryptoAddress(text)
+      if (cryptoCheck.detected) {
+        sendClipboardHijackEvent({
+          text: text.substring(0, 20) + '...',
+          cryptoType: cryptoCheck.type,
+          fullLength: text.length,
+          timestamp: Date.now()
+        })
+      }
+      return originalWriteText(text)
+    }
+  }
+
+  // ===== COOKIE ACCESS DETECTION =====
+  // Rate limiting to avoid flooding
+  let lastCookieAccessTime = 0
+  const COOKIE_ACCESS_THROTTLE = 1000  // 1 second
+
+  try {
+    const originalCookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')
+    if (originalCookieDescriptor && originalCookieDescriptor.get) {
+      const originalCookieGetter = originalCookieDescriptor.get
+
+      Object.defineProperty(document, 'cookie', {
+        get: function() {
+          const now = Date.now()
+          // Only report if enough time has passed
+          if (now - lastCookieAccessTime > COOKIE_ACCESS_THROTTLE) {
+            lastCookieAccessTime = now
+            sendCookieAccessEvent({
+              timestamp: now,
+              readCount: 1,
+              pageUrl: window.location.href
+            })
+          }
+          return originalCookieGetter.call(document)
+        },
+        set: originalCookieDescriptor.set,
+        configurable: true
+      })
+    }
+  } catch {
+    // Cookie descriptor modification not supported
+  }
+
+  // ===== XSS AND DOM SCRAPING DETECTION =====
+  // Track querySelectorAll calls for scraping detection
+  let querySelectorAllCount = 0
+  let querySelectorAllResetTime = Date.now()
+  const SCRAPING_THRESHOLD = 50  // 50 calls in 5 seconds
+  const SCRAPING_WINDOW = 5000   // 5 seconds
+
+  const originalQuerySelectorAll = document.querySelectorAll.bind(document)
+  document.querySelectorAll = function(selector) {
+    const now = Date.now()
+    if (now - querySelectorAllResetTime > SCRAPING_WINDOW) {
+      querySelectorAllCount = 0
+      querySelectorAllResetTime = now
+    }
+    querySelectorAllCount++
+
+    if (querySelectorAllCount === SCRAPING_THRESHOLD) {
+      sendDOMScrapingEvent({
+        selector: selector,
+        callCount: querySelectorAllCount,
+        timestamp: now
+      })
+    }
+
+    return originalQuerySelectorAll(selector)
+  }
+
+  // XSS pattern detection in innerHTML/outerHTML
+  const XSS_PATTERNS = [
+    /<script[^>]*>/i,
+    /javascript:/i,
+    /on\w+\s*=/i,  // onclick=, onerror=, etc.
+    /<iframe[^>]*>/i,
+    /<object[^>]*>/i,
+    /<embed[^>]*>/i,
+  ]
+
+  function detectXSSPayload(html) {
+    for (const pattern of XSS_PATTERNS) {
+      if (pattern.test(html)) return true
+    }
+    return false
+  }
+
+  // Hook innerHTML setter
+  const originalInnerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')
+  if (originalInnerHTMLDescriptor && originalInnerHTMLDescriptor.set) {
+    Object.defineProperty(Element.prototype, 'innerHTML', {
+      get: originalInnerHTMLDescriptor.get,
+      set: function(value) {
+        if (typeof value === 'string' && detectXSSPayload(value)) {
+          sendXSSEvent({
+            type: 'innerHTML',
+            payloadPreview: value.substring(0, 100),
+            timestamp: Date.now()
+          })
+        }
+        return originalInnerHTMLDescriptor.set.call(this, value)
+      },
+      configurable: true
+    })
+  }
+
+  // ===== SUSPICIOUS DOWNLOAD DETECTION =====
+  const SUSPICIOUS_EXTENSIONS = ['.exe', '.msi', '.bat', '.ps1', '.cmd', '.scr', '.vbs', '.js', '.jar', '.dll']
+
+  // Hook URL.createObjectURL for blob downloads
+  const originalCreateObjectURL = URL.createObjectURL
+  URL.createObjectURL = function(blob) {
+    if (blob instanceof Blob) {
+      sendSuspiciousDownloadEvent({
+        type: 'blob',
+        size: blob.size,
+        mimeType: blob.type,
+        timestamp: Date.now()
+      })
+    }
+    return originalCreateObjectURL.call(this, blob)
+  }
+
+  // Monitor clicks on anchor elements with download attribute
+  document.addEventListener('click', (event) => {
+    const target = event.target
+    if (!(target instanceof HTMLAnchorElement)) return
+    if (!target.download && !target.href) return
+
+    try {
+      const href = target.href || ''
+      const download = target.download || ''
+
+      // Check for blob: or data: URLs
+      if (href.startsWith('blob:') || href.startsWith('data:')) {
+        sendSuspiciousDownloadEvent({
+          type: href.startsWith('blob:') ? 'blob_link' : 'data_url',
+          filename: download,
+          timestamp: Date.now()
+        })
+        return
+      }
+
+      // Check for suspicious file extensions
+      const filename = download || href.split('/').pop() || ''
+      const extension = '.' + filename.split('.').pop().toLowerCase()
+      if (SUSPICIOUS_EXTENSIONS.includes(extension)) {
+        sendSuspiciousDownloadEvent({
+          type: 'suspicious_extension',
+          filename: filename,
+          extension: extension,
+          url: href,
+          timestamp: Date.now()
+        })
+      }
+    } catch {
+      // Skip on error
     }
   }, true)
 })()

@@ -161,6 +161,9 @@ importers:
 
   app/pleno-battacker:
     dependencies:
+      '@pleno-audit/battacker':
+        specifier: workspace:*
+        version: link:../../packages/battacker
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime

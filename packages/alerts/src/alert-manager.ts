@@ -669,6 +669,156 @@ export function createAlertManager(
     });
   }
 
+  /**
+   * Create tracking beacon alert
+   */
+  async function alertTrackingBeacon(params: {
+    sourceDomain: string;
+    targetDomain: string;
+    url: string;
+    bodySize: number;
+    initiator: string;
+  }): Promise<SecurityAlert | null> {
+    return createAlert({
+      category: "tracking_beacon",
+      severity: "medium",
+      title: `トラッキングビーコン検出: ${params.targetDomain}`,
+      description: `${params.sourceDomain}から${params.targetDomain}へビーコン送信`,
+      domain: params.targetDomain,
+      details: {
+        type: "tracking_beacon",
+        sourceDomain: params.sourceDomain,
+        targetDomain: params.targetDomain,
+        url: params.url,
+        bodySize: params.bodySize,
+        initiator: params.initiator,
+      },
+    });
+  }
+
+  /**
+   * Create clipboard hijack alert
+   */
+  async function alertClipboardHijack(params: {
+    domain: string;
+    cryptoType: string;
+    textPreview: string;
+  }): Promise<SecurityAlert | null> {
+    return createAlert({
+      category: "clipboard_hijack",
+      severity: "critical",
+      title: `クリップボード乗っ取り検出: ${params.domain}`,
+      description: `${params.cryptoType}アドレスがクリップボードに書き込まれました`,
+      domain: params.domain,
+      details: {
+        type: "clipboard_hijack",
+        domain: params.domain,
+        cryptoType: params.cryptoType,
+        textPreview: params.textPreview,
+      },
+    });
+  }
+
+  /**
+   * Create cookie access alert
+   */
+  async function alertCookieAccess(params: {
+    domain: string;
+    readCount: number;
+  }): Promise<SecurityAlert | null> {
+    return createAlert({
+      category: "cookie_access",
+      severity: "medium",
+      title: `Cookie盗取の可能性: ${params.domain}`,
+      description: `スクリプトがCookieにアクセスしました`,
+      domain: params.domain,
+      details: {
+        type: "cookie_access",
+        domain: params.domain,
+        readCount: params.readCount,
+      },
+    });
+  }
+
+  /**
+   * Create XSS injection alert
+   */
+  async function alertXSSInjection(params: {
+    domain: string;
+    injectionType: string;
+    payloadPreview: string;
+  }): Promise<SecurityAlert | null> {
+    return createAlert({
+      category: "xss_injection",
+      severity: "critical",
+      title: `XSS検出: ${params.domain}`,
+      description: `${params.injectionType}経由で悪意あるスクリプトを検出`,
+      domain: params.domain,
+      details: {
+        type: "xss_injection",
+        domain: params.domain,
+        injectionType: params.injectionType,
+        payloadPreview: params.payloadPreview,
+      },
+    });
+  }
+
+  /**
+   * Create DOM scraping alert
+   */
+  async function alertDOMScraping(params: {
+    domain: string;
+    selector: string;
+    callCount: number;
+  }): Promise<SecurityAlert | null> {
+    return createAlert({
+      category: "dom_scraping",
+      severity: "medium",
+      title: `DOMスクレイピング検出: ${params.domain}`,
+      description: `短時間に${params.callCount}回のDOM操作を検出`,
+      domain: params.domain,
+      details: {
+        type: "dom_scraping",
+        domain: params.domain,
+        selector: params.selector,
+        callCount: params.callCount,
+      },
+    });
+  }
+
+  /**
+   * Create suspicious download alert
+   */
+  async function alertSuspiciousDownload(params: {
+    domain: string;
+    downloadType: string;
+    filename: string;
+    extension: string;
+    size: number;
+    mimeType: string;
+  }): Promise<SecurityAlert | null> {
+    // Higher severity for executable files
+    const severity: AlertSeverity =
+      [".exe", ".msi", ".bat", ".ps1"].includes(params.extension) ? "critical" : "high";
+
+    return createAlert({
+      category: "suspicious_download",
+      severity,
+      title: `疑わしいダウンロード検出: ${params.filename || params.downloadType}`,
+      description: `${params.domain}から疑わしいファイルをダウンロード`,
+      domain: params.domain,
+      details: {
+        type: "suspicious_download",
+        domain: params.domain,
+        downloadType: params.downloadType,
+        filename: params.filename,
+        extension: params.extension,
+        size: params.size,
+        mimeType: params.mimeType,
+      },
+    });
+  }
+
   return {
     createAlert,
     alertNRD,
@@ -681,6 +831,12 @@ export function createAlertManager(
     alertSupplyChainRisk,
     alertCompliance,
     alertPolicyViolation,
+    alertTrackingBeacon,
+    alertClipboardHijack,
+    alertCookieAccess,
+    alertXSSInjection,
+    alertDOMScraping,
+    alertSuspiciousDownload,
     updateAlertStatus,
     getAlerts,
     getAlertCount,

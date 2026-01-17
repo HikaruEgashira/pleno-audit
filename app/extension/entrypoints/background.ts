@@ -1719,6 +1719,256 @@ async function handleSupplyChainRisk(
   return { success: true };
 }
 
+// Tracking beacon data interface
+interface TrackingBeaconData {
+  timestamp: string;
+  pageUrl: string;
+  url: string;
+  targetDomain: string;
+  bodySize: number;
+  initiator: string;
+}
+
+async function handleTrackingBeacon(
+  data: TrackingBeaconData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "tracking_beacon_detected",
+    domain: data.targetDomain,
+    timestamp: Date.now(),
+    details: {
+      url: data.url,
+      targetDomain: data.targetDomain,
+      bodySize: data.bodySize,
+      initiator: data.initiator,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertTrackingBeacon({
+    sourceDomain: pageDomain,
+    targetDomain: data.targetDomain,
+    url: data.url,
+    bodySize: data.bodySize,
+    initiator: data.initiator,
+  });
+
+  logger.debug("Tracking beacon detected:", {
+    from: pageDomain,
+    to: data.targetDomain,
+  });
+
+  return { success: true };
+}
+
+// Clipboard hijack data interface
+interface ClipboardHijackData {
+  timestamp: string;
+  pageUrl: string;
+  text: string;
+  cryptoType: string;
+  fullLength: number;
+}
+
+async function handleClipboardHijack(
+  data: ClipboardHijackData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "clipboard_hijack_detected",
+    domain: pageDomain,
+    timestamp: Date.now(),
+    details: {
+      text: data.text,
+      cryptoType: data.cryptoType,
+      fullLength: data.fullLength,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertClipboardHijack({
+    domain: pageDomain,
+    cryptoType: data.cryptoType,
+    textPreview: data.text,
+  });
+
+  logger.warn("Clipboard hijack detected:", {
+    domain: pageDomain,
+    cryptoType: data.cryptoType,
+  });
+
+  return { success: true };
+}
+
+// Cookie access data interface
+interface CookieAccessData {
+  timestamp: string;
+  pageUrl: string;
+  readCount: number;
+}
+
+async function handleCookieAccess(
+  data: CookieAccessData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "cookie_access_detected",
+    domain: pageDomain,
+    timestamp: Date.now(),
+    details: {
+      readCount: data.readCount,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertCookieAccess({
+    domain: pageDomain,
+    readCount: data.readCount,
+  });
+
+  logger.debug("Cookie access detected:", {
+    domain: pageDomain,
+  });
+
+  return { success: true };
+}
+
+// XSS detection data interface
+interface XSSDetectedData {
+  timestamp: string;
+  pageUrl: string;
+  type: string;
+  payloadPreview: string;
+}
+
+async function handleXSSDetected(
+  data: XSSDetectedData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "xss_detected",
+    domain: pageDomain,
+    timestamp: Date.now(),
+    details: {
+      type: data.type,
+      payloadPreview: data.payloadPreview,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertXSSInjection({
+    domain: pageDomain,
+    injectionType: data.type,
+    payloadPreview: data.payloadPreview,
+  });
+
+  logger.warn("XSS detected:", {
+    domain: pageDomain,
+    type: data.type,
+  });
+
+  return { success: true };
+}
+
+// DOM scraping data interface
+interface DOMScrapingData {
+  timestamp: string;
+  pageUrl: string;
+  selector: string;
+  callCount: number;
+}
+
+async function handleDOMScraping(
+  data: DOMScrapingData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "dom_scraping_detected",
+    domain: pageDomain,
+    timestamp: Date.now(),
+    details: {
+      selector: data.selector,
+      callCount: data.callCount,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertDOMScraping({
+    domain: pageDomain,
+    selector: data.selector,
+    callCount: data.callCount,
+  });
+
+  logger.debug("DOM scraping detected:", {
+    domain: pageDomain,
+    callCount: data.callCount,
+  });
+
+  return { success: true };
+}
+
+// Suspicious download data interface
+interface SuspiciousDownloadData {
+  timestamp: string;
+  pageUrl: string;
+  type: string;
+  filename: string;
+  extension: string;
+  url: string;
+  size: number;
+  mimeType: string;
+}
+
+async function handleSuspiciousDownload(
+  data: SuspiciousDownloadData,
+  sender: chrome.runtime.MessageSender
+): Promise<{ success: boolean }> {
+  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
+
+  await addEvent({
+    type: "suspicious_download_detected",
+    domain: pageDomain,
+    timestamp: Date.now(),
+    details: {
+      type: data.type,
+      filename: data.filename,
+      extension: data.extension,
+      url: data.url,
+      size: data.size,
+      mimeType: data.mimeType,
+      pageUrl: data.pageUrl,
+    },
+  });
+
+  await getAlertManager().alertSuspiciousDownload({
+    domain: pageDomain,
+    downloadType: data.type,
+    filename: data.filename,
+    extension: data.extension,
+    size: data.size,
+    mimeType: data.mimeType,
+  });
+
+  logger.warn("Suspicious download detected:", {
+    domain: pageDomain,
+    type: data.type,
+    filename: data.filename,
+  });
+
+  return { success: true };
+}
+
 function extractDomainFromUrl(url: string): string {
   try {
     return new URL(url).hostname;
@@ -2158,28 +2408,8 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
   }
 }
 
-async function registerMainWorldScript() {
-  // chrome.scripting is only available in Chrome MV3
-  // Firefox MV2 uses manifest-based content script registration
-  if (typeof chrome.scripting?.registerContentScripts !== "function") {
-    logger.debug("chrome.scripting not available (Firefox MV2), skipping dynamic registration");
-    return;
-  }
-
-  try {
-    await chrome.scripting.unregisterContentScripts({ ids: ["api-hooks"] }).catch(() => {});
-    await chrome.scripting.registerContentScripts([{
-      id: "api-hooks",
-      js: ["api-hooks.js"],
-      matches: ["<all_urls>"],
-      runAt: "document_start",
-      world: "MAIN",
-      persistAcrossSessions: true,
-    }]);
-  } catch (error) {
-    logger.error("Failed to register main world script:", error);
-  }
-}
+// Main world script is now registered statically via manifest.json content_scripts
+// Dynamic registration removed to avoid caching issues
 
 async function handleDebugBridgeForward(
   type: string,
@@ -2260,7 +2490,7 @@ export default defineBackground(() => {
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
   registerDoHMonitorListener();
-  registerMainWorldScript();
+  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
 
   if (import.meta.env.DEV) {
     import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
@@ -2400,6 +2630,48 @@ export default defineBackground(() => {
 
     if (message.type === "SUPPLY_CHAIN_RISK_DETECTED") {
       handleSupplyChainRisk(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "TRACKING_BEACON_DETECTED") {
+      handleTrackingBeacon(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "CLIPBOARD_HIJACK_DETECTED") {
+      handleClipboardHijack(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "COOKIE_ACCESS_DETECTED") {
+      handleCookieAccess(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "XSS_DETECTED") {
+      handleXSSDetected(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "DOM_SCRAPING_DETECTED") {
+      handleDOMScraping(message.data, sender)
+        .then(sendResponse)
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
+
+    if (message.type === "SUSPICIOUS_DOWNLOAD_DETECTED") {
+      handleSuspiciousDownload(message.data, sender)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
