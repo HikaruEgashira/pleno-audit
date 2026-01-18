@@ -326,6 +326,15 @@ body::after {
   height: 200px;
   margin-bottom: 20px;
   margin-top: 24px;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.score-gauge.interactive {
+  cursor: pointer;
+}
+
+.score-gauge.interactive:hover {
+  filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.4));
 }
 
 .score-gauge svg {
@@ -369,6 +378,14 @@ body::after {
   letter-spacing: 4px;
   text-transform: uppercase;
   margin-top: 4px;
+}
+
+.scan-hint {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--cyber-text-muted);
+  text-transform: uppercase;
+  margin-top: 8px;
 }
 
 .score-meta {
@@ -642,6 +659,21 @@ body::after {
   color: var(--cyber-text-dim);
   background: var(--cyber-gray-dark);
   border: 1px solid var(--cyber-gray-light);
+}
+
+.initial-state {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.initial-state .score-card {
+  width: 350px;
+}
+
+.initial-state .score-card.initial::before {
+  content: "SYSTEM STANDBY";
 }
 
 .empty-state h3 {
