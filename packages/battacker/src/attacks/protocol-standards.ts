@@ -451,7 +451,7 @@ export const protocolStandardsAttacks: AttackTest[] = [
   {
     id: "protocol-http2-stream-abuse",
     name: "HTTP/2 Stream Multiplexing Information Leak",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits HTTP/2 stream multiplexing, HPACK compression, and stream priority ordering for information leakage through timing analysis",
     severity: "critical",
@@ -460,7 +460,7 @@ export const protocolStandardsAttacks: AttackTest[] = [
   {
     id: "protocol-websocket-smuggling",
     name: "WebSocket Protocol Violation Attacks",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits WebSocket handshake ambiguities, HTTP upgrade state confusion, and frame boundary handling",
     severity: "critical",
@@ -469,7 +469,7 @@ export const protocolStandardsAttacks: AttackTest[] = [
   {
     id: "protocol-html-parsing-chaos",
     name: "HTML Parser Ambiguity Exploitation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits HTML5 parsing algorithm quirks, case insensitivity, tag omission, and error recovery behaviors",
     severity: "critical",
@@ -478,7 +478,7 @@ export const protocolStandardsAttacks: AttackTest[] = [
   {
     id: "protocol-css-specificity-bomb",
     name: "CSS Cascade & Specificity Bomb Attacks",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits CSS specificity calculation complexity, !important nesting, counter overflows, and variable circular references",
     severity: "critical",
@@ -487,7 +487,7 @@ export const protocolStandardsAttacks: AttackTest[] = [
   {
     id: "protocol-mime-type-confusion",
     name: "MIME Type Negotiation Content Sniffing",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits Content-Type header ambiguities, charset confusion, MIME type polymorphism, and nosniff bypass techniques",
     severity: "critical",

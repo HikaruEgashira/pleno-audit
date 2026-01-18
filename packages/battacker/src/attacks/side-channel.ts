@@ -200,12 +200,130 @@ async function simulateBroadcastChannelLeak(): Promise<AttackResult> {
   }
 }
 
+async function simulateSpectreTimingMitigation(): Promise<AttackResult> {
+  const startTime = performance.now();
+
+  try {
+    // Spectre Variant 1 (CVE-2017-5753) 緩和策の検証
+    // 高精度タイマーが制限されているかを確認
+    // 参照: Kocher et al., "Spectre Attacks: Exploiting Speculative Execution" (S&P 2019)
+
+    const measurements: number[] = [];
+
+    // performance.now() の精度を測定
+    for (let i = 0; i < 100; i++) {
+      const t1 = performance.now();
+      const t2 = performance.now();
+      measurements.push(t2 - t1);
+    }
+
+    // 精度の分析
+    const nonZeroMeasurements = measurements.filter((m) => m > 0);
+    const minResolution =
+      nonZeroMeasurements.length > 0
+        ? Math.min(...nonZeroMeasurements)
+        : 0;
+
+    const executionTime = performance.now() - startTime;
+
+    // Chrome 67+ では 100μs 以上に制限
+    // 5μs 以下の精度は Spectre 攻撃に悪用可能
+    if (minResolution >= 0.1) {
+      return {
+        blocked: true,
+        detected: true,
+        executionTime,
+        details: `Spectre timing mitigation active - timer resolution ${minResolution.toFixed(3)}ms (≥100μs threshold)`,
+      };
+    } else if (minResolution >= 0.005) {
+      return {
+        blocked: false,
+        detected: true,
+        executionTime,
+        details: `Spectre timing partially mitigated - timer resolution ${minResolution.toFixed(3)}ms (5-100μs range)`,
+      };
+    } else {
+      return {
+        blocked: false,
+        detected: false,
+        executionTime,
+        details: `High-precision timer available - resolution ${minResolution.toFixed(6)}ms (Spectre-exploitable)`,
+      };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      blocked: true,
+      detected: true,
+      executionTime: performance.now() - startTime,
+      details: `Timer access blocked: ${errorMessage}`,
+      error: errorMessage,
+    };
+  }
+}
+
+async function simulateSharedArrayBufferAvailability(): Promise<AttackResult> {
+  const startTime = performance.now();
+
+  try {
+    // SharedArrayBuffer の可用性検証
+    // COOP/COEP ヘッダーが必要（Spectre 緩和策）
+    // 参照: https://web.dev/coop-coep/
+
+    if (typeof SharedArrayBuffer === "undefined") {
+      return {
+        blocked: true,
+        detected: true,
+        executionTime: performance.now() - startTime,
+        details:
+          "SharedArrayBuffer disabled - Cross-Origin Isolation not enabled (Spectre mitigation active)",
+      };
+    }
+
+    // SharedArrayBuffer が利用可能な場合、COOP/COEP が設定されている
+    const crossOriginIsolated =
+      typeof (self as any).crossOriginIsolated !== "undefined"
+        ? (self as any).crossOriginIsolated
+        : false;
+
+    const executionTime = performance.now() - startTime;
+
+    if (crossOriginIsolated) {
+      return {
+        blocked: true,
+        detected: true,
+        executionTime,
+        details:
+          "SharedArrayBuffer available with Cross-Origin Isolation (COOP/COEP headers present)",
+      };
+    } else {
+      return {
+        blocked: false,
+        detected: false,
+        executionTime,
+        details:
+          "SharedArrayBuffer available without Cross-Origin Isolation (legacy mode - potential Spectre risk)",
+      };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      blocked: true,
+      detected: true,
+      executionTime: performance.now() - startTime,
+      details: `SharedArrayBuffer check failed: ${errorMessage}`,
+      error: errorMessage,
+    };
+  }
+}
+
 export const sideChannelAttacks: AttackTest[] = [
   {
     id: "side-channel-canvas",
     name: "Canvas Fingerprinting",
     category: "side-channel",
-    description: "Generates browser fingerprint via Canvas API rendering differences",
+    description:
+      "Generates browser fingerprint via Canvas API rendering differences",
     severity: "medium",
     simulate: simulateCanvasFingerprinting,
   },
@@ -221,8 +339,27 @@ export const sideChannelAttacks: AttackTest[] = [
     id: "side-channel-broadcast",
     name: "BroadcastChannel Leak",
     category: "side-channel",
-    description: "Leaks data between browser tabs via BroadcastChannel API (bypasses tab isolation)",
+    description:
+      "Leaks data between browser tabs via BroadcastChannel API (same-origin only)",
     severity: "high",
     simulate: simulateBroadcastChannelLeak,
+  },
+  {
+    id: "side-channel-spectre-mitigation",
+    name: "Spectre Timing Mitigation Check",
+    category: "side-channel",
+    description:
+      "Verifies browser Spectre mitigations (timer precision reduction) - CVE-2017-5753",
+    severity: "critical",
+    simulate: simulateSpectreTimingMitigation,
+  },
+  {
+    id: "side-channel-sharedarraybuffer",
+    name: "SharedArrayBuffer Isolation Check",
+    category: "side-channel",
+    description:
+      "Checks Cross-Origin Isolation status for SharedArrayBuffer (COOP/COEP)",
+    severity: "high",
+    simulate: simulateSharedArrayBufferAvailability,
   },
 ];

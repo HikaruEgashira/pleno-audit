@@ -461,7 +461,7 @@ export const renderingEngineAttacks: AttackTest[] = [
   {
     id: "rendering-layout-race",
     name: "Blink/Gecko Rendering Pipeline Race Conditions",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits race conditions between style recalculation and layout recalculation, dirty flag management inconsistencies, and forced synchronous layout",
     severity: "critical",
@@ -470,7 +470,7 @@ export const renderingEngineAttacks: AttackTest[] = [
   {
     id: "rendering-paint-order-confusion",
     name: "Paint Order & Z-Index Stacking Context Anomalies",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits paint order calculation contradictions, z-index auto ambiguities, and implicit stacking context generation from CSS properties",
     severity: "critical",
@@ -479,7 +479,7 @@ export const renderingEngineAttacks: AttackTest[] = [
   {
     id: "rendering-compositing-boundary",
     name: "Compositing Layer Boundary Violations",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits unpredictable compositing layer creation rules from GPU acceleration conditions, will-change, masks, and filter properties",
     severity: "critical",
@@ -488,7 +488,7 @@ export const renderingEngineAttacks: AttackTest[] = [
   {
     id: "rendering-font-rendering-chaos",
     name: "Text Rendering & Font Fallback Chaos",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits font fallback chain ordering, @font-face parsing variance, variable fonts, text hinting, and baseline alignment computation",
     severity: "critical",
@@ -497,7 +497,7 @@ export const renderingEngineAttacks: AttackTest[] = [
   {
     id: "rendering-scroll-hit-test-desync",
     name: "Scroll Anchor & Hit Test Desynchronization",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits geometry computation delays between scroll events, touch/mouse coordinate variance, sticky positioning, and Intersection Observer timing",
     severity: "critical",

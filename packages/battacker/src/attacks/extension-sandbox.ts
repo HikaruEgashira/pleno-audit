@@ -448,7 +448,7 @@ export const extensionSandboxAttacks: AttackTest[] = [
   {
     id: "extension-content-script-escape",
     name: "Content Script Sandbox Escape",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits Object/Function prototype pollution, eval scope isolation, SharedArrayBuffer crossing, and event listener capability capture",
     severity: "critical",
@@ -457,7 +457,7 @@ export const extensionSandboxAttacks: AttackTest[] = [
   {
     id: "extension-api-capability-leak",
     name: "Extension API Capability Leak",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits unrestricted access to chrome.storage, chrome.tabs, chrome.webRequest, and capability transmission via message passing",
     severity: "critical",
@@ -466,7 +466,7 @@ export const extensionSandboxAttacks: AttackTest[] = [
   {
     id: "extension-message-passing-abuse",
     name: "Message Passing Protocol Exploitation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits message sender verification bypass, serialization type confusion, race conditions, and tab/frame ID spoofing",
     severity: "critical",
@@ -475,7 +475,7 @@ export const extensionSandboxAttacks: AttackTest[] = [
   {
     id: "extension-storage-permission-bypass",
     name: "Storage API Permission Bypass",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits cross-origin localStorage access, IndexedDB enumeration, sessionStorage isolation failures, and storage event leakage",
     severity: "critical",
@@ -484,7 +484,7 @@ export const extensionSandboxAttacks: AttackTest[] = [
   {
     id: "extension-manifest-compatibility",
     name: "Manifest v2/v3 Compatibility Exploitation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits background_page persistence, deprecated API fallbacks, CSP weakening, and version upgrade timing windows",
     severity: "critical",

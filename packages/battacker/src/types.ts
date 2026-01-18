@@ -13,9 +13,7 @@ export type AttackCategory =
   | "worker"
   | "injection"
   | "covert"
-  | "advanced"
-  | "final"
-  | "deepest";
+  | "advanced";
 
 export type Severity = "critical" | "high" | "medium" | "low";
 
@@ -65,23 +63,21 @@ export interface StoredTestHistory {
 }
 
 export const CATEGORY_WEIGHTS: Record<AttackCategory, number> = {
-  network: 0.08,
-  phishing: 0.04,
-  "client-side": 0.08,
-  download: 0.04,
-  persistence: 0.04,
-  "side-channel": 0.03,
-  fingerprinting: 0.06,
-  cryptojacking: 0.04,
-  privacy: 0.04,
-  media: 0.06,
-  storage: 0.03,
-  worker: 0.06,
-  injection: 0.04,
+  network: 0.09,
+  phishing: 0.05,
+  "client-side": 0.09,
+  download: 0.05,
+  persistence: 0.05,
+  "side-channel": 0.12, // Spectre/SharedArrayBuffer checks included
+  fingerprinting: 0.08,
+  cryptojacking: 0.05,
+  privacy: 0.06,
+  media: 0.07,
+  storage: 0.04,
+  worker: 0.07,
+  injection: 0.06,
   covert: 0.08,
-  advanced: 0.06,
-  final: 0.05,
-  deepest: 0.07,
+  advanced: 0.04,
 };
 
 export const CATEGORY_LABELS: Record<AttackCategory, string> = {
@@ -100,8 +96,6 @@ export const CATEGORY_LABELS: Record<AttackCategory, string> = {
   injection: "Injection Attacks",
   covert: "Covert Channel Attacks",
   advanced: "Advanced Exploitation",
-  final: "Final Frontier Attacks",
-  deepest: "Deepest Layer Attacks",
 };
 
 export function scoreToGrade(score: number): Grade {

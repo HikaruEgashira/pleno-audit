@@ -14,8 +14,6 @@ import { workerAttacks } from "./worker";
 import { injectionAttacks } from "./injection";
 import { covertAttacks } from "./covert";
 import { advancedAttacks } from "./advanced";
-import { finalAttacks } from "./final";
-import { deepestAttacks } from "./deepest";
 import { hybridAttacks } from "./hybrid";
 import { contextBridgeAttacks } from "./context-bridge";
 import { sandboxEscapeAttacks } from "./sandbox-escape";
@@ -43,8 +41,6 @@ export const allAttacks: AttackTest[] = [
   ...injectionAttacks,
   ...covertAttacks,
   ...advancedAttacks,
-  ...finalAttacks,
-  ...deepestAttacks,
   ...hybridAttacks,
   ...contextBridgeAttacks,
   ...sandboxEscapeAttacks,
@@ -72,8 +68,6 @@ export {
   injectionAttacks,
   covertAttacks,
   advancedAttacks,
-  finalAttacks,
-  deepestAttacks,
   hybridAttacks,
   contextBridgeAttacks,
   sandboxEscapeAttacks,

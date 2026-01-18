@@ -227,84 +227,6 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
   }
 }
 
-async function simulateSharedArrayBufferMicroarchitectureAttack(): Promise<
-  AttackResult
-> {
-  const startTime = performance.now();
-
-  try {
-    // SharedArrayBuffer を利用したマイクロアーキテクチャ攻撃
-    // キャッシュラインの測定でメモリレイアウト推測
-
-    if (typeof SharedArrayBuffer === "undefined") {
-      return {
-        blocked: true,
-        detected: true,
-        executionTime: performance.now() - startTime,
-        details: "SharedArrayBuffer not available",
-      };
-    }
-
-    // SharedArrayBuffer を通じたタイミング測定
-    const sab = new SharedArrayBuffer(8);
-    const view = new Int32Array(sab);
-
-    const timings: number[] = [];
-
-    // マイクロアーキテクチャ タイミング測定
-    for (let i = 0; i < 100; i++) {
-      // Atomic 操作でキャッシュ効果を測定
-      const t1 = performance.now();
-
-      // キャッシュヒット（メモリアクセス）
-      Atomics.load(view, 0);
-      Atomics.store(view, 0, i);
-
-      const t2 = performance.now();
-      timings.push(t2 - t1);
-
-      // CPU キャッシュラインへのアクセスシミュレーション
-      for (let j = 0; j < 1000; j++) {
-        Math.random();
-      }
-    }
-
-    // タイミングの統計分析
-    const avgTiming =
-      timings.reduce((a, b) => a + b, 0) / timings.length;
-    const maxTiming = Math.max(...timings);
-    const minTiming = Math.min(...timings);
-    const timingSpread = maxTiming - minTiming;
-
-    const executionTime = performance.now() - startTime;
-
-    if (timingSpread > 0.1) {
-      return {
-        blocked: false,
-        detected: false,
-        executionTime,
-        details: `SharedArrayBuffer microarchitecture attack successful - ${timingSpread.toFixed(4)}ms timing spread (cache layout inference)`,
-      };
-    } else {
-      return {
-        blocked: true,
-        detected: true,
-        executionTime,
-        details: "SharedArrayBuffer timing attack mitigated",
-      };
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      blocked: true,
-      detected: true,
-      executionTime: performance.now() - startTime,
-      details: `SharedArrayBuffer attack blocked: ${errorMessage}`,
-      error: errorMessage,
-    };
-  }
-}
-
 async function simulateServiceWorkerCacheBypass(): Promise<AttackResult> {
   const startTime = performance.now();
 
@@ -386,106 +308,6 @@ async function simulateServiceWorkerCacheBypass(): Promise<AttackResult> {
   }
 }
 
-async function simulateWasmLinearMemoryReading(): Promise<AttackResult> {
-  const startTime = performance.now();
-
-  try {
-    // WASM線形メモリの直接読み取り
-    // memory.buffer を通じて秘密データアクセス
-
-    if (typeof WebAssembly === "undefined") {
-      return {
-        blocked: true,
-        detected: true,
-        executionTime: performance.now() - startTime,
-        details: "WebAssembly not available",
-      };
-    }
-
-    // メモリリークの意図的な WASM モジュール
-    const wasmCode = new Uint8Array([
-      // Magic number and version
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section
-      0x01, 0x07, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f,
-      // Function section
-      0x03, 0x02, 0x01, 0x00,
-      // Memory section (min 1)
-      0x05, 0x03, 0x01, 0x00, 0x01,
-      // Export section (memory and function)
-      0x07, 0x10, 0x02, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
-      0x72, 0x79, 0x02, 0x00, 0x04, 0x72, 0x65, 0x61,
-      0x64, 0x00, 0x00,
-      // Code section (read memory function)
-      0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x29,
-      0x00, 0x0b,
-    ]);
-
-    const module = await WebAssembly.compile(wasmCode);
-    const memory = new WebAssembly.Memory({ initial: 1 });
-    const instance = await WebAssembly.instantiate(module, {
-      env: { memory: memory },
-    });
-
-    // メモリバッファにアクセス
-    const buffer = memory.buffer;
-    const dataView = new DataView(buffer);
-    let dataRead = false;
-    let secretPatternFound = false;
-
-    // メモリスキャン - 既知パターン検索
-    const pattern = "SECRET";
-    const patternBytes = Array.from(pattern).map((c) => c.charCodeAt(0));
-
-    // メモリの最初の 1000 バイトをスキャン
-    for (let i = 0; i < Math.min(buffer.byteLength, 1000) - patternBytes.length; i++) {
-      let match = true;
-      for (let j = 0; j < patternBytes.length; j++) {
-        if (dataView.getUint8(i + j) !== patternBytes[j]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        secretPatternFound = true;
-        break;
-      }
-    }
-
-    // メモリへの直接アクセス自体は成功
-    if (buffer.byteLength > 0) {
-      dataRead = true;
-    }
-
-    const executionTime = performance.now() - startTime;
-
-    if (dataRead) {
-      return {
-        blocked: false,
-        detected: false,
-        executionTime,
-        details: `WASM linear memory reading successful - ${buffer.byteLength} bytes accessible (memory content exfiltration possible)`,
-      };
-    } else {
-      return {
-        blocked: true,
-        detected: true,
-        executionTime,
-        details: "WASM memory access blocked",
-      };
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      blocked: true,
-      detected: true,
-      executionTime: performance.now() - startTime,
-      details: `WASM memory reading blocked: ${errorMessage}`,
-      error: errorMessage,
-    };
-  }
-}
-
 export const sandboxEscapeAttacks: AttackTest[] = [
   {
     id: "sandbox-escape-proxy-object",
@@ -506,15 +328,6 @@ export const sandboxEscapeAttacks: AttackTest[] = [
     simulate: simulatePrototypePollutionChain,
   },
   {
-    id: "sandbox-escape-sharedarraybuffer",
-    name: "SharedArrayBuffer Microarchitecture Attack",
-    category: "deepest",
-    description:
-      "Exploits SharedArrayBuffer for CPU cache timing analysis (microarchitecture side-channel)",
-    severity: "critical",
-    simulate: simulateSharedArrayBufferMicroarchitectureAttack,
-  },
-  {
     id: "sandbox-escape-service-worker",
     name: "Service Worker Cache Bypass",
     category: "covert",
@@ -522,14 +335,5 @@ export const sandboxEscapeAttacks: AttackTest[] = [
       "Poisons Service Worker cache to intercept and modify API responses",
     severity: "critical",
     simulate: simulateServiceWorkerCacheBypass,
-  },
-  {
-    id: "sandbox-escape-wasm-memory",
-    name: "WASM Linear Memory Reading",
-    category: "deepest",
-    description:
-      "Directly reads WebAssembly linear memory to exfiltrate stored data",
-    severity: "critical",
-    simulate: simulateWasmLinearMemoryReading,
   },
 ];

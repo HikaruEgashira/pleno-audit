@@ -446,7 +446,7 @@ export const contextBridgeAttacks: AttackTest[] = [
   {
     id: "context-bridge-wasm-indirect",
     name: "WASM Indirect Call Table Attack",
-    category: "deepest",
+    category: "advanced",
     description:
       "Accesses WASM indirect function call table for memory layout inference",
     severity: "critical",
