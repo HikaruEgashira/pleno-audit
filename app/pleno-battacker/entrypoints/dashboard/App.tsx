@@ -118,9 +118,6 @@ export function App() {
           <h1 class="title">Battacker</h1>
           <p class="subtitle">// Browser Defense Resistance Testing System</p>
         </div>
-        <button class="btn btn-primary" onClick={runTests} disabled={running}>
-          {running ? "[ Executing... ]" : "[ Execute Scan ]"}
-        </button>
       </div>
 
       {score ? (
@@ -150,17 +147,30 @@ export function App() {
             <OverviewTab
               score={score}
               isScanning={running}
+              isLoading={loading}
               scanProgress={scanProgress}
               scanPhase={scanPhase}
+              onScan={runTests}
             />
           )}
           {activeTab === "results" && <ResultsTab score={score} />}
           {activeTab === "history" && <HistoryTab history={history} />}
         </>
       ) : (
-        <div class="empty-state">
-          <h3>System Standby</h3>
-          <p>Execute security scan to evaluate browser defense capabilities</p>
+        <div class="initial-state">
+          <div class="score-card initial">
+            <CyberGauge
+              value={running ? scanProgress : 0}
+              grade=""
+              isScanning={running}
+              isLoading={loading}
+              phase={scanPhase}
+              onClick={running || loading ? undefined : runTests}
+            />
+            <div class="score-meta">
+              {running ? "Scanning in progress..." : "Ready to execute security scan"}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -170,13 +180,17 @@ export function App() {
 function OverviewTab({
   score,
   isScanning,
+  isLoading,
   scanProgress,
   scanPhase,
+  onScan,
 }: {
   score: DefenseScore;
   isScanning: boolean;
+  isLoading: boolean;
   scanProgress: number;
   scanPhase: string;
+  onScan: () => void;
 }) {
   // Calculate which categories should be "revealed" based on scan progress
   const categoryCount = score.categories.length;
@@ -189,7 +203,9 @@ function OverviewTab({
           value={isScanning ? scanProgress : score.totalScore}
           grade={isScanning ? "" : score.grade}
           isScanning={isScanning}
+          isLoading={isLoading}
           phase={scanPhase}
+          onClick={isScanning || isLoading ? undefined : onScan}
         />
         {isScanning ? (
           <SkeletonMeta />
@@ -461,13 +477,18 @@ function CyberGauge({
   value,
   grade,
   isScanning,
+  isLoading,
   phase,
+  onClick,
 }: {
   value: number;
   grade: string;
   isScanning: boolean;
+  isLoading?: boolean;
   phase: string;
+  onClick?: () => void;
 }) {
+  const isInteractive = onClick && !isScanning && !isLoading;
   const size = 200;
   const cx = size / 2;
   const cy = size / 2;
@@ -486,8 +507,20 @@ function CyberGauge({
 
   const color = gradeColors[grade] || gradeColors.F;
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
-    <div class="score-gauge" style={{ position: "relative" }}>
+    <motion.div
+      class={`score-gauge ${isInteractive ? "interactive" : ""}`}
+      style={{ position: "relative", cursor: isInteractive ? "pointer" : "default" }}
+      onClick={handleClick}
+      whileHover={isInteractive ? { scale: 1.02 } : undefined}
+      whileTap={isInteractive ? { scale: 0.98 } : undefined}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <filter id="glowLg" x="-50%" y="-50%" width="200%" height="200%">
@@ -687,14 +720,62 @@ function CyberGauge({
               {phase}
             </motion.div>
           </motion.div>
-        ) : (
+        ) : isLoading ? (
+          <motion.div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <motion.div
+              class="score-value"
+              style={{ color: "#fff", fontSize: 28 }}
+              animate={{ opacity: [1, 0.5, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+            >
+              INIT
+            </motion.div>
+          </motion.div>
+        ) : grade ? (
           <>
             <div class={`score-value grade-${grade}`}>{value}</div>
             <div class="score-grade">Grade {grade}</div>
+            {isInteractive && (
+              <motion.div
+                class="scan-hint"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                TAP TO RESCAN
+              </motion.div>
+            )}
+          </>
+        ) : (
+          <>
+            <motion.div
+              class="score-value"
+              style={{ fontSize: 32 }}
+              animate={isInteractive ? { opacity: [0.8, 1, 0.8] } : undefined}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              Execute
+            </motion.div>
+            {isInteractive && (
+              <motion.div
+                class="scan-hint"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                TAP TO SCAN
+              </motion.div>
+            )}
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
