@@ -37,7 +37,7 @@ pnpm --filter @pleno-audit/debugger start server
 
 ```bash
 # ターミナル2: 拡張起動
-pnpm --filter @pleno-audit/extension dev
+pnpm --filter @pleno-audit/audit-extension dev
 ```
 
 拡張が起動すると、自動的にデバッグサーバーに接続します。
@@ -85,7 +85,7 @@ Claude Codeなどのcoding agentから使用する場合
 pnpm --filter @pleno-audit/debugger start server &
 
 # 拡張を起動（別ターミナルで）
-pnpm --filter @pleno-audit/extension dev
+pnpm --filter @pleno-audit/audit-extension dev
 
 # コマンド実行
 pnpm --filter @pleno-audit/debugger start status

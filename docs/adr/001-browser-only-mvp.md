@@ -48,5 +48,5 @@ MVPは**端末完結型のブラウザ拡張機能**として実装する。サ�
 - `packages/csp`: CSP監査
 - `packages/api`: Isomorphic Hono API（ローカル/リモート両対応）
 - `packages/extension-runtime`: 拡張機能ランタイム
-- `app/extension`: ブラウザ拡張機能
+- `app/audit-extension`: ブラウザ拡張機能
 - `app/server`: オプショナルなリモートサーバー（未使用時はローカルDBで動作）

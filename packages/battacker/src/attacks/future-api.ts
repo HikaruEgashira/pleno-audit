@@ -436,7 +436,7 @@ export const futureApiAttacks: AttackTest[] = [
   {
     id: "future-webgpu-memory",
     name: "WebGPU Memory Leak Attack",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits WebGPU GPU memory access for data exfiltration via GPU buffers",
     severity: "critical",

@@ -7,7 +7,7 @@ export const installCommand = new Command("server")
     const port = parseInt(options.port, 10);
     console.log(`Starting debug server on port ${port}...`);
     console.log("Waiting for extension to connect...");
-    console.log("Run the extension in dev mode: pnpm --filter @pleno-audit/extension dev");
+    console.log("Run the extension in dev mode: pnpm --filter @pleno-audit/audit-extension dev");
     console.log("\nPress Ctrl+C to stop\n");
 
     // Dynamic import to avoid starting server on CLI load

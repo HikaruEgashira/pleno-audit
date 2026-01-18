@@ -629,7 +629,7 @@ export const userDeviceLayerAttacks: AttackTest[] = [
   {
     id: "user-ui-spoofing",
     name: "UI Spoofing & Address Bar Impersonation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Impersonates browser UI elements and address bar through CSS and DOM manipulation to deceive users",
     severity: "critical",
@@ -638,7 +638,7 @@ export const userDeviceLayerAttacks: AttackTest[] = [
   {
     id: "user-device-sensors",
     name: "Device Sensor Exploitation for Fingerprinting",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits device sensors (accelerometer, gyroscope, orientation) to fingerprint devices and infer user behavior",
     severity: "critical",
@@ -647,7 +647,7 @@ export const userDeviceLayerAttacks: AttackTest[] = [
   {
     id: "user-visibility-abuse",
     name: "Page Visibility & Focus Exploitation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Bypasses visibility restrictions to continue malicious operations in background tabs",
     severity: "critical",
@@ -656,7 +656,7 @@ export const userDeviceLayerAttacks: AttackTest[] = [
   {
     id: "user-resource-exhaustion",
     name: "Resource Exhaustion Denial of Service",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exhausts memory, CPU, storage, and DOM resources to render browser unusable",
     severity: "critical",
@@ -665,7 +665,7 @@ export const userDeviceLayerAttacks: AttackTest[] = [
   {
     id: "user-history-hijacking",
     name: "Browser History Hijacking & Navigation Traps",
-    category: "deepest",
+    category: "advanced",
     description:
       "Manipulates History API to spoof URLs, trap navigation, and confuse user",
     severity: "critical",

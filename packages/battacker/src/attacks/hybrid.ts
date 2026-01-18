@@ -602,7 +602,7 @@ export const hybridAttacks: AttackTest[] = [
   {
     id: "hybrid-memory-pattern-obfuscation",
     name: "Memory Access Pattern Obfuscation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Randomizes memory access patterns to evade Spectre-like timing attack detection",
     severity: "critical",

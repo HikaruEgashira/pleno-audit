@@ -94,7 +94,7 @@ app/debugger/
 │       ├── logs.ts         # リアルタイムログ
 │       └── browser.ts      # ブラウザ操作
 
-app/extension/lib/
+app/audit-extension/lib/
 └── debug-bridge.ts         # 拡張側WebSocketクライアント
 ```
 

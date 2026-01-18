@@ -389,7 +389,7 @@ export const zeroDayAttacks: AttackTest[] = [
   {
     id: "zeroday-promise-resolution",
     name: "Promise Resolution Order Exploitation",
-    category: "deepest",
+    category: "advanced",
     description:
       "Exploits JavaScript Promise microtask queue ordering to infer internal engine state and memory layout",
     severity: "critical",
@@ -398,7 +398,7 @@ export const zeroDayAttacks: AttackTest[] = [
   {
     id: "zeroday-weakmap-leakage",
     name: "WeakMap Internal Structure Leakage",
-    category: "deepest",
+    category: "advanced",
     description:
       "Leverages WeakMap hash table implementation timing to extract object identity and internal references",
     severity: "critical",
@@ -407,7 +407,7 @@ export const zeroDayAttacks: AttackTest[] = [
   {
     id: "zeroday-arraybuffer-allocation",
     name: "ArrayBuffer Memory Allocation Pattern Analysis",
-    category: "deepest",
+    category: "advanced",
     description:
       "Analyzes ArrayBuffer allocation timing patterns to infer V8/JavaScriptCore memory manager state",
     severity: "critical",
@@ -416,7 +416,7 @@ export const zeroDayAttacks: AttackTest[] = [
   {
     id: "zeroday-generator-state",
     name: "Generator Frame State Leakage",
-    category: "deepest",
+    category: "advanced",
     description:
       "Extracts secret values from Generator execution frames via timing side-channels on yield points",
     severity: "critical",
@@ -425,7 +425,7 @@ export const zeroDayAttacks: AttackTest[] = [
   {
     id: "zeroday-closure-timing",
     name: "Closure Variable Capture via Timing Analysis",
-    category: "deepest",
+    category: "advanced",
     description:
       "Recovers variables from function closures by measuring string comparison timing in nested scopes",
     severity: "critical",
