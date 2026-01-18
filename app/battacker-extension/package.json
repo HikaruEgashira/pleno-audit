@@ -1,5 +1,5 @@
 {
-  "name": "@pleno-audit/pleno-battacker",
+  "name": "@pleno-audit/battacker-extension",
   "version": "1.0.0",
   "private": true,
   "type": "module",

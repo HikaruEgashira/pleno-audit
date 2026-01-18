@@ -17,8 +17,8 @@ devCommand
 
     const rootDir = resolve(import.meta.dirname, "../../../..");
 
-    console.log("[dev] Building pleno-battacker...");
-    execSync("pnpm -C app/pleno-battacker build", {
+    console.log("[dev] Building battacker-extension...");
+    execSync("pnpm -C app/battacker-extension build", {
       cwd: rootDir,
       stdio: "inherit",
       env: { ...process.env, DEBUG_PORT }

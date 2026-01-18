@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const battackerPath = resolve(__dirname, "../pleno-battacker/dist/chrome-mv3");
+const battackerPath = resolve(__dirname, "../battacker-extension/dist/chrome-mv3");
 
 export default defineConfig({
   srcDir: ".",
