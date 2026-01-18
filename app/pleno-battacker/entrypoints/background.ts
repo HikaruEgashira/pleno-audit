@@ -13,49 +13,99 @@ const readyTabs = new Set<number>();
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
 
+const TEST_TARGET_URL = "https://example.com";
+
+interface TargetTabResult {
+  targetTab: chrome.tabs.Tab;
+  returnToTabId?: number; // Dashboard tab ID to return to after scan
+}
+
 /**
- * Find a suitable target tab for testing.
- * When called from the dashboard (chrome-extension:// page), we need to find
- * another web page tab to run tests on.
+ * Find or create a suitable target tab for testing.
+ * - Popup: uses the current active tab
+ * - Dashboard: opens example.com in a new tab, returns dashboard tab ID
  */
-async function findTargetTab(): Promise<chrome.tabs.Tab | null> {
-  // First, try to get the active tab in the current window
+async function findTargetTab(): Promise<TargetTabResult | null> {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const activeTab = activeTabs[0];
 
-  // If active tab is a regular web page, use it
+  // If active tab is a regular web page (called from popup), use it
   if (activeTab?.url && isTestableUrl(activeTab.url)) {
     logger.debug(`Using active tab: ${activeTab.url}`);
-    return activeTab;
+    return { targetTab: activeTab };
   }
 
-  // Active tab is an internal page (like dashboard), find another suitable tab
-  logger.debug("Active tab is internal page, searching for testable tab...");
+  // Called from dashboard (chrome-extension://), open example.com
+  logger.info("Dashboard detected, opening test target page...");
+  const targetTab = await openTestTargetTab();
+  if (!targetTab) return null;
 
-  // Search all windows for a suitable tab, prioritizing the current window
-  const allTabs = await chrome.tabs.query({});
+  return {
+    targetTab,
+    returnToTabId: activeTab?.id, // Save dashboard tab ID to return later
+  };
+}
 
-  // Sort: prefer tabs in current window, then by most recently active
-  const currentWindowId = activeTab?.windowId;
-  const sortedTabs = allTabs
-    .filter((tab) => tab.url && isTestableUrl(tab.url))
-    .sort((a, b) => {
-      // Prioritize current window
-      if (a.windowId === currentWindowId && b.windowId !== currentWindowId) return -1;
-      if (b.windowId === currentWindowId && a.windowId !== currentWindowId) return 1;
-      // Then prioritize active tabs
-      if (a.active && !b.active) return -1;
-      if (b.active && !a.active) return 1;
-      return 0;
-    });
+/**
+ * Open example.com in a new tab for testing from dashboard.
+ * Switches focus to the new tab.
+ */
+async function openTestTargetTab(): Promise<chrome.tabs.Tab | null> {
+  try {
+    // Create tab with active: true to switch focus
+    const tab = await chrome.tabs.create({ url: TEST_TARGET_URL, active: true });
 
-  if (sortedTabs.length > 0) {
-    logger.debug(`Found testable tab: ${sortedTabs[0].url}`);
-    return sortedTabs[0];
+    if (!tab.id) {
+      logger.error("Failed to create test tab");
+      return null;
+    }
+
+    logger.debug(`Created test tab ${tab.id}, waiting for load...`);
+
+    // Wait for the tab to finish loading
+    await waitForTabLoad(tab.id);
+
+    // Return updated tab info
+    const updatedTab = await chrome.tabs.get(tab.id);
+    logger.info(`Test target ready: ${updatedTab.url}`);
+    return updatedTab;
+  } catch (error) {
+    logger.error("Failed to open test target:", error);
+    return null;
   }
+}
 
-  logger.warn("No testable tab found");
-  return null;
+/**
+ * Return focus to the dashboard tab after scan completes.
+ */
+async function returnToDashboard(tabId: number): Promise<void> {
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+    logger.debug(`Returned to dashboard tab ${tabId}`);
+  } catch (error) {
+    logger.debug("Failed to return to dashboard:", error);
+  }
+}
+
+/**
+ * Wait for a tab to finish loading.
+ */
+async function waitForTabLoad(tabId: number): Promise<void> {
+  return new Promise((resolve) => {
+    const checkStatus = async () => {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.status === "complete") {
+          resolve();
+        } else {
+          setTimeout(checkStatus, 100);
+        }
+      } catch {
+        resolve(); // Tab might be closed
+      }
+    };
+    checkStatus();
+  });
 }
 
 function isTestableUrl(url: string): boolean {
@@ -116,13 +166,18 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
   isRunning = true;
   logger.info("Starting security tests via content script...");
 
+  let returnToTabId: number | undefined;
+
   try {
     // Find a suitable target tab for testing
-    const targetTab = await findTargetTab();
+    const result = await findTargetTab();
 
-    if (!targetTab?.id) {
+    if (!result?.targetTab?.id) {
       return { error: "No suitable web page found. Please open a regular web page to test." };
     }
+
+    const { targetTab } = result;
+    returnToTabId = result.returnToTabId;
 
     const url = targetTab.url || "";
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
@@ -197,6 +252,10 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
     return { error: error instanceof Error ? error.message : String(error) };
   } finally {
     isRunning = false;
+    // Return to dashboard if we came from there
+    if (returnToTabId) {
+      await returnToDashboard(returnToTabId);
+    }
   }
 }
 
