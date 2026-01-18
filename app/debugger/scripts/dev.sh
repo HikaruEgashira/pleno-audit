@@ -16,8 +16,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Build battacker first
-echo "[dev] Building pleno-battacker..."
-pnpm -C app/pleno-battacker build
+echo "[dev] Building battacker-extension..."
+pnpm -C app/battacker-extension build
 
 # Start dev environment
 echo "[dev] Starting dev environment on port $DEBUG_PORT..."

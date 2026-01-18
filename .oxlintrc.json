@@ -81,7 +81,7 @@
     },
     // Pleno Battacker - intentionally simulates attacks including network communication
     {
-      "files": ["app/pleno-battacker/**/*"],
+      "files": ["app/battacker-extension/**/*"],
       "rules": { "no-console": "off", "no-restricted-globals": "off" }
     }
   ]

@@ -45,6 +45,28 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  app/battacker-extension:
+    dependencies:
+      '@pleno-audit/battacker':
+        specifier: workspace:*
+        version: link:../../packages/battacker
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../../packages/extension-runtime
+      motion:
+        specifier: ^12.26.2
+        version: 12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      preact:
+        specifier: ^10.25.4
+        version: 10.28.2
+    devDependencies:
+      '@preact/preset-vite':
+        specifier: ^2.9.4
+        version: 2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
+      wxt:
+        specifier: ^0.20.13
+        version: 0.20.13(@types/node@25.0.6)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.55.1)(tsx@4.21.0)
+
   app/battacker-web:
     dependencies:
       '@pleno-audit/battacker':
@@ -170,28 +192,6 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      wxt:
-        specifier: ^0.20.13
-        version: 0.20.13(@types/node@25.0.6)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.55.1)(tsx@4.21.0)
-
-  app/pleno-battacker:
-    dependencies:
-      '@pleno-audit/battacker':
-        specifier: workspace:*
-        version: link:../../packages/battacker
-      '@pleno-audit/extension-runtime':
-        specifier: workspace:*
-        version: link:../../packages/extension-runtime
-      motion:
-        specifier: ^12.26.2
-        version: 12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      preact:
-        specifier: ^10.25.4
-        version: 10.28.2
-    devDependencies:
-      '@preact/preset-vite':
-        specifier: ^2.9.4
-        version: 2.10.2(@babel/core@7.28.5)(preact@10.28.2)(vite@7.3.1(@types/node@25.0.6)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
       wxt:
         specifier: ^0.20.13
         version: 0.20.13(@types/node@25.0.6)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.55.1)(tsx@4.21.0)
