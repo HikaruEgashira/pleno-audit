@@ -13,6 +13,58 @@ const readyTabs = new Set<number>();
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
 
+/**
+ * Find a suitable target tab for testing.
+ * When called from the dashboard (chrome-extension:// page), we need to find
+ * another web page tab to run tests on.
+ */
+async function findTargetTab(): Promise<chrome.tabs.Tab | null> {
+  // First, try to get the active tab in the current window
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const activeTab = activeTabs[0];
+
+  // If active tab is a regular web page, use it
+  if (activeTab?.url && isTestableUrl(activeTab.url)) {
+    logger.debug(`Using active tab: ${activeTab.url}`);
+    return activeTab;
+  }
+
+  // Active tab is an internal page (like dashboard), find another suitable tab
+  logger.debug("Active tab is internal page, searching for testable tab...");
+
+  // Search all windows for a suitable tab, prioritizing the current window
+  const allTabs = await chrome.tabs.query({});
+
+  // Sort: prefer tabs in current window, then by most recently active
+  const currentWindowId = activeTab?.windowId;
+  const sortedTabs = allTabs
+    .filter((tab) => tab.url && isTestableUrl(tab.url))
+    .sort((a, b) => {
+      // Prioritize current window
+      if (a.windowId === currentWindowId && b.windowId !== currentWindowId) return -1;
+      if (b.windowId === currentWindowId && a.windowId !== currentWindowId) return 1;
+      // Then prioritize active tabs
+      if (a.active && !b.active) return -1;
+      if (b.active && !a.active) return 1;
+      return 0;
+    });
+
+  if (sortedTabs.length > 0) {
+    logger.debug(`Found testable tab: ${sortedTabs[0].url}`);
+    return sortedTabs[0];
+  }
+
+  logger.warn("No testable tab found");
+  return null;
+}
+
+function isTestableUrl(url: string): boolean {
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://")
+  );
+}
+
 export default defineBackground(() => {
   logger.info("Background started");
 
@@ -65,24 +117,24 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
   logger.info("Starting security tests via content script...");
 
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const activeTab = tabs[0];
+    // Find a suitable target tab for testing
+    const targetTab = await findTargetTab();
 
-    if (!activeTab?.id) {
-      return { error: "No active tab found" };
+    if (!targetTab?.id) {
+      return { error: "No suitable web page found. Please open a regular web page to test." };
     }
 
-    const url = activeTab.url || "";
+    const url = targetTab.url || "";
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
       return { error: "Cannot run tests on browser internal pages. Please navigate to a regular web page." };
     }
 
     // Check if content script is already ready (from manifest-based auto-injection)
-    if (!readyTabs.has(activeTab.id)) {
+    if (!readyTabs.has(targetTab.id)) {
       // Inject content script (needed for dev mode where content_scripts is not in manifest)
       try {
         await chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
+          target: { tabId: targetTab.id },
           files: ["content-scripts/content.js"],
         });
         logger.debug("Content script injected");
@@ -96,12 +148,12 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
       const checkInterval = 100;
       let waited = 0;
 
-      while (!readyTabs.has(activeTab.id) && waited < maxWaitTime) {
+      while (!readyTabs.has(targetTab.id) && waited < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, checkInterval));
         waited += checkInterval;
       }
 
-      if (!readyTabs.has(activeTab.id)) {
+      if (!readyTabs.has(targetTab.id)) {
         logger.warn("Content script did not signal ready within timeout, attempting anyway...");
       }
     } else {
@@ -112,7 +164,7 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
 
     let response: DefenseScore | { error: string };
     try {
-      response = await chrome.tabs.sendMessage(activeTab.id, {
+      response = await chrome.tabs.sendMessage(targetTab.id, {
         type: "BATTACKER_RUN_TESTS",
       }) as DefenseScore | { error: string };
     } catch (sendError) {

@@ -507,11 +507,17 @@ function CyberGauge({
 
   const color = gradeColors[grade] || gradeColors.F;
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <motion.div
       class={`score-gauge ${isInteractive ? "interactive" : ""}`}
-      style={{ position: "relative" }}
-      onClick={onClick}
+      style={{ position: "relative", cursor: isInteractive ? "pointer" : "default" }}
+      onClick={handleClick}
       whileHover={isInteractive ? { scale: 1.02 } : undefined}
       whileTap={isInteractive ? { scale: 0.98 } : undefined}
     >
