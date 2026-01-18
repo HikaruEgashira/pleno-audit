@@ -9,7 +9,7 @@ CASB/Browser Security
 - `packages/ai-detector` - AI検出アルゴリズム
 - `packages/api/` - REST API（Hono + sql.js）
 - `packages/extension-runtime/` - 拡張機能ランタイム（ストレージ、API クライアント、同期）
-- `app/extension/` - Chrome拡張（WXT + Preact）
+- `app/audit-extension/` - Chrome拡張（WXT + Preact）
 
 詳細は各パッケージの`index.ts`を参照。
 

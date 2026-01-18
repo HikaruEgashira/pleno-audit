@@ -68,7 +68,7 @@ Info:     bg:#0a2a3d  text:#60a5fa  border:#1e40af
 ### テーマシステム
 
 ```typescript
-// app/extension/lib/theme.ts
+// app/audit-extension/lib/theme.ts
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -86,7 +86,7 @@ const ThemeContext = createContext<ThemeContextValue>(defaultContext);
 const useTheme = () => useContext(ThemeContext);
 ```
 
-### 共有コンポーネント (`app/extension/components/`)
+### 共有コンポーネント (`app/audit-extension/components/`)
 
 | Component | 説明 | バリアント |
 |-----------|------|-----------|
@@ -102,7 +102,7 @@ const useTheme = () => useContext(ThemeContext);
 
 ### コンポーネント構造
 ```
-app/extension/
+app/audit-extension/
 ├── lib/
 │   └── theme.ts          # テーマコンテキスト・カラーパレット
 ├── components/           # 共有コンポーネント

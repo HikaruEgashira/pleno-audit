@@ -25,5 +25,5 @@ concurrently --kill-others \
   -n debug,ext,logs \
   -c blue,green,yellow \
   "pnpm -C app/debugger start server" \
-  "sleep 2 && pnpm -C app/extension dev" \
+  "sleep 2 && pnpm -C app/audit-extension dev" \
   "sleep 2 && pnpm -C app/debugger start logs"

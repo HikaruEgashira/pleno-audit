@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "pnpm --filter @pleno-audit/debugger start dev start",
     "dev:stop": "pnpm --filter @pleno-audit/debugger start dev stop",
-    "dev:ext": "pnpm -C app/extension dev",
-    "build": "pnpm -C app/extension build",
+    "dev:ext": "pnpm -C app/audit-extension dev",
+    "build": "pnpm -C app/audit-extension build",
     "server": "pnpm -C app/server start",
     "server:dev": "pnpm -C app/server dev",
     "website": "pnpm -C app/website dev",
@@ -17,7 +17,7 @@
     "battacker-web:build": "pnpm --filter @pleno-audit/battacker build && pnpm -C app/battacker-web build",
     "lint": "oxlint .",
     "test": "vitest run",
-    "test:ui": "vitest run --config app/extension/vitest.config.ts",
+    "test:ui": "vitest run --config app/audit-extension/vitest.config.ts",
     "test:all": "pnpm test && pnpm test:ui",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

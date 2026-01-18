@@ -5,7 +5,7 @@ dist/
 .wxt/
 
 *.local.md
-app/extension/public/sql-wasm.wasm
+app/audit-extension/public/sql-wasm.wasm
 
 # Scan data (raw results from security scanners)
 docs/scan-data/

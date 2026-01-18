@@ -6,7 +6,7 @@ Accepted
 
 ## コンテキスト
 
-`app/extension/utils/` ディレクトリには11のファイルが存在し、Chrome拡張機能のランタイムに関連する様々な責務が混在していた。
+`app/audit-extension/utils/` ディレクトリには11のファイルが存在し、Chrome拡張機能のランタイムに関連する様々な責務が混在していた。
 
 ### 問題点
 
@@ -31,7 +31,7 @@ Accepted
 
 ## 決定
 
-`app/extension/utils/` を `packages/extension-runtime` パッケージとして分離する。
+`app/audit-extension/utils/` を `packages/extension-runtime` パッケージとして分離する。
 
 ### パッケージ構造
 

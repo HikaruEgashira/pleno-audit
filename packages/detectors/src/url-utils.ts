@@ -6,7 +6,7 @@
  *
  * 使用箇所:
  * - packages/detectors: ポリシーURL検出時のURL正規化
- * - app/extension: コンテンツスクリプトでのURL解析
+ * - app/audit-extension: コンテンツスクリプトでのURL解析
  *
  * 設計原則:
  * - 純粋関数のみ（副作用なし）

@@ -43,7 +43,7 @@ Accepted (Updated: CRXJSからWXTへ移行)
 ### モノレポ構成
 ```
 /
-├── app/extension/           # ブラウザ拡張機能
+├── app/audit-extension/           # ブラウザ拡張機能
 │   ├── entrypoints/         # WXTエントリーポイント（popup, background等）
 │   └── wxt.config.ts        # WXT設定
 ├── packages/
