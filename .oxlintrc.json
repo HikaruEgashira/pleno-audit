@@ -41,7 +41,7 @@
     },
     // Debug bridge - needs console before logger is connected, and WebSocket for debug
     {
-      "files": ["app/extension/lib/debug-bridge.ts"],
+      "files": ["app/audit-extension/lib/debug-bridge.ts"],
       "rules": { "no-console": "off", "no-restricted-globals": "off" }
     },
     // RDAP API query for NRD detection (default: OFF)
@@ -61,12 +61,12 @@
     },
     // Web API interceptor for monitoring (no actual communication)
     {
-      "files": ["app/extension/public/api-hooks.js"],
+      "files": ["app/audit-extension/public/api-hooks.js"],
       "rules": { "no-restricted-globals": "off" }
     },
     // AI service interceptor for monitoring (no actual communication)
     {
-      "files": ["app/extension/public/ai-hooks.js"],
+      "files": ["app/audit-extension/public/ai-hooks.js"],
       "rules": { "no-restricted-globals": "off" }
     },
     // Landing page website (separate from extension)

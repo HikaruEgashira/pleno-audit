@@ -569,7 +569,7 @@ const ArchitectureSection = () => (
           <div className="flex items-start gap-3">
             <Chrome className="h-5 w-5 mt-0.5 text-[#666] dark:text-[#8f8f8f]" />
             <div>
-              <h4 className="font-medium text-[#171717] dark:text-[#ededed]">app/extension</h4>
+              <h4 className="font-medium text-[#171717] dark:text-[#ededed]">app/audit-extension</h4>
               <p className="text-sm text-[#666] dark:text-[#8f8f8f]">Chrome拡張機能（WXT + Preact）</p>
             </div>
           </div>
