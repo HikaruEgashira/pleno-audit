@@ -1,19 +1,12 @@
 # Pleno Audit
 
-`#Browser Detection and Response (BDR)` `#CASB` `#Browser Security`
+Personal `#Browser Security` `#BDR` `#CASB`
 
-## Features
+## Principles
 
-- Local First: すべてのデータ処理はブラウザ内で完結します。外部DBも用いません
-- Shadow IT
-    - Service Detection: ドメイン・Cookie・ネットワークリクエストからサービスを特定
-    - Service Policy Detection: 独自アルゴリズムでプライバシーポリシー／利用規約を特定
-    - AIプロンプト検出
-- Phishing
-    - NRD(Newly Registered Domain)検出
-    - Typosquatting検出
-- Malware
-    - CSP Audit: Content Security Policy違反の検出・レポート・ポリシー生成
+- Local First: すべてのデータ処理はブラウザ内で完結します。個人情報を大量に扱うため、プライバシー保護を最優先に設計されています
+- No DB: 外部から収集したブラックリスト等のDBは使用しません。基本的にヒューリスティックアルゴリズムを用います
+- Enterprise Ready: 個人での利便性を重要視しながらも、外部連携、SSO、ポリシー管理等、企業利用を組み込んでいます
 
 ## Screenshots
 
@@ -30,8 +23,8 @@
 ## インストール
 
 1. [Releases](https://github.com/HikaruEgashira/pleno-audit/releases)から最新版をダウンロード
-   - **pleno-audit.zip**: メイン拡張機能（CASB/Browser Security）
-   - **pleno-battacker.zip**: 防御耐性テストツール
+   - pleno-audit.zip: メイン拡張機能
+   - pleno-battacker.zip: 防御耐性テストツール
 2. ダウンロードしたzipファイルを展開
 3. Chrome で `chrome://extensions` を開く
 4. 右上の「デベロッパーモード」を有効にする
@@ -39,7 +32,6 @@
 6. 展開したフォルダを選択
 
 [Canary Releases](https://github.com/HikaruEgashira/pleno-audit/releases?q=canary&expanded=true)
-
 
 ## Documentation
 
