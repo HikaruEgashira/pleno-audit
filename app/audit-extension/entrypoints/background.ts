@@ -1548,6 +1548,7 @@ async function handleNetworkRequest(
 }
 
 interface DataExfiltrationData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   targetUrl: string;
@@ -1587,7 +1588,7 @@ async function handleDataExfiltration(
     initiator: data.initiator,
   });
 
-  logger.warn("Data exfiltration detected:", {
+  logger.warn(`Data exfiltration detected (via ${data.source || "unknown"}):`, {
     from: pageDomain,
     to: data.targetDomain,
     size: `${Math.round(data.bodySize / 1024)}KB`,
@@ -1606,6 +1607,7 @@ async function handleDataExfiltration(
 }
 
 interface CredentialTheftData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   formAction: string;
@@ -1652,7 +1654,7 @@ async function handleCredentialTheft(
       risks: data.risks,
     });
 
-    logger.warn("Credential theft risk detected:", {
+    logger.warn(`Credential theft risk detected (via ${data.source || "unknown"}):`, {
       from: pageDomain,
       to: data.targetDomain,
       fieldType: data.fieldType,
@@ -1664,6 +1666,7 @@ async function handleCredentialTheft(
 }
 
 interface SupplyChainRiskData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   url: string;
@@ -1709,7 +1712,7 @@ async function handleSupplyChainRisk(
     risks: data.risks,
   });
 
-  logger.warn("Supply chain risk detected:", {
+  logger.warn(`Supply chain risk detected (via ${data.source || "unknown"}):`, {
     page: pageDomain,
     resource: resourceDomain,
     type: data.resourceType,
@@ -1721,6 +1724,7 @@ async function handleSupplyChainRisk(
 
 // Tracking beacon data interface
 interface TrackingBeaconData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   url: string;
@@ -1756,7 +1760,7 @@ async function handleTrackingBeacon(
     initiator: data.initiator,
   });
 
-  logger.debug("Tracking beacon detected:", {
+  logger.debug(`Tracking beacon detected (via ${data.source || "unknown"}):`, {
     from: pageDomain,
     to: data.targetDomain,
   });
@@ -1766,6 +1770,7 @@ async function handleTrackingBeacon(
 
 // Clipboard hijack data interface
 interface ClipboardHijackData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   text: string;
@@ -1797,7 +1802,7 @@ async function handleClipboardHijack(
     textPreview: data.text,
   });
 
-  logger.warn("Clipboard hijack detected:", {
+  logger.warn(`Clipboard hijack detected (via ${data.source || "unknown"}):`, {
     domain: pageDomain,
     cryptoType: data.cryptoType,
   });
@@ -1807,6 +1812,7 @@ async function handleClipboardHijack(
 
 // Cookie access data interface
 interface CookieAccessData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   readCount: number;
@@ -1833,7 +1839,7 @@ async function handleCookieAccess(
     readCount: data.readCount,
   });
 
-  logger.debug("Cookie access detected:", {
+  logger.debug(`Cookie access detected (via ${data.source || "unknown"}):`, {
     domain: pageDomain,
   });
 
@@ -1842,6 +1848,7 @@ async function handleCookieAccess(
 
 // XSS detection data interface
 interface XSSDetectedData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   type: string;
@@ -1871,7 +1878,7 @@ async function handleXSSDetected(
     payloadPreview: data.payloadPreview,
   });
 
-  logger.warn("XSS detected:", {
+  logger.warn(`XSS detected (via ${data.source || "unknown"}):`, {
     domain: pageDomain,
     type: data.type,
   });
@@ -1881,6 +1888,7 @@ async function handleXSSDetected(
 
 // DOM scraping data interface
 interface DOMScrapingData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   selector: string;
@@ -1910,7 +1918,7 @@ async function handleDOMScraping(
     callCount: data.callCount,
   });
 
-  logger.debug("DOM scraping detected:", {
+  logger.debug(`DOM scraping detected (via ${data.source || "unknown"}):`, {
     domain: pageDomain,
     callCount: data.callCount,
   });
@@ -1920,6 +1928,7 @@ async function handleDOMScraping(
 
 // Suspicious download data interface
 interface SuspiciousDownloadData {
+  source?: string;
   timestamp: string;
   pageUrl: string;
   type: string;
@@ -1960,7 +1969,7 @@ async function handleSuspiciousDownload(
     mimeType: data.mimeType,
   });
 
-  logger.warn("Suspicious download detected:", {
+  logger.warn(`Suspicious download detected (via ${data.source || "unknown"}):`, {
     domain: pageDomain,
     type: data.type,
     filename: data.filename,
