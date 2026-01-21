@@ -139,10 +139,11 @@ class DebugServer extends EventEmitter {
 
         // Handle initial connection message with extension info
         if (message.data?.type === "connected" && message.data?.extensionId) {
-          connectionId = message.data.extensionId;
+          const extId: string = message.data.extensionId;
+          connectionId = extId;
           const connInfo: ExtensionConnection = {
             socket: ws,
-            extensionId: message.data.extensionId,
+            extensionId: extId,
             version: message.data.version || "unknown",
             devMode: message.data.devMode || false,
             context: message.data.context,
@@ -150,13 +151,13 @@ class DebugServer extends EventEmitter {
           };
 
           // Check if this extension is already connected
-          const existing = this.extensionConnections.get(connectionId);
+          const existing = this.extensionConnections.get(extId);
           if (existing) {
-            console.log(`[server] Extension ${connectionId} reconnected, closing old connection`);
+            console.log(`[server] Extension ${extId} reconnected, closing old connection`);
             existing.socket.close();
           }
 
-          this.extensionConnections.set(connectionId, connInfo);
+          this.extensionConnections.set(extId, connInfo);
 
           // Always use the most recent connection as active
           this.activeExtensionId = connectionId;
