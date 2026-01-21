@@ -65,7 +65,6 @@ async function simulatePromiseChainResolutionExploit(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Promise resolution order exploitation successful - Microtask queue timing variance: ${variance.toFixed(5)}`,
     };
@@ -73,7 +72,6 @@ async function simulatePromiseChainResolutionExploit(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Promise exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -129,14 +127,12 @@ async function simulateWeakMapKeyLeakageExploit(): Promise<AttackResult> {
     if (successfulLeaks > 50) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WeakMap internal structure leakage - ${successfulLeaks} successful lookups via timing side-channel`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WeakMap protection active",
       };
@@ -145,7 +141,6 @@ async function simulateWeakMapKeyLeakageExploit(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WeakMap exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -195,14 +190,12 @@ async function simulateArrayBufferAllocationChainExploit(): Promise<
     if (allocationVariance > 1.0) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `ArrayBuffer allocation pattern analysis successful - Variance: ${allocationVariance.toFixed(3)}ms reveals memory layout`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "ArrayBuffer allocation randomization active",
       };
@@ -211,7 +204,6 @@ async function simulateArrayBufferAllocationChainExploit(): Promise<
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `ArrayBuffer exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -268,14 +260,12 @@ async function simulateGeneratorStateLeakageExploit(): Promise<AttackResult> {
     if (leakedValues > 100) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Generator frame leakage - ${leakedValues} exposed secret values via execution timing`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Generator state protection active",
       };
@@ -284,7 +274,6 @@ async function simulateGeneratorStateLeakageExploit(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Generator exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -361,14 +350,12 @@ async function simulateClosureVariableCapture(): Promise<AttackResult> {
     if (correctGuesses > secretPassword.length / 2) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Closure variable capture exploit successful - ${correctGuesses}/${secretPassword.length} characters recovered via timing analysis`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Closure protection active",
       };
@@ -377,7 +364,6 @@ async function simulateClosureVariableCapture(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Closure exploit blocked: ${errorMessage}`,
       error: errorMessage,

@@ -1,7 +1,6 @@
 import type { AttackResult, AttackTest } from "../types";
-import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateBeaconCore(): Promise<AttackResult> {
+async function simulateBeacon(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -19,7 +18,6 @@ async function simulateBeaconCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Beacon sent successfully (status: ${response.status})`,
     };
@@ -29,7 +27,6 @@ async function simulateBeaconCore(): Promise<AttackResult> {
 
     return {
       blocked: errorMessage.includes("blocked") || errorMessage.includes("ERR_BLOCKED"),
-      detected: true,
       executionTime,
       details: `Request failed: ${errorMessage}`,
       error: errorMessage,
@@ -37,12 +34,7 @@ async function simulateBeaconCore(): Promise<AttackResult> {
   }
 }
 
-const simulateBeacon = withDetectionMonitor(
-  simulateBeaconCore,
-  ["__TRACKING_BEACON_DETECTED__"]
-);
-
-async function simulateDataExfiltrationCore(): Promise<AttackResult> {
+async function simulateDataExfiltration(): Promise<AttackResult> {
   const startTime = performance.now();
 
   const sensitiveData = {
@@ -64,7 +56,6 @@ async function simulateDataExfiltrationCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Data exfiltration simulated (status: ${response.status})`,
     };
@@ -74,7 +65,6 @@ async function simulateDataExfiltrationCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Data exfiltration blocked: ${errorMessage}`,
       error: errorMessage,
@@ -82,12 +72,7 @@ async function simulateDataExfiltrationCore(): Promise<AttackResult> {
   }
 }
 
-const simulateDataExfiltration = withDetectionMonitor(
-  simulateDataExfiltrationCore,
-  ["__DATA_EXFILTRATION_DETECTED__"]
-);
-
-async function simulateC2CommunicationCore(): Promise<AttackResult> {
+async function simulateC2Communication(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -98,7 +83,6 @@ async function simulateC2CommunicationCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `C2 polling successful, received ${JSON.stringify(data).length} bytes`,
     };
@@ -108,16 +92,12 @@ async function simulateC2CommunicationCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `C2 communication blocked: ${errorMessage}`,
       error: errorMessage,
     };
   }
 }
-
-// C2 Communication is harder to detect specifically, use network request monitoring
-const simulateC2Communication = simulateC2CommunicationCore;
 
 async function simulateWebSocketC2(): Promise<AttackResult> {
   const startTime = performance.now();
@@ -133,7 +113,6 @@ async function simulateWebSocketC2(): Promise<AttackResult> {
           ws.close();
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: "WebSocket connection timed out (potential stealth success)",
           });
@@ -157,7 +136,6 @@ async function simulateWebSocketC2(): Promise<AttackResult> {
           ws.close();
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `WebSocket C2 communication successful: ${event.data.length} bytes echoed`,
           });
@@ -170,7 +148,6 @@ async function simulateWebSocketC2(): Promise<AttackResult> {
           clearTimeout(timeout);
           resolve({
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: "WebSocket connection blocked or failed",
           });
@@ -180,7 +157,6 @@ async function simulateWebSocketC2(): Promise<AttackResult> {
       const errorMessage = error instanceof Error ? error.message : String(error);
       resolve({
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: `WebSocket C2 blocked: ${errorMessage}`,
         error: errorMessage,
@@ -218,7 +194,6 @@ async function simulateWebWorkerExfil(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "Web Worker exfiltration timed out (worker may be blocked)",
         });
@@ -232,14 +207,12 @@ async function simulateWebWorkerExfil(): Promise<AttackResult> {
         if (e.data.success) {
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Web Worker exfiltration successful (status: ${e.data.status})`,
           });
         } else {
           resolve({
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: `Web Worker fetch blocked: ${e.data.error}`,
           });
@@ -252,7 +225,6 @@ async function simulateWebWorkerExfil(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `Web Worker creation blocked: ${err.message}`,
         });
@@ -267,7 +239,6 @@ async function simulateWebWorkerExfil(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Web Worker exfiltration blocked: ${errorMessage}`,
       error: errorMessage,

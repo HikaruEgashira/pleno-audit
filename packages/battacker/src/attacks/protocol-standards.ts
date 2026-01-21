@@ -84,14 +84,12 @@ async function simulateHTTP2StreamMultiplexingExploit(): Promise<AttackResult> {
     if (effectiveVulns >= 2) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `HTTP/2 multiplexing exploitation successful - ${effectiveVulns}/4 vectors usable for information leakage`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "HTTP/2 protection active",
       };
@@ -100,7 +98,6 @@ async function simulateHTTP2StreamMultiplexingExploit(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `HTTP/2 attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -159,14 +156,12 @@ async function simulateWebSocketProtocolViolationAttack(): Promise<AttackResult>
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WebSocket protocol violations exploitable - ${exploitableCount}/5 vulnerabilities usable for protocol confusion`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WebSocket protocol protection active",
       };
@@ -175,7 +170,6 @@ async function simulateWebSocketProtocolViolationAttack(): Promise<AttackResult>
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebSocket attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -248,14 +242,12 @@ async function simulateHTMLParsingAmbiguityAttack(): Promise<AttackResult> {
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `HTML parsing ambiguities exploitable - ${exploitableCount}/7 parsing quirks usable for DOM XSS`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "HTML parsing protection active",
       };
@@ -264,7 +256,6 @@ async function simulateHTMLParsingAmbiguityAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `HTML parsing attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -334,14 +325,12 @@ async function simulateCSSSpecificityBombAttack(): Promise<AttackResult> {
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `CSS specificity attacks successful - ${exploitableCount}/6 vectors usable for rendering manipulation`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "CSS protection active",
       };
@@ -350,7 +339,6 @@ async function simulateCSSSpecificityBombAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `CSS attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -423,14 +411,12 @@ async function simulateMIMETypeNegotiationBypassAttack(): Promise<AttackResult> 
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `MIME type negotiation bypass successful - ${exploitableCount}/6 vectors usable for content sniffing`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "MIME type protection active",
       };
@@ -439,7 +425,6 @@ async function simulateMIMETypeNegotiationBypassAttack(): Promise<AttackResult> 
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `MIME type attack blocked: ${errorMessage}`,
       error: errorMessage,

@@ -1,7 +1,6 @@
 import type { AttackResult, AttackTest } from "../types";
-import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateXSSPayloadCore(): Promise<AttackResult> {
+async function simulateXSSPayload(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -18,7 +17,6 @@ async function simulateXSSPayloadCore(): Promise<AttackResult> {
     if (injected) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "XSS-like script injection successful",
       };
@@ -26,7 +24,6 @@ async function simulateXSSPayloadCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: "XSS injection was blocked",
     };
@@ -36,7 +33,6 @@ async function simulateXSSPayloadCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Script injection blocked: ${errorMessage}`,
       error: errorMessage,
@@ -44,12 +40,7 @@ async function simulateXSSPayloadCore(): Promise<AttackResult> {
   }
 }
 
-const simulateXSSPayload = withDetectionMonitor(
-  simulateXSSPayloadCore,
-  ["__XSS_DETECTED__"]
-);
-
-async function simulateDOMManipulationCore(): Promise<AttackResult> {
+async function simulateDOMManipulation(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -60,7 +51,6 @@ async function simulateDOMManipulationCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `DOM access successful, found ${forms.length} forms and ${inputs.length} inputs`,
     };
@@ -70,7 +60,6 @@ async function simulateDOMManipulationCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `DOM manipulation blocked: ${errorMessage}`,
       error: errorMessage,
@@ -78,12 +67,7 @@ async function simulateDOMManipulationCore(): Promise<AttackResult> {
   }
 }
 
-const simulateDOMManipulation = withDetectionMonitor(
-  simulateDOMManipulationCore,
-  ["__DOM_SCRAPING_DETECTED__"]
-);
-
-async function simulateCookieTheftCore(): Promise<AttackResult> {
+async function simulateCookieTheft(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -92,7 +76,6 @@ async function simulateCookieTheftCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Cookie access successful, found ${cookies.length} chars of cookie data`,
     };
@@ -102,18 +85,12 @@ async function simulateCookieTheftCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Cookie access blocked: ${errorMessage}`,
       error: errorMessage,
     };
   }
 }
-
-const simulateCookieTheft = withDetectionMonitor(
-  simulateCookieTheftCore,
-  ["__COOKIE_ACCESS_DETECTED__"]
-);
 
 export const clientSideAttacks: AttackTest[] = [
   {

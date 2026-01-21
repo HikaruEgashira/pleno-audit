@@ -11,7 +11,6 @@ async function simulateWebGPUMemoryLeak(): Promise<AttackResult> {
     if (!navigator.gpu) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebGPU not available",
       };
@@ -21,7 +20,6 @@ async function simulateWebGPUMemoryLeak(): Promise<AttackResult> {
     if (!adapter) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "GPU adapter not available",
       };
@@ -78,14 +76,12 @@ async function simulateWebGPUMemoryLeak(): Promise<AttackResult> {
     if (dataExfiltrated) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WebGPU memory leak successful - GPU memory content exfiltrated (${bufferSize} bytes)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WebGPU memory access blocked",
       };
@@ -94,7 +90,6 @@ async function simulateWebGPUMemoryLeak(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebGPU attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -155,14 +150,12 @@ async function simulateCustomElementsXSS(): Promise<AttackResult> {
     if (xssExecuted) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Custom Elements XSS successful - Shadow DOM script execution (privilege escalation)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Custom Elements XSS blocked",
       };
@@ -171,7 +164,6 @@ async function simulateCustomElementsXSS(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Custom Elements attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -189,7 +181,6 @@ async function simulateWebCodecsExfiltration(): Promise<AttackResult> {
     if (!("VideoEncoder" in window) || !("VideoDecoder" in window)) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Web Codecs API not available",
       };
@@ -250,14 +241,12 @@ async function simulateWebCodecsExfiltration(): Promise<AttackResult> {
     if (codecsAccessible) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Web Codecs exfiltration successful - video frame encoding operational (data hidden in frames)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Web Codecs API blocked",
       };
@@ -266,7 +255,6 @@ async function simulateWebCodecsExfiltration(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Web Codecs attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -284,7 +272,6 @@ async function simulateWebTransportP2P(): Promise<AttackResult> {
     if (!("WebTransport" in window)) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebTransport not available",
       };
@@ -334,14 +321,12 @@ async function simulateWebTransportP2P(): Promise<AttackResult> {
     if (p2pChannelEstablished) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WebTransport P2P channel established - direct exfiltration possible`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WebTransport connection blocked",
       };
@@ -350,7 +335,6 @@ async function simulateWebTransportP2P(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebTransport attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -368,7 +352,6 @@ async function simulateWebAuthnBypass(): Promise<AttackResult> {
     if (!navigator.credentials) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebAuthn API not available",
       };
@@ -408,14 +391,12 @@ async function simulateWebAuthnBypass(): Promise<AttackResult> {
     if (authBypassAttempted) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WebAuthn credential creation successful - authentication bypass possible`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WebAuthn credential creation blocked",
       };
@@ -424,7 +405,6 @@ async function simulateWebAuthnBypass(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebAuthn attack blocked: ${errorMessage}`,
       error: errorMessage,

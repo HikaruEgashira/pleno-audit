@@ -70,14 +70,12 @@ async function simulateContentScriptSandboxEscapeAttack(): Promise<AttackResult>
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Content script sandbox escape exploitable - ${exploitableCount}/6 boundary vectors usable for main world access`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Content script sandbox protection active",
       };
@@ -86,7 +84,6 @@ async function simulateContentScriptSandboxEscapeAttack(): Promise<AttackResult>
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Content script escape blocked: ${errorMessage}`,
       error: errorMessage,
@@ -155,14 +152,12 @@ async function simulateExtensionAPICapabilityLeakAttack(): Promise<AttackResult>
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Extension API capability leak exploitable - ${exploitableCount}/6 capability vectors usable for privilege elevation`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "API capability protection active",
       };
@@ -171,7 +166,6 @@ async function simulateExtensionAPICapabilityLeakAttack(): Promise<AttackResult>
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `API capability leak blocked: ${errorMessage}`,
       error: errorMessage,
@@ -248,14 +242,12 @@ async function simulateMessagePassingProtocolExploitationAttack(): Promise<Attac
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Message passing exploitation successful - ${exploitableCount}/7 protocol vectors usable for arbitrary command execution`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Message passing protection active",
       };
@@ -264,7 +256,6 @@ async function simulateMessagePassingProtocolExploitationAttack(): Promise<Attac
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Message passing attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -334,14 +325,12 @@ async function simulateStoragePermissionBypassAttack(): Promise<AttackResult> {
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Storage permission bypass exploitable - ${exploitableCount}/6 storage vectors usable for data exfiltration`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Storage permission protection active",
       };
@@ -350,7 +339,6 @@ async function simulateStoragePermissionBypassAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Storage bypass blocked: ${errorMessage}`,
       error: errorMessage,
@@ -420,14 +408,12 @@ async function simulateManifestCompatibilityExploitationAttack(): Promise<Attack
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Manifest compatibility exploitation successful - ${exploitableCount}/6 compatibility vectors usable for permission bypass`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Manifest compatibility protection active",
       };
@@ -436,7 +422,6 @@ async function simulateManifestCompatibilityExploitationAttack(): Promise<Attack
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Manifest compatibility attack blocked: ${errorMessage}`,
       error: errorMessage,

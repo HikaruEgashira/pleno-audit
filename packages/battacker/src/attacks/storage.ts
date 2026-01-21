@@ -26,14 +26,12 @@ async function simulateLocalStorageExfil(): Promise<AttackResult> {
     if (retrieved === testValue) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `localStorage exfiltration successful - ${testValue.length} bytes persisted`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "localStorage write succeeded but retrieval failed",
       };
@@ -42,7 +40,6 @@ async function simulateLocalStorageExfil(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `localStorage exfiltration blocked: ${errorMessage}`,
       error: errorMessage,
@@ -73,14 +70,12 @@ async function simulateSessionStorageExfil(): Promise<AttackResult> {
     if (retrieved === testValue) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `sessionStorage exfiltration successful - ${testValue.length} bytes persisted`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "sessionStorage write succeeded but retrieval failed",
       };
@@ -89,7 +84,6 @@ async function simulateSessionStorageExfil(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `sessionStorage exfiltration blocked: ${errorMessage}`,
       error: errorMessage,
@@ -127,7 +121,6 @@ async function simulateStorageEventSpying(): Promise<AttackResult> {
     if (eventCaught) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details:
           "Storage event spying successful - cross-tab data leakage detected",
@@ -135,7 +128,6 @@ async function simulateStorageEventSpying(): Promise<AttackResult> {
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details:
           "Storage event listener set but no external tab changes (single-tab test)",
@@ -145,7 +137,6 @@ async function simulateStorageEventSpying(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Storage event spying blocked: ${errorMessage}`,
       error: errorMessage,
@@ -200,14 +191,12 @@ async function simulateStorageQuotaExhaustion(): Promise<AttackResult> {
     if (quotaExhausted) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Storage quota attack successful - exhausted after ${bytesStored} bytes`,
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Storage quota exploration - stored ${bytesStored} bytes before test limit`,
       };
@@ -216,7 +205,6 @@ async function simulateStorageQuotaExhaustion(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Storage quota attack blocked: ${errorMessage}`,
       error: errorMessage,
