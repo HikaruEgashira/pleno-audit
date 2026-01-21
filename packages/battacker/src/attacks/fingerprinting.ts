@@ -11,7 +11,6 @@ async function simulateWebGLFingerprinting(): Promise<AttackResult> {
     if (!gl) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebGL context not available",
       };
@@ -46,14 +45,12 @@ async function simulateWebGLFingerprinting(): Promise<AttackResult> {
     if (collectedFields >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WebGL fingerprinting successful - collected ${collectedFields} parameters (GPU: ${fingerprint.unmaskedRenderer || fingerprint.renderer})`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `WebGL fingerprinting partially blocked - only ${collectedFields} parameters collected`,
       };
@@ -62,7 +59,6 @@ async function simulateWebGLFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebGL fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,
@@ -82,7 +78,6 @@ async function simulateAudioFingerprinting(): Promise<AttackResult> {
     if (!AudioContextClass) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "AudioContext not available",
       };
@@ -132,7 +127,6 @@ async function simulateAudioFingerprinting(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Audio fingerprinting successful - hash: ${hash.toString(16)}`,
     };
@@ -140,7 +134,6 @@ async function simulateAudioFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Audio fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,
@@ -185,7 +178,6 @@ async function simulateFontFingerprinting(): Promise<AttackResult> {
     if (!ctx) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Canvas context not available for font detection",
       };
@@ -213,7 +205,6 @@ async function simulateFontFingerprinting(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Font fingerprinting successful - detected ${detectedFonts.length}/${testFonts.length} fonts`,
     };
@@ -221,7 +212,6 @@ async function simulateFontFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Font fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,
@@ -270,7 +260,6 @@ async function simulateScreenFingerprinting(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Screen fingerprinting successful - collected ${collectedFields} properties (${fingerprint.screenWidth}x${fingerprint.screenHeight} @ ${fingerprint.devicePixelRatio}x)`,
     };
@@ -278,7 +267,6 @@ async function simulateScreenFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Screen fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,
@@ -347,7 +335,6 @@ async function simulateNavigatorFingerprinting(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Navigator fingerprinting successful - collected ${collectedFields} properties`,
     };
@@ -355,7 +342,6 @@ async function simulateNavigatorFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Navigator fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,

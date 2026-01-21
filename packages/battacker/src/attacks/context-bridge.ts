@@ -17,7 +17,6 @@ async function simulateWindowOpenPostMessage(): Promise<AttackResult> {
     if (!popup) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Window.open blocked by popup blocker",
       };
@@ -28,7 +27,6 @@ async function simulateWindowOpenPostMessage(): Promise<AttackResult> {
         popup.close();
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "Context bridge timeout",
         });
@@ -43,7 +41,6 @@ async function simulateWindowOpenPostMessage(): Promise<AttackResult> {
 
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: "Window.open + postMessage bridge established (SOP bypass)",
           });
@@ -88,7 +85,6 @@ async function simulateWindowOpenPostMessage(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Context bridge attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -174,14 +170,12 @@ async function simulateTimingOracleAttack(): Promise<AttackResult> {
     if (timingDifference > 0.001) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Timing oracle attack successful - ${timingDifference.toFixed(6)}ms difference (user enumeration via timing)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Timing oracle attack mitigated - no measurable timing difference",
       };
@@ -190,7 +184,6 @@ async function simulateTimingOracleAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Timing oracle attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -245,14 +238,12 @@ async function simulateCacheSideChannelAttack(): Promise<AttackResult> {
     if (cachedUrls.length > uncachedUrls.length) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Cache side-channel attack successful - ${cachedUrls.length} cached URLs detected via timing (information leakage)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Cache side-channel attack mitigated",
       };
@@ -261,7 +252,6 @@ async function simulateCacheSideChannelAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Cache side-channel attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -279,7 +269,6 @@ async function simulateWasmIndirectCallAttack(): Promise<AttackResult> {
     if (typeof WebAssembly === "undefined") {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebAssembly not available",
       };
@@ -326,14 +315,12 @@ async function simulateWasmIndirectCallAttack(): Promise<AttackResult> {
     if (tableAccessible) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `WASM indirect call attack successful - function pointer table accessible (memory layout inference possible)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "WASM indirect call table access blocked",
       };
@@ -342,7 +329,6 @@ async function simulateWasmIndirectCallAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WASM indirect call attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -391,14 +377,12 @@ async function simulateRedirectChainAttack(): Promise<AttackResult> {
     if (dataLeaked && redirectChain.length > 0) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Redirect chain attack successful - ${redirectChain.length} redirects followed (URL parameter leakage)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Redirect chain attack blocked",
       };
@@ -407,7 +391,6 @@ async function simulateRedirectChainAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Redirect chain attack blocked: ${errorMessage}`,
       error: errorMessage,

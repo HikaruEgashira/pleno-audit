@@ -132,14 +132,12 @@ async function simulateUISpoofiingAndAddressBarFakery(): Promise<AttackResult> {
     if (effectiveVectors >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `UI spoofing attack successful - ${effectiveVectors}/5 visual deception vectors deployed`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "UI protection active",
       };
@@ -148,7 +146,6 @@ async function simulateUISpoofiingAndAddressBarFakery(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `UI spoofing blocked: ${errorMessage}`,
       error: errorMessage,
@@ -249,14 +246,12 @@ async function simulateDeviceSensorExploitation(): Promise<AttackResult> {
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Device sensor exploitation successful - ${exploitableCount}/5 sensors leveraged for device fingerprinting and behavior analysis`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Sensor protection active",
       };
@@ -265,7 +260,6 @@ async function simulateDeviceSensorExploitation(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Sensor exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -360,14 +354,12 @@ async function simulatePageVisibilityExploitation(): Promise<AttackResult> {
     if (possibleCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Page visibility exploitation successful - ${possibleCount}/5 background execution vectors deployed`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Visibility protection active",
       };
@@ -376,7 +368,6 @@ async function simulatePageVisibilityExploitation(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Visibility exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -488,14 +479,12 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
     if (exhaustibleCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Resource exhaustion attack successful - ${exhaustibleCount}/5 resources targeted for DoS`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Resource protection active",
       };
@@ -504,7 +493,6 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Resource exploit blocked: ${errorMessage}`,
       error: errorMessage,
@@ -601,14 +589,12 @@ async function simulateBrowserHistoryHijacking(): Promise<AttackResult> {
     if (effectiveCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Browser history hijacking successful - ${effectiveCount}/5 navigation trap vectors deployed`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Navigation protection active",
       };
@@ -617,7 +603,6 @@ async function simulateBrowserHistoryHijacking(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `History hijacking blocked: ${errorMessage}`,
       error: errorMessage,

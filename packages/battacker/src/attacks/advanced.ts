@@ -52,14 +52,12 @@ async function simulateFormSubmissionHijack(): Promise<AttackResult> {
     if (formSubmitted) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Form submission hijacking successful - password field intercepted`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Form submission hijacking blocked or prevented",
       };
@@ -68,7 +66,6 @@ async function simulateFormSubmissionHijack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Form submission hijack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -97,7 +94,6 @@ async function simulatePrototypePollution(): Promise<AttackResult> {
       if ((checkObj as any).admin === true) {
         return {
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Prototype pollution successful - Object.prototype.admin injected`,
         };
@@ -118,7 +114,6 @@ async function simulatePrototypePollution(): Promise<AttackResult> {
       if ((testObj as any).polluted === true) {
         return {
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Direct prototype pollution successful - Object.defineProperty hijacking`,
         };
@@ -129,7 +124,6 @@ async function simulatePrototypePollution(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: "Prototype pollution blocked or prevented",
     };
@@ -137,7 +131,6 @@ async function simulatePrototypePollution(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Prototype pollution blocked: ${errorMessage}`,
       error: errorMessage,
@@ -177,14 +170,12 @@ async function simulateRequestHeaderInjection(): Promise<AttackResult> {
     if (response) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Request header injection successful - custom headers injected`,
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Request header injection attempted (network error or blocked)`,
       };
@@ -193,7 +184,6 @@ async function simulateRequestHeaderInjection(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Request header injection blocked: ${errorMessage}`,
       error: errorMessage,
@@ -248,14 +238,12 @@ async function simulateMutationObserverXSS(): Promise<AttackResult> {
     if (xssDetected) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `MutationObserver XSS successful - script element injected and detected`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "MutationObserver XSS blocked",
       };
@@ -264,7 +252,6 @@ async function simulateMutationObserverXSS(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `MutationObserver XSS blocked: ${errorMessage}`,
       error: errorMessage,
@@ -302,7 +289,6 @@ async function simulateCORSPreflightLeak(): Promise<AttackResult> {
 
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `CORS preflight leak - timing analysis possible (${preflightTiming.toFixed(0)}ms preflight)`,
       };
@@ -311,7 +297,6 @@ async function simulateCORSPreflightLeak(): Promise<AttackResult> {
 
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `CORS preflight blocked: ${String(error).substring(0, 50)}`,
       };
@@ -320,7 +305,6 @@ async function simulateCORSPreflightLeak(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `CORS preflight leak blocked: ${errorMessage}`,
       error: errorMessage,

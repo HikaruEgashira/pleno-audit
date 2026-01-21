@@ -23,7 +23,6 @@ import { userDeviceLayerAttacks } from "./user-device-layer";
 import { protocolStandardsAttacks } from "./protocol-standards";
 import { renderingEngineAttacks } from "./rendering-engine";
 import { extensionSandboxAttacks } from "./extension-sandbox";
-import { createDetectionListener } from "./detection-listener";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -77,5 +76,4 @@ export {
   protocolStandardsAttacks,
   renderingEngineAttacks,
   extensionSandboxAttacks,
-  createDetectionListener,
 };

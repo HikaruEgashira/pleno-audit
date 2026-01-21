@@ -21,7 +21,6 @@ export type Grade = "A" | "B" | "C" | "D" | "F";
 
 export interface AttackResult {
   blocked: boolean;
-  detected: boolean;
   executionTime: number;
   details: string;
   error?: string;

@@ -7,7 +7,6 @@ async function simulateBeaconAPIBypass(): Promise<AttackResult> {
     if (!navigator.sendBeacon) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Beacon API not available",
       };
@@ -34,14 +33,12 @@ async function simulateBeaconAPIBypass(): Promise<AttackResult> {
     if (success) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Beacon API exfiltration successful - queued after page unload (detection bypass)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Beacon API call failed or blocked",
       };
@@ -50,7 +47,6 @@ async function simulateBeaconAPIBypass(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Beacon API blocked: ${errorMessage}`,
       error: errorMessage,
@@ -89,7 +85,6 @@ async function simulateDNSPrefetchLeak(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `DNS prefetch leak successful - timing-based covert channel established (${timingMeasured}ms)`,
     };
@@ -97,7 +92,6 @@ async function simulateDNSPrefetchLeak(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `DNS prefetch leak blocked: ${errorMessage}`,
       error: errorMessage,
@@ -120,7 +114,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
     if (!WebTransport) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebTransport API not available (not yet widely supported)",
       };
@@ -132,7 +125,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "WebTransport connection attempt timeout (server unavailable)",
@@ -150,7 +142,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
             clearTimeout(timeout);
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details:
                 "WebTransport connection successful - low-latency UDP tunnel established",
@@ -160,7 +151,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
             clearTimeout(timeout);
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: `WebTransport blocked: ${error.message}`,
             });
@@ -170,7 +160,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
         const errorMessage = error instanceof Error ? error.message : String(error);
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `WebTransport initialization failed: ${errorMessage}`,
         });
@@ -180,7 +169,6 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebTransport attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -200,7 +188,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
     if (!RTCPeerConnection) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebRTC API not available",
       };
@@ -215,7 +202,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
         peerConnection.close();
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "WebRTC DataChannel attempt timed out (no peer)",
         });
@@ -240,7 +226,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
 
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `WebRTC DataChannel established - peer-to-peer exfiltration possible`,
         });
@@ -252,7 +237,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
 
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `WebRTC DataChannel error: ${error.message}`,
         });
@@ -264,7 +248,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
 
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `WebRTC connection error: ${error.message}`,
         });
@@ -281,7 +264,6 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WebRTC DataChannel blocked: ${errorMessage}`,
       error: errorMessage,
@@ -328,7 +310,6 @@ async function simulateImageLoadCovertChannel(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Image load timing covert channel established - avg ${avgTiming.toFixed(0)}ms (cache analysis possible)`,
     };
@@ -336,7 +317,6 @@ async function simulateImageLoadCovertChannel(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Image load timing channel blocked: ${errorMessage}`,
       error: errorMessage,

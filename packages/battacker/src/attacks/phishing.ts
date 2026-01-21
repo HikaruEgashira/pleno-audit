@@ -1,7 +1,6 @@
 import type { AttackResult, AttackTest } from "../types";
-import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateClipboardHijackCore(): Promise<AttackResult> {
+async function simulateClipboardHijack(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -12,7 +11,6 @@ async function simulateClipboardHijackCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: "Clipboard hijack successful - content replaced",
     };
@@ -22,18 +20,12 @@ async function simulateClipboardHijackCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Clipboard hijack blocked: ${errorMessage}`,
       error: errorMessage,
     };
   }
 }
-
-const simulateClipboardHijack = withDetectionMonitor(
-  simulateClipboardHijackCore,
-  ["__CLIPBOARD_HIJACK_DETECTED__"]
-);
 
 async function simulateCredentialAPIHarvest(): Promise<AttackResult> {
   const startTime = performance.now();
@@ -42,7 +34,6 @@ async function simulateCredentialAPIHarvest(): Promise<AttackResult> {
     if (!("credentials" in navigator)) {
       return {
         blocked: false,
-        detected: false,
         executionTime: performance.now() - startTime,
         details: "Credential Management API not available (browser may not support it)",
       };
@@ -58,14 +49,12 @@ async function simulateCredentialAPIHarvest(): Promise<AttackResult> {
     if (credential) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Credential API harvest successful: retrieved ${credential.type} credential`,
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "Credential API accessed but no stored credentials found",
       };
@@ -76,7 +65,6 @@ async function simulateCredentialAPIHarvest(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Credential API harvest blocked: ${errorMessage}`,
       error: errorMessage,
@@ -91,7 +79,6 @@ async function simulateNotificationPhishing(): Promise<AttackResult> {
     if (!("Notification" in window)) {
       return {
         blocked: false,
-        detected: false,
         executionTime: performance.now() - startTime,
         details: "Notification API not available",
       };
@@ -111,21 +98,18 @@ async function simulateNotificationPhishing(): Promise<AttackResult> {
 
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "Notification phishing successful - fake security alert displayed",
       };
     } else if (permission === "denied") {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Notification permission denied by user/browser",
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "Notification permission in default state (not yet granted)",
       };
@@ -136,7 +120,6 @@ async function simulateNotificationPhishing(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Notification phishing blocked: ${errorMessage}`,
       error: errorMessage,

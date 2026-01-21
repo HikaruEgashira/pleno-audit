@@ -38,7 +38,6 @@ async function simulateCPUMining(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `CPU mining simulation completed - ${hashRate} h/s (${hashCount} hashes in ${testDuration}ms)${foundValidHash ? ", found valid hash!" : ""}`,
     };
@@ -46,7 +45,6 @@ async function simulateCPUMining(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `CPU mining blocked: ${errorMessage}`,
       error: errorMessage,
@@ -112,7 +110,6 @@ async function simulateWebWorkerMining(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "Web Worker mining timed out - worker may be throttled",
         });
@@ -125,7 +122,6 @@ async function simulateWebWorkerMining(): Promise<AttackResult> {
           URL.revokeObjectURL(workerUrl);
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Web Worker mining successful - ${e.data.hashRate} h/s (${e.data.hashCount} hashes)`,
           });
@@ -138,7 +134,6 @@ async function simulateWebWorkerMining(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `Web Worker mining blocked: ${err.message}`,
           error: err.message,
@@ -155,7 +150,6 @@ async function simulateWebWorkerMining(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Web Worker mining blocked: ${errorMessage}`,
       error: errorMessage,
@@ -216,7 +210,6 @@ async function simulateMultiWorkerMining(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Multi-worker mining timed out - spawned ${workerCount} workers`,
         });
@@ -242,7 +235,6 @@ async function simulateMultiWorkerMining(): Promise<AttackResult> {
 
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Multi-worker mining successful - ${workerCount} workers, ${totalHashRate} h/s combined (${totalHashes} total hashes)`,
             });
@@ -255,7 +247,6 @@ async function simulateMultiWorkerMining(): Promise<AttackResult> {
           URL.revokeObjectURL(workerUrl);
           resolve({
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: "Multi-worker mining blocked",
           });
@@ -271,7 +262,6 @@ async function simulateMultiWorkerMining(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Multi-worker mining blocked: ${errorMessage}`,
       error: errorMessage,
@@ -288,7 +278,6 @@ async function simulateWasmMiningCheck(): Promise<AttackResult> {
     if (!wasmSupported) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "WebAssembly not supported - WASM mining would fail",
       };
@@ -321,7 +310,6 @@ async function simulateWasmMiningCheck(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `WASM mining capability confirmed - ${opsRate} ops/s (WebAssembly execution successful)`,
     };
@@ -329,7 +317,6 @@ async function simulateWasmMiningCheck(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `WASM mining check blocked: ${errorMessage}`,
       error: errorMessage,

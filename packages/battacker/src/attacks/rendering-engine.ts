@@ -69,14 +69,12 @@ async function simulateLayoutRaceConditionAttack(): Promise<AttackResult> {
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Layout race conditions exploitable - ${exploitableCount}/6 vectors usable for information disclosure`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Layout protection active",
       };
@@ -85,7 +83,6 @@ async function simulateLayoutRaceConditionAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Layout attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -162,14 +159,12 @@ async function simulatePaintOrderExploitationAttack(): Promise<AttackResult> {
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Paint order exploitation successful - ${exploitableCount}/7 stacking context anomalies usable for UI redressing`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Paint order protection active",
       };
@@ -178,7 +173,6 @@ async function simulatePaintOrderExploitationAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Paint order attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -247,14 +241,12 @@ async function simulateCompositingBoundaryViolationAttack(): Promise<AttackResul
     if (exploitableCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Compositing boundary violations exploitable - ${exploitableCount}/6 layer boundary anomalies usable for rendering bypass`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Compositing protection active",
       };
@@ -263,7 +255,6 @@ async function simulateCompositingBoundaryViolationAttack(): Promise<AttackResul
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Compositing attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -340,14 +331,12 @@ async function simulateFontRenderingChaosAttack(): Promise<AttackResult> {
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Font rendering chaos exploitable - ${exploitableCount}/7 rendering vectors usable for character-based information leakage`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Font rendering protection active",
       };
@@ -356,7 +345,6 @@ async function simulateFontRenderingChaosAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Font rendering attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -433,14 +421,12 @@ async function simulateScrollHitTestDesyncAttack(): Promise<AttackResult> {
     if (exploitableCount >= 4) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Scroll/hit test desynchronization exploitable - ${exploitableCount}/7 geometry anomalies usable for coordinate-based attacks`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Scroll/hit test protection active",
       };
@@ -449,7 +435,6 @@ async function simulateScrollHitTestDesyncAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Scroll/hit test attack blocked: ${errorMessage}`,
       error: errorMessage,

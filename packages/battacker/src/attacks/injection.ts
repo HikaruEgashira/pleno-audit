@@ -7,7 +7,6 @@ async function simulateClipboardSilentRead(): Promise<AttackResult> {
     if (!navigator.clipboard?.readText) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Clipboard read API not available",
       };
@@ -17,7 +16,6 @@ async function simulateClipboardSilentRead(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "Clipboard read permission pending - requires user interaction",
@@ -30,7 +28,6 @@ async function simulateClipboardSilentRead(): Promise<AttackResult> {
           clearTimeout(timeout);
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Clipboard read successful - ${text.length} chars harvested (password/tokens?)`,
           });
@@ -43,14 +40,12 @@ async function simulateClipboardSilentRead(): Promise<AttackResult> {
           ) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Clipboard read blocked by browser/user",
             });
           } else {
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Clipboard read error: ${error.message}`,
             });
@@ -61,7 +56,6 @@ async function simulateClipboardSilentRead(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Clipboard read blocked: ${errorMessage}`,
       error: errorMessage,
@@ -78,7 +72,6 @@ async function simulateRequestFullscreen(): Promise<AttackResult> {
     if (!element.requestFullscreen && !(element as any).webkitRequestFullscreen) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Fullscreen API not available",
       };
@@ -88,7 +81,6 @@ async function simulateRequestFullscreen(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "Fullscreen request pending - attacker overlay could be displayed",
@@ -100,7 +92,6 @@ async function simulateRequestFullscreen(): Promise<AttackResult> {
         document.removeEventListener("fullscreenchange", exitListener);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Fullscreen takeover successful - phishing overlay attack possible`,
         });
@@ -130,14 +121,12 @@ async function simulateRequestFullscreen(): Promise<AttackResult> {
             ) {
               resolve({
                 blocked: true,
-                detected: true,
                 executionTime: performance.now() - startTime,
                 details: "Fullscreen blocked by browser/user",
               });
             } else {
               resolve({
                 blocked: true,
-                detected: true,
                 executionTime: performance.now() - startTime,
                 details: `Fullscreen request failed: ${error.message}`,
               });
@@ -149,7 +138,6 @@ async function simulateRequestFullscreen(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Fullscreen attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -181,14 +169,12 @@ async function simulateInnerHTMLInjection(): Promise<AttackResult> {
     if (hasScript || hasImg) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `innerHTML injection successful - dangerous elements persisted`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "innerHTML injection blocked - dangerous content stripped",
       };
@@ -197,7 +183,6 @@ async function simulateInnerHTMLInjection(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `innerHTML injection blocked: ${errorMessage}`,
       error: errorMessage,
@@ -217,7 +202,6 @@ async function simulateDynamicScriptExecution(): Promise<AttackResult> {
       if (result === "Function constructor works") {
         return {
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Function constructor execution successful - arbitrary code execution possible`,
         };
@@ -229,7 +213,6 @@ async function simulateDynamicScriptExecution(): Promise<AttackResult> {
         if (typeof (window as any).testEval !== "undefined") {
           return {
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `eval() execution successful - arbitrary code execution possible`,
           };
@@ -238,7 +221,6 @@ async function simulateDynamicScriptExecution(): Promise<AttackResult> {
         // Both blocked
         return {
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "Dynamic script execution blocked - Function() and eval() both restricted",
         };
@@ -247,7 +229,6 @@ async function simulateDynamicScriptExecution(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: "Dynamic script execution blocked",
     };
@@ -255,7 +236,6 @@ async function simulateDynamicScriptExecution(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Dynamic script execution blocked: ${errorMessage}`,
       error: errorMessage,
