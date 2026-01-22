@@ -68,6 +68,7 @@ import {
   createDoHMonitor,
   registerDoHMonitorListener,
   DEFAULT_DOH_MONITOR_CONFIG,
+  getEnterpriseManager,
   type ApiClient,
   type BlockingConfig,
   type ConnectionMode,
@@ -84,6 +85,7 @@ import {
   type DoHMonitor,
   type DoHMonitorConfig,
   type DoHRequestRecord,
+  type EnterpriseStatus,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -2514,6 +2516,46 @@ export default defineBackground(() => {
     })
     .catch((err) => logger.debug("Sync manager init failed:", err));
 
+  // Enterprise Manager initialization - check for SSO requirements
+  (async () => {
+    try {
+      const enterpriseManager = await getEnterpriseManager();
+      const status = enterpriseManager.getStatus();
+
+      if (status.isManaged) {
+        logger.info("Enterprise managed mode detected", {
+          ssoRequired: status.ssoRequired,
+          settingsLocked: status.settingsLocked,
+        });
+
+        if (status.ssoRequired) {
+          const ssoManager = await getSSOManager();
+          const ssoStatus = await ssoManager.getStatus();
+
+          if (!ssoStatus.isAuthenticated) {
+            logger.info("SSO required but not authenticated - prompting user");
+
+            // Show notification to prompt user to authenticate
+            await chrome.notifications.create("sso-required", {
+              type: "basic",
+              iconUrl: chrome.runtime.getURL("icon-128.png"),
+              title: "認証が必要です",
+              message: "組織のセキュリティポリシーにより、シングルサインオンでの認証が必要です。",
+              priority: 2,
+              requireInteraction: true,
+            });
+
+            // Open dashboard auth tab
+            const dashboardUrl = chrome.runtime.getURL("dashboard.html#auth");
+            await chrome.tabs.create({ url: dashboardUrl, active: true });
+          }
+        }
+      }
+    } catch (error) {
+      logger.error("Enterprise manager init failed:", error);
+    }
+  })();
+
   getCSPConfig().then((config) => {
     const endpoint =
       config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
@@ -2820,6 +2862,39 @@ export default defineBackground(() => {
           sendResponse({ success: true });
         } catch {
           sendResponse({ success: false });
+        }
+      })();
+      return true;
+    }
+
+    // Enterprise Management handlers
+    if (message.type === "GET_ENTERPRISE_STATUS") {
+      (async () => {
+        try {
+          const enterpriseManager = await getEnterpriseManager();
+          const status = enterpriseManager.getStatus();
+          sendResponse(status);
+        } catch {
+          sendResponse({
+            isManaged: false,
+            ssoRequired: false,
+            settingsLocked: false,
+            config: null,
+          } as EnterpriseStatus);
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "GET_EFFECTIVE_DETECTION_CONFIG") {
+      (async () => {
+        try {
+          const enterpriseManager = await getEnterpriseManager();
+          const userConfig = await getDetectionConfig();
+          const effectiveConfig = enterpriseManager.getEffectiveDetectionConfig(userConfig);
+          sendResponse(effectiveConfig);
+        } catch {
+          sendResponse(DEFAULT_DETECTION_CONFIG);
         }
       })();
       return true;

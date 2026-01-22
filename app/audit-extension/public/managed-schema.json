@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "sso": {
+      "type": "object",
+      "description": "SSO/Identity Provider configuration for enterprise authentication",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["oidc", "saml"],
+          "description": "SSO provider type: OIDC (OpenID Connect) or SAML 2.0"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "If true, require SSO authentication on extension startup"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "OIDC client ID (required for OIDC provider)"
+        },
+        "authority": {
+          "type": "string",
+          "description": "OIDC authority URL (e.g., https://company.onelogin.com/oidc/2)"
+        },
+        "scope": {
+          "type": "string",
+          "description": "OIDC scope (default: openid profile email)"
+        },
+        "entityId": {
+          "type": "string",
+          "description": "SAML entity ID (required for SAML provider)"
+        },
+        "entryPoint": {
+          "type": "string",
+          "description": "SAML IdP entry point URL"
+        },
+        "issuer": {
+          "type": "string",
+          "description": "Expected SAML issuer for validation"
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Detection and feature settings that can be enforced by administrators",
+      "properties": {
+        "locked": {
+          "type": "boolean",
+          "description": "If true, users cannot modify settings in the UI"
+        },
+        "enableNRD": {
+          "type": "boolean",
+          "description": "Enable Newly Registered Domain detection"
+        },
+        "enableTyposquat": {
+          "type": "boolean",
+          "description": "Enable typosquatting detection"
+        },
+        "enableAI": {
+          "type": "boolean",
+          "description": "Enable AI service detection and monitoring"
+        },
+        "enablePrivacy": {
+          "type": "boolean",
+          "description": "Enable privacy policy detection"
+        },
+        "enableTos": {
+          "type": "boolean",
+          "description": "Enable terms of service detection"
+        },
+        "enableLogin": {
+          "type": "boolean",
+          "description": "Enable login detection"
+        },
+        "enableExtension": {
+          "type": "boolean",
+          "description": "Enable extension monitoring"
+        },
+        "enableBlocking": {
+          "type": "boolean",
+          "description": "Enable blocking features (requires user consent in non-enterprise)"
+        },
+        "enableNotifications": {
+          "type": "boolean",
+          "description": "Enable browser notifications for security alerts"
+        }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "SIEM/reporting endpoint configuration for enterprise integration",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "SIEM webhook endpoint URL for security event reporting"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for SIEM endpoint authentication"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable SIEM reporting"
+        },
+        "batchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Number of events to batch before sending (default: 10)"
+        },
+        "flushIntervalSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 3600,
+          "description": "Maximum seconds between flushes (default: 60)"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "description": "Security policy configuration",
+      "properties": {
+        "allowedDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of allowed domain patterns (glob supported)"
+        },
+        "blockedDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of blocked domain patterns (glob supported)"
+        },
+        "allowedAIProviders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of allowed AI service providers"
+        },
+        "blockedAIProviders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of blocked AI service providers"
+        }
+      }
+    }
+  }
+}

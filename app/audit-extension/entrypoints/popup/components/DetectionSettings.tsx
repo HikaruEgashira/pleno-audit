@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
-import type { DetectionConfig } from "@pleno-audit/extension-runtime";
+import type { DetectionConfig, EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
+import { LockedBanner } from "./LockedBanner";
 
 interface DetectionOption {
   key: keyof DetectionConfig;
@@ -17,19 +18,33 @@ const DETECTION_OPTIONS: DetectionOption[] = [
   { key: "enableLogin", label: "Login", description: "ログインページ検出" },
 ];
 
+const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
+  isManaged: false,
+  ssoRequired: false,
+  settingsLocked: false,
+  config: null,
+};
+
 export function DetectionSettings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<DetectionConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus>(DEFAULT_ENTERPRISE_STATUS);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" })
       .then(setConfig)
       .catch(() => {});
+
+    chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
+      .then(setEnterpriseStatus)
+      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
   }, []);
 
+  const isLocked = enterpriseStatus.settingsLocked;
+
   function handleToggle(key: keyof DetectionConfig) {
-    if (!config) return;
+    if (!config || isLocked) return;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     chrome.runtime.sendMessage({
@@ -113,31 +128,41 @@ export function DetectionSettings() {
       </div>
 
       {expanded && (
-        <div style={styles.content}>
-          {DETECTION_OPTIONS.map((opt) => (
-            <label
-              key={opt.key}
-              style={styles.option}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={config[opt.key]}
-                onChange={() => handleToggle(opt.key)}
-                style={styles.checkbox}
-              />
-              <div style={styles.labelContainer}>
-                <span style={styles.label}>{opt.label}</span>
-                <span style={styles.description}>{opt.description}</span>
-              </div>
-            </label>
-          ))}
-        </div>
+        <>
+          {isLocked && <LockedBanner />}
+          <div style={styles.content}>
+            {DETECTION_OPTIONS.map((opt) => (
+              <label
+                key={opt.key}
+                style={{
+                  ...styles.option,
+                  opacity: isLocked ? 0.6 : 1,
+                  cursor: isLocked ? "not-allowed" : "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLocked) {
+                    (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={config[opt.key]}
+                  onChange={() => handleToggle(opt.key)}
+                  style={styles.checkbox}
+                  disabled={isLocked}
+                />
+                <div style={styles.labelContainer}>
+                  <span style={styles.label}>{opt.label}</span>
+                  <span style={styles.description}>{opt.description}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

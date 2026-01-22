@@ -153,6 +153,61 @@ export interface StorageData {
   alertCooldown?: AlertCooldownData;
 }
 
+/**
+ * Enterprise Managed Storage Configuration
+ * Configured via chrome.storage.managed (MDM/Chrome Enterprise Policy)
+ */
+export interface EnterpriseSSOConfig {
+  provider?: "oidc" | "saml";
+  required?: boolean;
+  clientId?: string;
+  authority?: string;
+  scope?: string;
+  entityId?: string;
+  entryPoint?: string;
+  issuer?: string;
+}
+
+export interface EnterprisePolicyConfig {
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  allowedAIProviders?: string[];
+  blockedAIProviders?: string[];
+}
+
+export interface EnterpriseReportingConfig {
+  endpoint?: string;
+  apiKey?: string;
+  enabled?: boolean;
+  batchSize?: number;
+  flushIntervalSeconds?: number;
+}
+
+export interface EnterpriseManagedConfig {
+  sso?: EnterpriseSSOConfig;
+  settings?: {
+    locked?: boolean;
+    enableNRD?: boolean;
+    enableTyposquat?: boolean;
+    enableAI?: boolean;
+    enablePrivacy?: boolean;
+    enableTos?: boolean;
+    enableLogin?: boolean;
+    enableExtension?: boolean;
+    enableBlocking?: boolean;
+    enableNotifications?: boolean;
+  };
+  reporting?: EnterpriseReportingConfig;
+  policy?: EnterprisePolicyConfig;
+}
+
+export interface EnterpriseStatus {
+  isManaged: boolean;
+  ssoRequired: boolean;
+  settingsLocked: boolean;
+  config: EnterpriseManagedConfig | null;
+}
+
 export type {
   DetectedService,
   EventLog,

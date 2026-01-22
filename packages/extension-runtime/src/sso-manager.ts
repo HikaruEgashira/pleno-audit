@@ -557,9 +557,6 @@ class SSOManager {
     params.set("grant_type", "refresh_token");
     params.set("refresh_token", this.session.refreshToken);
     params.set("client_id", config.clientId);
-    if (config.clientSecret) {
-      params.set("client_secret", config.clientSecret);
-    }
 
     try {
       const response = await fetch(tokenUrl, {
