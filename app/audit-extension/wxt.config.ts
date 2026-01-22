@@ -24,8 +24,8 @@ export default defineConfig({
     // Base permissions (cross-browser)
     const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
-    // Chrome/Edge MV3 permissions
-    const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest"];
+    // Chrome/Edge MV3 permissions (includes identity for SSO/OIDC/SAML auth flows)
+    const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest", "identity"];
 
     // Firefox/Safari MV2 permissions (no offscreen, no scripting)
     const mv2Permissions = basePermissions;

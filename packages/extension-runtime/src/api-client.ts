@@ -1,6 +1,7 @@
 import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
 import type { LocalApiResponse } from "./offscreen/db-schema.js";
 import { createLogger } from "./logger.js";
+import { getSSOManager } from "./sso-manager.js";
 
 const logger = createLogger("api-client");
 
@@ -114,9 +115,23 @@ export class ApiClient {
   }
 
   private async remoteRequest<T>(path: string, options: { method?: string; body?: unknown }): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+    // Add SSO authentication header if available
+    try {
+      const ssoManager = await getSSOManager();
+      const session = await ssoManager.getSession();
+      if (session?.accessToken) {
+        headers["Authorization"] = `Bearer ${session.accessToken}`;
+        logger.debug("SSO auth header added to remote request");
+      }
+    } catch (error) {
+      logger.debug("No SSO session available for remote request");
+    }
+
     const response = await fetch(`${this.endpoint}${path}`, {
       method: options.method || "GET",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 

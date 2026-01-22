@@ -11,6 +11,13 @@ vi.mock("./logger.js", () => ({
   }),
 }));
 
+// Mock sso-manager
+vi.mock("./sso-manager.js", () => ({
+  getSSOManager: vi.fn().mockResolvedValue({
+    getSession: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
 // Mock chrome API
 vi.stubGlobal("chrome", {
   runtime: {
@@ -305,6 +312,55 @@ describe("ApiClient", () => {
         mockFetch.mockRejectedValue(new Error("Network error"));
 
         await expect(client.getReports()).rejects.toThrow("Network error");
+      });
+    });
+
+    describe("SSO integration", () => {
+      it("adds Authorization header when SSO session exists", async () => {
+        const { getSSOManager } = await import("./sso-manager.js");
+        vi.mocked(getSSOManager).mockResolvedValue({
+          getSession: vi.fn().mockResolvedValue({
+            provider: "oidc",
+            accessToken: "sso-access-token",
+          }),
+        } as ReturnType<typeof getSSOManager> extends Promise<infer T> ? T : never);
+
+        mockFetch.mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ reports: [], lastUpdated: "" }),
+        });
+
+        await client.getReports();
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              "Authorization": "Bearer sso-access-token",
+            }),
+          })
+        );
+      });
+
+      it("does not add Authorization header when no SSO session", async () => {
+        const { getSSOManager } = await import("./sso-manager.js");
+        vi.mocked(getSSOManager).mockResolvedValue({
+          getSession: vi.fn().mockResolvedValue(null),
+        } as ReturnType<typeof getSSOManager> extends Promise<infer T> ? T : never);
+
+        mockFetch.mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ reports: [], lastUpdated: "" }),
+        });
+
+        await client.getReports();
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            headers: { "Content-Type": "application/json" },
+          })
+        );
       });
     });
   });
