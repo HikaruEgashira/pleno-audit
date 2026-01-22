@@ -3,6 +3,9 @@ import type { DefenseScore } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
 
+// Panel window ID management
+let panelWindowId: number | null = null;
+
 interface MessageRequest {
   type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY" | "BATTACKER_CONTENT_READY";
 }
@@ -115,8 +118,47 @@ function isTestableUrl(url: string): boolean {
   );
 }
 
+/**
+ * Open or focus the panel window
+ */
+async function openOrFocusPanelWindow(): Promise<void> {
+  if (panelWindowId !== null) {
+    try {
+      await chrome.windows.get(panelWindowId);
+      await chrome.windows.update(panelWindowId, { focused: true });
+      return;
+    } catch {
+      panelWindowId = null;
+    }
+  }
+
+  const newWindow = await chrome.windows.create({
+    url: chrome.runtime.getURL("/panel.html"),
+    type: "popup",
+    width: 400,
+    height: 580,
+    focused: true,
+  });
+
+  if (newWindow.id) {
+    panelWindowId = newWindow.id;
+  }
+}
+
 export default defineBackground(() => {
   logger.info("Background started");
+
+  // Extension icon click handler - open panel as independent window
+  chrome.action.onClicked.addListener(async () => {
+    await openOrFocusPanelWindow();
+  });
+
+  // Track panel window close
+  chrome.windows.onRemoved.addListener((windowId) => {
+    if (windowId === panelWindowId) {
+      panelWindowId = null;
+    }
+  });
 
   chrome.runtime.onMessage.addListener(
     (
