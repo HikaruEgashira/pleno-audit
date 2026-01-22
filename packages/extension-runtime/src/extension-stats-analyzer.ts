@@ -117,11 +117,14 @@ export function generateExtensionStats(records: ExtensionRequestRecord[]): Exten
   for (const [extId, extRecords] of extMap) {
     if (extRecords.length === 0) continue;
 
-    // 基本統計
+    // 基本統計（reduce使用でスタックオーバーフロー回避）
     const totalRequests = extRecords.length;
-    const timestamps = extRecords.map((r) => r.timestamp);
-    const minTime = Math.min(...timestamps);
-    const maxTime = Math.max(...timestamps);
+    let minTime = extRecords[0].timestamp;
+    let maxTime = extRecords[0].timestamp;
+    for (const record of extRecords) {
+      if (record.timestamp < minTime) minTime = record.timestamp;
+      if (record.timestamp > maxTime) maxTime = record.timestamp;
+    }
     const daysSpan = Math.max(1, (maxTime - minTime) / (1000 * 60 * 60 * 24));
     const requestsPerDay = totalRequests / daysSpan;
 
@@ -182,126 +185,139 @@ export function generateExtensionStats(records: ExtensionRequestRecord[]): Exten
 }
 
 /**
- * 日次時系列データを生成
+ * 日次時系列データを生成（O(n)アルゴリズム）
  */
 export function generateDailyTimeSeries(
   records: ExtensionRequestRecord[]
 ): TimeSeriesData[] {
-  const timeSeriesMap = new Map<string, TimeSeriesData>();
+  // 集計用の補助データ構造
+  const aggregationMap = new Map<
+    string,
+    {
+      data: TimeSeriesData;
+      domains: Set<string>;
+      resourceTypeCounts: Map<string, number>;
+    }
+  >();
 
+  // 1回のループで全データを集計
   for (const record of records) {
     const dayStart = getDayStart(record.timestamp);
     const key = `${dayStart}:${record.extensionId}`;
 
-    if (!timeSeriesMap.has(key)) {
-      timeSeriesMap.set(key, {
-        timestamp: dayStart,
-        period: "daily",
-        extensionId: record.extensionId,
-        requestCount: 0,
-        uniqueDomains: 0,
-        dominantResourceType: "",
+    if (!aggregationMap.has(key)) {
+      aggregationMap.set(key, {
+        data: {
+          timestamp: dayStart,
+          period: "daily",
+          extensionId: record.extensionId,
+          requestCount: 0,
+          uniqueDomains: 0,
+          dominantResourceType: "",
+        },
+        domains: new Set(),
+        resourceTypeCounts: new Map(),
       });
     }
 
-    const data = timeSeriesMap.get(key)!;
-    data.requestCount++;
+    const agg = aggregationMap.get(key)!;
+    agg.data.requestCount++;
+
+    const domain = extractDomain(record.url);
+    if (domain) agg.domains.add(domain);
+
+    agg.resourceTypeCounts.set(
+      record.resourceType,
+      (agg.resourceTypeCounts.get(record.resourceType) || 0) + 1
+    );
   }
 
-  // 各日のドメイン数と支配的なリソースタイプを計算
-  for (const data of timeSeriesMap.values()) {
-    const relevantRecords = records.filter(
-      (r) =>
-        getDayStart(r.timestamp) === data.timestamp && r.extensionId === data.extensionId
-    );
-
-    // ユニークドメイン数
-    const domains = new Set<string>();
-    const resourceTypeCounts: Record<string, number> = {};
-    for (const record of relevantRecords) {
-      const domain = extractDomain(record.url);
-      if (domain) domains.add(domain);
-      resourceTypeCounts[record.resourceType] =
-        (resourceTypeCounts[record.resourceType] || 0) + 1;
-    }
-
+  // 最終データを構築
+  const result: TimeSeriesData[] = [];
+  for (const { data, domains, resourceTypeCounts } of aggregationMap.values()) {
     data.uniqueDomains = domains.size;
 
     // 支配的なリソースタイプ
     let maxCount = 0;
-    for (const [resourceType, count] of Object.entries(resourceTypeCounts)) {
+    for (const [resourceType, count] of resourceTypeCounts) {
       if (count > maxCount) {
         maxCount = count;
         data.dominantResourceType = resourceType;
       }
     }
+
+    result.push(data);
   }
 
-  const result = Array.from(timeSeriesMap.values());
   result.sort((a, b) => a.timestamp - b.timestamp);
   return result;
 }
 
 /**
- * 週次時系列データを生成
+ * 週次時系列データを生成（O(n)アルゴリズム）
  */
 export function generateWeeklyTimeSeries(
   records: ExtensionRequestRecord[]
 ): TimeSeriesData[] {
-  const timeSeriesMap = new Map<string, TimeSeriesData>();
+  // 集計用の補助データ構造
+  const aggregationMap = new Map<
+    string,
+    {
+      data: TimeSeriesData;
+      domains: Set<string>;
+      resourceTypeCounts: Map<string, number>;
+    }
+  >();
 
+  // 1回のループで全データを集計
   for (const record of records) {
     const weekStart = getWeekStart(record.timestamp);
     const key = `${weekStart}:${record.extensionId}`;
 
-    if (!timeSeriesMap.has(key)) {
-      timeSeriesMap.set(key, {
-        timestamp: weekStart,
-        period: "weekly",
-        extensionId: record.extensionId,
-        requestCount: 0,
-        uniqueDomains: 0,
-        dominantResourceType: "",
+    if (!aggregationMap.has(key)) {
+      aggregationMap.set(key, {
+        data: {
+          timestamp: weekStart,
+          period: "weekly",
+          extensionId: record.extensionId,
+          requestCount: 0,
+          uniqueDomains: 0,
+          dominantResourceType: "",
+        },
+        domains: new Set(),
+        resourceTypeCounts: new Map(),
       });
     }
 
-    const data = timeSeriesMap.get(key)!;
-    data.requestCount++;
+    const agg = aggregationMap.get(key)!;
+    agg.data.requestCount++;
+
+    const domain = extractDomain(record.url);
+    if (domain) agg.domains.add(domain);
+
+    agg.resourceTypeCounts.set(
+      record.resourceType,
+      (agg.resourceTypeCounts.get(record.resourceType) || 0) + 1
+    );
   }
 
-  // 各週のドメイン数と支配的なリソースタイプを計算
-  for (const data of timeSeriesMap.values()) {
-    const weekEnd = data.timestamp + 7 * 24 * 60 * 60 * 1000;
-    const relevantRecords = records.filter(
-      (r) =>
-        r.timestamp >= data.timestamp &&
-        r.timestamp < weekEnd &&
-        r.extensionId === data.extensionId
-    );
-
-    // ユニークドメイン数
-    const domains = new Set<string>();
-    const resourceTypeCounts: Record<string, number> = {};
-    for (const record of relevantRecords) {
-      const domain = extractDomain(record.url);
-      if (domain) domains.add(domain);
-      resourceTypeCounts[record.resourceType] =
-        (resourceTypeCounts[record.resourceType] || 0) + 1;
-    }
-
+  // 最終データを構築
+  const result: TimeSeriesData[] = [];
+  for (const { data, domains, resourceTypeCounts } of aggregationMap.values()) {
     data.uniqueDomains = domains.size;
 
     // 支配的なリソースタイプ
     let maxCount = 0;
-    for (const [resourceType, count] of Object.entries(resourceTypeCounts)) {
+    for (const [resourceType, count] of resourceTypeCounts) {
       if (count > maxCount) {
         maxCount = count;
         data.dominantResourceType = resourceType;
       }
     }
+
+    result.push(data);
   }
 
-  const result = Array.from(timeSeriesMap.values());
   result.sort((a, b) => a.timestamp - b.timestamp);
   return result;
 }
