@@ -18,6 +18,11 @@ import type {
 } from "./storage-types.js";
 import { createLogger } from "./logger.js";
 import {
+  generateDashboardStats,
+  globalExtensionStatsCache,
+  type DashboardStats,
+} from "./extension-stats-analyzer.js";
+import {
   detectAllSuspiciousPatterns,
   DEFAULT_SUSPICIOUS_PATTERN_CONFIG,
   type SuspiciousPattern,
@@ -451,6 +456,8 @@ export interface ExtensionMonitor {
   refreshExtensionList(): Promise<void>;
   /** DNRマッチルールをチェック（定期的に呼び出す） */
   checkDNRMatches(): Promise<ExtensionRequestRecord[]>;
+  /** ダッシュボード統計を生成 */
+  generateStats(records: ExtensionRequestRecord[]): DashboardStats;
   /** 不審な通信パターンを検出 */
   detectSuspiciousPatterns(records: ExtensionRequestRecord[]): SuspiciousPattern[];
 }
@@ -623,6 +630,10 @@ export function createExtensionMonitor(
 
     async checkDNRMatches() {
       return checkMatchedDNRRules();
+    },
+
+    generateStats(records) {
+      return globalExtensionStatsCache.getStats(records);
     },
 
     detectSuspiciousPatterns(records) {
