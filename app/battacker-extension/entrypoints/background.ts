@@ -135,8 +135,8 @@ async function openOrFocusPanelWindow(): Promise<void> {
   const newWindow = await chrome.windows.create({
     url: chrome.runtime.getURL("/panel.html"),
     type: "popup",
-    width: 420,
-    height: 520,
+    width: 400,
+    height: 580,
     focused: true,
   });
 
