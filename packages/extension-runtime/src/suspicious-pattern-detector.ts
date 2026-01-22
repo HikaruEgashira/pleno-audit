@@ -117,36 +117,38 @@ export function detectBulkRequests(
     // 時間順でソート
     const sorted = [...extRecords].sort((a, b) => a.timestamp - b.timestamp);
 
-    // スライディングウィンドウで分析
-    for (let i = 0; i < sorted.length; i++) {
-      const windowStart = sorted[i].timestamp;
-      const windowEnd = windowStart + config.bulkRequestWindow;
+    // ツーポインタ方式でスライディングウィンドウ分析（O(n)）
+    let left = 0;
+    let maxCount = 0;
+    let maxCountStart = 0;
 
-      // このウィンドウ内のリクエスト数をカウント
-      let count = 0;
-      for (const record of sorted) {
-        if (record.timestamp >= windowStart && record.timestamp < windowEnd) {
-          count++;
-        }
+    for (let right = 0; right < sorted.length; right++) {
+      // ウィンドウを超えた古いレコードを除外
+      while (sorted[right].timestamp - sorted[left].timestamp >= config.bulkRequestWindow) {
+        left++;
       }
+      const count = right - left + 1;
+      if (count > maxCount) {
+        maxCount = count;
+        maxCountStart = sorted[left].timestamp;
+      }
+    }
 
-      // 閾値を超えた場合はパターンを記録（重複を避けるため最初のリクエストのみ）
-      if (count >= config.bulkRequestThreshold) {
-        patterns.push({
-          type: "bulk_requests",
-          severity: count > config.bulkRequestThreshold * 2 ? "critical" : "high",
-          extensionId: extId,
-          extensionName: name,
-          timestamp: windowStart,
-          description: `${count}件のリクエストが${config.bulkRequestWindow / 1000}秒以内に検出されました`,
-          details: {
-            requestCount: count,
-            timeWindow: config.bulkRequestWindow,
-            startTime: new Date(windowStart).toISOString(),
-          },
-        });
-        break; // この拡張機能については1つのパターンのみ記録
-      }
+    // 閾値を超えた場合はパターンを記録
+    if (maxCount >= config.bulkRequestThreshold) {
+      patterns.push({
+        type: "bulk_requests",
+        severity: maxCount > config.bulkRequestThreshold * 2 ? "critical" : "high",
+        extensionId: extId,
+        extensionName: name,
+        timestamp: maxCountStart,
+        description: `${maxCount}件のリクエストが${config.bulkRequestWindow / 1000}秒以内に検出されました`,
+        details: {
+          requestCount: maxCount,
+          timeWindow: config.bulkRequestWindow,
+          startTime: new Date(maxCountStart).toISOString(),
+        },
+      });
     }
   }
 
@@ -298,40 +300,59 @@ export function detectDomainDiversity(
     // 時間順でソート
     const sorted = [...extRecords].sort((a, b) => a.timestamp - b.timestamp);
 
-    // スライディングウィンドウで分析
-    for (let i = 0; i < sorted.length; i++) {
-      const windowStart = sorted[i].timestamp;
-      const windowEnd = windowStart + config.domainDiversityWindow;
+    // ツーポインタ方式でスライディングウィンドウ分析（O(n)）
+    let left = 0;
+    const domainAtIndex = sorted.map((r) => extractDomain(r.url));
+    const domainCount = new Map<string, number>();
+    let maxDomainCount = 0;
+    let maxDomainStart = 0;
+    let maxDomains: Set<string> = new Set();
 
-      // このウィンドウ内のドメイン数をカウント
-      const domains = new Set<string>();
-      for (const record of sorted) {
-        if (record.timestamp >= windowStart && record.timestamp < windowEnd) {
-          const domain = extractDomain(record.url);
-          if (domain) {
-            domains.add(domain);
+    for (let right = 0; right < sorted.length; right++) {
+      // 右側のドメインを追加
+      const rightDomain = domainAtIndex[right];
+      if (rightDomain) {
+        domainCount.set(rightDomain, (domainCount.get(rightDomain) || 0) + 1);
+      }
+
+      // ウィンドウを超えた古いレコードを除外
+      while (sorted[right].timestamp - sorted[left].timestamp >= config.domainDiversityWindow) {
+        const leftDomain = domainAtIndex[left];
+        if (leftDomain) {
+          const count = domainCount.get(leftDomain) || 0;
+          if (count <= 1) {
+            domainCount.delete(leftDomain);
+          } else {
+            domainCount.set(leftDomain, count - 1);
           }
         }
+        left++;
       }
 
-      // 閾値を超えた場合はパターンを記録
-      if (domains.size >= config.domainDiversityThreshold) {
-        patterns.push({
-          type: "domain_diversity",
-          severity: "high",
-          extensionId: extId,
-          extensionName: name,
-          timestamp: windowStart,
-          description: `${domains.size}個の異なるドメインへのアクセスが${config.domainDiversityWindow / 1000 / 60}分以内に検出されました（DGA可能性）`,
-          details: {
-            uniqueDomainCount: domains.size,
-            threshold: config.domainDiversityThreshold,
-            timeWindow: config.domainDiversityWindow,
-            sampleDomains: Array.from(domains).slice(0, 5),
-          },
-        });
-        break; // この拡張機能については1つのパターンのみ記録
+      // 最大ドメイン数を更新
+      if (domainCount.size > maxDomainCount) {
+        maxDomainCount = domainCount.size;
+        maxDomainStart = sorted[left].timestamp;
+        maxDomains = new Set(domainCount.keys());
       }
+    }
+
+    // 閾値を超えた場合はパターンを記録
+    if (maxDomainCount >= config.domainDiversityThreshold) {
+      patterns.push({
+        type: "domain_diversity",
+        severity: "high",
+        extensionId: extId,
+        extensionName: name,
+        timestamp: maxDomainStart,
+        description: `${maxDomainCount}個の異なるドメインへのアクセスが${config.domainDiversityWindow / 1000 / 60}分以内に検出されました（DGA可能性）`,
+        details: {
+          uniqueDomainCount: maxDomainCount,
+          threshold: config.domainDiversityThreshold,
+          timeWindow: config.domainDiversityWindow,
+          sampleDomains: Array.from(maxDomains).slice(0, 5),
+        },
+      });
     }
   }
 
