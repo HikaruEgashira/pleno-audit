@@ -77,6 +77,18 @@ export {
   type ExtensionInfo,
 } from "./extension-monitor.js";
 
+// Suspicious Pattern Detector
+export {
+  detectAllSuspiciousPatterns,
+  detectBulkRequests,
+  detectLateNightActivity,
+  detectEncodedParameters,
+  detectDomainDiversity,
+  DEFAULT_SUSPICIOUS_PATTERN_CONFIG,
+  type SuspiciousPattern,
+  type SuspiciousPatternConfig,
+} from "./suspicious-pattern-detector.js";
+
 // Extension Risk Analyzer
 export {
   DANGEROUS_PERMISSIONS,

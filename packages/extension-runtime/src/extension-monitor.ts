@@ -17,6 +17,11 @@ import type {
   ExtensionRequestRecord,
 } from "./storage-types.js";
 import { createLogger } from "./logger.js";
+import {
+  detectAllSuspiciousPatterns,
+  DEFAULT_SUSPICIOUS_PATTERN_CONFIG,
+  type SuspiciousPattern,
+} from "./suspicious-pattern-detector.js";
 
 const logger = createLogger("extension-monitor");
 
@@ -334,6 +339,8 @@ export interface ExtensionMonitor {
   refreshExtensionList(): Promise<void>;
   /** DNRマッチルールをチェック（定期的に呼び出す） */
   checkDNRMatches(): Promise<ExtensionRequestRecord[]>;
+  /** 不審な通信パターンを検出 */
+  detectSuspiciousPatterns(records: ExtensionRequestRecord[]): SuspiciousPattern[];
 }
 
 /**
@@ -431,6 +438,10 @@ export function createExtensionMonitor(
 
     async checkDNRMatches() {
       return checkMatchedDNRRules();
+    },
+
+    detectSuspiciousPatterns(records) {
+      return detectAllSuspiciousPatterns(records, DEFAULT_SUSPICIOUS_PATTERN_CONFIG);
     },
   };
 }
