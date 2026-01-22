@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
+import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
@@ -12,9 +13,15 @@ export function Settings() {
   const [endpoint, setEndpoint] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus | null>(null);
+
+  const isLocked = enterpriseStatus?.settingsLocked ?? false;
 
   useEffect(() => {
     loadConfig();
+    chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
+      .then(setEnterpriseStatus)
+      .catch(() => {});
   }, []);
 
   async function loadConfig() {
@@ -38,6 +45,7 @@ export function Settings() {
   }
 
   function handleRetentionChange(days: number) {
+    if (isLocked) return;
     setRetentionDays(days);
     chrome.runtime.sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
@@ -57,7 +65,7 @@ export function Settings() {
   }
 
   async function handleSave() {
-    if (!config || !nrdConfig) return;
+    if (!config || !nrdConfig || isLocked) return;
     setSaving(true);
     try {
       await chrome.runtime.sendMessage({
@@ -100,16 +108,36 @@ export function Settings() {
     );
   }
 
+  const lockedBannerStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 10px",
+    background: colors.status?.warning?.bg || "#fef3c7",
+    borderRadius: "6px",
+    marginBottom: "12px",
+  };
+
   return (
     <div style={styles.section}>
+      {isLocked && (
+        <div style={lockedBannerStyle}>
+          <span style={{ fontSize: "12px" }}>🔒</span>
+          <span style={{ fontSize: "11px", color: colors.status?.warning?.text || "#92400e" }}>
+            この設定は組織によって管理されています
+          </span>
+        </div>
+      )}
+
       <h3 style={styles.sectionTitle}>CSP Audit Settings</h3>
 
-      <label style={styles.checkbox}>
+      <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
         <input
           type="checkbox"
           checked={config.enabled}
+          disabled={isLocked}
           onChange={(e) =>
-            setConfig({
+            !isLocked && setConfig({
               ...config,
               enabled: (e.target as HTMLInputElement).checked,
             })
@@ -120,12 +148,13 @@ export function Settings() {
 
       {config.enabled && (
         <>
-          <label style={styles.checkbox}>
+          <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
             <input
               type="checkbox"
               checked={config.collectCSPViolations}
+              disabled={isLocked}
               onChange={(e) =>
-                setConfig({
+                !isLocked && setConfig({
                   ...config,
                   collectCSPViolations: (e.target as HTMLInputElement).checked,
                 })
@@ -134,12 +163,13 @@ export function Settings() {
             <span style={{ color: colors.textPrimary }}>Collect CSP Violations</span>
           </label>
 
-          <label style={styles.checkbox}>
+          <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
             <input
               type="checkbox"
               checked={config.collectNetworkRequests}
+              disabled={isLocked}
               onChange={(e) =>
-                setConfig({
+                !isLocked && setConfig({
                   ...config,
                   collectNetworkRequests: (e.target as HTMLInputElement).checked,
                 })
@@ -148,13 +178,14 @@ export function Settings() {
             <span style={{ color: colors.textPrimary }}>Collect Network Requests</span>
           </label>
 
-          <div style={{ marginBottom: "16px" }}>
+          <div style={{ marginBottom: "16px", opacity: isLocked ? 0.6 : 1 }}>
             <label style={styles.label}>Report Endpoint (optional)</label>
             <input
               type="url"
               style={styles.input}
               value={endpoint}
-              onChange={(e) => setEndpoint((e.target as HTMLInputElement).value)}
+              disabled={isLocked}
+              onChange={(e) => !isLocked && setEndpoint((e.target as HTMLInputElement).value)}
               placeholder="https://your-server.com/api/reports"
             />
           </div>
@@ -165,7 +196,7 @@ export function Settings() {
 
       <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
 
-      <div style={{ marginBottom: "12px" }}>
+      <div style={{ marginBottom: "12px", opacity: isLocked ? 0.6 : 1 }}>
         <label style={styles.label}>
           Age Threshold (days): {nrdConfig.thresholdDays}
         </label>
@@ -174,8 +205,9 @@ export function Settings() {
           min="1"
           max="365"
           value={nrdConfig.thresholdDays}
+          disabled={isLocked}
           onChange={(e) =>
-            setNRDConfig({
+            !isLocked && setNRDConfig({
               ...nrdConfig,
               thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
             })
@@ -191,7 +223,7 @@ export function Settings() {
 
       <h3 style={styles.sectionTitle}>Data Retention</h3>
 
-      <div style={{ marginBottom: "12px" }}>
+      <div style={{ marginBottom: "12px", opacity: isLocked ? 0.6 : 1 }}>
         <label style={styles.label}>
           {formatRetentionDays(retentionDays)}
         </label>
@@ -201,6 +233,7 @@ export function Settings() {
           max="365"
           step="1"
           value={retentionDays}
+          disabled={isLocked}
           onChange={(e) => handleRetentionChange(parseInt((e.target as HTMLInputElement).value, 10))}
           style={{ width: "100%", marginBottom: "4px" }}
         />
@@ -213,12 +246,12 @@ export function Settings() {
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || isLocked}
           style={{
             ...styles.button,
             flex: 1,
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving ? 0.6 : 1,
+            cursor: saving || isLocked ? "not-allowed" : "pointer",
+            opacity: saving || isLocked ? 0.6 : 1,
           }}
         >
           {saving ? "Saving..." : "Save Settings"}

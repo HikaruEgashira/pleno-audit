@@ -174,3 +174,18 @@ export {
   type DoHRequestRecord,
   type DoHDetectionMethod,
 } from "./doh-monitor.js";
+
+// Enterprise Manager
+export {
+  getEnterpriseManager,
+  createEnterpriseManager,
+  EnterpriseManager,
+} from "./enterprise-manager.js";
+
+export type {
+  EnterpriseManagedConfig,
+  EnterpriseStatus,
+  EnterpriseSSOConfig,
+  EnterprisePolicyConfig,
+  EnterpriseReportingConfig,
+} from "./storage-types.js";

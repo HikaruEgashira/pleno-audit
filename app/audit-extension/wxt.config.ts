@@ -84,6 +84,12 @@ export default defineConfig({
           },
         },
       }),
+      // Chrome MV3 Enterprise managed storage schema
+      ...(!isMV2 && {
+        storage: {
+          managed_schema: "managed-schema.json",
+        },
+      }),
     };
   },
   vite: () => ({

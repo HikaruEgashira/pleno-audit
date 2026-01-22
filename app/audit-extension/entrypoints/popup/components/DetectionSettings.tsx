@@ -1,5 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
-import type { DetectionConfig } from "@pleno-audit/extension-runtime";
+import type { DetectionConfig, EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 
 interface DetectionOption {
@@ -21,15 +21,22 @@ export function DetectionSettings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<DetectionConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus | null>(null);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" })
       .then(setConfig)
       .catch(() => {});
+
+    chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
+      .then(setEnterpriseStatus)
+      .catch(() => {});
   }, []);
 
+  const isLocked = enterpriseStatus?.settingsLocked ?? false;
+
   function handleToggle(key: keyof DetectionConfig) {
-    if (!config) return;
+    if (!config || isLocked) return;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     chrome.runtime.sendMessage({
@@ -97,6 +104,22 @@ export function DetectionSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    lockedBanner: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      padding: "8px 10px",
+      background: colors.status?.warning?.bg || "#fef3c7",
+      borderRadius: "6px",
+      marginBottom: "8px",
+    },
+    lockedIcon: {
+      fontSize: "12px",
+    },
+    lockedText: {
+      fontSize: "11px",
+      color: colors.status?.warning?.text || "#92400e",
+    },
   };
 
   if (!config) return null;
@@ -113,31 +136,46 @@ export function DetectionSettings() {
       </div>
 
       {expanded && (
-        <div style={styles.content}>
-          {DETECTION_OPTIONS.map((opt) => (
-            <label
-              key={opt.key}
-              style={styles.option}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={config[opt.key]}
-                onChange={() => handleToggle(opt.key)}
-                style={styles.checkbox}
-              />
-              <div style={styles.labelContainer}>
-                <span style={styles.label}>{opt.label}</span>
-                <span style={styles.description}>{opt.description}</span>
-              </div>
-            </label>
-          ))}
-        </div>
+        <>
+          {isLocked && (
+            <div style={styles.lockedBanner}>
+              <span style={styles.lockedIcon}>🔒</span>
+              <span style={styles.lockedText}>この設定は組織によって管理されています</span>
+            </div>
+          )}
+          <div style={styles.content}>
+            {DETECTION_OPTIONS.map((opt) => (
+              <label
+                key={opt.key}
+                style={{
+                  ...styles.option,
+                  opacity: isLocked ? 0.6 : 1,
+                  cursor: isLocked ? "not-allowed" : "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLocked) {
+                    (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={config[opt.key]}
+                  onChange={() => handleToggle(opt.key)}
+                  style={styles.checkbox}
+                  disabled={isLocked}
+                />
+                <div style={styles.labelContainer}>
+                  <span style={styles.label}>{opt.label}</span>
+                  <span style={styles.description}>{opt.description}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

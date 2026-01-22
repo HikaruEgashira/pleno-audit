@@ -29,3 +29,4 @@
 | [026](./026-battacker-rendering-engine.md) | Battacker レンダリングエンジン層 (Phase 15) | Accepted |
 | [027](./027-battacker-ipc-layer.md) | Battacker IPC層 (Phase 16) | Accepted |
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
+| [029](./029-enterprise-managed-storage.md) | Enterprise Managed Storage | Accepted |
