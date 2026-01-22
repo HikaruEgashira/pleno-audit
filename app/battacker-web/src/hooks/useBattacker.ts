@@ -64,7 +64,6 @@ export function useBattacker(): UseBattackerReturn {
         console.log("Test results:", testResults.map(r => ({
           name: r.test.name,
           blocked: r.result.blocked,
-          detected: r.result.detected,
           details: r.result.details,
         })));
         const score = calculateDefenseScore(testResults);
