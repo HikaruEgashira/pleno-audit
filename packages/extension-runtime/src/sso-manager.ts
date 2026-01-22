@@ -42,12 +42,16 @@ interface TokenResponse {
   token_type?: string;
 }
 
-// Decoded JWT claims (simplified)
+// Decoded JWT claims
 interface JWTClaims {
   sub?: string;
   email?: string;
   name?: string;
   exp?: number;
+  iss?: string;
+  aud?: string | string[];
+  nonce?: string;
+  iat?: number;
 }
 
 export interface SSOStatus {
@@ -98,9 +102,17 @@ class SSOManager {
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("scope", config.scope || "openid profile email");
-    // Add state for CSRF protection
+
+    // Add state for CSRF protection - persist to storage for Service Worker restart resilience
     const state = this.generateRandomString(32);
+    const nonce = this.generateRandomString(32);
     authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("nonce", nonce);
+
+    // Store state and nonce in session storage for validation after redirect
+    await chrome.storage.session.set({
+      oidcAuthState: { state, nonce, timestamp: Date.now() },
+    });
 
     logger.info("Starting OIDC auth flow", { authority: config.authority });
 
@@ -120,7 +132,23 @@ class SSOManager {
       const code = responseUrl.searchParams.get("code");
       const returnedState = responseUrl.searchParams.get("state");
 
-      if (returnedState !== state) {
+      // Retrieve stored state/nonce for validation
+      const storedAuth = await chrome.storage.session.get("oidcAuthState");
+      const authState = storedAuth.oidcAuthState as { state: string; nonce: string; timestamp: number } | undefined;
+
+      // Clear stored state after retrieval
+      await chrome.storage.session.remove("oidcAuthState");
+
+      if (!authState) {
+        throw new Error("Auth state not found - session may have expired");
+      }
+
+      // Validate state hasn't expired (5 minute timeout)
+      if (Date.now() - authState.timestamp > 5 * 60 * 1000) {
+        throw new Error("Auth state expired - please try again");
+      }
+
+      if (returnedState !== authState.state) {
         throw new Error("State mismatch - possible CSRF attack");
       }
 
@@ -132,12 +160,14 @@ class SSOManager {
 
       // Exchange code for tokens
       const tokens = await this.exchangeCodeForTokens(code, redirectUri);
-      const session = await this.createSessionFromTokens(tokens, "oidc");
+      const session = await this.createSessionFromTokens(tokens, "oidc", authState.nonce);
       await this.setSession(session);
 
       logger.info("OIDC auth completed successfully");
       return session;
     } catch (error) {
+      // Cleanup on error
+      await chrome.storage.session.remove("oidcAuthState");
       logger.error("OIDC auth failed:", error);
       throw error;
     }
@@ -236,9 +266,9 @@ class SSOManager {
   }
 
   /**
-   * Create session from token response
+   * Create session from token response with JWT validation
    */
-  private async createSessionFromTokens(tokens: TokenResponse, provider: SSOProvider): Promise<SSOSession> {
+  private async createSessionFromTokens(tokens: TokenResponse, provider: SSOProvider, expectedNonce?: string): Promise<SSOSession> {
     const session: SSOSession = {
       provider,
       accessToken: tokens.access_token,
@@ -249,17 +279,21 @@ class SSOManager {
         : undefined,
     };
 
-    // Try to extract user info from ID token
+    // Try to extract and validate user info from ID token
     if (tokens.id_token) {
       try {
-        const claims = this.decodeJWT(tokens.id_token);
+        const claims = this.decodeAndValidateJWT(tokens.id_token, expectedNonce);
         session.userId = claims.sub;
         session.userEmail = claims.email;
         if (claims.exp) {
           session.expiresAt = claims.exp * 1000;
         }
       } catch (error) {
-        logger.warn("Failed to decode ID token:", error);
+        logger.warn("Failed to decode/validate ID token:", error);
+        // For OIDC, ID token validation failure should be treated seriously
+        if (provider === "oidc" && expectedNonce) {
+          throw new Error(`ID token validation failed: ${error instanceof Error ? error.message : "unknown error"}`);
+        }
       }
     }
 
@@ -287,39 +321,168 @@ class SSOManager {
   }
 
   /**
-   * Parse SAML Response (simplified)
+   * Parse and validate SAML Response
+   * Note: Full XML signature verification requires external libraries (xml-crypto, etc.)
+   * This implementation validates structure and timestamps but not the cryptographic signature.
+   * For production use with untrusted IdPs, consider using a proper SAML library (saml2-js, passport-saml).
    */
   private async parseSAMLResponse(samlResponse: string): Promise<SSOSession> {
-    // Decode base64 SAML Response
-    const decoded = atob(samlResponse);
+    // Decode base64 SAML Response with error handling
+    let decoded: string;
+    try {
+      // Handle URL-safe base64
+      const base64 = samlResponse.replace(/-/g, "+").replace(/_/g, "/");
+      decoded = atob(base64);
+    } catch {
+      throw new Error("Failed to decode SAML response - invalid base64");
+    }
 
-    // Extract basic info using regex (simplified - use proper SAML library in production)
+    // Validate SAML Response structure
+    if (!decoded.includes("samlp:Response") && !decoded.includes("Response")) {
+      throw new Error("Invalid SAML response - missing Response element");
+    }
+
+    // Check for Status element - must be Success
+    const statusMatch = decoded.match(/<samlp?:StatusCode[^>]*Value="([^"]+)"/i);
+    if (statusMatch) {
+      const statusValue = statusMatch[1];
+      if (!statusValue.includes("Success")) {
+        // Extract status message if available
+        const messageMatch = decoded.match(/<samlp?:StatusMessage[^>]*>([^<]+)<\/samlp?:StatusMessage>/i);
+        const message = messageMatch?.[1] || "Unknown error";
+        throw new Error(`SAML authentication failed: ${message} (status: ${statusValue})`);
+      }
+    }
+
+    // Validate Conditions timestamps if present
+    const notBeforeMatch = decoded.match(/NotBefore="([^"]+)"/);
+    const notOnOrAfterMatch = decoded.match(/NotOnOrAfter="([^"]+)"/);
+    const now = Date.now();
+
+    if (notBeforeMatch) {
+      const notBefore = new Date(notBeforeMatch[1]).getTime();
+      // Allow 5 minute clock skew
+      if (notBefore > now + 5 * 60 * 1000) {
+        throw new Error("SAML assertion not yet valid");
+      }
+    }
+
+    if (notOnOrAfterMatch) {
+      const notOnOrAfter = new Date(notOnOrAfterMatch[1]).getTime();
+      // Allow 5 minute clock skew
+      if (notOnOrAfter < now - 5 * 60 * 1000) {
+        throw new Error("SAML assertion has expired");
+      }
+    }
+
+    // Validate issuer matches configured IdP (if available)
+    if (this.config?.provider === "saml") {
+      const issuerMatch = decoded.match(/<saml:Issuer[^>]*>([^<]+)<\/saml:Issuer>/i);
+      if (issuerMatch && this.config.issuer && issuerMatch[1] !== this.config.issuer) {
+        logger.warn(`SAML issuer mismatch: expected ${this.config.issuer}, got ${issuerMatch[1]}`);
+        // Warning only - some IdPs use different issuer values
+      }
+    }
+
+    // Extract user info using regex (simplified - use proper SAML library in production)
     const emailMatch = decoded.match(/<saml:Attribute Name="email"[^>]*>[\s\S]*?<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/i);
     const nameIdMatch = decoded.match(/<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/i);
+
+    if (!nameIdMatch && !emailMatch) {
+      throw new Error("SAML response missing user identifier (NameID or email)");
+    }
+
+    // Calculate session expiration from SAML assertion or default to 8 hours
+    let expiresAt = now + 8 * 60 * 60 * 1000;
+    if (notOnOrAfterMatch) {
+      expiresAt = new Date(notOnOrAfterMatch[1]).getTime();
+    }
 
     const session: SSOSession = {
       provider: "saml",
       userId: nameIdMatch?.[1],
       userEmail: emailMatch?.[1],
-      // SAML sessions typically expire after 8 hours
-      expiresAt: Date.now() + 8 * 60 * 60 * 1000,
+      expiresAt,
     };
 
     // Generate a pseudo access token for session management
     session.accessToken = this.generateRandomString(64);
 
+    logger.debug("SAML response validated", {
+      userId: session.userId,
+      email: session.userEmail,
+      expiresAt: new Date(expiresAt).toISOString(),
+    });
+
     return session;
   }
 
   /**
-   * Decode JWT token (simplified - doesn't verify signature)
+   * Decode and validate JWT token
+   * Note: Full cryptographic signature verification requires external libraries (jose, etc.)
+   * This implementation validates claims (iss, aud, exp, nonce) but not the signature.
+   * For production use with untrusted IdPs, consider using a proper JWT library.
    */
-  private decodeJWT(token: string): JWTClaims {
+  private decodeAndValidateJWT(token: string, expectedNonce?: string): JWTClaims {
     const parts = token.split(".");
     if (parts.length !== 3) {
       throw new Error("Invalid JWT format");
     }
-    const payload = JSON.parse(atob(parts[1]));
+
+    let payload: JWTClaims;
+    try {
+      // Use URL-safe base64 decoding
+      const base64Payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      payload = JSON.parse(atob(base64Payload));
+    } catch {
+      throw new Error("Failed to decode JWT payload");
+    }
+
+    // Validate issuer matches configured authority
+    if (this.config?.provider === "oidc") {
+      const config = this.config;
+      if (payload.iss && !payload.iss.startsWith(config.authority)) {
+        throw new Error(`Invalid issuer: expected ${config.authority}, got ${payload.iss}`);
+      }
+
+      // Validate audience contains our client ID
+      if (payload.aud) {
+        const audList = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+        if (!audList.includes(config.clientId)) {
+          throw new Error(`Invalid audience: ${config.clientId} not in ${audList.join(", ")}`);
+        }
+      }
+    }
+
+    // Validate nonce if provided (prevents ID token replay attacks)
+    if (expectedNonce && payload.nonce !== expectedNonce) {
+      throw new Error("Nonce mismatch - possible replay attack");
+    }
+
+    // Validate expiration
+    if (payload.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      // Allow 5 minute clock skew
+      if (payload.exp < now - 300) {
+        throw new Error("Token has expired");
+      }
+    }
+
+    // Validate issued-at time (iat) - token should not be from the future
+    if (payload.iat) {
+      const now = Math.floor(Date.now() / 1000);
+      // Allow 5 minute clock skew
+      if (payload.iat > now + 300) {
+        throw new Error("Token issued in the future - clock skew too large");
+      }
+    }
+
+    logger.debug("JWT validation passed", {
+      iss: payload.iss,
+      sub: payload.sub,
+      email: payload.email,
+    });
+
     return payload;
   }
 

@@ -1253,48 +1253,6 @@ async function setBlockingConfig(newConfig: BlockingConfig): Promise<{ success: 
 }
 
 // ============================================================================
-// SSO Management
-// ============================================================================
-
-async function getSSOStatus() {
-  try {
-    const ssoManager = await getSSOManager();
-    return ssoManager.getStatus();
-  } catch (error) {
-    logger.error("Error getting SSO status:", error);
-    return { enabled: false, isAuthenticated: false };
-  }
-}
-
-async function setSSOEnabled(enabled: boolean): Promise<{ success: boolean }> {
-  try {
-    const ssoManager = await getSSOManager();
-    if (enabled) {
-      // SSO is already configured if enabled
-      return { success: true };
-    } else {
-      // Disable SSO
-      await ssoManager.disableSSO();
-      return { success: true };
-    }
-  } catch (error) {
-    logger.error("Error setting SSO enabled:", error);
-    return { success: false };
-  }
-}
-
-async function disableSSO(): Promise<{ success: boolean }> {
-  try {
-    const ssoManager = await getSSOManager();
-    await ssoManager.disableSSO();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error disabling SSO:", error);
-    return { success: false };
-  }
-}
-
-// ============================================================================
 // Detection Config
 // ============================================================================
 
@@ -3104,28 +3062,6 @@ export default defineBackground(() => {
 
     if (message.type === "SET_BLOCKING_CONFIG") {
       setBlockingConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // SSO handlers
-    if (message.type === "GET_SSO_STATUS") {
-      getSSOStatus()
-        .then(sendResponse)
-        .catch(() => sendResponse({ enabled: false, isAuthenticated: false }));
-      return true;
-    }
-
-    if (message.type === "SET_SSO_ENABLED") {
-      setSSOEnabled(message.data.enabled)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "DISABLE_SSO") {
-      disableSSO()
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;
