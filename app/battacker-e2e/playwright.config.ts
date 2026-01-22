@@ -25,5 +25,10 @@ export default defineConfig({
       use: { browserName: "chromium" },
       testMatch: /audit-integration\.test\.ts$/,
     },
+    {
+      name: "dnr-monitor",
+      use: { browserName: "chromium" },
+      testMatch: /extension-dnr-monitor\.test\.ts$/,
+    },
   ],
 });

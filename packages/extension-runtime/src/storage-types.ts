@@ -105,6 +105,8 @@ export interface ExtensionRequestRecord {
   resourceType: string;
   domain: string;
   statusCode?: number;
+  /** 検出方法: webRequest または declarativeNetRequest */
+  detectedBy?: "webRequest" | "declarativeNetRequest";
 }
 
 export type DoHDetectionMethod =

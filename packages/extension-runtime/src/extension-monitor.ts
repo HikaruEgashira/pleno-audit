@@ -3,6 +3,10 @@
  *
  * 他のChrome拡張機能が発するネットワークリクエストを監視する
  *
+ * 監視方式:
+ * 1. webRequest.onBeforeRequest - コンテンツスクリプト/ページからのリクエスト
+ * 2. declarativeNetRequest - Service Workerからのリクエスト（Chrome 111+）
+ *
  * MV3 Service Worker対応:
  * - webRequest.onBeforeRequestリスナーは同期的にトップレベルで登録する必要がある
  * - Service Workerの再起動時にリスナーが維持されるように設計
@@ -31,6 +35,10 @@ export interface ExtensionInfo {
   icons?: { size: number; url: string }[];
 }
 
+// declarativeNetRequest用のルールID範囲
+const DNR_RULE_ID_BASE = 10000;
+const DNR_RULE_ID_MAX = 10100;
+
 // グローバル状態（Service Worker再起動時に再初期化される）
 let globalConfig: ExtensionMonitorConfig = DEFAULT_EXTENSION_MONITOR_CONFIG;
 let globalOwnExtensionId: string = "";
@@ -38,6 +46,8 @@ let globalKnownExtensions = new Map<string, ExtensionInfo>();
 let globalCallbacks: ((request: ExtensionRequestRecord) => void)[] = [];
 let isListenerRegistered = false;
 let isExtensionListInitialized = false;
+let isDNRRulesRegistered = false;
+let lastMatchedRulesCheck = 0;
 
 /**
  * グローバルコールバックをクリア
@@ -106,6 +116,7 @@ function handleWebRequest(
     method: details.method,
     resourceType: details.type,
     domain: extractDomain(details.url),
+    detectedBy: "webRequest",
   };
 
   logger.debug("Extension request detected:", {
@@ -145,12 +156,167 @@ export function registerExtensionMonitorListener(): void {
   }
 }
 
+/**
+ * declarativeNetRequestルールを登録
+ * 他の拡張機能からのリクエストを検出するため
+ */
+export async function registerDNRRulesForExtensions(
+  extensionIds: string[]
+): Promise<void> {
+  if (extensionIds.length === 0) {
+    logger.debug("No extensions to monitor with DNR");
+    return;
+  }
+
+  try {
+    // 既存のルールをクリア
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const ruleIdsToRemove = existingRules
+      .filter((r) => r.id >= DNR_RULE_ID_BASE && r.id < DNR_RULE_ID_MAX)
+      .map((r) => r.id);
+
+    // 各拡張機能に対してルールを作成
+    const newRules: chrome.declarativeNetRequest.Rule[] = extensionIds
+      .slice(0, DNR_RULE_ID_MAX - DNR_RULE_ID_BASE)
+      .map((extId, index) => ({
+        id: DNR_RULE_ID_BASE + index,
+        priority: 1,
+        action: {
+          type: chrome.declarativeNetRequest.RuleActionType.ALLOW,
+        },
+        condition: {
+          // 拡張機能からのリクエストを対象
+          initiatorDomains: [extId],
+          resourceTypes: [
+            chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
+            chrome.declarativeNetRequest.ResourceType.OTHER,
+            chrome.declarativeNetRequest.ResourceType.SCRIPT,
+            chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+            chrome.declarativeNetRequest.ResourceType.IMAGE,
+          ],
+        },
+      }));
+
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: ruleIdsToRemove,
+      addRules: newRules,
+    });
+
+    isDNRRulesRegistered = true;
+    logger.info(
+      `DNR rules registered for ${newRules.length} extensions`
+    );
+  } catch (error) {
+    logger.error("Failed to register DNR rules:", error);
+  }
+}
+
+/**
+ * declarativeNetRequestのマッチしたルールを取得して処理
+ * Service Workerからのリクエストを検出
+ */
+export async function checkMatchedDNRRules(): Promise<ExtensionRequestRecord[]> {
+  if (!isDNRRulesRegistered || !globalConfig.enabled) {
+    return [];
+  }
+
+  try {
+    const matchedRules = await chrome.declarativeNetRequest.getMatchedRules({
+      minTimeStamp: lastMatchedRulesCheck,
+    });
+
+    lastMatchedRulesCheck = Date.now();
+
+    const records: ExtensionRequestRecord[] = [];
+
+    for (const info of matchedRules.rulesMatchedInfo) {
+      const ruleId = info.rule.ruleId;
+      if (ruleId < DNR_RULE_ID_BASE || ruleId >= DNR_RULE_ID_MAX) {
+        continue;
+      }
+
+      // ルールIDから拡張機能インデックスを取得
+      const extIndex = ruleId - DNR_RULE_ID_BASE;
+      const extIds = Array.from(globalKnownExtensions.keys()).filter(
+        (id) => id !== globalOwnExtensionId
+      );
+      const extensionId = extIds[extIndex];
+
+      if (!extensionId) continue;
+
+      // 除外チェック
+      if (globalConfig.excludedExtensions.includes(extensionId)) continue;
+
+      const extInfo = globalKnownExtensions.get(extensionId);
+      const extensionName = extInfo?.name || "Unknown Extension";
+
+      const record: ExtensionRequestRecord = {
+        id: crypto.randomUUID(),
+        extensionId,
+        extensionName,
+        timestamp: info.timeStamp,
+        url: `[DNR detected - tabId: ${info.tabId}]`,
+        method: "UNKNOWN",
+        resourceType: "xmlhttprequest",
+        domain: "unknown",
+        detectedBy: "declarativeNetRequest",
+      };
+
+      records.push(record);
+
+      logger.debug("Extension request detected via DNR:", {
+        extensionId,
+        extensionName,
+        tabId: info.tabId,
+      });
+
+      for (const cb of globalCallbacks) {
+        try {
+          cb(record);
+        } catch (error) {
+          logger.error("Callback error:", error);
+        }
+      }
+    }
+
+    return records;
+  } catch (error) {
+    logger.error("Failed to check matched DNR rules:", error);
+    return [];
+  }
+}
+
+/**
+ * DNRルールをクリア
+ */
+export async function clearDNRRules(): Promise<void> {
+  try {
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const ruleIdsToRemove = existingRules
+      .filter((r) => r.id >= DNR_RULE_ID_BASE && r.id < DNR_RULE_ID_MAX)
+      .map((r) => r.id);
+
+    if (ruleIdsToRemove.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: ruleIdsToRemove,
+      });
+    }
+
+    isDNRRulesRegistered = false;
+    logger.debug("DNR rules cleared");
+  } catch (error) {
+    logger.error("Failed to clear DNR rules:", error);
+  }
+}
+
 export interface ExtensionMonitor {
   start(): Promise<void>;
-  stop(): void;
+  stop(): Promise<void>;
   getKnownExtensions(): Map<string, ExtensionInfo>;
   onRequest(callback: (request: ExtensionRequestRecord) => void): void;
   refreshExtensionList(): Promise<void>;
+  /** DNRマッチルールをチェック（定期的に呼び出す） */
+  checkDNRMatches(): Promise<ExtensionRequestRecord[]>;
 }
 
 /**
@@ -217,15 +383,23 @@ export function createExtensionMonitor(
       // 拡張機能の追加/削除を監視
       chrome.management.onInstalled.addListener(handleInstalled);
       chrome.management.onUninstalled.addListener(handleUninstalled);
+
+      // DNRルールを登録（自分以外の拡張機能を監視）
+      const otherExtensionIds = Array.from(globalKnownExtensions.keys()).filter(
+        (id) => id !== ownExtensionId && !globalConfig.excludedExtensions.includes(id)
+      );
+      await registerDNRRulesForExtensions(otherExtensionIds);
     },
 
-    stop() {
+    async stop() {
       chrome.management.onInstalled.removeListener(handleInstalled);
       chrome.management.onUninstalled.removeListener(handleUninstalled);
       // webRequestリスナーは維持（Service Workerのライフサイクル対応）
       globalConfig = { ...globalConfig, enabled: false };
       // コールバックをクリア（メモリリーク防止）
       clearGlobalCallbacks();
+      // DNRルールをクリア
+      await clearDNRRules();
     },
 
     getKnownExtensions() {
@@ -237,5 +411,9 @@ export function createExtensionMonitor(
     },
 
     refreshExtensionList,
+
+    async checkDNRMatches() {
+      return checkMatchedDNRRules();
+    },
   };
 }
