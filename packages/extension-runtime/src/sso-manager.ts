@@ -11,6 +11,8 @@ export interface OIDCConfig {
   authority: string;
   redirectUri?: string;
   scope?: string;
+  /** Enable PKCE (Proof Key for Code Exchange) - recommended for public clients. Defaults to true. */
+  usePKCE?: boolean;
 }
 
 export interface SAMLConfig {
@@ -87,6 +89,7 @@ class SSOManager {
 
   /**
    * Start OIDC authentication flow using chrome.identity API
+   * Supports PKCE (Proof Key for Code Exchange) for enhanced security
    */
   async startOIDCAuth(): Promise<SSOSession> {
     if (!this.config || this.config.provider !== "oidc") {
@@ -95,6 +98,7 @@ class SSOManager {
 
     const config = this.config;
     const redirectUri = chrome.identity.getRedirectURL();
+    const usePKCE = config.usePKCE !== false; // Default to true
 
     // Build authorization URL
     const authUrl = new URL(`${config.authority}/authorize`);
@@ -109,12 +113,22 @@ class SSOManager {
     authUrl.searchParams.set("state", state);
     authUrl.searchParams.set("nonce", nonce);
 
-    // Store state and nonce in session storage for validation after redirect
+    // PKCE: Generate code_verifier and code_challenge
+    let codeVerifier: string | undefined;
+    if (usePKCE) {
+      codeVerifier = this.generateCodeVerifier();
+      const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+      authUrl.searchParams.set("code_challenge", codeChallenge);
+      authUrl.searchParams.set("code_challenge_method", "S256");
+      logger.debug("PKCE enabled for OIDC auth");
+    }
+
+    // Store state, nonce, and code_verifier in session storage for validation after redirect
     await chrome.storage.session.set({
-      oidcAuthState: { state, nonce, timestamp: Date.now() },
+      oidcAuthState: { state, nonce, codeVerifier, timestamp: Date.now() },
     });
 
-    logger.info("Starting OIDC auth flow", { authority: config.authority });
+    logger.info("Starting OIDC auth flow", { authority: config.authority, pkce: usePKCE });
 
     try {
       // Launch web auth flow
@@ -132,9 +146,14 @@ class SSOManager {
       const code = responseUrl.searchParams.get("code");
       const returnedState = responseUrl.searchParams.get("state");
 
-      // Retrieve stored state/nonce for validation
+      // Retrieve stored state/nonce/codeVerifier for validation
       const storedAuth = await chrome.storage.session.get("oidcAuthState");
-      const authState = storedAuth.oidcAuthState as { state: string; nonce: string; timestamp: number } | undefined;
+      const authState = storedAuth.oidcAuthState as {
+        state: string;
+        nonce: string;
+        codeVerifier?: string;
+        timestamp: number;
+      } | undefined;
 
       // Clear stored state after retrieval
       await chrome.storage.session.remove("oidcAuthState");
@@ -158,8 +177,8 @@ class SSOManager {
         throw new Error(`Authorization failed: ${error} - ${errorDesc}`);
       }
 
-      // Exchange code for tokens
-      const tokens = await this.exchangeCodeForTokens(code, redirectUri);
+      // Exchange code for tokens (with PKCE code_verifier if available)
+      const tokens = await this.exchangeCodeForTokens(code, redirectUri, authState.codeVerifier);
       const session = await this.createSessionFromTokens(tokens, "oidc", authState.nonce);
       await this.setSession(session);
 
@@ -231,8 +250,9 @@ class SSOManager {
 
   /**
    * Exchange authorization code for tokens (OIDC)
+   * When PKCE is used, code_verifier replaces client_secret
    */
-  private async exchangeCodeForTokens(code: string, redirectUri: string): Promise<TokenResponse> {
+  private async exchangeCodeForTokens(code: string, redirectUri: string, codeVerifier?: string): Promise<TokenResponse> {
     if (!this.config || this.config.provider !== "oidc") {
       throw new Error("OIDC config not set");
     }
@@ -245,7 +265,12 @@ class SSOManager {
     params.set("code", code);
     params.set("redirect_uri", redirectUri);
     params.set("client_id", config.clientId);
-    if (config.clientSecret) {
+
+    // Use PKCE code_verifier if available, otherwise fall back to client_secret
+    if (codeVerifier) {
+      params.set("code_verifier", codeVerifier);
+      logger.debug("Using PKCE code_verifier for token exchange");
+    } else if (config.clientSecret) {
       params.set("client_secret", config.clientSecret);
     }
 
@@ -493,6 +518,44 @@ class SSOManager {
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
     return Array.from(array, byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  /**
+   * Generate PKCE code_verifier (RFC 7636)
+   * Must be 43-128 characters using [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+   */
+  private generateCodeVerifier(): string {
+    // Generate 32 random bytes (256 bits) and encode as base64url
+    // This produces a 43 character string
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return this.base64UrlEncode(array);
+  }
+
+  /**
+   * Generate PKCE code_challenge from code_verifier using SHA-256 (RFC 7636)
+   * code_challenge = BASE64URL(SHA256(code_verifier))
+   */
+  private async generateCodeChallenge(codeVerifier: string): Promise<string> {
+    // Encode the code_verifier as UTF-8
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+
+    // Compute SHA-256 hash
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+    // Convert to base64url
+    return this.base64UrlEncode(new Uint8Array(hashBuffer));
+  }
+
+  /**
+   * Base64URL encode a Uint8Array (RFC 4648 Section 5)
+   */
+  private base64UrlEncode(array: Uint8Array): string {
+    // Convert to base64
+    const base64 = btoa(String.fromCharCode(...array));
+    // Convert to base64url: replace + with -, / with _, remove padding =
+    return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
   /**

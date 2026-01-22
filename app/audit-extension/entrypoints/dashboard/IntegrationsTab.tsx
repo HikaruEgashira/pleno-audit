@@ -387,6 +387,7 @@ function SIEMView({ colors }: SIEMViewProps) {
   const [oidcClientId, setOidcClientId] = useState("");
   const [oidcAuthority, setOidcAuthority] = useState("");
   const [oidcScope, setOidcScope] = useState("openid profile email");
+  const [oidcUsePKCE, setOidcUsePKCE] = useState(true); // PKCE enabled by default for security
   const [samlEntityId, setSamlEntityId] = useState("");
   const [samlEntryPoint, setSamlEntryPoint] = useState("");
   const [showConsentDialog, setShowConsentDialog] = useState(false);
@@ -407,6 +408,7 @@ function SIEMView({ colors }: SIEMViewProps) {
           setOidcClientId(config.oidcConfig.clientId || "");
           setOidcAuthority(config.oidcConfig.authority || "");
           setOidcScope(config.oidcConfig.scope || "openid profile email");
+          setOidcUsePKCE(config.oidcConfig.usePKCE !== false); // Default to true
         }
         if (config.samlConfig) {
           setSamlEntityId(config.samlConfig.entityId || "");
@@ -438,6 +440,7 @@ function SIEMView({ colors }: SIEMViewProps) {
         clientId: oidcClientId,
         authority: oidcAuthority,
         scope: oidcScope,
+        usePKCE: oidcUsePKCE,
       } : undefined,
       samlConfig: authMethod === "saml" ? {
         provider: "saml",
@@ -684,6 +687,24 @@ function SIEMView({ colors }: SIEMViewProps) {
                     boxSizing: "border-box",
                   }}
                 />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "8px", borderTop: `1px solid ${colors.border}` }}>
+                <input
+                  type="checkbox"
+                  id="pkce-toggle"
+                  checked={oidcUsePKCE}
+                  onChange={(e) => setOidcUsePKCE((e.target as HTMLInputElement).checked)}
+                  style={{ width: "14px", height: "14px", cursor: "pointer" }}
+                />
+                <label htmlFor="pkce-toggle" style={{ fontSize: "12px", color: colors.textSecondary, cursor: "pointer" }}>
+                  PKCEを使用（推奨）
+                </label>
+                <span
+                  title="PKCE (Proof Key for Code Exchange) はclient_secretなしで安全な認証を可能にします。ほとんどのIdP（Auth0, Okta, Azure AD等）でサポートされています。"
+                  style={{ fontSize: "10px", color: colors.status.info.text, cursor: "help" }}
+                >
+                  ℹ️
+                </span>
               </div>
             </div>
           )}
