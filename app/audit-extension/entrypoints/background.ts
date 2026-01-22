@@ -843,6 +843,31 @@ async function initExtensionMonitor() {
 }
 
 async function flushExtensionRequestBuffer() {
+  // declarativeNetRequestのマッチルールをチェック（Service Workerからのリクエスト検出用）
+  if (extensionMonitor) {
+    try {
+      const dnrRecords = await extensionMonitor.checkDNRMatches();
+      for (const record of dnrRecords) {
+        extensionRequestBuffer.push(record);
+        await addEvent({
+          type: "extension_request",
+          domain: record.domain,
+          timestamp: record.timestamp,
+          details: {
+            extensionId: record.extensionId,
+            extensionName: record.extensionName,
+            url: record.url,
+            method: record.method,
+            resourceType: record.resourceType,
+            detectedBy: record.detectedBy,
+          },
+        });
+      }
+    } catch (err) {
+      logger.debug("DNR match check failed:", err);
+    }
+  }
+
   if (extensionRequestBuffer.length === 0) return;
 
   const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);

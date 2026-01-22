@@ -70,6 +70,9 @@ export {
   registerExtensionMonitorListener,
   clearGlobalCallbacks,
   DEFAULT_EXTENSION_MONITOR_CONFIG,
+  registerDNRRulesForExtensions,
+  checkMatchedDNRRules,
+  clearDNRRules,
   type ExtensionMonitor,
   type ExtensionInfo,
 } from "./extension-monitor.js";
