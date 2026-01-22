@@ -2803,6 +2803,70 @@ export default defineBackground(() => {
       return true;
     }
 
+    // SSO handlers
+    if (message.type === "GET_SSO_STATUS") {
+      (async () => {
+        try {
+          const ssoManager = await getSSOManager();
+          const status = await ssoManager.getStatus();
+          sendResponse(status);
+        } catch {
+          sendResponse({ enabled: false, isAuthenticated: false });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "START_SSO_AUTH") {
+      (async () => {
+        try {
+          const ssoManager = await getSSOManager();
+          const provider = message.data?.provider;
+          let session;
+          if (provider === "oidc") {
+            session = await ssoManager.startOIDCAuth();
+          } else if (provider === "saml") {
+            session = await ssoManager.startSAMLAuth();
+          } else {
+            sendResponse({ success: false, error: "Unknown provider" });
+            return;
+          }
+          sendResponse({ success: true, session });
+        } catch (error) {
+          sendResponse({ success: false, error: error instanceof Error ? error.message : "Auth failed" });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "SET_SSO_ENABLED") {
+      (async () => {
+        try {
+          const ssoManager = await getSSOManager();
+          if (message.data?.enabled === false) {
+            await ssoManager.disableSSO();
+          }
+          sendResponse({ success: true });
+        } catch {
+          sendResponse({ success: false });
+        }
+      })();
+      return true;
+    }
+
+    if (message.type === "DISABLE_SSO") {
+      (async () => {
+        try {
+          const ssoManager = await getSSOManager();
+          await ssoManager.disableSSO();
+          sendResponse({ success: true });
+        } catch {
+          sendResponse({ success: false });
+        }
+      })();
+      return true;
+    }
+
     // AI Prompt handlers
     if (message.type === "AI_PROMPT_CAPTURED") {
       handleAIPromptCaptured(message.data)

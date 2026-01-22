@@ -11,6 +11,12 @@ import {
   type WebhookConfig,
 } from "@pleno-audit/integrations";
 import {
+  type OIDCConfig,
+  type SAMLConfig,
+  type SSOSession,
+  getSSOManager,
+} from "@pleno-audit/extension-runtime";
+import {
   Plug,
   Play,
   Trash2,
@@ -21,9 +27,32 @@ import {
   GitBranch,
   Settings,
   X,
+  Server,
+  Shield,
+  Key,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-preact";
 import { useTheme, spacing, type ThemeColors } from "../../lib/theme";
 import { Badge, Button, Card, StatCard, EmptyState, StatsGrid } from "../../components";
+
+// SIEM Connection Config type
+export interface SIEMConnectionConfig {
+  enabled: boolean;
+  endpoint: string;
+  authMethod: "none" | "apikey" | "oidc" | "saml";
+  apiKey?: string;
+  oidcConfig?: OIDCConfig;
+  samlConfig?: SAMLConfig;
+  userConsentGiven: boolean;
+}
+
+const DEFAULT_SIEM_CONFIG: SIEMConnectionConfig = {
+  enabled: false,
+  endpoint: "",
+  authMethod: "none",
+  userConsentGiven: false,
+};
 
 function getStatusColor(status: string, colors: ThemeColors): string {
   switch (status) {
@@ -345,11 +374,539 @@ function WorkflowCard({ workflow, onToggle, onRun, onDelete }: WorkflowCardProps
   );
 }
 
+// SIEM View Component
+interface SIEMViewProps {
+  colors: ThemeColors;
+}
+
+function SIEMView({ colors }: SIEMViewProps) {
+  const [siemConfig, setSiemConfig] = useState<SIEMConnectionConfig | null>(null);
+  const [endpointInput, setEndpointInput] = useState("");
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [authMethod, setAuthMethod] = useState<SIEMConnectionConfig["authMethod"]>("none");
+  const [oidcClientId, setOidcClientId] = useState("");
+  const [oidcAuthority, setOidcAuthority] = useState("");
+  const [oidcScope, setOidcScope] = useState("openid profile email");
+  const [samlEntityId, setSamlEntityId] = useState("");
+  const [samlEntryPoint, setSamlEntryPoint] = useState("");
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [ssoSession, setSsoSession] = useState<SSOSession | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Load SIEM config on mount
+  useEffect(() => {
+    chrome.storage.local.get(["siemConnectionConfig"])
+      .then((result) => {
+        const config = result.siemConnectionConfig ?? DEFAULT_SIEM_CONFIG;
+        setSiemConfig(config);
+        setEndpointInput(config.endpoint || "");
+        setAuthMethod(config.authMethod || "none");
+        setApiKeyInput(config.apiKey || "");
+        if (config.oidcConfig) {
+          setOidcClientId(config.oidcConfig.clientId || "");
+          setOidcAuthority(config.oidcConfig.authority || "");
+          setOidcScope(config.oidcConfig.scope || "openid profile email");
+        }
+        if (config.samlConfig) {
+          setSamlEntityId(config.samlConfig.entityId || "");
+          setSamlEntryPoint(config.samlConfig.entryPoint || "");
+        }
+      })
+      .catch(() => setSiemConfig(DEFAULT_SIEM_CONFIG));
+
+    // Load SSO session status
+    getSSOManager().then(async (manager) => {
+      const session = await manager.getSession();
+      setSsoSession(session);
+    }).catch(() => {});
+  }, []);
+
+  const handleSaveConfig = async () => {
+    if (!siemConfig?.userConsentGiven) {
+      setShowConsentDialog(true);
+      return;
+    }
+
+    const newConfig: SIEMConnectionConfig = {
+      enabled: true,
+      endpoint: endpointInput,
+      authMethod,
+      apiKey: authMethod === "apikey" ? apiKeyInput : undefined,
+      oidcConfig: authMethod === "oidc" ? {
+        provider: "oidc",
+        clientId: oidcClientId,
+        authority: oidcAuthority,
+        scope: oidcScope,
+      } : undefined,
+      samlConfig: authMethod === "saml" ? {
+        provider: "saml",
+        entityId: samlEntityId,
+        entryPoint: samlEntryPoint,
+      } : undefined,
+      userConsentGiven: true,
+    };
+
+    await chrome.storage.local.set({ siemConnectionConfig: newConfig });
+    setSiemConfig(newConfig);
+
+    // Update SSO manager config if using OIDC/SAML
+    if (authMethod === "oidc" && newConfig.oidcConfig) {
+      const manager = await getSSOManager();
+      await manager.setConfig(newConfig.oidcConfig);
+    } else if (authMethod === "saml" && newConfig.samlConfig) {
+      const manager = await getSSOManager();
+      await manager.setConfig(newConfig.samlConfig);
+    }
+
+    // Update API client mode
+    chrome.runtime.sendMessage({
+      type: "SET_CONNECTION_CONFIG",
+      data: {
+        mode: "remote",
+        endpoint: endpointInput,
+      },
+    }).catch(() => {});
+  };
+
+  const handleConsentAccept = async () => {
+    const newConfig: SIEMConnectionConfig = {
+      ...siemConfig!,
+      userConsentGiven: true,
+    };
+    setSiemConfig(newConfig);
+    setShowConsentDialog(false);
+    await handleSaveConfig();
+  };
+
+  const handleDisable = async () => {
+    const newConfig = DEFAULT_SIEM_CONFIG;
+    await chrome.storage.local.set({ siemConnectionConfig: newConfig });
+    setSiemConfig(newConfig);
+    setEndpointInput("");
+    setAuthMethod("none");
+    setApiKeyInput("");
+    setOidcClientId("");
+    setOidcAuthority("");
+    setSamlEntityId("");
+    setSamlEntryPoint("");
+
+    chrome.runtime.sendMessage({
+      type: "SET_CONNECTION_CONFIG",
+      data: { mode: "local", endpoint: null },
+    }).catch(() => {});
+  };
+
+  const handleTestConnection = async () => {
+    setConnectionStatus("testing");
+    try {
+      const response = await fetch(`${endpointInput}/health`, {
+        method: "GET",
+        headers: authMethod === "apikey" && apiKeyInput
+          ? { "Authorization": `Bearer ${apiKeyInput}` }
+          : {},
+      });
+      setConnectionStatus(response.ok ? "success" : "error");
+    } catch {
+      setConnectionStatus("error");
+    }
+    setTimeout(() => setConnectionStatus("idle"), 3000);
+  };
+
+  const handleStartAuth = async () => {
+    setIsAuthenticating(true);
+    try {
+      chrome.runtime.sendMessage({
+        type: "START_SSO_AUTH",
+        data: { provider: authMethod },
+      }).then((result) => {
+        if (result?.success) {
+          setSsoSession(result.session);
+        }
+        setIsAuthenticating(false);
+      }).catch(() => setIsAuthenticating(false));
+    } catch {
+      setIsAuthenticating(false);
+    }
+  };
+
+  if (siemConfig === null) {
+    return <div style={{ fontSize: "12px", color: colors.textSecondary }}>読み込み中...</div>;
+  }
+
+  return (
+    <>
+      {/* SIEM Connection Card */}
+      <Card title="SIEM接続設定" style={{ marginBottom: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Endpoint URL */}
+          <div>
+            <label style={{ display: "block", fontSize: "12px", color: colors.textSecondary, marginBottom: "6px" }}>
+              SIEMエンドポイントURL
+            </label>
+            <input
+              type="url"
+              value={endpointInput}
+              onChange={(e) => setEndpointInput((e.target as HTMLInputElement).value)}
+              placeholder="https://siem.example.com/api"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: "6px",
+                border: `1px solid ${colors.border}`,
+                background: colors.bgSecondary,
+                color: colors.textPrimary,
+                fontSize: "13px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* Auth Method Selection */}
+          <div>
+            <label style={{ display: "block", fontSize: "12px", color: colors.textSecondary, marginBottom: "6px" }}>
+              認証方法
+            </label>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {(["none", "apikey", "oidc", "saml"] as const).map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setAuthMethod(method)}
+                  style={{
+                    padding: "8px 16px",
+                    background: authMethod === method ? colors.status.info.bg : colors.bgSecondary,
+                    border: `1px solid ${authMethod === method ? colors.status.info.text : colors.border}`,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: authMethod === method ? colors.status.info.text : colors.textPrimary,
+                    fontWeight: authMethod === method ? 600 : 400,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {method === "none" ? "認証なし" : method === "apikey" ? "API Key" : method.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Auth Method Specific Config */}
+          {authMethod === "apikey" && (
+            <div>
+              <label style={{ display: "block", fontSize: "12px", color: colors.textSecondary, marginBottom: "6px" }}>
+                API Key
+              </label>
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput((e.target as HTMLInputElement).value)}
+                placeholder="sk-..."
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "6px",
+                  border: `1px solid ${colors.border}`,
+                  background: colors.bgSecondary,
+                  color: colors.textPrimary,
+                  fontSize: "13px",
+                  fontFamily: "monospace",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          )}
+
+          {authMethod === "oidc" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "12px", background: colors.bgSecondary, borderRadius: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <Key size={16} color={colors.status.info.text} />
+                <span style={{ fontSize: "13px", fontWeight: 600, color: colors.textPrimary }}>OpenID Connect設定</span>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", color: colors.textSecondary, marginBottom: "4px" }}>
+                  Client ID
+                </label>
+                <input
+                  type="text"
+                  value={oidcClientId}
+                  onChange={(e) => setOidcClientId((e.target as HTMLInputElement).value)}
+                  placeholder="your-client-id"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    background: colors.bgPrimary,
+                    color: colors.textPrimary,
+                    fontSize: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", color: colors.textSecondary, marginBottom: "4px" }}>
+                  Authority (IdP URL)
+                </label>
+                <input
+                  type="url"
+                  value={oidcAuthority}
+                  onChange={(e) => setOidcAuthority((e.target as HTMLInputElement).value)}
+                  placeholder="https://login.example.com"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    background: colors.bgPrimary,
+                    color: colors.textPrimary,
+                    fontSize: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", color: colors.textSecondary, marginBottom: "4px" }}>
+                  Scope
+                </label>
+                <input
+                  type="text"
+                  value={oidcScope}
+                  onChange={(e) => setOidcScope((e.target as HTMLInputElement).value)}
+                  placeholder="openid profile email"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    background: colors.bgPrimary,
+                    color: colors.textPrimary,
+                    fontSize: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {authMethod === "saml" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "12px", background: colors.bgSecondary, borderRadius: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <Shield size={16} color={colors.status.info.text} />
+                <span style={{ fontSize: "13px", fontWeight: 600, color: colors.textPrimary }}>SAML 2.0設定</span>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", color: colors.textSecondary, marginBottom: "4px" }}>
+                  Entity ID (SP)
+                </label>
+                <input
+                  type="text"
+                  value={samlEntityId}
+                  onChange={(e) => setSamlEntityId((e.target as HTMLInputElement).value)}
+                  placeholder="https://pleno-audit.example.com"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    background: colors.bgPrimary,
+                    color: colors.textPrimary,
+                    fontSize: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", color: colors.textSecondary, marginBottom: "4px" }}>
+                  IdP Entry Point (SSO URL)
+                </label>
+                <input
+                  type="url"
+                  value={samlEntryPoint}
+                  onChange={(e) => setSamlEntryPoint((e.target as HTMLInputElement).value)}
+                  placeholder="https://idp.example.com/sso/saml"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    background: colors.bgPrimary,
+                    color: colors.textPrimary,
+                    fontSize: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* SSO Session Status */}
+          {(authMethod === "oidc" || authMethod === "saml") && ssoSession && (
+            <div style={{
+              padding: "12px",
+              background: colors.status.success.bg,
+              border: `1px solid ${colors.status.success.text}`,
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}>
+              <CheckCircle size={20} color={colors.status.success.text} />
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: colors.status.success.text }}>
+                  認証済み
+                </div>
+                {ssoSession.userEmail && (
+                  <div style={{ fontSize: "11px", color: colors.textSecondary }}>
+                    {ssoSession.userEmail}
+                  </div>
+                )}
+                {ssoSession.expiresAt && (
+                  <div style={{ fontSize: "11px", color: colors.textMuted }}>
+                    有効期限: {new Date(ssoSession.expiresAt).toLocaleString("ja-JP")}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {(authMethod === "oidc" || authMethod === "saml") && !ssoSession && (
+              <Button
+                variant="primary"
+                onClick={handleStartAuth}
+                disabled={isAuthenticating || !endpointInput || (authMethod === "oidc" && (!oidcClientId || !oidcAuthority)) || (authMethod === "saml" && !samlEntityId)}
+              >
+                {isAuthenticating ? "認証中..." : "認証を開始"}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={handleTestConnection}
+              disabled={!endpointInput || connectionStatus === "testing"}
+            >
+              {connectionStatus === "testing" ? "テスト中..." : connectionStatus === "success" ? (
+                <><CheckCircle size={14} style={{ marginRight: "4px" }} /> 接続成功</>
+              ) : connectionStatus === "error" ? (
+                <><AlertCircle size={14} style={{ marginRight: "4px" }} /> 接続失敗</>
+              ) : "接続テスト"}
+            </Button>
+            <Button variant="primary" onClick={handleSaveConfig} disabled={!endpointInput}>
+              保存
+            </Button>
+            {siemConfig.enabled && (
+              <Button variant="secondary" onClick={handleDisable}>
+                無効化
+              </Button>
+            )}
+          </div>
+
+          {/* Current Status */}
+          {siemConfig.enabled && (
+            <div style={{
+              padding: "12px",
+              background: colors.status.info.bg,
+              border: `1px solid ${colors.status.info.text}`,
+              borderRadius: "8px",
+            }}>
+              <div style={{ fontSize: "12px", color: colors.status.info.text, fontWeight: 600, marginBottom: "4px" }}>
+                SIEM連携が有効です
+              </div>
+              <div style={{ fontSize: "11px", color: colors.textSecondary }}>
+                接続先: {siemConfig.endpoint}
+              </div>
+              <div style={{ fontSize: "11px", color: colors.textSecondary }}>
+                認証方法: {siemConfig.authMethod === "none" ? "認証なし" : siemConfig.authMethod === "apikey" ? "API Key" : siemConfig.authMethod.toUpperCase()}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Data Privacy Notice */}
+      <Card title="プライバシーについて">
+        <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.8 }}>
+          <p style={{ margin: "0 0 12px 0" }}>
+            SIEM連携を有効にすると、以下のデータが指定したサーバーに送信されます：
+          </p>
+          <ul style={{ margin: "0 0 12px 16px", padding: 0 }}>
+            <li>匿名化されたセキュリティイベント</li>
+            <li>ポリシー設定</li>
+            <li>集計された統計データ</li>
+          </ul>
+          <p style={{ margin: 0, fontSize: "11px", color: colors.textMuted }}>
+            ※ 閲覧履歴、パスワード、AIプロンプトの内容は送信されません。
+          </p>
+        </div>
+      </Card>
+
+      {/* Consent Dialog */}
+      {showConsentDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+          onClick={() => setShowConsentDialog(false)}
+        >
+          <div
+            role="document"
+            style={{
+              backgroundColor: colors.bgPrimary,
+              borderRadius: "12px",
+              padding: "20px",
+              maxWidth: "380px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
+              SIEM連携を有効化
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: colors.status.warning.text,
+              background: colors.status.warning.bg,
+              padding: "10px",
+              borderRadius: "6px",
+              marginBottom: "16px",
+              lineHeight: 1.6,
+            }}>
+              この機能を有効にすると、セキュリティデータが指定したSIEMサーバーに送信されます。
+            </div>
+            <div style={{ fontSize: "11px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
+              ※ 詳細は<a href="https://github.com/HikaruEgashira/pleno-audit/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener noreferrer" style={{ color: colors.status.info.text }}>プライバシーポリシー</a>をご確認ください。
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Button variant="secondary" onClick={() => setShowConsentDialog(false)} style={{ flex: 1 }}>
+                キャンセル
+              </Button>
+              <Button variant="primary" onClick={handleConsentAccept} style={{ flex: 1 }}>
+                有効化する
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function IntegrationsTab() {
   const { colors } = useTheme();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [activeView, setActiveView] = useState<"integrations" | "workflows">("integrations");
+  const [activeView, setActiveView] = useState<"integrations" | "workflows" | "siem">("integrations");
   const [_showAddDialog, setShowAddDialog] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
 
@@ -500,6 +1057,13 @@ export function IntegrationsTab() {
           <Zap size={14} style={{ marginRight: "6px" }} />
           ワークフロー ({workflows.length})
         </Button>
+        <Button
+          variant={activeView === "siem" ? "primary" : "secondary"}
+          onClick={() => setActiveView("siem")}
+        >
+          <Server size={14} style={{ marginRight: "6px" }} />
+          SIEM
+        </Button>
       </div>
 
       {activeView === "integrations" && (
@@ -620,6 +1184,8 @@ export function IntegrationsTab() {
           </Card>
         </>
       )}
+
+      {activeView === "siem" && <SIEMView colors={colors} />}
     </div>
   );
 }
