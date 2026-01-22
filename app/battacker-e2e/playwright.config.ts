@@ -13,6 +13,17 @@ export default defineConfig({
     {
       name: "chromium",
       use: { browserName: "chromium" },
+      testMatch: /browsertotal-scan\.ts$/,
+    },
+    {
+      name: "battacker",
+      use: { browserName: "chromium" },
+      testMatch: /battacker-scan\.ts$/,
+    },
+    {
+      name: "audit-integration",
+      use: { browserName: "chromium" },
+      testMatch: /audit-integration\.test\.ts$/,
     },
   ],
 });

