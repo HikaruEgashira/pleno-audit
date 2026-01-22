@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-01-22T11:23:23.126Z",
+  "summary": {
+    "total": 9,
+    "implemented": 9,
+    "notImplemented": 0,
+    "tested": 9,
+    "detected": 9,
+    "coveragePercent": 100,
+    "successRate": 100
+  },
+  "results": [
+    {
+      "type": "tracking_beacon_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    },
+    {
+      "type": "data_exfiltration_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    },
+    {
+      "type": "xss_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 4,
+      "implemented": true
+    },
+    {
+      "type": "cookie_access_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    },
+    {
+      "type": "dom_scraping_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    },
+    {
+      "type": "clipboard_hijack_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    },
+    {
+      "type": "suspicious_download_detected",
+      "tested": true,
+      "detected": true,
+      "eventCount": 4,
+      "implemented": true
+    },
+    {
+      "type": "supply_chain_risk",
+      "tested": true,
+      "detected": true,
+      "eventCount": 3,
+      "implemented": true
+    },
+    {
+      "type": "credential_theft_risk",
+      "tested": true,
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
+    }
+  ],
+  "gaps": []
+}

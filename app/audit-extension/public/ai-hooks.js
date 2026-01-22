@@ -731,5 +731,170 @@
     } catch { /* Skip on error */ }
   }, true)
 
+  // ===== SUPPLY CHAIN RISK DETECTION =====
+  function sendSupplyChainRiskEvent(data) {
+    window.dispatchEvent(new CustomEvent('__SUPPLY_CHAIN_RISK_DETECTED__', { detail: data }))
+  }
+
+  function isExternalResource(url) {
+    try {
+      const resourceUrl = new URL(url, window.location.origin)
+      return resourceUrl.hostname !== window.location.hostname
+    } catch {
+      return false
+    }
+  }
+
+  const knownCDNs = [
+    'cdnjs.cloudflare.com',
+    'cdn.jsdelivr.net',
+    'unpkg.com',
+    'ajax.googleapis.com',
+    'code.jquery.com',
+    'stackpath.bootstrapcdn.com',
+    'maxcdn.bootstrapcdn.com',
+    'cdn.bootcdn.net',
+    'lib.baomitu.com',
+    'cdn.staticfile.org'
+  ]
+
+  function isKnownCDN(url) {
+    try {
+      const hostname = new URL(url, window.location.origin).hostname
+      return knownCDNs.some(cdn => hostname.includes(cdn))
+    } catch {
+      return false
+    }
+  }
+
+  function checkSupplyChainRisk(element, resourceType) {
+    const url = resourceType === 'script' ? element.src : element.href
+    if (!url || !isExternalResource(url)) return
+
+    const hasIntegrity = element.hasAttribute('integrity') && element.integrity
+    const hasCrossorigin = element.hasAttribute('crossorigin')
+    const isCDN = isKnownCDN(url)
+
+    if (!hasIntegrity) {
+      const risks = ['missing_sri']
+      if (isCDN) risks.push('cdn_without_sri')
+      if (!hasCrossorigin) risks.push('missing_crossorigin')
+
+      sendSupplyChainRiskEvent({
+        url: url,
+        resourceType: resourceType,
+        hasIntegrity: false,
+        hasCrossorigin: hasCrossorigin,
+        isCDN: isCDN,
+        risks: risks,
+        timestamp: Date.now()
+      })
+    }
+  }
+
+  // MutationObserver for dynamic resource loading
+  const supplyChainObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue
+
+        if (node.tagName === 'SCRIPT' && node.src) {
+          checkSupplyChainRisk(node, 'script')
+        }
+
+        if (node.tagName === 'LINK' && node.href && node.rel === 'stylesheet') {
+          checkSupplyChainRisk(node, 'stylesheet')
+        }
+      }
+    }
+  })
+
+  // Start observing DOM changes for supply chain risk
+  if (document.body) {
+    supplyChainObserver.observe(document.body, { childList: true, subtree: true })
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.body) {
+        supplyChainObserver.observe(document.body, { childList: true, subtree: true })
+      }
+    })
+  }
+
+  // Also observe document.head for scripts added there
+  if (document.head) {
+    supplyChainObserver.observe(document.head, { childList: true, subtree: true })
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.head) {
+        supplyChainObserver.observe(document.head, { childList: true, subtree: true })
+      }
+    })
+  }
+
+  // ===== CREDENTIAL THEFT DETECTION =====
+  function sendCredentialTheftEvent(data) {
+    window.dispatchEvent(new CustomEvent('__CREDENTIAL_THEFT_DETECTED__', { detail: data }))
+  }
+
+  function hasSensitiveFields(form) {
+    const sensitiveTypes = ['password', 'email', 'tel', 'credit-card']
+    const sensitiveNames = ['password', 'passwd', 'pwd', 'pass', 'secret', 'token', 'api_key', 'apikey', 'credit', 'card', 'cvv', 'ssn', 'otp', 'pin', 'auth', 'credential', '2fa', 'mfa']
+
+    const inputs = form.querySelectorAll('input')
+    for (const input of inputs) {
+      const type = (input.type || '').toLowerCase()
+      const name = (input.name || '').toLowerCase()
+      const id = (input.id || '').toLowerCase()
+      const autocomplete = (input.autocomplete || '').toLowerCase()
+
+      if (sensitiveTypes.includes(type)) return { hasSensitive: true, fieldType: type }
+
+      for (const pattern of sensitiveNames) {
+        if (name.includes(pattern) || id.includes(pattern)) {
+          return { hasSensitive: true, fieldType: pattern }
+        }
+      }
+
+      if (autocomplete.includes('password') || autocomplete.includes('cc-')) {
+        return { hasSensitive: true, fieldType: autocomplete }
+      }
+    }
+
+    return { hasSensitive: false, fieldType: null }
+  }
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target
+    if (!(form instanceof HTMLFormElement)) return
+
+    try {
+      const action = form.action || window.location.href
+      const actionUrl = new URL(action, window.location.origin)
+      const isSecure = actionUrl.protocol === 'https:'
+      const targetDomain = actionUrl.hostname
+      const currentDomain = window.location.hostname
+      const isCrossOrigin = targetDomain !== currentDomain
+
+      const { hasSensitive, fieldType } = hasSensitiveFields(form)
+
+      if (hasSensitive) {
+        const risks = []
+        if (!isSecure) risks.push('insecure_protocol')
+        if (isCrossOrigin) risks.push('cross_origin')
+
+        sendCredentialTheftEvent({
+          formAction: actionUrl.href,
+          targetDomain: targetDomain,
+          method: (form.method || 'GET').toUpperCase(),
+          isSecure: isSecure,
+          isCrossOrigin: isCrossOrigin,
+          fieldType: fieldType,
+          risks: risks,
+          timestamp: Date.now()
+        })
+      }
+    } catch { /* Skip on invalid form action */ }
+  }, true)
+
   // AI Prompt Capture + Security Detection initialized
 })()

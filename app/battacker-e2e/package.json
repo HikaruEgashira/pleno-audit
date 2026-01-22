@@ -7,6 +7,7 @@
   "scripts": {
     "test": "npx playwright test",
     "test:ui": "npx playwright test --ui",
+    "test:audit": "npx playwright test --project=audit-integration",
     "browsertotal": "npx tsx src/browsertotal-scan.ts",
     "battacker": "npx tsx src/battacker-scan.ts",
     "comparison": "npx tsx src/comparison-report.ts"
