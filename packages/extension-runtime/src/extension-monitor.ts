@@ -350,9 +350,16 @@ function getNextAvailableRuleId(): number | null {
  * インストール時に動的に呼び出される
  */
 export async function addDNRRuleForExtension(extensionId: string): Promise<void> {
+  // 入力バリデーション: 拡張機能IDの形式チェック
+  if (!extensionId || !/^[a-z]{32}$/.test(extensionId)) {
+    logger.warn(`Invalid extension ID format: ${extensionId}`);
+    return;
+  }
+
   try {
     // 既に登録済みかチェック
-    if (dnrRuleToExtensionMap.values().toArray?.().includes(extensionId)) {
+    const existingExtIds = Array.from(dnrRuleToExtensionMap.values());
+    if (existingExtIds.includes(extensionId)) {
       logger.debug(`DNR rule already exists for extension ${extensionId}`);
       return;
     }
@@ -563,20 +570,27 @@ export function createExtensionMonitor(
       await refreshExtensionList();
       logger.info(`Extension monitor started: ${globalKnownExtensions.size} extensions found`);
 
-      // Service Worker再起動後のDNRマッピング復元
+      // Service Worker再起動後のDNRマッピング復元を試みる
+      let mappingRestored = false;
       if (!isDNRRulesRegistered && dnrRuleToExtensionMap.size === 0) {
         await restoreDNRMappingAfterServiceWorkerRestart();
+        mappingRestored = dnrRuleToExtensionMap.size > 0;
       }
 
       // 拡張機能の追加/削除を監視
       chrome.management.onInstalled.addListener(handleInstalled);
       chrome.management.onUninstalled.addListener(handleUninstalled);
 
-      // DNRルールを登録（自分以外の拡張機能を監視）
-      const otherExtensionIds = Array.from(globalKnownExtensions.keys()).filter(
-        (id) => id !== ownExtensionId && !globalConfig.excludedExtensions.includes(id)
-      );
-      await registerDNRRulesForExtensions(otherExtensionIds);
+      // マッピングが復元されていなければDNRルールを新規登録
+      // （復元済みの場合は既存ルールを維持し再登録をスキップ）
+      if (!mappingRestored) {
+        const otherExtensionIds = Array.from(globalKnownExtensions.keys()).filter(
+          (id) => id !== ownExtensionId && !globalConfig.excludedExtensions.includes(id)
+        );
+        await registerDNRRulesForExtensions(otherExtensionIds);
+      } else {
+        logger.debug("DNR rules restored from previous session, skipping re-registration");
+      }
     },
 
     async stop() {
