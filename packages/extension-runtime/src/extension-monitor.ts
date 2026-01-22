@@ -48,6 +48,8 @@ let isListenerRegistered = false;
 let isExtensionListInitialized = false;
 let isDNRRulesRegistered = false;
 let lastMatchedRulesCheck = 0;
+// ルールID→拡張機能IDの明示的マッピング（拡張機能追加/削除時の不整合を防ぐ）
+let dnrRuleToExtensionMap = new Map<number, string>();
 
 /**
  * グローバルコールバックをクリア
@@ -159,6 +161,14 @@ export function registerExtensionMonitorListener(): void {
 /**
  * declarativeNetRequestルールを登録
  * 他の拡張機能からのリクエストを検出するため
+ *
+ * 注意: DNRのinitiatorDomainsは通常のドメイン名を期待するため、
+ * 拡張機能IDを指定してもマッチしない可能性があります。
+ * 現在は全リクエストをALLOWルールでマッチさせ、tabId=-1（Service Worker）を検出する方式です。
+ *
+ * 制限事項:
+ * - 最大100個の拡張機能を監視可能（DNR_RULE_ID_BASE〜DNR_RULE_ID_MAX）
+ * - DNR検出時はリクエストURLの詳細が取得できない
  */
 export async function registerDNRRulesForExtensions(
   extensionIds: string[]
@@ -169,33 +179,40 @@ export async function registerDNRRulesForExtensions(
   }
 
   try {
-    // 既存のルールをクリア
+    // 既存のルールとマッピングをクリア
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const ruleIdsToRemove = existingRules
       .filter((r) => r.id >= DNR_RULE_ID_BASE && r.id < DNR_RULE_ID_MAX)
       .map((r) => r.id);
+    dnrRuleToExtensionMap.clear();
 
-    // 各拡張機能に対してルールを作成
-    const newRules: chrome.declarativeNetRequest.Rule[] = extensionIds
-      .slice(0, DNR_RULE_ID_MAX - DNR_RULE_ID_BASE)
-      .map((extId, index) => ({
-        id: DNR_RULE_ID_BASE + index,
-        priority: 1,
-        action: {
-          type: chrome.declarativeNetRequest.RuleActionType.ALLOW,
-        },
-        condition: {
-          // 拡張機能からのリクエストを対象
-          initiatorDomains: [extId],
-          resourceTypes: [
-            chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
-            chrome.declarativeNetRequest.ResourceType.OTHER,
-            chrome.declarativeNetRequest.ResourceType.SCRIPT,
-            chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-            chrome.declarativeNetRequest.ResourceType.IMAGE,
-          ],
-        },
-      }));
+    // 各拡張機能に対してルールを作成（最大100個）
+    const targetExtensions = extensionIds.slice(0, DNR_RULE_ID_MAX - DNR_RULE_ID_BASE);
+    const newRules: chrome.declarativeNetRequest.Rule[] = targetExtensions
+      .map((extId, index) => {
+        const ruleId = DNR_RULE_ID_BASE + index;
+        // ルールID→拡張機能IDのマッピングを設定
+        dnrRuleToExtensionMap.set(ruleId, extId);
+        return {
+          id: ruleId,
+          priority: 1,
+          action: {
+            type: chrome.declarativeNetRequest.RuleActionType.ALLOW,
+          },
+          condition: {
+            // 拡張機能からのリクエストを対象（initiatorDomainsにextIdを指定）
+            // 注: Chrome拡張機能のinitiatorは chrome-extension://[id] 形式
+            initiatorDomains: [extId],
+            resourceTypes: [
+              chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
+              chrome.declarativeNetRequest.ResourceType.OTHER,
+              chrome.declarativeNetRequest.ResourceType.SCRIPT,
+              chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+              chrome.declarativeNetRequest.ResourceType.IMAGE,
+            ],
+          },
+        };
+      });
 
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: ruleIdsToRemove,
@@ -204,7 +221,7 @@ export async function registerDNRRulesForExtensions(
 
     isDNRRulesRegistered = true;
     logger.info(
-      `DNR rules registered for ${newRules.length} extensions`
+      `DNR rules registered for ${newRules.length} extensions (mapping: ${dnrRuleToExtensionMap.size})`
     );
   } catch (error) {
     logger.error("Failed to register DNR rules:", error);
@@ -235,14 +252,13 @@ export async function checkMatchedDNRRules(): Promise<ExtensionRequestRecord[]> 
         continue;
       }
 
-      // ルールIDから拡張機能インデックスを取得
-      const extIndex = ruleId - DNR_RULE_ID_BASE;
-      const extIds = Array.from(globalKnownExtensions.keys()).filter(
-        (id) => id !== globalOwnExtensionId
-      );
-      const extensionId = extIds[extIndex];
+      // ルールID→拡張機能IDのマッピングから取得（順序に依存しない）
+      const extensionId = dnrRuleToExtensionMap.get(ruleId);
 
-      if (!extensionId) continue;
+      if (!extensionId) {
+        logger.debug(`No extension mapping for rule ${ruleId}`);
+        continue;
+      }
 
       // 除外チェック
       if (globalConfig.excludedExtensions.includes(extensionId)) continue;
@@ -303,6 +319,7 @@ export async function clearDNRRules(): Promise<void> {
     }
 
     isDNRRulesRegistered = false;
+    dnrRuleToExtensionMap.clear();
     logger.debug("DNR rules cleared");
   } catch (error) {
     logger.error("Failed to clear DNR rules:", error);
