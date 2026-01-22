@@ -14,7 +14,6 @@ async function simulateSharedWorker(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "SharedWorker creation timed out (may be blocked)",
         });
@@ -24,7 +23,6 @@ async function simulateSharedWorker(): Promise<AttackResult> {
         clearTimeout(timeout);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `SharedWorker communication successful - enables cross-tab persistence and coordination`,
         });
@@ -34,7 +32,6 @@ async function simulateSharedWorker(): Promise<AttackResult> {
         clearTimeout(timeout);
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `SharedWorker blocked: ${err.message}`,
         });
@@ -47,7 +44,6 @@ async function simulateSharedWorker(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `SharedWorker creation blocked: ${errorMessage}`,
       error: errorMessage,
@@ -62,7 +58,6 @@ async function simulateServiceWorkerRegistration(): Promise<AttackResult> {
     if (!("serviceWorker" in navigator)) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Service Worker API not available",
       };
@@ -87,7 +82,6 @@ async function simulateServiceWorkerRegistration(): Promise<AttackResult> {
         URL.revokeObjectURL(swUrl);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "Service Worker registration pending - requires user/domain context",
@@ -103,7 +97,6 @@ async function simulateServiceWorkerRegistration(): Promise<AttackResult> {
 
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Service Worker registered - enables network interception and offline persistence`,
           });
@@ -115,14 +108,12 @@ async function simulateServiceWorkerRegistration(): Promise<AttackResult> {
           if (error.message.includes("Only secure origins are allowed")) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Service Worker blocked - https required",
             });
           } else {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: `Service Worker registration blocked: ${error.message}`,
             });
@@ -133,7 +124,6 @@ async function simulateServiceWorkerRegistration(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Service Worker attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -172,7 +162,6 @@ async function simulateWorkerSpawningChain(): Promise<AttackResult> {
         URL.revokeObjectURL(workerUrl);
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "Worker spawning chain timed out - cascade may be blocked",
         });
@@ -186,7 +175,6 @@ async function simulateWorkerSpawningChain(): Promise<AttackResult> {
         const depth = e.data.level || 0;
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: `Worker spawning chain successful - nested depth ${depth} achieved (enables hidden command channels)`,
         });
@@ -199,7 +187,6 @@ async function simulateWorkerSpawningChain(): Promise<AttackResult> {
 
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: `Worker spawning chain blocked: ${err.message}`,
         });
@@ -211,7 +198,6 @@ async function simulateWorkerSpawningChain(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Worker spawning chain blocked: ${errorMessage}`,
       error: errorMessage,

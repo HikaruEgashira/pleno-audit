@@ -7,7 +7,6 @@ async function simulateGeolocationTracking(): Promise<AttackResult> {
     if (!("geolocation" in navigator)) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Geolocation API not available",
       };
@@ -17,7 +16,6 @@ async function simulateGeolocationTracking(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "Geolocation request timed out - permission dialog may be pending",
@@ -29,7 +27,6 @@ async function simulateGeolocationTracking(): Promise<AttackResult> {
           clearTimeout(timeout);
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Geolocation tracking successful - accuracy: ${position.coords.accuracy}m`,
           });
@@ -39,14 +36,12 @@ async function simulateGeolocationTracking(): Promise<AttackResult> {
           if (error.code === error.PERMISSION_DENIED) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Geolocation permission denied",
             });
           } else {
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Geolocation error: ${error.message} (code: ${error.code})`,
             });
@@ -59,7 +54,6 @@ async function simulateGeolocationTracking(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Geolocation tracking blocked: ${errorMessage}`,
       error: errorMessage,
@@ -87,7 +81,6 @@ async function simulateBatteryInfoExtraction(): Promise<AttackResult> {
     if (!nav.getBattery) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Battery Status API not available (deprecated in most browsers)",
       };
@@ -106,7 +99,6 @@ async function simulateBatteryInfoExtraction(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Battery info extracted - ${batteryInfo.level}% (${batteryInfo.charging ? "charging" : "discharging"})`,
     };
@@ -114,7 +106,6 @@ async function simulateBatteryInfoExtraction(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Battery info extraction blocked: ${errorMessage}`,
       error: errorMessage,
@@ -139,7 +130,6 @@ async function simulateDeviceMotionTracking(): Promise<AttackResult> {
         if (permission !== "granted") {
           return {
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: "Device motion permission denied",
           };
@@ -147,7 +137,6 @@ async function simulateDeviceMotionTracking(): Promise<AttackResult> {
       } catch {
         return {
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "Device motion permission request failed",
         };
@@ -164,7 +153,6 @@ async function simulateDeviceMotionTracking(): Promise<AttackResult> {
 
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Device motion tracking active - acceleration: x=${event.acceleration.x?.toFixed(2) ?? "N/A"}`,
           });
@@ -178,7 +166,6 @@ async function simulateDeviceMotionTracking(): Promise<AttackResult> {
         if (!dataCollected) {
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details:
               "Device motion listener registered (no motion data - desktop device?)",
@@ -190,7 +177,6 @@ async function simulateDeviceMotionTracking(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Device motion tracking blocked: ${errorMessage}`,
       error: errorMessage,
@@ -205,7 +191,6 @@ async function simulateMediaDeviceEnumeration(): Promise<AttackResult> {
     if (!navigator.mediaDevices?.enumerateDevices) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Media Devices API not available",
       };
@@ -235,7 +220,6 @@ async function simulateMediaDeviceEnumeration(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Media devices enumerated - ${deviceCounts.videoinput} cameras, ${deviceCounts.audioinput} microphones${hasLabels ? ` (labels exposed: ${deviceLabels.length})` : " (labels hidden)"}`,
     };
@@ -243,7 +227,6 @@ async function simulateMediaDeviceEnumeration(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Media device enumeration blocked: ${errorMessage}`,
       error: errorMessage,
@@ -258,7 +241,6 @@ async function simulateStorageEstimation(): Promise<AttackResult> {
     if (!navigator.storage?.estimate) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Storage API estimate not available",
       };
@@ -276,7 +258,6 @@ async function simulateStorageEstimation(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: `Storage info extracted - ${usageGB}GB used of ${quotaGB}GB quota (${usagePercent}%)`,
     };
@@ -284,7 +265,6 @@ async function simulateStorageEstimation(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Storage estimation blocked: ${errorMessage}`,
       error: errorMessage,

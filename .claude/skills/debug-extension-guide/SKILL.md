@@ -1,6 +1,6 @@
 ---
 name: debug-extension-guide
-description: Chrome拡張機能の動作確認とデバッグ手順ガイド
+description: pleno-debug (debugger CLI) で拡張機能をテスト・動作確認する際に使用。pnpm devで開発環境を起動し、DEBUG_PORT=9223でコマンド実行。「debuggerで確認」「機能テスト」「動作確認」タスク時に必須。
 ---
 
 Chrome拡張機能のデバッグ手順ガイドです。

@@ -7,7 +7,6 @@ async function simulateScreenCapture(): Promise<AttackResult> {
     if (!navigator.mediaDevices?.getDisplayMedia) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Screen capture API not available",
       };
@@ -17,7 +16,6 @@ async function simulateScreenCapture(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details:
             "Screen capture permission dialog pending - requires user interaction",
@@ -40,7 +38,6 @@ async function simulateScreenCapture(): Promise<AttackResult> {
 
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `Screen capture successful - ${canvas.width}x${canvas.height} stream obtained`,
           });
@@ -53,14 +50,12 @@ async function simulateScreenCapture(): Promise<AttackResult> {
           ) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Screen capture blocked by browser/user",
             });
           } else {
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Screen capture error: ${error.message}`,
             });
@@ -71,7 +66,6 @@ async function simulateScreenCapture(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Screen capture blocked: ${errorMessage}`,
       error: errorMessage,
@@ -86,7 +80,6 @@ async function simulateAudioCapture(): Promise<AttackResult> {
     if (!navigator.mediaDevices?.getUserMedia) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Audio capture API not available",
       };
@@ -96,7 +89,6 @@ async function simulateAudioCapture(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "Audio capture permission dialog pending",
         });
@@ -125,7 +117,6 @@ async function simulateAudioCapture(): Promise<AttackResult> {
 
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Audio capture successful - ${Math.round(audioBlob.size / 1024)}KB audio recorded`,
             });
@@ -141,14 +132,12 @@ async function simulateAudioCapture(): Promise<AttackResult> {
           ) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Audio capture blocked by browser/user",
             });
           } else {
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Audio capture error: ${error.message}`,
             });
@@ -159,7 +148,6 @@ async function simulateAudioCapture(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Audio capture blocked: ${errorMessage}`,
       error: errorMessage,
@@ -174,7 +162,6 @@ async function simulateMediaDeviceCapture(): Promise<AttackResult> {
     if (!navigator.mediaDevices?.getUserMedia) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Media capture API not available",
       };
@@ -184,7 +171,6 @@ async function simulateMediaDeviceCapture(): Promise<AttackResult> {
       const timeout = setTimeout(() => {
         resolve({
           blocked: false,
-          detected: false,
           executionTime: performance.now() - startTime,
           details: "Media capture permission dialog pending",
         });
@@ -199,7 +185,6 @@ async function simulateMediaDeviceCapture(): Promise<AttackResult> {
 
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details:
               "Full media capture (audio+video) successful - device streams obtained",
@@ -213,14 +198,12 @@ async function simulateMediaDeviceCapture(): Promise<AttackResult> {
           ) {
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "Media capture blocked by browser/user",
             });
           } else {
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: `Media capture error: ${error.message}`,
             });
@@ -231,7 +214,6 @@ async function simulateMediaDeviceCapture(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Media capture blocked: ${errorMessage}`,
       error: errorMessage,

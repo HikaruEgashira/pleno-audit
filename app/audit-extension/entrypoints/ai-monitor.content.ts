@@ -41,7 +41,10 @@ export default defineContentScript({
       window.addEventListener(eventType, ((event: CustomEvent) => {
         safeSendMessage({
           type: eventType.replace(/^__|__$/g, ""),
-          data: event.detail,
+          data: {
+            ...event.detail,
+            source: "ai-monitor",
+          },
         });
       }) as EventListener);
     }

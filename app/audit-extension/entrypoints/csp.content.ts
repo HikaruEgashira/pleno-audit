@@ -105,6 +105,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "CREDENTIAL_THEFT_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             formAction: detail.formAction || "",
@@ -127,6 +128,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "SUPPLY_CHAIN_RISK_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             url: detail.url || "",
@@ -148,6 +150,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "TRACKING_BEACON_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             url: detail.url || "",
@@ -167,6 +170,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "CLIPBOARD_HIJACK_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             text: detail.text || "",
@@ -185,6 +189,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "COOKIE_ACCESS_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             readCount: detail.readCount ?? 1,
@@ -201,6 +206,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "XSS_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             type: detail.type || "unknown",
@@ -218,6 +224,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "DOM_SCRAPING_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             selector: detail.selector || "",
@@ -235,6 +242,7 @@ export default defineContentScript({
         safeSendMessage({
           type: "SUSPICIOUS_DOWNLOAD_DETECTED",
           data: {
+            source: "csp",
             timestamp: new Date().toISOString(),
             pageUrl: document.location.href,
             type: detail.type || "unknown",

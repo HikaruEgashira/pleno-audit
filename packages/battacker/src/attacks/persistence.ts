@@ -13,7 +13,6 @@ async function simulateIndexedDBStash(): Promise<AttackResult> {
       request.onerror = () => {
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "IndexedDB access blocked",
           error: request.error?.message,
@@ -50,7 +49,6 @@ async function simulateIndexedDBStash(): Promise<AttackResult> {
             indexedDB.deleteDatabase(dbName);
             resolve({
               blocked: false,
-              detected: false,
               executionTime: performance.now() - startTime,
               details: "IndexedDB data stash successful - sensitive data persisted",
             });
@@ -61,7 +59,6 @@ async function simulateIndexedDBStash(): Promise<AttackResult> {
             indexedDB.deleteDatabase(dbName);
             resolve({
               blocked: true,
-              detected: true,
               executionTime: performance.now() - startTime,
               details: "IndexedDB write blocked",
               error: addRequest.error?.message,
@@ -73,7 +70,6 @@ async function simulateIndexedDBStash(): Promise<AttackResult> {
           const errorMessage = error instanceof Error ? error.message : String(error);
           resolve({
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: `IndexedDB operation blocked: ${errorMessage}`,
             error: errorMessage,
@@ -85,7 +81,6 @@ async function simulateIndexedDBStash(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `IndexedDB stash blocked: ${errorMessage}`,
       error: errorMessage,
@@ -100,7 +95,6 @@ async function simulateCacheAPIAbuse(): Promise<AttackResult> {
     if (!("caches" in window)) {
       return {
         blocked: false,
-        detected: false,
         executionTime: performance.now() - startTime,
         details: "Cache API not available in this context",
       };
@@ -130,14 +124,12 @@ async function simulateCacheAPIAbuse(): Promise<AttackResult> {
     if (cached) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "Cache API abuse successful - data persisted and retrieved from cache",
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Cache API write succeeded but retrieval failed",
       };
@@ -146,7 +138,6 @@ async function simulateCacheAPIAbuse(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Cache API abuse blocked: ${errorMessage}`,
       error: errorMessage,
@@ -179,14 +170,12 @@ async function simulateHistoryStateExfil(): Promise<AttackResult> {
     if (retrievedState && retrievedState.type === "history_exfil") {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: "History state exfiltration successful - data hidden in browser history",
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "History state manipulation detected or blocked",
       };
@@ -195,7 +184,6 @@ async function simulateHistoryStateExfil(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `History state exfil blocked: ${errorMessage}`,
       error: errorMessage,

@@ -12,7 +12,6 @@ async function simulateCanvasFingerprinting(): Promise<AttackResult> {
     if (!ctx) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Canvas 2D context not available",
       };
@@ -37,14 +36,12 @@ async function simulateCanvasFingerprinting(): Promise<AttackResult> {
     if (dataUrl && dataUrl.length > 100) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Canvas fingerprinting successful - hash: ${fingerprint}`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Canvas fingerprinting returned empty or blocked data",
       };
@@ -53,7 +50,6 @@ async function simulateCanvasFingerprinting(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Canvas fingerprinting blocked: ${errorMessage}`,
       error: errorMessage,
@@ -104,14 +100,12 @@ async function simulatePerformanceTimingAttack(): Promise<AttackResult> {
     if (collectedFields > 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Performance timing attack successful - collected ${collectedFields} timing metrics`,
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Limited performance data collected (${collectedFields} fields) - some APIs may be restricted`,
       };
@@ -120,7 +114,6 @@ async function simulatePerformanceTimingAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Performance timing attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -135,7 +128,6 @@ async function simulateBroadcastChannelLeak(): Promise<AttackResult> {
     if (!("BroadcastChannel" in window)) {
       return {
         blocked: false,
-        detected: false,
         executionTime: performance.now() - startTime,
         details: "BroadcastChannel API not available",
       };
@@ -151,7 +143,6 @@ async function simulateBroadcastChannelLeak(): Promise<AttackResult> {
         receiverChannel.close();
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "BroadcastChannel communication timed out or blocked",
         });
@@ -165,14 +156,12 @@ async function simulateBroadcastChannelLeak(): Promise<AttackResult> {
         if (event.data && event.data.type === "exfil") {
           resolve({
             blocked: false,
-            detected: false,
             executionTime: performance.now() - startTime,
             details: `BroadcastChannel leak successful - cross-tab data sharing confirmed`,
           });
         } else {
           resolve({
             blocked: true,
-            detected: true,
             executionTime: performance.now() - startTime,
             details: "BroadcastChannel message received but data corrupted",
           });
@@ -192,7 +181,6 @@ async function simulateBroadcastChannelLeak(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `BroadcastChannel leak blocked: ${errorMessage}`,
       error: errorMessage,
@@ -231,21 +219,18 @@ async function simulateSpectreTimingMitigation(): Promise<AttackResult> {
     if (minResolution >= 0.1) {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `Spectre timing mitigation active - timer resolution ${minResolution.toFixed(3)}ms (≥100μs threshold)`,
       };
     } else if (minResolution >= 0.005) {
       return {
         blocked: false,
-        detected: true,
         executionTime,
         details: `Spectre timing partially mitigated - timer resolution ${minResolution.toFixed(3)}ms (5-100μs range)`,
       };
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `High-precision timer available - resolution ${minResolution.toFixed(6)}ms (Spectre-exploitable)`,
       };
@@ -254,7 +239,6 @@ async function simulateSpectreTimingMitigation(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Timer access blocked: ${errorMessage}`,
       error: errorMessage,
@@ -273,7 +257,6 @@ async function simulateSharedArrayBufferAvailability(): Promise<AttackResult> {
     if (typeof SharedArrayBuffer === "undefined") {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details:
           "SharedArrayBuffer disabled - Cross-Origin Isolation not enabled (Spectre mitigation active)",
@@ -291,7 +274,6 @@ async function simulateSharedArrayBufferAvailability(): Promise<AttackResult> {
     if (crossOriginIsolated) {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details:
           "SharedArrayBuffer available with Cross-Origin Isolation (COOP/COEP headers present)",
@@ -299,7 +281,6 @@ async function simulateSharedArrayBufferAvailability(): Promise<AttackResult> {
     } else {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details:
           "SharedArrayBuffer available without Cross-Origin Isolation (legacy mode - potential Spectre risk)",
@@ -309,7 +290,6 @@ async function simulateSharedArrayBufferAvailability(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `SharedArrayBuffer check failed: ${errorMessage}`,
       error: errorMessage,

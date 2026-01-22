@@ -34,8 +34,6 @@ export function calculateCategoryScore(results: TestResult[]): CategoryScore {
 
     if (result.result.blocked) {
       score += testMaxScore;
-    } else if (result.result.detected) {
-      score += testMaxScore * 0.5;
     }
   }
 
@@ -121,7 +119,6 @@ export async function runAllTests(
         },
         result: {
           blocked: true,
-          detected: true,
           executionTime: 0,
           details: `Test error: ${error instanceof Error ? error.message : String(error)}`,
           error: String(error),

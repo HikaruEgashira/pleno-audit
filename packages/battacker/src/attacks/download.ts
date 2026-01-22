@@ -1,7 +1,6 @@
 import type { AttackResult, AttackTest } from "../types";
-import { withDetectionMonitor } from "./detection-listener";
 
-async function simulateBlobDownloadCore(): Promise<AttackResult> {
+async function simulateBlobDownload(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -19,7 +18,6 @@ async function simulateBlobDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: "Blob URL download link created successfully",
     };
@@ -29,7 +27,6 @@ async function simulateBlobDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Blob download blocked: ${errorMessage}`,
       error: errorMessage,
@@ -37,12 +34,7 @@ async function simulateBlobDownloadCore(): Promise<AttackResult> {
   }
 }
 
-const simulateBlobDownload = withDetectionMonitor(
-  simulateBlobDownloadCore,
-  ["__SUSPICIOUS_DOWNLOAD_DETECTED__"]
-);
-
-async function simulateDataURLDownloadCore(): Promise<AttackResult> {
+async function simulateDataURLDownload(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -58,7 +50,6 @@ async function simulateDataURLDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: "Data URL download link created successfully",
     };
@@ -68,7 +59,6 @@ async function simulateDataURLDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Data URL download blocked: ${errorMessage}`,
       error: errorMessage,
@@ -76,12 +66,7 @@ async function simulateDataURLDownloadCore(): Promise<AttackResult> {
   }
 }
 
-const simulateDataURLDownload = withDetectionMonitor(
-  simulateDataURLDownloadCore,
-  ["__SUSPICIOUS_DOWNLOAD_DETECTED__"]
-);
-
-async function simulateSuspiciousFileDownloadCore(): Promise<AttackResult> {
+async function simulateSuspiciousFileDownload(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
@@ -93,7 +78,6 @@ async function simulateSuspiciousFileDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: false,
-      detected: false,
       executionTime,
       details: "Suspicious file download link created in page",
     };
@@ -103,18 +87,12 @@ async function simulateSuspiciousFileDownloadCore(): Promise<AttackResult> {
 
     return {
       blocked: true,
-      detected: true,
       executionTime,
       details: `Suspicious download blocked: ${errorMessage}`,
       error: errorMessage,
     };
   }
 }
-
-const simulateSuspiciousFileDownload = withDetectionMonitor(
-  simulateSuspiciousFileDownloadCore,
-  ["__SUSPICIOUS_DOWNLOAD_DETECTED__"]
-);
 
 export const downloadAttacks: AttackTest[] = [
   {

@@ -57,14 +57,12 @@ async function simulateMultiChannelExfiltration(): Promise<AttackResult> {
     if (successCount >= 2) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Multi-channel exfiltration successful - ${successCount} channels operational (detection bypass via multiplexing)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `Multi-channel exfiltration partially blocked - only ${successCount} channels successful`,
       };
@@ -73,7 +71,6 @@ async function simulateMultiChannelExfiltration(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Multi-channel exfiltration blocked: ${errorMessage}`,
       error: errorMessage,
@@ -153,14 +150,12 @@ async function simulatePolicyCrossOriginMutation(): Promise<AttackResult> {
     if (isolationBroken) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Policy cross-origin mutation successful - multiple contexts accessible (isolation broken)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Policy isolation maintained across contexts",
       };
@@ -169,7 +164,6 @@ async function simulatePolicyCrossOriginMutation(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Policy mutation attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -261,14 +255,12 @@ async function simulateTimingSynchronizedAttack(): Promise<AttackResult> {
     if (successCount >= 3) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Timing-synchronized attack successful - ${successCount}/${attacks.length} attacks successful in ${totalExecutionTime.toFixed(2)}ms (simultaneous execution bypass)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `Timing-synchronized attack partially blocked - only ${successCount}/${attacks.length} successful`,
       };
@@ -277,7 +269,6 @@ async function simulateTimingSynchronizedAttack(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Timing-synchronized attack blocked: ${errorMessage}`,
       error: errorMessage,
@@ -375,14 +366,12 @@ async function simulateStorageQuotaExhaustion(): Promise<AttackResult> {
     if (quotaExhausted || dataWritten > 10) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Storage quota exhaustion successful - ${dataWritten} large objects written (DoS vector)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Storage quota exhaustion blocked or ineffective",
       };
@@ -391,7 +380,6 @@ async function simulateStorageQuotaExhaustion(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Storage quota exhaustion blocked: ${errorMessage}`,
       error: errorMessage,
@@ -460,14 +448,12 @@ async function simulateRequestHeaderInjectionChain(): Promise<AttackResult> {
     if (successCount >= 2) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Request header injection chain successful - ${successCount} injection vectors operational`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: `Request header injection chain partially blocked - only ${successCount} vectors successful`,
       };
@@ -476,7 +462,6 @@ async function simulateRequestHeaderInjectionChain(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Request header injection chain blocked: ${errorMessage}`,
       error: errorMessage,
@@ -529,14 +514,12 @@ async function simulateMemoryAccessPatternDetection(): Promise<AttackResult> {
     if (variance > 0.05) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Memory access pattern obfuscation successful - variance ${variance.toFixed(4)} indicates randomized access (detection evasion)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Memory access pattern detection vulnerability not exploitable",
       };
@@ -545,7 +528,6 @@ async function simulateMemoryAccessPatternDetection(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Memory pattern attack blocked: ${errorMessage}`,
       error: errorMessage,

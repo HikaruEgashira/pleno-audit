@@ -21,7 +21,6 @@ async function simulateSandboxEscapeViaProxyObject(): Promise<AttackResult> {
         document.body.removeChild(sandboxIframe);
         resolve({
           blocked: true,
-          detected: true,
           executionTime: performance.now() - startTime,
           details: "Sandbox escape via Proxy timeout",
         });
@@ -43,14 +42,12 @@ async function simulateSandboxEscapeViaProxyObject(): Promise<AttackResult> {
           if (escapedContext) {
             resolve({
               blocked: false,
-              detected: false,
               executionTime,
               details: `Sandbox escape via Proxy successful - global context accessed`,
             });
           } else {
             resolve({
               blocked: true,
-              detected: true,
               executionTime,
               details: "Sandbox isolation maintained",
             });
@@ -101,7 +98,6 @@ async function simulateSandboxEscapeViaProxyObject(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Sandbox escape blocked: ${errorMessage}`,
       error: errorMessage,
@@ -203,14 +199,12 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
     if (pollutionSuccess && pollutedProperties.length > 0) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Prototype pollution chain successful - ${pollutedProperties.join(", ")} polluted (privilege escalation possible)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "Prototype pollution chain blocked",
       };
@@ -219,7 +213,6 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Prototype pollution blocked: ${errorMessage}`,
       error: errorMessage,
@@ -237,7 +230,6 @@ async function simulateServiceWorkerCacheBypass(): Promise<AttackResult> {
     if (!("serviceWorker" in navigator)) {
       return {
         blocked: true,
-        detected: true,
         executionTime: performance.now() - startTime,
         details: "Service Worker not available",
       };
@@ -284,14 +276,12 @@ async function simulateServiceWorkerCacheBypass(): Promise<AttackResult> {
     if (swRegistrationFound) {
       return {
         blocked: false,
-        detected: false,
         executionTime,
         details: `Service Worker cache bypass successful - ${registrations.length} registrations found (cache poisoning possible)`,
       };
     } else {
       return {
         blocked: true,
-        detected: true,
         executionTime,
         details: "No active Service Workers found",
       };
@@ -300,7 +290,6 @@ async function simulateServiceWorkerCacheBypass(): Promise<AttackResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
-      detected: true,
       executionTime: performance.now() - startTime,
       details: `Service Worker cache bypass blocked: ${errorMessage}`,
       error: errorMessage,
