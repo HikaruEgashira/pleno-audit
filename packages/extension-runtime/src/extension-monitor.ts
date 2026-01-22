@@ -17,6 +17,11 @@ import type {
   ExtensionRequestRecord,
 } from "./storage-types.js";
 import { createLogger } from "./logger.js";
+import {
+  generateDashboardStats,
+  globalExtensionStatsCache,
+  type DashboardStats,
+} from "./extension-stats-analyzer.js";
 
 const logger = createLogger("extension-monitor");
 
@@ -334,6 +339,8 @@ export interface ExtensionMonitor {
   refreshExtensionList(): Promise<void>;
   /** DNRマッチルールをチェック（定期的に呼び出す） */
   checkDNRMatches(): Promise<ExtensionRequestRecord[]>;
+  /** ダッシュボード統計を生成 */
+  generateStats(records: ExtensionRequestRecord[]): DashboardStats;
 }
 
 /**
@@ -431,6 +438,10 @@ export function createExtensionMonitor(
 
     async checkDNRMatches() {
       return checkMatchedDNRRules();
+    },
+
+    generateStats(records) {
+      return globalExtensionStatsCache.getStats(records);
     },
   };
 }
