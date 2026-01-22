@@ -166,9 +166,9 @@ export function detectLateNightActivity(
 
   for (const record of records) {
     const hour = new Date(record.timestamp).getHours();
+    // 深夜時間帯は lateNightStart から lateNightEnd の範囲（例: 2:00-5:00）
     const isLateNight =
-      (config.lateNightStart <= hour && hour < 24) ||
-      (0 <= hour && hour < config.lateNightEnd);
+      config.lateNightStart <= hour && hour < config.lateNightEnd;
 
     if (!isLateNight) continue;
 
