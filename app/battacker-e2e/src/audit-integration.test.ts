@@ -83,9 +83,12 @@ async function setupBrowserWithExtensions(): Promise<TestContext> {
   // Start test server
   const { server, port } = await startTestServer();
 
+  // Chrome extensions require the new headless mode (--headless=new)
+  // Traditional headless mode doesn't support extensions
   const context = await chromium.launchPersistentContext("", {
     headless: false,
     args: [
+      "--headless=new",
       `--disable-extensions-except=${AUDIT_EXTENSION_PATH},${BATTACKER_EXTENSION_PATH}`,
       `--load-extension=${AUDIT_EXTENSION_PATH},${BATTACKER_EXTENSION_PATH}`,
       "--no-first-run",
