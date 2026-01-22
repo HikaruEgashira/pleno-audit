@@ -753,13 +753,11 @@ function TestResultItem({ result }: { result: TestResult }) {
 
   const getStatusIcon = () => {
     if (testResult.blocked) return "✓";
-    if (testResult.detected) return "!";
     return "✗";
   };
 
   const getStatusClass = () => {
     if (testResult.blocked) return "blocked";
-    if (testResult.detected) return "detected";
     return "success";
   };
 
