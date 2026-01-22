@@ -3,6 +3,14 @@ import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
 import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
+import { LockedBanner } from "./LockedBanner";
+
+const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
+  isManaged: false,
+  ssoRequired: false,
+  settingsLocked: false,
+  config: null,
+};
 
 export function Settings() {
   const styles = usePopupStyles();
@@ -13,15 +21,15 @@ export function Settings() {
   const [endpoint, setEndpoint] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus | null>(null);
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus>(DEFAULT_ENTERPRISE_STATUS);
 
-  const isLocked = enterpriseStatus?.settingsLocked ?? false;
+  const isLocked = enterpriseStatus.settingsLocked;
 
   useEffect(() => {
     loadConfig();
     chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
-      .catch(() => {});
+      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
   }, []);
 
   async function loadConfig() {
@@ -108,26 +116,9 @@ export function Settings() {
     );
   }
 
-  const lockedBannerStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 10px",
-    background: colors.status?.warning?.bg || "#fef3c7",
-    borderRadius: "6px",
-    marginBottom: "12px",
-  };
-
   return (
     <div style={styles.section}>
-      {isLocked && (
-        <div style={lockedBannerStyle}>
-          <span style={{ fontSize: "12px" }}>🔒</span>
-          <span style={{ fontSize: "11px", color: colors.status?.warning?.text || "#92400e" }}>
-            この設定は組織によって管理されています
-          </span>
-        </div>
-      )}
+      {isLocked && <LockedBanner />}
 
       <h3 style={styles.sectionTitle}>CSP Audit Settings</h3>
 

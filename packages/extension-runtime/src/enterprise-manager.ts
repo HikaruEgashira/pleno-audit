@@ -3,6 +3,8 @@ import type {
   EnterpriseManagedConfig,
   EnterpriseStatus,
   DetectionConfig,
+  BlockingConfig,
+  NotificationConfig,
 } from "./storage-types.js";
 import { DEFAULT_DETECTION_CONFIG } from "./storage-types.js";
 import type { SSOConfig } from "./sso-manager.js";
@@ -110,6 +112,18 @@ class EnterpriseManager {
   }
 
   /**
+   * Validate URL format
+   */
+  private isValidUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Apply SSO configuration from managed storage to SSOManager
    */
   private async applySSOConfig(): Promise<void> {
@@ -127,6 +141,10 @@ class EnterpriseManager {
         logger.error("OIDC config missing required fields (clientId, authority)");
         return;
       }
+      if (!this.isValidUrl(ssoConfig.authority)) {
+        logger.error("OIDC authority is not a valid URL:", ssoConfig.authority);
+        return;
+      }
       config = {
         provider: "oidc",
         clientId: ssoConfig.clientId,
@@ -136,6 +154,10 @@ class EnterpriseManager {
     } else if (ssoConfig.provider === "saml") {
       if (!ssoConfig.entityId) {
         logger.error("SAML config missing required field (entityId)");
+        return;
+      }
+      if (ssoConfig.entryPoint && !this.isValidUrl(ssoConfig.entryPoint)) {
+        logger.error("SAML entryPoint is not a valid URL:", ssoConfig.entryPoint);
         return;
       }
       config = {
@@ -255,6 +277,36 @@ class EnterpriseManager {
    */
   getPolicyConfig() {
     return this.managedConfig?.policy ?? null;
+  }
+
+  /**
+   * Get effective blocking config (managed settings override user settings)
+   */
+  getEffectiveBlockingConfig(userConfig: BlockingConfig): BlockingConfig {
+    if (!this.managedConfig?.settings) {
+      return userConfig;
+    }
+
+    const managed = this.managedConfig.settings;
+    return {
+      ...userConfig,
+      enabled: managed.enableBlocking ?? userConfig.enabled,
+    };
+  }
+
+  /**
+   * Get effective notification config (managed settings override user settings)
+   */
+  getEffectiveNotificationConfig(userConfig: NotificationConfig): NotificationConfig {
+    if (!this.managedConfig?.settings) {
+      return userConfig;
+    }
+
+    const managed = this.managedConfig.settings;
+    return {
+      ...userConfig,
+      enabled: managed.enableNotifications ?? userConfig.enabled,
+    };
   }
 
   /**

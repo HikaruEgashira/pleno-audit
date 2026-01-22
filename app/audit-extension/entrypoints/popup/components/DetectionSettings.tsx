@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { DetectionConfig, EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
+import { LockedBanner } from "./LockedBanner";
 
 interface DetectionOption {
   key: keyof DetectionConfig;
@@ -17,11 +18,18 @@ const DETECTION_OPTIONS: DetectionOption[] = [
   { key: "enableLogin", label: "Login", description: "ログインページ検出" },
 ];
 
+const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
+  isManaged: false,
+  ssoRequired: false,
+  settingsLocked: false,
+  config: null,
+};
+
 export function DetectionSettings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<DetectionConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus | null>(null);
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus>(DEFAULT_ENTERPRISE_STATUS);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" })
@@ -30,10 +38,10 @@ export function DetectionSettings() {
 
     chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
-      .catch(() => {});
+      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
   }, []);
 
-  const isLocked = enterpriseStatus?.settingsLocked ?? false;
+  const isLocked = enterpriseStatus.settingsLocked;
 
   function handleToggle(key: keyof DetectionConfig) {
     if (!config || isLocked) return;
@@ -104,22 +112,6 @@ export function DetectionSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
-    lockedBanner: {
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      padding: "8px 10px",
-      background: colors.status?.warning?.bg || "#fef3c7",
-      borderRadius: "6px",
-      marginBottom: "8px",
-    },
-    lockedIcon: {
-      fontSize: "12px",
-    },
-    lockedText: {
-      fontSize: "11px",
-      color: colors.status?.warning?.text || "#92400e",
-    },
   };
 
   if (!config) return null;
@@ -137,12 +129,7 @@ export function DetectionSettings() {
 
       {expanded && (
         <>
-          {isLocked && (
-            <div style={styles.lockedBanner}>
-              <span style={styles.lockedIcon}>🔒</span>
-              <span style={styles.lockedText}>この設定は組織によって管理されています</span>
-            </div>
-          )}
+          {isLocked && <LockedBanner />}
           <div style={styles.content}>
             {DETECTION_OPTIONS.map((opt) => (
               <label
