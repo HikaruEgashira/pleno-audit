@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-01-22T07:48:51.247Z",
+  "timestamp": "2026-01-22T11:23:23.126Z",
   "summary": {
     "total": 9,
-    "implemented": 7,
-    "notImplemented": 2,
-    "tested": 7,
-    "detected": 7,
+    "implemented": 9,
+    "notImplemented": 0,
+    "tested": 9,
+    "detected": 9,
     "coveragePercent": 100,
     "successRate": 100
   },
@@ -62,28 +62,17 @@
     {
       "type": "supply_chain_risk",
       "tested": true,
-      "detected": false,
-      "eventCount": 0,
-      "implemented": false,
-      "gap": "api-hooks.js not injected as content script"
+      "detected": true,
+      "eventCount": 3,
+      "implemented": true
     },
     {
       "type": "credential_theft_risk",
       "tested": true,
-      "detected": false,
-      "eventCount": 0,
-      "implemented": false,
-      "gap": "api-hooks.js not injected as content script"
+      "detected": true,
+      "eventCount": 2,
+      "implemented": true
     }
   ],
-  "gaps": [
-    {
-      "type": "supply_chain_risk",
-      "reason": "api-hooks.js not injected as content script"
-    },
-    {
-      "type": "credential_theft_risk",
-      "reason": "api-hooks.js not injected as content script"
-    }
-  ]
+  "gaps": []
 }

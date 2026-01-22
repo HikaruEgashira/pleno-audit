@@ -70,21 +70,15 @@ const AUDIT_DETECTION_SPEC = {
   },
   supply_chain_risk: {
     description: "External script without SRI (Subresource Integrity)",
-    source: "api-hooks.js",
+    source: "ai-hooks.js",
     priority: "high",
-    // NOTE: api-hooks.js is NOT injected as content script - only ai-hooks.js is
-    // This detection exists in api-hooks.js but the file is not loaded into pages
-    implemented: false,
-    gap: "api-hooks.js not injected as content script",
+    implemented: true,
   },
   credential_theft_risk: {
     description: "Form with password field submitted to external/insecure target",
-    source: "api-hooks.js",
+    source: "ai-hooks.js",
     priority: "critical",
-    // NOTE: api-hooks.js is NOT injected as content script - only ai-hooks.js is
-    // This detection exists in api-hooks.js but the file is not loaded into pages
-    implemented: false,
-    gap: "api-hooks.js not injected as content script",
+    implemented: true,
   },
 } as const;
 
