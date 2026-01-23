@@ -1,4 +1,4 @@
-import { createLogger } from "@pleno-audit/extension-runtime";
+import { createLogger, isManifestV3, getBrowserAPI } from "@pleno-audit/extension-runtime";
 import type { DefenseScore } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
@@ -230,10 +230,7 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
     if (!readyTabs.has(targetTab.id)) {
       // Inject content script (needed for dev mode where content_scripts is not in manifest)
       try {
-        await chrome.scripting.executeScript({
-          target: { tabId: targetTab.id },
-          files: ["content-scripts/content.js"],
-        });
+        await injectContentScript(targetTab.id);
         logger.debug("Content script injected");
       } catch (injectError) {
         // Script might already be injected or page doesn't allow injection
@@ -327,4 +324,23 @@ async function saveResult(score: DefenseScore): Promise<void> {
   const filteredHistory = history.filter((h) => h.testedAt > thirtyDaysAgo);
 
   await chrome.storage.local.set({ battacker_history: filteredHistory });
+}
+
+/**
+ * Inject content script using MV3 scripting API or MV2 tabs.executeScript
+ */
+async function injectContentScript(tabId: number): Promise<void> {
+  if (isManifestV3()) {
+    // Chrome MV3: use scripting API
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content-scripts/content.js"],
+    });
+  } else {
+    // Firefox MV2: use tabs.executeScript (via browser API)
+    const browserAPI = getBrowserAPI();
+    await browserAPI.tabs.executeScript(tabId, {
+      file: "content-scripts/content.js",
+    });
+  }
 }

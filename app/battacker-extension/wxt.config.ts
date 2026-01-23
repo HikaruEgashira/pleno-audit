@@ -15,43 +15,66 @@ export default defineConfig({
       jsxFragment: "Fragment",
     },
   }),
-  manifest: {
-    name: "Pleno Battacker",
-    version: "1.0.0",
-    description: "Browser Defense Resistance Testing Tool - Simulates attack patterns to evaluate browser security",
-    icons: {
-      16: "icon-16.png",
-      32: "icon-32.png",
-      48: "icon-48.png",
-      128: "icon-128.png",
-    },
-    action: {
-      default_icon: {
-        16: "icon-16.png",
-        32: "icon-32.png",
-        48: "icon-48.png",
-        128: "icon-128.png",
-      },
-    },
-    permissions: [
+  manifest: (env) => {
+    const isFirefox = env.browser === "firefox";
+    const isSafari = env.browser === "safari";
+    const isMV2 = isFirefox || isSafari;
+
+    // Base permissions (cross-browser)
+    const basePermissions = [
       "storage",
       "alarms",
       "tabs",
       "clipboardWrite",
       "downloads",
       "history",
-      "scripting",
       "management",
       "activeTab",
-    ],
-    host_permissions: ["<all_urls>"],
-    // Explicitly define content_scripts to ensure they're included in dev mode
-    content_scripts: [
-      {
-        matches: ["<all_urls>"],
-        js: ["content-scripts/content.js"],
-        run_at: "document_idle",
+    ];
+
+    // Chrome/Edge MV3 permissions
+    const mv3Permissions = [...basePermissions, "scripting"];
+
+    // Firefox/Safari MV2 permissions (no scripting API - uses tabs.executeScript)
+    const mv2Permissions = basePermissions;
+
+    return {
+      name: "Pleno Battacker",
+      version: "1.0.0",
+      description: "Browser Defense Resistance Testing Tool - Simulates attack patterns to evaluate browser security",
+      icons: {
+        16: "icon-16.png",
+        32: "icon-32.png",
+        48: "icon-48.png",
+        128: "icon-128.png",
       },
-    ],
+      action: {
+        default_icon: {
+          16: "icon-16.png",
+          32: "icon-32.png",
+          48: "icon-48.png",
+          128: "icon-128.png",
+        },
+      },
+      permissions: isMV2 ? mv2Permissions : mv3Permissions,
+      host_permissions: ["<all_urls>"],
+      // Content scripts registration
+      content_scripts: [
+        {
+          matches: ["<all_urls>"],
+          js: ["content-scripts/content.js"],
+          run_at: "document_idle",
+        },
+      ],
+      // Firefox-specific: browser_specific_settings
+      ...(isFirefox && {
+        browser_specific_settings: {
+          gecko: {
+            id: "pleno-battacker@example.com",
+            strict_min_version: "109.0",
+          },
+        },
+      }),
+    };
   },
 });
