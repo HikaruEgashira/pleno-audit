@@ -1,4 +1,11 @@
 import { createLogger } from "./logger.js";
+import {
+  getBrowserAPI,
+  hasIdentityAPI,
+  getSessionStorage,
+  setSessionStorage,
+  removeSessionStorage,
+} from "./browser-adapter.js";
 
 const logger = createLogger("sso-manager");
 
@@ -68,7 +75,8 @@ class SSOManager {
 
   async initializeConfig(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["ssoConfig", "ssoSession"]);
+      const api = getBrowserAPI();
+      const result = await api.storage.local.get(["ssoConfig", "ssoSession"]);
 
       if (result.ssoConfig) {
         this.config = result.ssoConfig as SSOConfig;
@@ -87,14 +95,22 @@ class SSOManager {
   /**
    * Start OIDC authentication flow using chrome.identity API
    * Uses PKCE (RFC 7636) for secure authorization code exchange
+   * Falls back to popup-based flow on Firefox where chrome.identity is not available
    */
   async startOIDCAuth(): Promise<SSOSession> {
     if (!this.config || this.config.provider !== "oidc") {
       throw new Error("OIDC config not set");
     }
 
+    // Check if chrome.identity API is available
+    if (!hasIdentityAPI()) {
+      logger.warn("chrome.identity API not available - SSO authentication requires Chrome");
+      throw new Error("SSO authentication is not supported in this browser. Please use Chrome.");
+    }
+
+    const api = getBrowserAPI();
     const config = this.config;
-    const redirectUri = chrome.identity.getRedirectURL();
+    const redirectUri = api.identity.getRedirectURL();
 
     // Build authorization URL
     const authUrl = new URL(`${config.authority}/authorize`);
@@ -116,15 +132,13 @@ class SSOManager {
     authUrl.searchParams.set("code_challenge_method", "S256");
 
     // Store state, nonce, and code_verifier in session storage for validation after redirect
-    await chrome.storage.session.set({
-      oidcAuthState: { state, nonce, codeVerifier, timestamp: Date.now() },
-    });
+    await setSessionStorage("oidcAuthState", { state, nonce, codeVerifier, timestamp: Date.now() });
 
     logger.info("Starting OIDC auth flow", { authority: config.authority });
 
     try {
       // Launch web auth flow
-      const redirectUrl = await chrome.identity.launchWebAuthFlow({
+      const redirectUrl = await api.identity.launchWebAuthFlow({
         url: authUrl.toString(),
         interactive: true,
       });
@@ -139,16 +153,15 @@ class SSOManager {
       const returnedState = responseUrl.searchParams.get("state");
 
       // Retrieve stored state/nonce/codeVerifier for validation
-      const storedAuth = await chrome.storage.session.get("oidcAuthState");
-      const authState = storedAuth.oidcAuthState as {
+      const authState = await getSessionStorage<{
         state: string;
         nonce: string;
         codeVerifier: string;
         timestamp: number;
-      } | undefined;
+      }>("oidcAuthState");
 
       // Clear stored state after retrieval
-      await chrome.storage.session.remove("oidcAuthState");
+      await removeSessionStorage("oidcAuthState");
 
       if (!authState) {
         throw new Error("Auth state not found - session may have expired");
@@ -178,7 +191,7 @@ class SSOManager {
       return session;
     } catch (error) {
       // Cleanup on error
-      await chrome.storage.session.remove("oidcAuthState");
+      await removeSessionStorage("oidcAuthState");
       logger.error("OIDC auth failed:", error);
       throw error;
     }
@@ -192,8 +205,15 @@ class SSOManager {
       throw new Error("SAML config not set");
     }
 
+    // Check if chrome.identity API is available
+    if (!hasIdentityAPI()) {
+      logger.warn("chrome.identity API not available - SSO authentication requires Chrome");
+      throw new Error("SSO authentication is not supported in this browser. Please use Chrome.");
+    }
+
+    const api = getBrowserAPI();
     const config = this.config;
-    const redirectUri = chrome.identity.getRedirectURL();
+    const redirectUri = api.identity.getRedirectURL();
 
     if (!config.entryPoint) {
       throw new Error("SAML entry point not configured");
@@ -211,7 +231,7 @@ class SSOManager {
 
     try {
       // Launch web auth flow
-      const redirectUrl = await chrome.identity.launchWebAuthFlow({
+      const redirectUrl = await api.identity.launchWebAuthFlow({
         url: idpUrl.toString(),
         interactive: true,
       });
@@ -600,7 +620,8 @@ class SSOManager {
       }
 
       this.config = config;
-      await chrome.storage.local.set({ ssoConfig: config });
+      const api = getBrowserAPI();
+      await api.storage.local.set({ ssoConfig: config });
       logger.info(`SSO config set for provider: ${config.provider}`);
       return { success: true };
     } catch (error) {
@@ -616,7 +637,8 @@ class SSOManager {
   async setSession(session: SSOSession): Promise<{ success: boolean }> {
     try {
       this.session = session;
-      await chrome.storage.local.set({ ssoSession: session });
+      const api = getBrowserAPI();
+      await api.storage.local.set({ ssoSession: session });
       logger.debug("SSO session saved");
       return { success: true };
     } catch (error) {
@@ -655,7 +677,8 @@ class SSOManager {
   async clearSession(): Promise<{ success: boolean }> {
     try {
       this.session = null;
-      await chrome.storage.local.remove(["ssoSession"]);
+      const api = getBrowserAPI();
+      await api.storage.local.remove(["ssoSession"]);
       logger.info("SSO session cleared");
       return { success: true };
     } catch (error) {
@@ -668,7 +691,8 @@ class SSOManager {
     try {
       this.config = null;
       this.session = null;
-      await chrome.storage.local.remove(["ssoConfig", "ssoSession"]);
+      const api = getBrowserAPI();
+      await api.storage.local.remove(["ssoConfig", "ssoSession"]);
       logger.info("SSO disabled and cleared");
       return { success: true };
     } catch (error) {

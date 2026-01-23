@@ -6,9 +6,9 @@ import type {
   BlockingConfig,
   NotificationConfig,
 } from "./storage-types.js";
-import { DEFAULT_DETECTION_CONFIG } from "./storage-types.js";
 import type { SSOConfig } from "./sso-manager.js";
 import { getSSOManager } from "./sso-manager.js";
+import { getBrowserAPI, hasManagedStorage, isFirefox } from "./browser-adapter.js";
 
 const logger = createLogger("enterprise-manager");
 
@@ -51,20 +51,43 @@ class EnterpriseManager {
 
   /**
    * Load configuration from chrome.storage.managed
+   * Note: Managed storage is only available in Chrome Enterprise deployments
+   * Firefox does not support chrome.storage.managed
    */
   private async loadManagedConfig(): Promise<void> {
     try {
       // chrome.storage.managed is only available in Chrome with enterprise policy
-      if (!chrome?.storage?.managed) {
-        logger.debug("chrome.storage.managed not available");
+      // Firefox does not support this API
+      if (!hasManagedStorage()) {
+        if (isFirefox) {
+          logger.debug("Managed storage not available in Firefox - Enterprise features disabled");
+        } else {
+          logger.debug("chrome.storage.managed not available");
+        }
         this.managedConfig = null;
         return;
       }
 
-      const result = await chrome.storage.managed.get(null);
+      const api = getBrowserAPI();
+      const result = await api.storage.managed.get(null);
 
       if (Object.keys(result).length === 0) {
         logger.debug("No managed storage configuration found");
+        this.managedConfig = null;
+        return;
+      }
+
+      // Validate that result contains actual managed config values
+      // (not just an empty schema structure)
+      const hasValidConfig =
+        result.sso?.provider ||
+        result.settings?.locked !== undefined ||
+        result.reporting?.endpoint ||
+        result.policy?.allowedDomains?.length ||
+        result.policy?.blockedDomains?.length;
+
+      if (!hasValidConfig) {
+        logger.debug("Managed storage exists but contains no valid configuration");
         this.managedConfig = null;
         return;
       }
@@ -97,11 +120,16 @@ class EnterpriseManager {
    * Set up listener for managed storage changes
    */
   private setupStorageListener(): void {
-    if (!chrome?.storage?.managed?.onChanged) {
+    if (!hasManagedStorage()) {
       return;
     }
 
-    chrome.storage.managed.onChanged.addListener((changes) => {
+    const api = getBrowserAPI();
+    if (!api.storage.managed?.onChanged) {
+      return;
+    }
+
+    api.storage.managed.onChanged.addListener((changes) => {
       logger.info("Managed storage changed", { keys: Object.keys(changes) });
 
       // Reload the full config

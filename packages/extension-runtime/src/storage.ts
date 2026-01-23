@@ -1,5 +1,6 @@
 /**
  * 型安全なストレージアクセス層
+ * Chrome/Firefox両対応
  */
 import type {
   StorageData,
@@ -27,6 +28,7 @@ import { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./extension-monitor.js";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
 import { DEFAULT_FORECAST_CONFIG } from "@pleno-audit/predictive-analysis";
+import { getBrowserAPI } from "./browser-adapter.js";
 
 const STORAGE_KEYS = [
   "services",
@@ -57,7 +59,8 @@ export function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T
 }
 
 export async function getStorage(): Promise<StorageData> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS as unknown as string[]);
+  const api = getBrowserAPI();
+  const result = await api.storage.local.get(STORAGE_KEYS as unknown as string[]);
   return {
     services: (result.services as Record<string, DetectedService>) || {},
     events: (result.events as EventLog[]) || [],
@@ -82,13 +85,15 @@ export async function getStorage(): Promise<StorageData> {
 }
 
 export async function setStorage(data: Partial<StorageData>): Promise<void> {
-  await chrome.storage.local.set(data);
+  const api = getBrowserAPI();
+  await api.storage.local.set(data);
 }
 
 export async function getStorageKey<K extends StorageKey>(
   key: K
 ): Promise<StorageData[K]> {
-  const result = await chrome.storage.local.get([key]);
+  const api = getBrowserAPI();
+  const result = await api.storage.local.get([key]);
   const defaults: StorageData = {
     services: {},
     events: [],
@@ -113,12 +118,14 @@ export async function getServiceCount(): Promise<number> {
 }
 
 export async function clearCSPReports(): Promise<void> {
-  await chrome.storage.local.remove(["cspReports"]);
+  const api = getBrowserAPI();
+  await api.storage.local.remove(["cspReports"]);
 }
 
 /**
  * AIプロンプトをクリア
  */
 export async function clearAIPrompts(): Promise<void> {
-  await chrome.storage.local.remove(["aiPrompts"]);
+  const api = getBrowserAPI();
+  await api.storage.local.remove(["aiPrompts"]);
 }

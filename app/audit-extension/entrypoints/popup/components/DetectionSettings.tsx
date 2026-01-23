@@ -128,21 +128,16 @@ export function DetectionSettings() {
       </div>
 
       {expanded && (
-        <>
-          {isLocked && <LockedBanner />}
+        isLocked ? (
+          <LockedBanner />
+        ) : (
           <div style={styles.content}>
             {DETECTION_OPTIONS.map((opt) => (
               <label
                 key={opt.key}
-                style={{
-                  ...styles.option,
-                  opacity: isLocked ? 0.6 : 1,
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                }}
+                style={styles.option}
                 onMouseEnter={(e) => {
-                  if (!isLocked) {
-                    (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
-                  }
+                  (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
@@ -153,7 +148,6 @@ export function DetectionSettings() {
                   checked={config[opt.key]}
                   onChange={() => handleToggle(opt.key)}
                   style={styles.checkbox}
-                  disabled={isLocked}
                 />
                 <div style={styles.labelContainer}>
                   <span style={styles.label}>{opt.label}</span>
@@ -162,7 +156,7 @@ export function DetectionSettings() {
               </label>
             ))}
           </div>
-        </>
+        )
       )}
     </div>
   );

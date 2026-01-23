@@ -116,19 +116,24 @@ export function Settings() {
     );
   }
 
+  if (isLocked) {
+    return (
+      <div style={styles.section}>
+        <LockedBanner />
+      </div>
+    );
+  }
+
   return (
     <div style={styles.section}>
-      {isLocked && <LockedBanner />}
-
       <h3 style={styles.sectionTitle}>CSP Audit Settings</h3>
 
-      <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
+      <label style={styles.checkbox}>
         <input
           type="checkbox"
           checked={config.enabled}
-          disabled={isLocked}
           onChange={(e) =>
-            !isLocked && setConfig({
+            setConfig({
               ...config,
               enabled: (e.target as HTMLInputElement).checked,
             })
@@ -139,13 +144,12 @@ export function Settings() {
 
       {config.enabled && (
         <>
-          <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
+          <label style={styles.checkbox}>
             <input
               type="checkbox"
               checked={config.collectCSPViolations}
-              disabled={isLocked}
               onChange={(e) =>
-                !isLocked && setConfig({
+                setConfig({
                   ...config,
                   collectCSPViolations: (e.target as HTMLInputElement).checked,
                 })
@@ -154,13 +158,12 @@ export function Settings() {
             <span style={{ color: colors.textPrimary }}>Collect CSP Violations</span>
           </label>
 
-          <label style={{ ...styles.checkbox, opacity: isLocked ? 0.6 : 1 }}>
+          <label style={styles.checkbox}>
             <input
               type="checkbox"
               checked={config.collectNetworkRequests}
-              disabled={isLocked}
               onChange={(e) =>
-                !isLocked && setConfig({
+                setConfig({
                   ...config,
                   collectNetworkRequests: (e.target as HTMLInputElement).checked,
                 })
@@ -169,14 +172,13 @@ export function Settings() {
             <span style={{ color: colors.textPrimary }}>Collect Network Requests</span>
           </label>
 
-          <div style={{ marginBottom: "16px", opacity: isLocked ? 0.6 : 1 }}>
+          <div style={{ marginBottom: "16px" }}>
             <label style={styles.label}>Report Endpoint (optional)</label>
             <input
               type="url"
               style={styles.input}
               value={endpoint}
-              disabled={isLocked}
-              onChange={(e) => !isLocked && setEndpoint((e.target as HTMLInputElement).value)}
+              onChange={(e) => setEndpoint((e.target as HTMLInputElement).value)}
               placeholder="https://your-server.com/api/reports"
             />
           </div>
@@ -187,7 +189,7 @@ export function Settings() {
 
       <h3 style={styles.sectionTitle}>NRD Detection Settings</h3>
 
-      <div style={{ marginBottom: "12px", opacity: isLocked ? 0.6 : 1 }}>
+      <div style={{ marginBottom: "12px" }}>
         <label style={styles.label}>
           Age Threshold (days): {nrdConfig.thresholdDays}
         </label>
@@ -196,9 +198,8 @@ export function Settings() {
           min="1"
           max="365"
           value={nrdConfig.thresholdDays}
-          disabled={isLocked}
           onChange={(e) =>
-            !isLocked && setNRDConfig({
+            setNRDConfig({
               ...nrdConfig,
               thresholdDays: parseInt((e.target as HTMLInputElement).value, 10),
             })
@@ -214,7 +215,7 @@ export function Settings() {
 
       <h3 style={styles.sectionTitle}>Data Retention</h3>
 
-      <div style={{ marginBottom: "12px", opacity: isLocked ? 0.6 : 1 }}>
+      <div style={{ marginBottom: "12px" }}>
         <label style={styles.label}>
           {formatRetentionDays(retentionDays)}
         </label>
@@ -224,7 +225,6 @@ export function Settings() {
           max="365"
           step="1"
           value={retentionDays}
-          disabled={isLocked}
           onChange={(e) => handleRetentionChange(parseInt((e.target as HTMLInputElement).value, 10))}
           style={{ width: "100%", marginBottom: "4px" }}
         />
@@ -237,12 +237,12 @@ export function Settings() {
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           onClick={handleSave}
-          disabled={saving || isLocked}
+          disabled={saving}
           style={{
             ...styles.button,
             flex: 1,
-            cursor: saving || isLocked ? "not-allowed" : "pointer",
-            opacity: saving || isLocked ? 0.6 : 1,
+            cursor: saving ? "not-allowed" : "pointer",
+            opacity: saving ? 0.6 : 1,
           }}
         >
           {saving ? "Saving..." : "Save Settings"}

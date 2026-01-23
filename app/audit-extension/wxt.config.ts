@@ -49,13 +49,16 @@ export default defineConfig({
       },
       permissions: isMV2 ? mv2Permissions : mv3Permissions,
       host_permissions: ["<all_urls>"],
-      content_security_policy: isMV2
-        ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
-        : {
-            extension_pages: isDev
-              ? "script-src 'self' 'wasm-unsafe-eval' http://localhost:*; object-src 'self'; connect-src 'self' ws://localhost:* http://localhost:*;"
-              : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-          },
+      // CSP configuration
+      // - MV2 (Firefox/Safari): Use string format, let WXT manage dev mode CSP
+      // - MV3 (Chrome): Use object format with extension_pages
+      ...(!isDev && {
+        content_security_policy: isMV2
+          ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+          : {
+              extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+            },
+      }),
       web_accessible_resources: isMV2
         ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
         : [
