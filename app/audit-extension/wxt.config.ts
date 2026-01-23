@@ -24,7 +24,7 @@ export default defineConfig({
     // Base permissions (cross-browser)
     const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
-    // Chrome/Edge MV3 permissions (includes identity for SSO/OIDC/SAML auth flows)
+    // Chrome/Edge MV3 permissions
     const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest", "identity"];
 
     // Firefox/Safari MV2 permissions (no offscreen, no scripting)
@@ -49,13 +49,13 @@ export default defineConfig({
       },
       permissions: isMV2 ? mv2Permissions : mv3Permissions,
       host_permissions: ["<all_urls>"],
-      content_security_policy: isMV2
-        ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
-        : {
-            extension_pages: isDev
-              ? "script-src 'self' 'wasm-unsafe-eval' http://localhost:*; object-src 'self'; connect-src 'self' ws://localhost:* http://localhost:*;"
-              : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-          },
+      ...(!isDev && {
+        content_security_policy: isMV2
+          ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+          : {
+              extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+            },
+      }),
       web_accessible_resources: isMV2
         ? ["api-hooks.js", "ai-hooks.js", "sql-wasm.wasm", "parquet_wasm_bg.wasm"]
         : [
@@ -84,7 +84,6 @@ export default defineConfig({
           },
         },
       }),
-      // Chrome MV3 Enterprise managed storage schema
       ...(!isMV2 && {
         storage: {
           managed_schema: "managed-schema.json",
