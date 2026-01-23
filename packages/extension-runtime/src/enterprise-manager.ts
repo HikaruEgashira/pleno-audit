@@ -14,22 +14,11 @@ const logger = createLogger("enterprise-manager");
 
 type ManagedStorageChangeListener = (config: EnterpriseManagedConfig | null) => void;
 
-/**
- * EnterpriseManager handles chrome.storage.managed for MDM-deployed configurations.
- * This enables:
- * - SSO enforcement at startup
- * - Settings lockdown
- * - SIEM reporting integration
- * - Security policy enforcement
- */
 class EnterpriseManager {
   private managedConfig: EnterpriseManagedConfig | null = null;
   private listeners: Set<ManagedStorageChangeListener> = new Set();
   private initialized = false;
 
-  /**
-   * Initialize the enterprise manager by loading managed storage
-   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -49,15 +38,8 @@ class EnterpriseManager {
     }
   }
 
-  /**
-   * Load configuration from chrome.storage.managed
-   * Note: Managed storage is only available in Chrome Enterprise deployments
-   * Firefox does not support chrome.storage.managed
-   */
   private async loadManagedConfig(): Promise<void> {
     try {
-      // chrome.storage.managed is only available in Chrome with enterprise policy
-      // Firefox does not support this API
       if (!hasManagedStorage()) {
         if (isFirefox) {
           logger.debug("Managed storage not available in Firefox - Enterprise features disabled");
@@ -77,8 +59,6 @@ class EnterpriseManager {
         return;
       }
 
-      // Validate that result contains actual managed config values
-      // (not just an empty schema structure)
       const hasValidConfig =
         result.sso?.provider ||
         result.settings?.locked !== undefined ||
@@ -100,15 +80,12 @@ class EnterpriseManager {
         hasPolicy: !!this.managedConfig.policy,
       });
 
-      // Apply SSO config to SSOManager if configured
       if (this.managedConfig.sso?.provider) {
         await this.applySSOConfig();
       }
     } catch (error) {
-      // chrome.storage.managed throws error if no policy is set
-      // This is expected behavior for non-enterprise deployments
       if ((error as Error)?.message?.includes("not supported")) {
-        logger.debug("Managed storage not supported (non-enterprise deployment)");
+        logger.debug("Managed storage not supported");
       } else {
         logger.warn("Error loading managed config:", error);
       }
@@ -116,9 +93,6 @@ class EnterpriseManager {
     }
   }
 
-  /**
-   * Set up listener for managed storage changes
-   */
   private setupStorageListener(): void {
     if (!hasManagedStorage()) {
       return;
@@ -131,17 +105,12 @@ class EnterpriseManager {
 
     api.storage.managed.onChanged.addListener((changes) => {
       logger.info("Managed storage changed", { keys: Object.keys(changes) });
-
-      // Reload the full config
       this.loadManagedConfig().then(() => {
         this.notifyListeners();
       });
     });
   }
 
-  /**
-   * Validate URL format
-   */
   private isValidUrl(url: string): boolean {
     try {
       const parsed = new URL(url);
@@ -151,9 +120,6 @@ class EnterpriseManager {
     }
   }
 
-  /**
-   * Apply SSO configuration from managed storage to SSOManager
-   */
   private async applySSOConfig(): Promise<void> {
     if (!this.managedConfig?.sso?.provider) {
       return;
@@ -207,30 +173,18 @@ class EnterpriseManager {
     }
   }
 
-  /**
-   * Check if the extension is managed by enterprise policy
-   */
   isManaged(): boolean {
     return this.managedConfig !== null;
   }
 
-  /**
-   * Check if SSO authentication is required at startup
-   */
   isSSORequired(): boolean {
     return this.managedConfig?.sso?.required === true;
   }
 
-  /**
-   * Check if settings are locked by administrator
-   */
   isSettingsLocked(): boolean {
     return this.managedConfig?.settings?.locked === true;
   }
 
-  /**
-   * Get the current enterprise status
-   */
   getStatus(): EnterpriseStatus {
     return {
       isManaged: this.isManaged(),
@@ -240,16 +194,10 @@ class EnterpriseManager {
     };
   }
 
-  /**
-   * Get the managed configuration
-   */
   getManagedConfig(): EnterpriseManagedConfig | null {
     return this.managedConfig;
   }
 
-  /**
-   * Get effective detection config (managed settings override user settings)
-   */
   getEffectiveDetectionConfig(userConfig: DetectionConfig): DetectionConfig {
     if (!this.managedConfig?.settings) {
       return userConfig;
@@ -267,10 +215,6 @@ class EnterpriseManager {
     };
   }
 
-  /**
-   * Get effective value for a specific setting
-   * Managed settings take precedence over user settings
-   */
   getEffectiveSetting<K extends keyof DetectionConfig>(
     key: K,
     userValue: DetectionConfig[K]
@@ -283,9 +227,6 @@ class EnterpriseManager {
     return managedValue !== undefined ? managedValue as DetectionConfig[K] : userValue;
   }
 
-  /**
-   * Check if a specific setting is managed (locked)
-   */
   isSettingManaged<K extends keyof DetectionConfig>(key: K): boolean {
     if (!this.isSettingsLocked()) {
       return false;
@@ -293,23 +234,14 @@ class EnterpriseManager {
     return this.managedConfig?.settings?.[key] !== undefined;
   }
 
-  /**
-   * Get SIEM reporting configuration
-   */
   getReportingConfig() {
     return this.managedConfig?.reporting ?? null;
   }
 
-  /**
-   * Get security policy configuration
-   */
   getPolicyConfig() {
     return this.managedConfig?.policy ?? null;
   }
 
-  /**
-   * Get effective blocking config (managed settings override user settings)
-   */
   getEffectiveBlockingConfig(userConfig: BlockingConfig): BlockingConfig {
     if (!this.managedConfig?.settings) {
       return userConfig;
@@ -322,9 +254,6 @@ class EnterpriseManager {
     };
   }
 
-  /**
-   * Get effective notification config (managed settings override user settings)
-   */
   getEffectiveNotificationConfig(userConfig: NotificationConfig): NotificationConfig {
     if (!this.managedConfig?.settings) {
       return userConfig;
@@ -337,9 +266,6 @@ class EnterpriseManager {
     };
   }
 
-  /**
-   * Subscribe to managed config changes
-   */
   subscribe(listener: ManagedStorageChangeListener): () => void {
     this.listeners.add(listener);
     return () => {
@@ -347,9 +273,6 @@ class EnterpriseManager {
     };
   }
 
-  /**
-   * Notify all listeners of config change
-   */
   private notifyListeners(): void {
     for (const listener of this.listeners) {
       try {
@@ -363,9 +286,6 @@ class EnterpriseManager {
 
 let enterpriseManagerInstance: EnterpriseManager | null = null;
 
-/**
- * Get or create the EnterpriseManager singleton
- */
 export async function getEnterpriseManager(): Promise<EnterpriseManager> {
   if (!enterpriseManagerInstance) {
     enterpriseManagerInstance = new EnterpriseManager();
@@ -374,10 +294,6 @@ export async function getEnterpriseManager(): Promise<EnterpriseManager> {
   return enterpriseManagerInstance;
 }
 
-/**
- * Create a new EnterpriseManager instance
- * (mainly for testing purposes)
- */
 export function createEnterpriseManager(): EnterpriseManager {
   return new EnterpriseManager();
 }

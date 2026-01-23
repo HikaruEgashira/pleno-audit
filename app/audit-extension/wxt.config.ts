@@ -24,7 +24,7 @@ export default defineConfig({
     // Base permissions (cross-browser)
     const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
-    // Chrome/Edge MV3 permissions (includes identity for SSO/OIDC/SAML auth flows)
+    // Chrome/Edge MV3 permissions
     const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest", "identity"];
 
     // Firefox/Safari MV2 permissions (no offscreen, no scripting)
@@ -49,9 +49,6 @@ export default defineConfig({
       },
       permissions: isMV2 ? mv2Permissions : mv3Permissions,
       host_permissions: ["<all_urls>"],
-      // CSP configuration
-      // - MV2 (Firefox/Safari): Use string format, let WXT manage dev mode CSP
-      // - MV3 (Chrome): Use object format with extension_pages
       ...(!isDev && {
         content_security_policy: isMV2
           ? "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
@@ -87,7 +84,6 @@ export default defineConfig({
           },
         },
       }),
-      // Chrome MV3 Enterprise managed storage schema
       ...(!isMV2 && {
         storage: {
           managed_schema: "managed-schema.json",

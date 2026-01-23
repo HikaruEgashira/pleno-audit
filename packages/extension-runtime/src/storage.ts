@@ -1,6 +1,5 @@
 /**
  * 型安全なストレージアクセス層
- * Chrome/Firefox両対応
  */
 import type {
   StorageData,

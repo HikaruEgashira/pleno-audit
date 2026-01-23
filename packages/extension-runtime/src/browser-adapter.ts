@@ -84,10 +84,6 @@ export function isManifestV3(): boolean {
   }
 }
 
-/**
- * Session storage fallback using localStorage with prefix
- * Used when chrome.storage.session is not available (Firefox MV2)
- */
 const SESSION_STORAGE_PREFIX = "__pleno_session_";
 
 export async function getSessionStorage<T>(key: string): Promise<T | undefined> {
@@ -98,7 +94,6 @@ export async function getSessionStorage<T>(key: string): Promise<T | undefined> 
     return result[key] as T | undefined;
   }
 
-  // Fallback: use in-memory storage (survives page reloads but not browser restart)
   try {
     const stored = sessionStorage.getItem(SESSION_STORAGE_PREFIX + key);
     return stored ? JSON.parse(stored) : undefined;
@@ -115,11 +110,10 @@ export async function setSessionStorage<T>(key: string, value: T): Promise<void>
     return;
   }
 
-  // Fallback: use sessionStorage
   try {
     sessionStorage.setItem(SESSION_STORAGE_PREFIX + key, JSON.stringify(value));
   } catch {
-    // Silently fail - session storage is best-effort
+    // ignore
   }
 }
 
@@ -131,11 +125,10 @@ export async function removeSessionStorage(key: string): Promise<void> {
     return;
   }
 
-  // Fallback
   try {
     sessionStorage.removeItem(SESSION_STORAGE_PREFIX + key);
   } catch {
-    // Silently fail
+    // ignore
   }
 }
 
