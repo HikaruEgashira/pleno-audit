@@ -32,6 +32,7 @@ jobs:
           pnpm build
           pnpm -C app/audit-extension build:firefox
           pnpm -C app/battacker-extension build
+          pnpm -C app/battacker-extension build:firefox
 
       - name: Create zip artifacts
         run: |
@@ -41,9 +42,12 @@ jobs:
           # Firefox MV2
           cd ../firefox-mv2
           zip -r ../../../../pleno-audit-firefox.zip .
-          # Battacker
+          # Battacker Chrome
           cd ../../../../app/battacker-extension/dist/chrome-mv3
-          zip -r ../../../../pleno-battacker.zip .
+          zip -r ../../../../pleno-battacker-chrome.zip .
+          # Battacker Firefox
+          cd ../firefox-mv2
+          zip -r ../../../../pleno-battacker-firefox.zip .
 
       - name: Get version
         id: version
@@ -60,7 +64,8 @@ jobs:
           files: |
             pleno-audit-chrome.zip
             pleno-audit-firefox.zip
-            pleno-battacker.zip
+            pleno-battacker-chrome.zip
+            pleno-battacker-firefox.zip
           generate_release_notes: true
           make_latest: true
 
