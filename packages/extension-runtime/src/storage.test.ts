@@ -25,10 +25,6 @@ vi.mock("@pleno-audit/csp", () => ({
   DEFAULT_CSP_CONFIG: { enabled: true, reportOnly: false },
 }));
 
-vi.mock("@pleno-audit/predictive-analysis", () => ({
-  DEFAULT_FORECAST_CONFIG: { enabled: true, horizonDays: 7 },
-}));
-
 vi.mock("./extension-monitor.js", () => ({
   DEFAULT_EXTENSION_MONITOR_CONFIG: { enabled: true },
 }));
@@ -103,7 +99,6 @@ describe("storage", () => {
           "dataRetentionConfig",
           "detectionConfig",
           "blockingConfig",
-          "forecastConfig",
         ])
       );
     });
