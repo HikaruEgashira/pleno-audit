@@ -20,8 +20,7 @@
     "@pleno-audit/storage": "workspace:*",
     "hono": "^4.11.5",
     "lucide-preact": "^0.563.0",
-    "preact": "^10.28.2",
-    "sql.js": "^1.13.0"
+    "preact": "^10.28.2"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",

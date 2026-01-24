@@ -8,7 +8,7 @@
 | [004](./004-privacy-policy-detection.md) | プライバシーポリシーはURLパターンとリンクテキストで特定する | Accepted |
 | [005](./005-design-system.md) | Vercel風ミニマルデザインシステム | Accepted |
 | [006](./006-tos-detection.md) | 利用規約検出機能 | Accepted |
-| [007](./007-isomorphic-hono-api.md) | sql.js (SQLite WASM) によるクライアントサイドDB | Accepted |
+| [007](./007-isomorphic-hono-api.md) | sql.js (SQLite WASM) によるクライアントサイドDB | Superseded |
 | [008](./008-core-domain-model.md) | Coreパッケージの廃止とドメイン分割 | Accepted |
 | [009](./009-explore-agent-optimization.md) | Claude Code Explore Agent最適化 | Accepted |
 | [010](./010-extension-runtime-package.md) | Extension Runtimeパッケージの分離 | Accepted |
@@ -30,3 +30,4 @@
 | [027](./027-battacker-ipc-layer.md) | Battacker IPC層 (Phase 16) | Accepted |
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
 | [030](./030-firefox-support.md) | Firefox Support | Accepted |
+| [031](./031-parquet-storage-migration.md) | parquet-storageへの完全移行 | Accepted |

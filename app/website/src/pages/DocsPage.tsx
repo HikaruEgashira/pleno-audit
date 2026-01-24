@@ -515,7 +515,7 @@ const ArchitectureSection = () => (
               </tr>
               <tr className="border-b border-[#eaeaea] dark:border-[#333]">
                 <td className="py-3 px-4">DB</td>
-                <td className="py-3 px-4">sql.js (SQLite WASM)</td>
+                <td className="py-3 px-4">parquet-storage (IndexedDB)</td>
               </tr>
               <tr>
                 <td className="py-3 px-4">言語</td>
@@ -563,7 +563,7 @@ const ArchitectureSection = () => (
             <Server className="h-5 w-5 mt-0.5 text-[#666] dark:text-[#8f8f8f]" />
             <div>
               <h4 className="font-medium text-[#171717] dark:text-[#ededed]">packages/api</h4>
-              <p className="text-sm text-[#666] dark:text-[#8f8f8f]">REST API（Hono + sql.js）</p>
+              <p className="text-sm text-[#666] dark:text-[#8f8f8f]">REST API（Hono + parquet-storage）</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
