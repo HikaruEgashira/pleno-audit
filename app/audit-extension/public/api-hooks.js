@@ -395,10 +395,9 @@
     const hasCrossorigin = element.hasAttribute('crossorigin')
     const isCDN = isKnownCDN(url)
 
-    // Risk: External resource without SRI
-    if (!hasIntegrity) {
-      const risks = ['missing_sri']
-      if (isCDN) risks.push('cdn_without_sri')
+    // Risk: CDN resource without SRI (only CDN resources are security-critical)
+    if (!hasIntegrity && isCDN) {
+      const risks = ['cdn_without_sri']
       if (!hasCrossorigin) risks.push('missing_crossorigin')
 
       sendSupplyChainRiskEvent({
@@ -660,13 +659,12 @@
   }
 
   // XSS pattern detection in innerHTML/outerHTML
+  // Strict patterns to reduce false positives
   const XSS_PATTERNS = [
-    /<script[^>]*>/i,
-    /javascript:/i,
-    /on\w+\s*=/i,  // onclick=, onerror=, etc.
-    /<iframe[^>]*>/i,
-    /<object[^>]*>/i,
-    /<embed[^>]*>/i,
+    /<script[^>]*>[^<]+/i,                          // Script tag with content (not empty)
+    /javascript:\s*[^"'\s]/i,                       // javascript: URL with actual code
+    /on(error|load)\s*=\s*["'][^"']*eval/i,         // Event handlers containing eval
+    /<iframe[^>]*src\s*=\s*["']?javascript:/i,      // iframe with javascript: src
   ]
 
   function detectXSSPayload(html) {

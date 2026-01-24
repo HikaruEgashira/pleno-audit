@@ -482,9 +482,12 @@ function processCSPViolation(
 
   const node = graph.nodes.get(nodeId);
   if (node) {
-    // Increase risk score for CSP violations
-    node.riskScore = Math.min(100, node.riskScore + 5);
-    node.riskLevel = scoreToRiskLevel(node.riskScore);
+    // Record CSP violation flag (no cumulative score increase)
+    // Risk calculation is delegated to risk-calculator.ts
+    const metadata = node.metadata as DomainMetadata;
+    if (!metadata.hasCSPViolation) {
+      metadata.hasCSPViolation = true;
+    }
   }
 }
 
