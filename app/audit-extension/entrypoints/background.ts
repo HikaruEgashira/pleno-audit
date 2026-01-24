@@ -2610,6 +2610,12 @@ export default defineBackground(() => {
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Service Worker readiness check
+    if (message.type === "PING") {
+      sendResponse("PONG");
+      return false;
+    }
+
     // Messages handled by offscreen document
     if (message.type === "LOCAL_API_REQUEST" || message.type === "OFFSCREEN_READY") {
       return false;

@@ -16,6 +16,7 @@ import {
 } from "./components";
 import { createStyles } from "./styles";
 import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
+import { sendMessage } from "./utils/messaging";
 
 type Tab = "services" | "sessions" | "requests";
 
@@ -90,10 +91,10 @@ function PopupContent() {
     try {
       const [servicesResult, eventsResult] = await Promise.all([
         chrome.storage.local.get(["services"]),
-        chrome.runtime.sendMessage({ type: "GET_EVENTS", data: {} }),
+        sendMessage<EventQueryResult>({ type: "GET_EVENTS", data: {} }),
       ]);
 
-      const events = (eventsResult as EventQueryResult | undefined)?.events || [];
+      const events = eventsResult?.events || [];
       setData({
         services: servicesResult.services || {},
         events,
@@ -111,11 +112,11 @@ function PopupContent() {
   async function loadCSPData() {
     try {
       const [vData, nData] = await Promise.all([
-        chrome.runtime.sendMessage({
+        sendMessage<CSPViolation[]>({
           type: "GET_CSP_REPORTS",
           data: { type: "csp-violation" },
         }),
-        chrome.runtime.sendMessage({
+        sendMessage<NetworkRequest[]>({
           type: "GET_CSP_REPORTS",
           data: { type: "network-request" },
         }),
@@ -129,7 +130,7 @@ function PopupContent() {
 
   async function loadAIData() {
     try {
-      const data = await chrome.runtime.sendMessage({ type: "GET_AI_PROMPTS" });
+      const data = await sendMessage<CapturedAIPrompt[]>({ type: "GET_AI_PROMPTS" });
       if (Array.isArray(data)) setAIPrompts(data);
     } catch {
       // Failed to load AI data
@@ -138,7 +139,7 @@ function PopupContent() {
 
   async function loadDoHData() {
     try {
-      const result = await chrome.runtime.sendMessage({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
+      const result = await sendMessage<{ requests: DoHRequestRecord[] }>({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
       if (result?.requests) setDoHRequests(result.requests);
     } catch {
       // Failed to load DoH data

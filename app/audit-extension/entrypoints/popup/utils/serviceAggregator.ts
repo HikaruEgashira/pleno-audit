@@ -1,5 +1,6 @@
 import { findFaviconUrl, type DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import { sendMessage } from "./messaging";
 
 export type ServiceTag =
   | { type: "nrd"; domainAge: number | null; confidence: string }
@@ -183,8 +184,8 @@ export async function aggregateServices(
   // 2. 拡張機能を追加
   try {
     const [statsResult, extResult, allExtensions] = await Promise.all([
-      chrome.runtime.sendMessage({ type: "GET_EXTENSION_STATS" }),
-      chrome.runtime.sendMessage({ type: "GET_KNOWN_EXTENSIONS" }),
+      sendMessage<ExtensionStats | null>({ type: "GET_EXTENSION_STATS" }),
+      sendMessage<Record<string, ExtensionInfo>>({ type: "GET_KNOWN_EXTENSIONS" }),
       chrome.management.getAll(),
     ]);
 

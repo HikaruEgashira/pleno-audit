@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { DoHMonitorConfig, DoHAction } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
+import { sendMessage } from "../utils/messaging";
 
 interface ActionOption {
   value: DoHAction;
@@ -20,8 +21,8 @@ export function DoHSettings() {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: "GET_DOH_MONITOR_CONFIG" })
-      .then((cfg) => setConfig(cfg))
+    sendMessage<DoHMonitorConfig>({ type: "GET_DOH_MONITOR_CONFIG" })
+      .then(setConfig)
       .catch(() => {});
   }, []);
 
@@ -29,7 +30,7 @@ export function DoHSettings() {
     if (!config) return;
     const newConfig = { ...config, action };
     setConfig(newConfig);
-    chrome.runtime.sendMessage({
+    sendMessage({
       type: "SET_DOH_MONITOR_CONFIG",
       data: { action },
     }).catch(() => {});
