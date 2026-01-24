@@ -31,3 +31,5 @@
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
 | [029](./029-enterprise-managed-storage.md) | Enterprise Managed Storage | Accepted |
 | [030](./030-firefox-support.md) | Firefox Support | Accepted |
+| [031](./031-grafana-inspired-business-strategy.md) | Grafana戦略を参考にしたビジネスモデル設計 | Proposed |
+| [032](./032-enterprise-boundary.md) | Enterprise境界の設定とリポジトリ分離 | Accepted |
