@@ -75,7 +75,7 @@ jobs:
           echo "tag=v$VERSION-canary.$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Create Canary Release
-        uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabeb2bf2addd818 # v2.2.2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Canary ${{ steps.version.outputs.tag }}
