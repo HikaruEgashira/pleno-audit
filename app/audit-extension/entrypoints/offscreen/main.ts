@@ -5,8 +5,13 @@ import {
   type LocalApiResponse,
   type LegacyDBMessage,
   type LegacyDBResponse,
+  type ClearAllIndexedDBMessage,
+  type ClearAllIndexedDBResponse,
 } from "@pleno-audit/extension-runtime/offscreen";
 import { initDebugWebSocket } from "./debug-websocket.js";
+
+// IndexedDB database names
+const INDEXEDDB_NAMES = ["PlenoAuditDB", "PlenoAuditParquet", "PlenoAuditEvents"];
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: ParquetAdapter | null = null;
@@ -123,8 +128,46 @@ async function handleLegacyMessage(
   }
 }
 
+async function handleClearAllIndexedDB(
+  message: ClearAllIndexedDBMessage
+): Promise<ClearAllIndexedDBResponse> {
+  try {
+    // Close existing database connections
+    if (db) {
+      await db.close();
+      db = null;
+      app = null;
+    }
+
+    // Delete all IndexedDB databases
+    const deletePromises = INDEXEDDB_NAMES.map((dbName) => {
+      return new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(dbName);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => {
+          // Database is blocked, but we'll consider it a success
+          // It will be deleted when connections close
+          resolve();
+        };
+      });
+    });
+
+    await Promise.all(deletePromises);
+
+    return { id: message.id, success: true };
+  } catch (error) {
+    return {
+      id: message.id,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 const OFFSCREEN_MESSAGE_TYPES = new Set([
   "LOCAL_API_REQUEST",
+  "CLEAR_ALL_INDEXEDDB",
   "init",
   "insert",
   "query",
@@ -156,6 +199,16 @@ chrome.runtime.onMessage.addListener(
             error: error instanceof Error ? error.message : String(error),
           };
           sendResponse(response);
+        });
+    } else if (message.type === "CLEAR_ALL_INDEXEDDB") {
+      handleClearAllIndexedDB(message as ClearAllIndexedDBMessage)
+        .then(sendResponse)
+        .catch((error) => {
+          sendResponse({
+            id: message.id,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
         });
     } else {
       handleLegacyMessage(message)
