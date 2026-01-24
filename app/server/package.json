@@ -12,8 +12,8 @@
     "@hono/node-server": "^1.19.9",
     "@pleno-audit/api": "workspace:*",
     "@pleno-audit/csp": "workspace:*",
-    "hono": "^4.11.5",
-    "sql.js": "^1.13.0"
+    "@pleno-audit/parquet-storage": "workspace:*",
+    "hono": "^4.11.5"
   },
   "devDependencies": {
     "tsx": "^4.21.0",

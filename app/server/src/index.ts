@@ -1,21 +1,19 @@
 import { serve } from '@hono/node-server'
-import initSqlJs from 'sql.js'
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp, SqlJsAdapter } from '@pleno-audit/api'
+import { createApp } from '@pleno-audit/api'
+import { FileSystemAdapter } from './filesystem-adapter'
+import { ServerParquetAdapter } from './server-parquet-adapter'
 import type { CSPViolation, NetworkRequest } from '@pleno-audit/csp'
 import { Hono } from 'hono'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '../data')
-const DB_PATH = join(DATA_DIR, 'service_exposure.db')
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001
 
-function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true })
-  }
+async function ensureDataDir() {
+  await mkdir(DATA_DIR, { recursive: true })
 }
 
 function truncate(str: string, len: number): string {
@@ -247,20 +245,10 @@ function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdate
 }
 
 async function startServer() {
-  ensureDataDir()
+  await ensureDataDir()
 
-  const SQL = await initSqlJs()
-  let loadFromBuffer: Uint8Array | undefined
-  if (existsSync(DB_PATH)) {
-    loadFromBuffer = readFileSync(DB_PATH)
-  }
-
-  const db = new SqlJsAdapter(SQL, {
-    loadFromBuffer,
-    onSave: (data) => {
-      writeFileSync(DB_PATH, Buffer.from(data))
-    },
-  })
+  const storage = new FileSystemAdapter(DATA_DIR)
+  const db = new ServerParquetAdapter(storage)
   await db.init()
 
   const apiApp = createApp(db)
@@ -283,7 +271,7 @@ async function startServer() {
 |                                                                |
 |  Dashboard:  http://localhost:${PORT}/                            |
 |  API:        http://localhost:${PORT}/api/v1/reports              |
-|  Storage:    SQLite (data/service_exposure.db)                 |
+|  Storage:    Parquet (FileSystem: ${DATA_DIR})
 |                                                                |
 |  Endpoints:                                                    |
 |    GET  /              - Dashboard                             |
