@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockStorageGet = vi.fn();
 const mockStorageSet = vi.fn();
 const mockStorageRemove = vi.fn();
+const mockStorageClear = vi.fn();
 
 vi.stubGlobal("chrome", {
   storage: {
@@ -11,6 +12,7 @@ vi.stubGlobal("chrome", {
       get: mockStorageGet,
       set: mockStorageSet,
       remove: mockStorageRemove,
+      clear: mockStorageClear,
     },
   },
 });
@@ -36,6 +38,7 @@ import {
   getServiceCount,
   clearCSPReports,
   clearAIPrompts,
+  clearAllStorage,
   queueStorageOperation,
 } from "./storage.js";
 
@@ -45,6 +48,7 @@ describe("storage", () => {
     mockStorageGet.mockResolvedValue({});
     mockStorageSet.mockResolvedValue(undefined);
     mockStorageRemove.mockResolvedValue(undefined);
+    mockStorageClear.mockResolvedValue(undefined);
   });
 
   describe("getStorage", () => {
@@ -209,6 +213,53 @@ describe("storage", () => {
       await clearAIPrompts();
 
       expect(mockStorageRemove).toHaveBeenCalledWith(["aiPrompts"]);
+    });
+  });
+
+  describe("clearAllStorage", () => {
+    it("clears all storage and sets default values", async () => {
+      await clearAllStorage();
+
+      expect(mockStorageClear).toHaveBeenCalled();
+      expect(mockStorageSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          services: {},
+          events: [],
+          cspReports: [],
+          aiPrompts: [],
+          extensionRequests: [],
+        })
+      );
+    });
+
+    it("preserves theme when preserveTheme option is true", async () => {
+      mockStorageGet.mockResolvedValue({ themeMode: "dark" });
+
+      await clearAllStorage({ preserveTheme: true });
+
+      expect(mockStorageClear).toHaveBeenCalled();
+      // Should restore theme after clearing
+      expect(mockStorageSet).toHaveBeenCalledWith({ themeMode: "dark" });
+    });
+
+    it("does not preserve theme when preserveTheme is false", async () => {
+      mockStorageGet.mockResolvedValue({ themeMode: "dark" });
+
+      await clearAllStorage({ preserveTheme: false });
+
+      expect(mockStorageClear).toHaveBeenCalled();
+      // Should not restore theme
+      expect(mockStorageSet).not.toHaveBeenCalledWith({ themeMode: "dark" });
+    });
+
+    it("handles missing theme gracefully", async () => {
+      mockStorageGet.mockResolvedValue({});
+
+      await clearAllStorage({ preserveTheme: true });
+
+      expect(mockStorageClear).toHaveBeenCalled();
+      // Should not try to restore undefined theme
+      expect(mockStorageSet).toHaveBeenCalledTimes(1); // Only default settings
     });
   });
 

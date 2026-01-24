@@ -3,6 +3,8 @@ export {
   type LocalApiResponse,
   type LegacyDBMessage,
   type LegacyDBResponse,
+  type ClearAllIndexedDBMessage,
+  type ClearAllIndexedDBResponse,
   type DBMessage,
   type DBResponse,
   isLocalApiRequest,
