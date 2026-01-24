@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp } from '@pleno-audit/api'
+import { createApp as createApiApp } from '@pleno-audit/api'
 import { FileSystemAdapter } from './filesystem-adapter'
 import { ServerParquetAdapter } from './server-parquet-adapter'
 import type { CSPViolation, NetworkRequest } from '@pleno-audit/csp'
@@ -244,14 +244,14 @@ function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdate
 </html>`
 }
 
-async function startServer() {
+export async function createApp() {
   await ensureDataDir()
 
   const storage = new FileSystemAdapter(DATA_DIR)
   const db = new ServerParquetAdapter(storage)
   await db.init()
 
-  const apiApp = createApp(db)
+  const apiApp = createApiApp(db)
 
   const app = new Hono()
 
@@ -262,6 +262,12 @@ async function startServer() {
   })
 
   app.route('/', apiApp)
+
+  return app
+}
+
+async function startServer() {
+  const app = await createApp()
 
   serve({ fetch: app.fetch, port: PORT }, () => {
     console.log(`
