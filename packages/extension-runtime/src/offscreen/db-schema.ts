@@ -24,6 +24,17 @@ export type LegacyDBMessage = {
   params?: unknown[];
 };
 
+export type ClearAllIndexedDBMessage = {
+  type: "CLEAR_ALL_INDEXEDDB";
+  id: string;
+};
+
+export type ClearAllIndexedDBResponse = {
+  id: string;
+  success: boolean;
+  error?: string;
+};
+
 export type LegacyDBResponse = {
   id: string;
   success: boolean;
@@ -31,8 +42,8 @@ export type LegacyDBResponse = {
   error?: string;
 };
 
-export type DBMessage = LocalApiRequest | LegacyDBMessage;
-export type DBResponse = LocalApiResponse | LegacyDBResponse;
+export type DBMessage = LocalApiRequest | LegacyDBMessage | ClearAllIndexedDBMessage;
+export type DBResponse = LocalApiResponse | LegacyDBResponse | ClearAllIndexedDBResponse;
 
 export function isLocalApiRequest(msg: DBMessage): msg is LocalApiRequest {
   return msg.type === "LOCAL_API_REQUEST";
