@@ -54,7 +54,6 @@ import {
   getStorage,
   setStorage,
   clearAIPrompts,
-  clearAllStorage,
   createExtensionMonitor,
   registerExtensionMonitorListener,
   createLogger,
@@ -1303,7 +1302,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     (hasCookieBanner && !isCookieBannerGDPRCompliant);
 
   if (hasViolations) {
-    await getAlertManager().alertCompliance({
+    await alertManager.alertCompliance({
       pageDomain: domain,
       hasPrivacyPolicy,
       hasTermsOfService,
@@ -1915,42 +1914,6 @@ async function clearCSPData(): Promise<{ success: boolean }> {
     return { success: true };
   } catch (error) {
     logger.error("Error clearing data:", error);
-    return { success: false };
-  }
-}
-
-async function clearAllData(): Promise<{ success: boolean }> {
-  try {
-    logger.info("Clearing all data...");
-
-    // 1. Clear report queue and in-memory buffers
-    reportQueue = [];
-    extensionRequestBuffer.length = 0;
-
-    // 2. Clear API client reports
-    if (apiClient) {
-      await apiClient.clearReports();
-    }
-
-    // 3. Clear all IndexedDB databases via offscreen document
-    try {
-      await ensureOffscreenDocument();
-      await chrome.runtime.sendMessage({
-        type: "CLEAR_ALL_INDEXEDDB",
-        id: crypto.randomUUID(),
-      });
-    } catch (error) {
-      logger.warn("Error clearing IndexedDB:", error);
-      // Continue even if IndexedDB clear fails
-    }
-
-    // 4. Clear chrome.storage.local and reset to defaults (preserve theme)
-    await clearAllStorage({ preserveTheme: true });
-
-    logger.info("All data cleared successfully");
-    return { success: true };
-  } catch (error) {
-    logger.error("Error clearing all data:", error);
     return { success: false };
   }
 }
@@ -2647,13 +2610,6 @@ export default defineBackground(() => {
 
     if (message.type === "CLEAR_CSP_DATA") {
       clearCSPData()
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CLEAR_ALL_DATA") {
-      clearAllData()
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

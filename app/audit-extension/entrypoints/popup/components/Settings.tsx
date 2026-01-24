@@ -98,16 +98,14 @@ export function Settings() {
     setSaving(false);
   }
 
-  async function handleResetAllData() {
-    if (!confirm("すべてのデータを削除し、設定をリセットします。続行しますか？")) return;
+  async function handleClearData() {
+    if (!confirm("Clear all CSP data?")) return;
     try {
-      await sendMessage({ type: "CLEAR_ALL_DATA" });
-      setMessage("リセット完了");
+      await sendMessage({ type: "CLEAR_CSP_DATA" });
+      setMessage("Data cleared!");
       setTimeout(() => setMessage(""), 2000);
-      // Reload config after reset
-      loadConfig();
     } catch {
-      setMessage("リセットに失敗しました");
+      // Failed to clear data
     }
   }
 
@@ -251,14 +249,14 @@ export function Settings() {
           {saving ? "Saving..." : "Save Settings"}
         </button>
         <button
-          onClick={handleResetAllData}
+          onClick={handleClearData}
           style={{
             ...styles.buttonSecondary,
             color: colors.status.danger.text,
             borderColor: colors.status.danger.border,
           }}
         >
-          全データをリセット
+          Clear Data
         </button>
       </div>
 
