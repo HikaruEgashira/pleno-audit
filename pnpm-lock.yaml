@@ -68,9 +68,6 @@ importers:
       preact:
         specifier: ^10.28.2
         version: 10.28.2
-      sql.js:
-        specifier: ^1.13.0
-        version: 1.13.0
     devDependencies:
       '@preact/preset-vite':
         specifier: ^2.10.2
@@ -2742,9 +2739,6 @@ packages:
 
   split@1.0.1:
     resolution: {integrity: sha512-mTyOoPbrivtXnwnIxZRFYRrPNtEFKlpB2fvjSnCQUiAA6qAZzqwna5envK4uk6OIeP17CsdF3rSBGYVBsU0Tkg==}
-
-  sql.js@1.13.0:
-    resolution: {integrity: sha512-RJbVP1HRDlUUXahJ7VMTcu9Rm1Nzw+EBpoPr94vnbD4LwR715F3CcxE2G2k45PewcaZ57pjetYa+LoSJLAASgA==}
 
   stack-trace@1.0.0-pre2:
     resolution: {integrity: sha512-2ztBJRek8IVofG9DBJqdy2N5kulaacX30Nz7xmkYF6ale9WBVmIy6mFBchvGX7Vx/MyjBhx+Rcxqrj+dbOnQ6A==}
@@ -5503,8 +5497,6 @@ snapshots:
   split@1.0.1:
     dependencies:
       through: 2.3.8
-
-  sql.js@1.13.0: {}
 
   stack-trace@1.0.0-pre2: {}
 
