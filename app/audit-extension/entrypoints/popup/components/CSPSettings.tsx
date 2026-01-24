@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig } from "@pleno-audit/detectors";
 import { useTheme } from "../../../lib/theme";
+import { sendMessage } from "../utils/messaging";
 
 interface CSPOption {
   key: keyof Pick<CSPConfig, "enabled" | "collectCSPViolations" | "collectNetworkRequests">;
@@ -21,7 +22,7 @@ export function CSPSettings() {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: "GET_CSP_CONFIG" })
+    sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
         setConfig(cfg);
         setEndpoint(cfg?.reportEndpoint ?? "");
@@ -33,7 +34,7 @@ export function CSPSettings() {
     if (!config) return;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
-    chrome.runtime.sendMessage({
+    sendMessage({
       type: "SET_CSP_CONFIG",
       data: newConfig,
     }).catch(() => {});
@@ -42,7 +43,7 @@ export function CSPSettings() {
   function handleEndpointChange(value: string) {
     setEndpoint(value);
     if (!config) return;
-    chrome.runtime.sendMessage({
+    sendMessage({
       type: "SET_CSP_CONFIG",
       data: { ...config, reportEndpoint: value || null },
     }).catch(() => {});

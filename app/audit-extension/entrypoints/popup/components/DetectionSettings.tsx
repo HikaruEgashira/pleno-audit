@@ -2,6 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 import type { DetectionConfig, EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { LockedBanner } from "./LockedBanner";
+import { sendMessage } from "../utils/messaging";
 
 interface DetectionOption {
   key: keyof DetectionConfig;
@@ -32,11 +33,11 @@ export function DetectionSettings() {
   const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus>(DEFAULT_ENTERPRISE_STATUS);
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: "GET_DETECTION_CONFIG" })
+    sendMessage<DetectionConfig>({ type: "GET_DETECTION_CONFIG" })
       .then(setConfig)
       .catch(() => {});
 
-    chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
+    sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
       .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
   }, []);
@@ -47,7 +48,7 @@ export function DetectionSettings() {
     if (!config || isLocked) return;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
-    chrome.runtime.sendMessage({
+    sendMessage({
       type: "SET_DETECTION_CONFIG",
       data: newConfig,
     }).catch(() => {});
