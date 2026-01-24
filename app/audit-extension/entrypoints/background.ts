@@ -1303,7 +1303,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     (hasCookieBanner && !isCookieBannerGDPRCompliant);
 
   if (hasViolations) {
-    await alertManager.alertCompliance({
+    await getAlertManager().alertCompliance({
       pageDomain: domain,
       hasPrivacyPolicy,
       hasTermsOfService,
