@@ -9,7 +9,8 @@ import type {
   NRDConfig,
 } from "@pleno-audit/detectors";
 import type { CSPConfig, CSPReport } from "@pleno-audit/csp";
-import type { ForecastConfig } from "@pleno-audit/predictive-analysis";
+
+// Forecast config removed - enterprise feature
 
 export interface ExtensionMonitorConfig {
   enabled: boolean;
@@ -148,7 +149,6 @@ export interface StorageData {
   dataRetentionConfig?: DataRetentionConfig;
   detectionConfig?: DetectionConfig;
   blockingConfig?: BlockingConfig;
-  forecastConfig?: ForecastConfig;
   notificationConfig?: NotificationConfig;
   alertCooldown?: AlertCooldownData;
 }
@@ -222,7 +222,6 @@ export type {
   DoHRequestRecord,
   DataRetentionConfig,
   DetectionConfig,
-  ForecastConfig,
   NotificationConfig,
   AlertCooldownData,
 };
