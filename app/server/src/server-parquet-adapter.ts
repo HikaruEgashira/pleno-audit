@@ -11,7 +11,7 @@ import {
   parquetRecordToNetworkRequest,
   getDateString,
 } from "@pleno-audit/parquet-storage";
-import type { FileSystemAdapter } from "./filesystem-adapter";
+import type { StorageAdapter } from "./storage-adapter";
 
 /**
  * データベース統計情報
@@ -60,7 +60,7 @@ interface QueryOptions {
  * 書き込みバッファリング機能を持ち、100件または5秒でフラッシュする。
  */
 export class ServerParquetAdapter {
-  private storage: FileSystemAdapter;
+  private storage: StorageAdapter;
   private writeBuffer: Map<string, unknown[]> = new Map();
   private flushTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly FLUSH_INTERVAL = 5000;
@@ -68,9 +68,9 @@ export class ServerParquetAdapter {
 
   /**
    * ServerParquetAdapterのインスタンスを作成する。
-   * @param storage - FileSystemAdapterインスタンス
+   * @param storage - StorageAdapterインスタンス（FileSystemAdapter または S3StorageAdapter）
    */
-  constructor(storage: FileSystemAdapter) {
+  constructor(storage: StorageAdapter) {
     this.storage = storage;
   }
 
@@ -182,7 +182,9 @@ export class ServerParquetAdapter {
 
   private async flushAll(): Promise<void> {
     for (const [key] of this.writeBuffer) {
-      const type = key.split("-")[0] as ParquetLogType;
+      // keyの形式: "${type}-${YYYY-MM-DD}" (例: "csp-violations-2026-01-24")
+      // 末尾の日付部分を除去してtypeを取得
+      const type = key.replace(/-\d{4}-\d{2}-\d{2}$/, "") as ParquetLogType;
       await this.flushBuffer(type, key);
     }
   }
