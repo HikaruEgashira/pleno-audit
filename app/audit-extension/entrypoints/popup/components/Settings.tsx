@@ -102,12 +102,12 @@ export function Settings() {
     if (!confirm("すべてのデータを削除し、設定をリセットします。続行しますか？")) return;
     try {
       await sendMessage({ type: "CLEAR_ALL_DATA" });
-      setMessage("All data reset!");
+      setMessage("リセット完了");
       setTimeout(() => setMessage(""), 2000);
       // Reload config after reset
       loadConfig();
     } catch {
-      setMessage("Failed to reset data");
+      setMessage("リセットに失敗しました");
     }
   }
 
@@ -258,7 +258,7 @@ export function Settings() {
             borderColor: colors.status.danger.border,
           }}
         >
-          Reset All Data
+          全データをリセット
         </button>
       </div>
 

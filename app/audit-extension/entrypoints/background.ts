@@ -1923,8 +1923,9 @@ async function clearAllData(): Promise<{ success: boolean }> {
   try {
     logger.info("Clearing all data...");
 
-    // 1. Clear report queue
+    // 1. Clear report queue and in-memory buffers
     reportQueue = [];
+    extensionRequestBuffer.length = 0;
 
     // 2. Clear API client reports
     if (apiClient) {
