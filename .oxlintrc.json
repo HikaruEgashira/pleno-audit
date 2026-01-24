@@ -83,6 +83,41 @@
     {
       "files": ["app/battacker-extension/**/*"],
       "rules": { "no-console": "off", "no-restricted-globals": "off" }
+    },
+    // Battacker package - attack simulations require network access
+    {
+      "files": ["packages/battacker/**/*"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // SSO Manager - requires OAuth token exchange (enterprise feature, default: OFF)
+    {
+      "files": ["packages/extension-runtime/src/sso-manager.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Debug WebSocket - developer tooling for debugging
+    {
+      "files": ["app/audit-extension/entrypoints/offscreen/debug-websocket.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Integrations Tab - tests user-configured endpoints (user-initiated)
+    {
+      "files": ["app/audit-extension/entrypoints/dashboard/IntegrationsTab.tsx"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Test files - allow mocking fetch/WebSocket
+    {
+      "files": ["*.test.ts", "*.spec.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // Packages test files
+    {
+      "files": ["packages/**/*.test.ts"],
+      "rules": { "no-restricted-globals": "off" }
+    },
+    // App test files
+    {
+      "files": ["app/**/*.test.ts"],
+      "rules": { "no-restricted-globals": "off" }
     }
   ]
 }

@@ -7,24 +7,28 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build extensions
         run: |
@@ -49,6 +53,19 @@ jobs:
           cd ../firefox-mv2
           zip -r ../../../../pleno-battacker-firefox-canary.zip .
 
+      - name: Generate checksums
+        run: |
+          sha256sum pleno-audit-chrome-canary.zip pleno-audit-firefox-canary.zip pleno-battacker-chrome-canary.zip pleno-battacker-firefox-canary.zip > checksums.txt
+
+      - name: Generate attestations
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.1.0
+        with:
+          subject-path: |
+            pleno-audit-chrome-canary.zip
+            pleno-audit-firefox-canary.zip
+            pleno-battacker-chrome-canary.zip
+            pleno-battacker-firefox-canary.zip
+
       - name: Get version
         id: version
         run: |
@@ -58,7 +75,7 @@ jobs:
           echo "tag=v$VERSION-canary.$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Create Canary Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Canary ${{ steps.version.outputs.tag }}
@@ -67,6 +84,7 @@ jobs:
             pleno-audit-firefox-canary.zip
             pleno-battacker-chrome-canary.zip
             pleno-battacker-firefox-canary.zip
+            checksums.txt
           prerelease: true
           generate_release_notes: true
           make_latest: false

@@ -236,7 +236,10 @@ describe("buildSecurityGraph", () => {
       const graph = buildSecurityGraph(services, events);
 
       const node = graph.nodes.get("domain:example.com");
-      expect(node?.riskScore).toBeGreaterThanOrEqual(5);
+      // CSP violation sets flag instead of cumulative score increase
+      expect(
+        (node?.metadata as { hasCSPViolation?: boolean })?.hasCSPViolation
+      ).toBe(true);
     });
 
     it("creates domain node if not exists from event", () => {

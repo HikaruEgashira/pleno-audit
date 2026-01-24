@@ -61,6 +61,7 @@ export interface DomainMetadata {
   hasLogin: boolean;
   hasPrivacyPolicy: boolean;
   hasTermsOfService: boolean;
+  hasCSPViolation?: boolean;
   isNRD: boolean;
   nrdConfidence?: "high" | "medium" | "low" | "unknown";
   isTyposquat: boolean;
