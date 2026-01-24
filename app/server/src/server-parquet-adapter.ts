@@ -13,26 +13,52 @@ import {
 } from "@pleno-audit/parquet-storage";
 import type { FileSystemAdapter } from "./filesystem-adapter";
 
+/**
+ * データベース統計情報
+ */
 interface DatabaseStats {
+  /** CSP違反の総数 */
   violations: number;
+  /** ネットワークリクエストの総数 */
   requests: number;
+  /** ユニークドメインの総数 */
   uniqueDomains: number;
 }
 
+/**
+ * ページネーション付きのクエリ結果
+ * @template T データの型
+ */
 interface PaginatedResult<T> {
+  /** 結果データの配列 */
   data: T[];
+  /** 総レコード数 */
   total: number;
+  /** 更にデータがあるか */
   hasMore: boolean;
 }
 
+/**
+ * クエリオプション
+ */
 interface QueryOptions {
+  /** 取得件数（-1で無制限） */
   limit?: number;
+  /** オフセット */
   offset?: number;
+  /** 開始日時（ISO形式） */
   since?: string;
+  /** 終了日時（ISO形式） */
   until?: string;
+  /** フィルターするドメイン */
   domain?: string;
 }
 
+/**
+ * サーバー環境向けのParquetストレージアダプター。
+ * CSPレポートとネットワークリクエストをFileSystemAdapterを使用して永続化する。
+ * 書き込みバッファリング機能を持ち、100件または5秒でフラッシュする。
+ */
 export class ServerParquetAdapter {
   private storage: FileSystemAdapter;
   private writeBuffer: Map<string, unknown[]> = new Map();
@@ -40,15 +66,27 @@ export class ServerParquetAdapter {
   private readonly FLUSH_INTERVAL = 5000;
   private readonly BUFFER_SIZE = 100;
 
+  /**
+   * ServerParquetAdapterのインスタンスを作成する。
+   * @param storage - FileSystemAdapterインスタンス
+   */
   constructor(storage: FileSystemAdapter) {
     this.storage = storage;
   }
 
+  /**
+   * アダプターを初期化する。
+   */
   async init(): Promise<void> {
     await this.storage.init();
     console.log("[ServerParquetAdapter] Initialized with FileSystem storage");
   }
 
+  /**
+   * CSPレポートを挿入する。
+   * 違反とネットワークリクエストを自動的に分類してバッファに追加する。
+   * @param reports - 挿入するCSPレポートの配列
+   */
   async insertReports(reports: CSPReport[]): Promise<void> {
     const violations = reports.filter((r) => r.type === "csp-violation");
     const requests = reports.filter((r) => r.type === "network-request");
@@ -125,6 +163,10 @@ export class ServerParquetAdapter {
     }
   }
 
+  /**
+   * 全てのCSPレポート（違反とネットワークリクエスト）を取得する。
+   * @returns CSPレポートの配列
+   */
   async getAllReports(): Promise<CSPReport[]> {
     await this.flushAll();
     const violations = await this.getAllViolations();
@@ -132,6 +174,10 @@ export class ServerParquetAdapter {
     return [...violations, ...requests];
   }
 
+  /**
+   * 全てのCSP違反を取得する。
+   * @returns CSP違反の配列（タイムスタンプ降順）
+   */
   async getAllViolations(): Promise<CSPViolation[]> {
     await this.flushAll();
     const records = await this.storage.listByType("csp-violations");
@@ -147,6 +193,10 @@ export class ServerParquetAdapter {
     return violations.sort((a, b) => b.timestamp - a.timestamp);
   }
 
+  /**
+   * 全てのネットワークリクエストを取得する。
+   * @returns ネットワークリクエストの配列（タイムスタンプ降順）
+   */
   async getAllNetworkRequests(): Promise<NetworkRequest[]> {
     await this.flushAll();
     const records = await this.storage.listByType("network-requests");
@@ -162,12 +212,22 @@ export class ServerParquetAdapter {
     return requests.sort((a, b) => b.timestamp - a.timestamp);
   }
 
+  /**
+   * 指定したタイムスタンプ以降のレポートを取得する。
+   * @param timestamp - ISO形式のタイムスタンプ
+   * @returns 該当するCSPレポートの配列
+   */
   async getReportsSince(timestamp: string): Promise<CSPReport[]> {
     const since = new Date(timestamp).getTime();
     const all = await this.getAllReports();
     return all.filter((r) => r.timestamp >= since);
   }
 
+  /**
+   * フィルター条件に基づいてCSPレポートを取得する。
+   * @param options - クエリオプション
+   * @returns ページネーション付きの結果
+   */
   async getReports(options?: QueryOptions): Promise<PaginatedResult<CSPReport>> {
     let data = await this.getAllReports();
 
@@ -198,6 +258,11 @@ export class ServerParquetAdapter {
     };
   }
 
+  /**
+   * フィルター条件に基づいてCSP違反を取得する。
+   * @param options - クエリオプション
+   * @returns ページネーション付きの結果
+   */
   async getViolations(options?: QueryOptions): Promise<PaginatedResult<CSPViolation>> {
     let data = await this.getAllViolations();
 
@@ -228,6 +293,11 @@ export class ServerParquetAdapter {
     };
   }
 
+  /**
+   * フィルター条件に基づいてネットワークリクエストを取得する。
+   * @param options - クエリオプション
+   * @returns ページネーション付きの結果
+   */
   async getNetworkRequests(options?: QueryOptions): Promise<PaginatedResult<NetworkRequest>> {
     let data = await this.getAllNetworkRequests();
 
@@ -258,6 +328,10 @@ export class ServerParquetAdapter {
     };
   }
 
+  /**
+   * データベースの統計情報を取得する。
+   * @returns 違反数、リクエスト数、ユニークドメイン数を含む統計情報
+   */
   async getStats(): Promise<DatabaseStats> {
     await this.flushAll();
     const violations = await this.getAllViolations();
@@ -274,6 +348,11 @@ export class ServerParquetAdapter {
     };
   }
 
+  /**
+   * 指定した日時より前のレポートを削除する。
+   * @param beforeTimestamp - ISO形式のタイムスタンプ
+   * @returns 削除されたレコード数
+   */
   async deleteOldReports(beforeTimestamp: string): Promise<number> {
     await this.flushAll();
     const beforeDate = new Date(beforeTimestamp).toISOString().split("T")[0];
@@ -290,12 +369,19 @@ export class ServerParquetAdapter {
     return deletedViolations + deletedRequests;
   }
 
+  /**
+   * 全てのデータをクリアする。
+   */
   async clearAll(): Promise<void> {
     await this.storage.clear();
     this.writeBuffer.clear();
     console.log("[ServerParquetAdapter] All data cleared");
   }
 
+  /**
+   * アダプターをクローズする。
+   * 保留中のバッファをフラッシュし、タイマーをクリアする。
+   */
   async close(): Promise<void> {
     if (this.flushTimeout) {
       clearTimeout(this.flushTimeout);
