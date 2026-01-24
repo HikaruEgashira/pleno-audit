@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build-and-release:
@@ -51,6 +53,19 @@ jobs:
           cd ../firefox-mv2
           zip -r ../../../../pleno-battacker-firefox.zip .
 
+      - name: Generate checksums
+        run: |
+          sha256sum pleno-audit-chrome.zip pleno-audit-firefox.zip pleno-battacker-chrome.zip pleno-battacker-firefox.zip > checksums.txt
+
+      - name: Generate attestations
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.1.0
+        with:
+          subject-path: |
+            pleno-audit-chrome.zip
+            pleno-audit-firefox.zip
+            pleno-battacker-chrome.zip
+            pleno-battacker-firefox.zip
+
       - name: Get version
         id: version
         run: |
@@ -68,6 +83,7 @@ jobs:
             pleno-audit-firefox.zip
             pleno-battacker-chrome.zip
             pleno-battacker-firefox.zip
+            checksums.txt
           generate_release_notes: true
           make_latest: true
 
