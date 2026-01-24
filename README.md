@@ -1,5 +1,7 @@
 # Pleno Audit
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/HikaruEgashira/pleno-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/HikaruEgashira/pleno-audit)
+
 Personal `#Browser Security` `#BDR` `#CASB`
 
 ## Principles
