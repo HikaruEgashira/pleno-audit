@@ -191,13 +191,14 @@ export class ServerParquetAdapter {
 
   /**
    * 全てのCSPレポート（違反とネットワークリクエスト）を取得する。
-   * @returns CSPレポートの配列
+   * @returns CSPレポートの配列（タイムスタンプ降順）
    */
   async getAllReports(): Promise<CSPReport[]> {
     await this.flushAll();
     const violations = await this.getAllViolations();
     const requests = await this.getAllNetworkRequests();
-    return [...violations, ...requests];
+    // ページネーションの一貫性のためにタイムスタンプでソート
+    return [...violations, ...requests].sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /**
