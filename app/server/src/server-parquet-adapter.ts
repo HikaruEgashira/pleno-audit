@@ -122,8 +122,13 @@ export class ServerParquetAdapter {
   private scheduleFlush(): void {
     if (this.flushTimeout) return;
     this.flushTimeout = setTimeout(async () => {
-      this.flushTimeout = null;
-      await this.flushAll();
+      try {
+        await this.flushAll();
+      } catch (error) {
+        console.error("[ServerParquetAdapter] Scheduled flush failed:", error);
+      } finally {
+        this.flushTimeout = null;
+      }
     }, this.FLUSH_INTERVAL);
   }
 
