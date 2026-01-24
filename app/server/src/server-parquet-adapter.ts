@@ -127,33 +127,57 @@ export class ServerParquetAdapter {
     }, this.FLUSH_INTERVAL);
   }
 
+  /**
+   * 指定されたキーのバッファをストレージにフラッシュする。
+   * 並行性を考慮し、バッファエントリを即座に分離してから非同期I/Oを実行する。
+   * @param type - Parquetログタイプ
+   * @param key - バッファキー
+   */
   private async flushBuffer(type: ParquetLogType, key: string): Promise<void> {
     const records = this.writeBuffer.get(key);
     if (!records || records.length === 0) return;
 
+    // 並行性対策: バッファを即座に分離し、新しい空の配列をセット
+    // これにより、フラッシュ中の新しい書き込みは別の配列に追加される
+    this.writeBuffer.set(key, []);
+
     const date = key.split("-").slice(-3).join("-"); // Extract date from key
-    const existingRecord = await this.storage.load(key);
-    let allRecords = records;
 
-    if (existingRecord) {
-      const existingData = this.deserializeData(existingRecord.data);
-      allRecords = [...existingData, ...records];
+    try {
+      const existingRecord = await this.storage.load(key);
+      let allRecords = records;
+
+      if (existingRecord) {
+        const existingData = this.deserializeData(existingRecord.data);
+        allRecords = [...existingData, ...records];
+      }
+
+      const data = this.serializeData(allRecords);
+      const record: ParquetFileRecord = {
+        key,
+        type,
+        date,
+        data,
+        recordCount: allRecords.length,
+        sizeBytes: data.byteLength,
+        createdAt: existingRecord?.createdAt ?? Date.now(),
+        lastModified: Date.now(),
+      };
+
+      await this.storage.save(record);
+
+      // 成功後、空のバッファエントリがあれば削除
+      const currentBuffer = this.writeBuffer.get(key);
+      if (currentBuffer && currentBuffer.length === 0) {
+        this.writeBuffer.delete(key);
+      }
+    } catch (error) {
+      // 失敗時: 分離したレコードを現在のバッファにマージして再キュー
+      const currentBuffer = this.writeBuffer.get(key) || [];
+      this.writeBuffer.set(key, [...records, ...currentBuffer]);
+      this.scheduleFlush();
+      console.error(`[ServerParquetAdapter] Failed to flush buffer for ${key}:`, error);
     }
-
-    const data = this.serializeData(allRecords);
-    const record: ParquetFileRecord = {
-      key,
-      type,
-      date,
-      data,
-      recordCount: allRecords.length,
-      sizeBytes: data.byteLength,
-      createdAt: existingRecord?.createdAt ?? Date.now(),
-      lastModified: Date.now(),
-    };
-
-    await this.storage.save(record);
-    this.writeBuffer.delete(key);
   }
 
   private async flushAll(): Promise<void> {

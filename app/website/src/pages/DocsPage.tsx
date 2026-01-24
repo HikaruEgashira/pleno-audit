@@ -390,7 +390,7 @@ const FeaturesSection = () => (
           'CSP違反イベントのリアルタイム検出',
           '違反タイプ別の分類（script-src、img-src等）',
           'ポリシー生成のサポート',
-          'SQLiteによるローカルストレージで高速な分析',
+          'parquet-storageによるローカルストレージで高速な分析',
         ]}
       />
 
@@ -438,7 +438,7 @@ const FeaturesSection = () => (
         details={[
           'リアルタイムのイベント表示',
           'フィルタリング・検索機能',
-          'SQLiteによる高速なクエリ処理',
+          'parquet-storageによる高速なクエリ処理',
           'ダークモード対応',
         ]}
       />
