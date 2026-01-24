@@ -3,7 +3,7 @@ import initSqlJs from 'sql.js'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp, SqlJsAdapter } from '@pleno-audit/api'
+import { createApp as createApiApp, SqlJsAdapter } from '@pleno-audit/api'
 import type { CSPViolation, NetworkRequest } from '@pleno-audit/csp'
 import { Hono } from 'hono'
 
@@ -246,7 +246,7 @@ function getDashboardHTML(reports: (CSPViolation | NetworkRequest)[], lastUpdate
 </html>`
 }
 
-async function startServer() {
+export async function createApp() {
   ensureDataDir()
 
   const SQL = await initSqlJs()
@@ -263,7 +263,7 @@ async function startServer() {
   })
   await db.init()
 
-  const apiApp = createApp(db)
+  const apiApp = createApiApp(db)
 
   const app = new Hono()
 
@@ -274,6 +274,12 @@ async function startServer() {
   })
 
   app.route('/', apiApp)
+
+  return app
+}
+
+async function startServer() {
+  const app = await createApp()
 
   serve({ fetch: app.fetch, port: PORT }, () => {
     console.log(`
