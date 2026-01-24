@@ -8,7 +8,6 @@ export {
   getServiceCount,
   clearCSPReports,
   clearAIPrompts,
-  clearAllStorage,
 } from "./storage.js";
 
 // API Client
