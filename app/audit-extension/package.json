@@ -27,8 +27,8 @@
     "@pleno-audit/storage": "workspace:*",
     "@pleno-audit/threat-intel": "workspace:*",
     "@pleno-audit/predictive-analysis": "workspace:*",
-    "hono": "^4.11.4",
-    "lucide-preact": "^0.562.0",
+    "hono": "^4.11.5",
+    "lucide-preact": "^0.563.0",
     "preact": "^10.28.2",
     "sql.js": "^1.13.0"
   },

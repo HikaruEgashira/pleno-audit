@@ -13,7 +13,7 @@
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
     "@pleno-audit/parquet-storage": "workspace:*",
-    "hono": "^4.11.4"
+    "hono": "^4.11.5"
   },
   "peerDependencies": {
     "sql.js": "^1.13.0"
