@@ -4,6 +4,7 @@ import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 import { LockedBanner } from "./LockedBanner";
+import { sendMessage } from "../utils/messaging";
 
 const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
   isManaged: false,
@@ -27,23 +28,23 @@ export function Settings() {
 
   useEffect(() => {
     loadConfig();
-    chrome.runtime.sendMessage({ type: "GET_ENTERPRISE_STATUS" })
+    sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
       .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
   }, []);
 
   async function loadConfig() {
     try {
-      const cfg = await chrome.runtime.sendMessage({ type: "GET_CSP_CONFIG" });
+      const cfg = await sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" });
       setConfig(cfg);
       setEndpoint(cfg?.reportEndpoint ?? "");
 
-      const nrdCfg = await chrome.runtime.sendMessage({
+      const nrdCfg = await sendMessage<NRDConfig>({
         type: "GET_NRD_CONFIG",
       });
       setNRDConfig(nrdCfg);
 
-      const retCfg = await chrome.runtime.sendMessage({
+      const retCfg = await sendMessage<{ retentionDays: number }>({
         type: "GET_DATA_RETENTION_CONFIG",
       });
       setRetentionDays(retCfg?.retentionDays ?? 180);
@@ -55,7 +56,7 @@ export function Settings() {
   function handleRetentionChange(days: number) {
     if (isLocked) return;
     setRetentionDays(days);
-    chrome.runtime.sendMessage({
+    sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
       data: {
         retentionDays: days,
@@ -76,7 +77,7 @@ export function Settings() {
     if (!config || !nrdConfig || isLocked) return;
     setSaving(true);
     try {
-      await chrome.runtime.sendMessage({
+      await sendMessage({
         type: "SET_CSP_CONFIG",
         data: {
           ...config,
@@ -84,7 +85,7 @@ export function Settings() {
         },
       });
 
-      await chrome.runtime.sendMessage({
+      await sendMessage({
         type: "SET_NRD_CONFIG",
         data: nrdConfig,
       });
@@ -100,7 +101,7 @@ export function Settings() {
   async function handleClearData() {
     if (!confirm("Clear all CSP data?")) return;
     try {
-      await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
+      await sendMessage({ type: "CLEAR_CSP_DATA" });
       setMessage("Data cleared!");
       setTimeout(() => setMessage(""), 2000);
     } catch {

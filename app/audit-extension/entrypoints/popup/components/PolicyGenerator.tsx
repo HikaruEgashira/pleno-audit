@@ -3,6 +3,7 @@ import type { GeneratedCSPPolicy } from "@pleno-audit/csp";
 import { Badge, Button } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
+import { sendMessage } from "../utils/messaging";
 
 interface DomainCSPPolicy {
   domain: string;
@@ -25,7 +26,7 @@ export function PolicyGenerator() {
   async function handleGenerate() {
     setLoading(true);
     try {
-      const data = await chrome.runtime.sendMessage({
+      const data = await sendMessage<GeneratedCSPByDomain>({
         type: "GENERATE_CSP_BY_DOMAIN",
         data: { options: { strictMode: false, includeReportUri: true } },
       });
