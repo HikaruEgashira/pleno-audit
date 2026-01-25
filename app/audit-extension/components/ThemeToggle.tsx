@@ -38,17 +38,12 @@ export function ThemeToggle() {
 
   return (
     <button
+      className="hover-bg"
       style={{
         ...styles.button,
         color: colors.textSecondary,
       }}
       onClick={() => setMode(nextMode)}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-      }}
       title={`テーマ: ${modeLabels[mode]} → ${modeLabels[nextMode]}`}
     >
       <span style={{ width: "16px", textAlign: "center" }}>{modeIcons[mode]}</span>

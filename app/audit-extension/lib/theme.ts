@@ -170,6 +170,7 @@ export function useThemeState(): ThemeContextValue {
     // Background and text colors
     root.style.setProperty("--bg-primary", colors.bgPrimary);
     root.style.setProperty("--bg-secondary", colors.bgSecondary);
+    root.style.setProperty("--bg-hover", colors.bgSecondary);
     root.style.setProperty("--text-primary", colors.textPrimary);
     // Scrollbar colors
     root.style.setProperty("--scrollbar-track", colors.scrollbar.track);
