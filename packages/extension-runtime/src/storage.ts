@@ -154,7 +154,6 @@ export async function clearAllStorage(options?: { preserveTheme?: boolean }): Pr
     dataRetentionConfig: DEFAULT_DATA_RETENTION_CONFIG,
     detectionConfig: DEFAULT_DETECTION_CONFIG,
     blockingConfig: DEFAULT_BLOCKING_CONFIG,
-    forecastConfig: DEFAULT_FORECAST_CONFIG,
   };
 
   await api.storage.local.set(defaultSettings);

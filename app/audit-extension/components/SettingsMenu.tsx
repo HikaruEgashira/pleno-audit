@@ -146,9 +146,9 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   return (
     <div ref={menuRef} style={{ position: "relative" }}>
       <button
+        className="hover-bg"
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          background: "transparent",
           border: "none",
           cursor: "pointer",
           padding: "6px",
@@ -158,13 +158,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
           justifyContent: "center",
           color: colors.textSecondary,
           fontSize: "16px",
-          transition: "background-color 0.15s",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
         }}
         title="設定"
       >
@@ -324,6 +317,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
           {onExport && (
             <div style={{ padding: "4px", borderBottom: `1px solid ${colors.border}` }}>
               <button
+                className="hover-bg"
                 onClick={() => {
                   setIsOpen(false);
                   onExport();
@@ -331,7 +325,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 style={{
                   width: "100%",
                   padding: "8px 12px",
-                  background: "transparent",
                   border: "none",
                   cursor: "pointer",
                   display: "flex",
@@ -341,13 +334,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                   color: colors.textPrimary,
                   borderRadius: "4px",
                   textAlign: "left",
-                  transition: "background-color 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
                 }}
               >
                 <span style={{ width: "16px", display: "flex", justifyContent: "center" }}>
@@ -373,6 +359,7 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
 
           <div style={{ padding: "4px" }}>
             <button
+              className="hover-bg"
               onClick={() => {
                 setIsOpen(false);
                 onClearData();
@@ -380,7 +367,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                background: "transparent",
                 border: "none",
                 cursor: "pointer",
                 display: "flex",
@@ -390,13 +376,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 color: colors.status.danger.text,
                 borderRadius: "4px",
                 textAlign: "left",
-                transition: "background-color 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
               }}
             >
               <span style={{ width: "16px", display: "flex", justifyContent: "center" }}>
