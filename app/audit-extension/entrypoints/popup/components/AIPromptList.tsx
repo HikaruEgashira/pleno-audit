@@ -169,17 +169,22 @@ function PromptCard({
 }
 
 function getPreview(prompt: CapturedAIPrompt): string {
+  let text = "";
   if (prompt.prompt.messages?.length) {
     const last = [...prompt.prompt.messages]
       .reverse()
       .find((m) => m.role === "user");
-    return last?.content.substring(0, 100) || "";
+    text = last?.content.substring(0, 80) || "";
+  } else {
+    text =
+      prompt.prompt.text?.substring(0, 80) ||
+      prompt.prompt.rawBody?.substring(0, 80) ||
+      "";
   }
-  return (
-    prompt.prompt.text?.substring(0, 100) ||
-    prompt.prompt.rawBody?.substring(0, 100) ||
-    ""
-  );
+
+  const promptText = text || "(empty)";
+  const domain = new URL(prompt.apiEndpoint).hostname;
+  return `${domain} - ${promptText}`;
 }
 
 function formatPrompt(prompt: CapturedAIPrompt): string {
