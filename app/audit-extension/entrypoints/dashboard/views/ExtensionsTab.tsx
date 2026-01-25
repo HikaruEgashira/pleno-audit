@@ -147,9 +147,11 @@ export function ExtensionsTab({ colors }: ExtensionsTabProps) {
   const stats = useMemo(() => {
     const riskCounts = { critical: 0, high: 0, medium: 0, low: 0 };
     const permissionCounts: Record<string, number> = {};
+    let enabledCount = 0;
 
     for (const ext of extensions) {
       if (!ext.enabled) continue;
+      enabledCount++;
 
       const risk = getPermissionRiskLevel(ext.permissions, ext.hostPermissions);
       riskCounts[risk]++;
@@ -164,7 +166,7 @@ export function ExtensionsTab({ colors }: ExtensionsTabProps) {
       .slice(0, 8)
       .map(([permission, count]) => ({ permission, count }));
 
-    return { riskCounts, topPermissions };
+    return { riskCounts, topPermissions, enabledCount };
   }, [extensions]);
 
   if (loading) {
@@ -230,7 +232,7 @@ export function ExtensionsTab({ colors }: ExtensionsTabProps) {
                     <div
                       style={{
                         height: "100%",
-                        width: `${(item.count / extensions.length) * 100}%`,
+                        width: `${stats.enabledCount > 0 ? (item.count / stats.enabledCount) * 100 : 0}%`,
                         backgroundColor: isHighRisk ? "#f97316" : colors.interactive,
                         borderRadius: "4px",
                       }}
