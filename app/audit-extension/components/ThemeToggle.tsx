@@ -10,7 +10,6 @@ const styles: Record<string, CSSProperties> = {
     background: "transparent",
     fontSize: "13px",
     cursor: "pointer",
-    transition: "background-color 0.15s",
     display: "flex",
     alignItems: "center",
     gap: "8px",
