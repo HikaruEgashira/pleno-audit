@@ -183,8 +183,8 @@ function getPreview(prompt: CapturedAIPrompt): string {
   }
 
   const promptText = text || "(empty)";
-  const endpoint = new URL(prompt.apiEndpoint).pathname;
-  return `${endpoint} - ${promptText}`;
+  const domain = new URL(prompt.apiEndpoint).hostname;
+  return `${domain} - ${promptText}`;
 }
 
 function formatPrompt(prompt: CapturedAIPrompt): string {
