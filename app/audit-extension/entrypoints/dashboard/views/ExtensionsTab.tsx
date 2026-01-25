@@ -139,7 +139,8 @@ export function ExtensionsTab({ colors }: ExtensionsTabProps) {
     return extensions.filter(
       (ext) =>
         ext.name.toLowerCase().includes(q) ||
-        ext.permissions.some((p) => p.toLowerCase().includes(q))
+        ext.permissions.some((p) => p.toLowerCase().includes(q)) ||
+        ext.hostPermissions.some((p) => p.toLowerCase().includes(q))
     );
   }, [extensions, searchQuery]);
 
