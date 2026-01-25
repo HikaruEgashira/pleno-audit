@@ -1,7 +1,7 @@
 # ADR-007: sql.js (SQLite WASM) によるクライアントサイドデータベース
 
 ## Status
-Accepted
+Superseded by [ADR 031](./031-parquet-storage-migration.md)
 
 ## Context
 CSP違反やネットワークリクエストのデータは、当初`chrome.storage.local`に保存していたが、以下の課題があった

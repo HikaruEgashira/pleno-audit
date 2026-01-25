@@ -74,7 +74,7 @@ export async function ensureOffscreenDocument(): Promise<void> {
       await chrome.offscreen.createDocument({
         url: "offscreen.html",
         reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
-        justification: "Running local SQL database with sql.js WASM",
+        justification: "Running local parquet-storage database",
       });
       await waitForOffscreenReady();
     } catch (error) {

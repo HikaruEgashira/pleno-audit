@@ -14,7 +14,6 @@ import type {
   DataRetentionConfig,
   DetectionConfig,
   BlockingConfig,
-  ForecastConfig,
 } from "./storage-types.js";
 import {
   DEFAULT_DATA_RETENTION_CONFIG,
@@ -26,7 +25,6 @@ import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
 import { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./extension-monitor.js";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
-import { DEFAULT_FORECAST_CONFIG } from "@pleno-audit/predictive-analysis";
 import { getBrowserAPI } from "./browser-adapter.js";
 
 const STORAGE_KEYS = [
@@ -42,7 +40,6 @@ const STORAGE_KEYS = [
   "dataRetentionConfig",
   "detectionConfig",
   "blockingConfig",
-  "forecastConfig",
 ] as const;
 type StorageKey = (typeof STORAGE_KEYS)[number];
 
@@ -78,8 +75,6 @@ export async function getStorage(): Promise<StorageData> {
       (result.detectionConfig as DetectionConfig) || DEFAULT_DETECTION_CONFIG,
     blockingConfig:
       (result.blockingConfig as BlockingConfig) || DEFAULT_BLOCKING_CONFIG,
-    forecastConfig:
-      (result.forecastConfig as ForecastConfig) || DEFAULT_FORECAST_CONFIG,
   };
 }
 
@@ -106,7 +101,6 @@ export async function getStorageKey<K extends StorageKey>(
     dataRetentionConfig: DEFAULT_DATA_RETENTION_CONFIG,
     detectionConfig: DEFAULT_DETECTION_CONFIG,
     blockingConfig: DEFAULT_BLOCKING_CONFIG,
-    forecastConfig: DEFAULT_FORECAST_CONFIG,
   };
   return (result[key] as StorageData[K]) ?? defaults[key];
 }

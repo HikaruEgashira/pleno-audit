@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@pleno-audit/detectors": "workspace:*",
-    "@pleno-audit/csp": "workspace:*",
-    "@pleno-audit/predictive-analysis": "workspace:*"
+    "@pleno-audit/csp": "workspace:*"
   }
 }

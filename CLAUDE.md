@@ -7,7 +7,7 @@ CASB/Browser Security
 - `packages/nrd/` - NRDアルゴリズム
 - `packages/typosquat` - typosquattingアルゴリズム
 - `packages/ai-detector` - AI検出アルゴリズム
-- `packages/api/` - REST API（Hono + sql.js）
+- `packages/api/` - REST API（Hono + parquet-storage）
 - `packages/extension-runtime/` - 拡張機能ランタイム（ストレージ、API クライアント、同期）
 - `app/audit-extension/` - Chrome拡張（WXT + Preact）
 
