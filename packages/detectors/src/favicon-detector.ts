@@ -7,11 +7,11 @@
 
 const FAVICON_PATTERNS = [
   /\.ico$/i,  // 全ての.icoファイル
-  /favicon.*\.(png|svg)$/i,
-  /apple-touch-icon.*\.png$/i,
+  /favicon[^\/]*\.(png|svg)$/i,
+  /apple-touch-icon[^\/]*\.png$/i,
   /\/icon-?\d*x?\d*\.png$/i,
-  /\/icons?\/.*\.(png|ico|svg)$/i,
-  /android-chrome.*\.png$/i,
+  /\/icons?\/[^\/]+\.(png|ico|svg)$/i,
+  /android-chrome[^\/]*\.png$/i,
 ];
 
 function extractDomain(url: string): string | null {

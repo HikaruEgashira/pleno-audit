@@ -299,10 +299,21 @@ async function getStorageValue(params: {
   return { success: true, data: storage[params.key] };
 }
 
+/**
+ * Validate storage key to prevent prototype pollution
+ */
+function isValidStorageKey(key: string): boolean {
+  const dangerousKeys = ["__proto__", "constructor", "prototype"];
+  return typeof key === "string" && key.length > 0 && !dangerousKeys.includes(key);
+}
+
 async function setStorageValue(params: {
   key: string;
   value: unknown;
 }): Promise<Omit<DebugResponse, "id">> {
+  if (!isValidStorageKey(params.key)) {
+    return { success: false, error: "Invalid storage key" };
+  }
   await chrome.storage.local.set({ [params.key]: params.value });
   return { success: true };
 }
