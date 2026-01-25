@@ -7,7 +7,6 @@ const styles: Record<string, CSSProperties> = {
     padding: "8px 12px",
     border: "none",
     borderRadius: "4px",
-    background: "transparent",
     fontSize: "13px",
     cursor: "pointer",
     display: "flex",

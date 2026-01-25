@@ -149,7 +149,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         className="hover-bg"
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          background: "transparent",
           border: "none",
           cursor: "pointer",
           padding: "6px",
@@ -326,7 +325,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
                 style={{
                   width: "100%",
                   padding: "8px 12px",
-                  background: "transparent",
                   border: "none",
                   cursor: "pointer",
                   display: "flex",
@@ -369,7 +367,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                background: "transparent",
                 border: "none",
                 cursor: "pointer",
                 display: "flex",
