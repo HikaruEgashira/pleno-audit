@@ -28,12 +28,6 @@ const validConfidences = ["high", "medium", "low"] as const;
 const unicodeStringArb = fc.string({ minLength: 0, maxLength: 100, unit: "grapheme" });
 const largeStringArb = fc.string({ minLength: 1000, maxLength: 5000 });
 
-// APIキーっぽい文字列生成
-const apiKeyLikeArb = fc.tuple(
-  fc.constantFrom("sk-", "ghp_", "gho_", "api_key="),
-  fc.stringMatching(/^[a-zA-Z0-9]{20,50}$/)
-).map(([prefix, suffix]) => `${prefix}${suffix}`);
-
 // メールアドレス生成
 const emailArb = fc.tuple(
   fc.stringMatching(/^[a-z]{3,10}$/),

@@ -29,19 +29,6 @@ const validProviders: ExtendedProvider[] = [
 const validMethods = ["model_name", "url_pattern", "response_structure", "heuristic"];
 const validConfidences = ["high", "medium", "low"];
 
-// カスタムArbitrary: モデル名風文字列
-const modelNameArb = fc.tuple(
-  fc.constantFrom("gpt", "claude", "gemini", "llama", "mistral", "command", "custom"),
-  fc.stringMatching(/^-[a-z0-9.-]{1,20}$/)
-).map(([prefix, suffix]) => `${prefix}${suffix}`);
-
-// カスタムArbitrary: URL風文字列
-const urlArb = fc.tuple(
-  fc.constantFrom("https://", "http://"),
-  fc.stringMatching(/^[a-z][a-z0-9-]{2,20}\.[a-z]{2,6}$/),
-  fc.stringMatching(/^\/[a-z0-9/]{0,30}$/)
-).map(([protocol, domain, path]) => `${protocol}${domain}${path}`);
-
 describe("provider classifier - property tests", () => {
   describe("classifyByModelName", () => {
     // undefinedはnull
