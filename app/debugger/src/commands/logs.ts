@@ -18,13 +18,27 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
+/**
+ * Sanitize log message to prevent log injection attacks
+ * Removes control characters and ANSI escape sequences from untrusted input
+ */
+function sanitizeLogMessage(message: string): string {
+  // Remove ANSI escape sequences and control characters except newlines
+  // eslint-disable-next-line no-control-regex
+  return message.replace(/[\x00-\x09\x0b-\x1f\x7f]|\x1b\[[0-9;]*[a-zA-Z]/g, "");
+}
+
 function formatLog(entry: LogEntry, useColor: boolean): string {
   const time = new Date(entry.timestamp).toISOString().slice(11, 23);
   const level = entry.level.toUpperCase().padEnd(5);
   const color = useColor ? LEVEL_COLORS[entry.level] : "";
   const reset = useColor ? RESET : "";
 
-  return `${color}[${time}] ${level} [${entry.module}] ${entry.message}${reset}`;
+  // Sanitize module and message to prevent log injection
+  const safeModule = sanitizeLogMessage(entry.module);
+  const safeMessage = sanitizeLogMessage(entry.message);
+
+  return `${color}[${time}] ${level} [${safeModule}] ${safeMessage}${reset}`;
 }
 
 function shouldShowLog(

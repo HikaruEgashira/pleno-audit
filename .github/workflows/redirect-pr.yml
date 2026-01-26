@@ -1,0 +1,33 @@
+name: Redirect PR to Canary
+
+on:
+  pull_request_target:
+    types: [opened]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  redirect:
+    runs-on: ubuntu-latest
+    if: github.head_ref != 'canary' && github.actor != 'github-actions[bot]'
+    steps:
+      - name: Change base branch to canary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --base canary
+
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "⚠️ **PR base branch changed to canary**
+
+          mainブランチへの直接PRは許可されていません。
+          このPRは自動的にcanaryブランチへリダイレクトされました。
+
+          リリース時は以下の手順で行います:
+          1. canaryへマージ
+          2. [Create Release PR](../actions/workflows/create-release-pr.yml) ワークフローを実行"
