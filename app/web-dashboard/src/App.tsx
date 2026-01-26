@@ -281,9 +281,9 @@ function DashboardContent() {
     <ThemeContext.Provider value={{ mode: "system", isDark, colors, setMode: () => {} }}>
       <div style={styles.wrapper}>
         <Sidebar
-          items={sidebarItems}
-          activeItem={activeTab}
-          onItemClick={(id) => setActiveTab(id as TabType)}
+          tabs={sidebarItems}
+          activeTab={activeTab}
+          onChange={(id) => setActiveTab(id as TabType)}
         />
         <main style={styles.container}>
           <header style={styles.header}>
