@@ -5,14 +5,15 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -66,6 +67,16 @@ jobs:
             pleno-battacker-chrome.zip
             pleno-battacker-firefox.zip
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign artifacts with Sigstore
+        run: |
+          set -e
+          for file in pleno-audit-chrome.zip pleno-audit-firefox.zip pleno-battacker-chrome.zip pleno-battacker-firefox.zip checksums.txt; do
+            cosign sign-blob "$file" --yes --bundle "${file}.sigstore.json"
+          done
+
       - name: Get version
         id: version
         run: |
@@ -80,10 +91,15 @@ jobs:
           name: Release ${{ steps.version.outputs.tag }}
           files: |
             pleno-audit-chrome.zip
+            pleno-audit-chrome.zip.sigstore.json
             pleno-audit-firefox.zip
+            pleno-audit-firefox.zip.sigstore.json
             pleno-battacker-chrome.zip
+            pleno-battacker-chrome.zip.sigstore.json
             pleno-battacker-firefox.zip
+            pleno-battacker-firefox.zip.sigstore.json
             checksums.txt
+            checksums.txt.sigstore.json
           generate_release_notes: true
           make_latest: true
 
