@@ -239,7 +239,9 @@ export function detectSensitiveData(text: string): SensitiveDataResult[] {
  */
 export function hasSensitiveData(text: string): boolean {
   for (const { pattern } of PATTERNS) {
-    if (pattern.test(text)) {
+    // gフラグ付きRegExpはlastIndexを保持するため、新しいインスタンスを作成
+    const regex = new RegExp(pattern.source, pattern.flags);
+    if (regex.test(text)) {
       return true;
     }
   }

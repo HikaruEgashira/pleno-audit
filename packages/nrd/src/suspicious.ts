@@ -70,8 +70,9 @@ export function calculateEntropy(str: string): number {
   }
 
   // Normalize to 0-1 range
+  // Math.minで浮動小数点誤差による1超過を防止
   const maxEntropy = Math.log2(len);
-  return maxEntropy > 0 ? entropy / maxEntropy : 0;
+  return maxEntropy > 0 ? Math.min(entropy / maxEntropy, 1) : 0;
 }
 
 /**
