@@ -14,7 +14,7 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   pageSize?: number;
   emptyMessage?: string;
-  rowKey: (item: T, index: number) => string;
+  rowKey?: (item: T, index: number) => string;
   rowHighlight?: (item: T) => boolean;
 }
 
@@ -99,7 +99,7 @@ export function DataTable<T>({
   columns,
   pageSize = 25,
   emptyMessage = "データがありません",
-  rowKey,
+  rowKey = (_item: T, index: number) => String(index),
   rowHighlight,
 }: DataTableProps<T>) {
   const { colors, isDark } = useTheme();
