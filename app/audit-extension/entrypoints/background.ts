@@ -814,27 +814,14 @@ async function flushExtensionRequestBuffer() {
  * DNRマッチルールを定期チェック
  * Chrome DNR APIのレート制限（10分間に最大20回）に対応するため、
  * 36秒間隔の別アラームで実行する
+ *
+ * 注意: checkDNRMatches()内でglobalCallbacksが呼ばれ、
+ * onRequestコールバック経由でバッファ追加とイベント追加が自動的に行われる
  */
 async function checkDNRMatchesHandler() {
   if (!extensionMonitor) return;
   try {
-    const dnrRecords = await extensionMonitor.checkDNRMatches();
-    for (const record of dnrRecords) {
-      extensionRequestBuffer.push(record);
-      await addEvent({
-        type: "extension_request",
-        domain: record.domain,
-        timestamp: record.timestamp,
-        details: {
-          extensionId: record.extensionId,
-          extensionName: record.extensionName,
-          url: record.url,
-          method: record.method,
-          resourceType: record.resourceType,
-          detectedBy: record.detectedBy,
-        },
-      });
-    }
+    await extensionMonitor.checkDNRMatches();
   } catch (err) {
     logger.debug("DNR match check failed:", err);
   }
