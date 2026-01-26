@@ -16,14 +16,17 @@ jobs:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     steps:
       - name: Check PR source
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          ACTOR: ${{ github.actor }}
         run: |
           # mainへのPRはcanaryからのみ許可
-          if [ "${{ github.head_ref }}" != "canary" ]; then
+          if [ "$HEAD_REF" != "canary" ]; then
             echo "::error::PRs to main must come from canary branch only"
             exit 1
           fi
           # PRはgithub-actions[bot]のみ許可
-          if [ "${{ github.actor }}" != "github-actions[bot]" ]; then
+          if [ "$ACTOR" != "github-actions[bot]" ]; then
             echo "::error::PRs to main can only be created by GitHub Actions"
             exit 1
           fi
