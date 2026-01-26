@@ -439,7 +439,9 @@ describe("provider classifier - property tests", () => {
         fc.property(
           fc.constantFrom<ExtendedProvider>(...validProviders),
           (provider) => {
-            return isShadowAI(provider) === isShadowAI(provider);
+            const first = isShadowAI(provider);
+            const second = isShadowAI(provider);
+            return first === second;
           }
         )
       );
