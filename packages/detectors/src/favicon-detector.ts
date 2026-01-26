@@ -6,18 +6,74 @@
  */
 
 /**
- * Favicon URL patterns
- * Note: Using [^/]* instead of .* to prevent ReDoS attacks
- * by limiting backtracking to path segments only
+ * Extract the filename from a URL path (last segment after /)
+ * Returns lowercase for case-insensitive matching
  */
-const FAVICON_PATTERNS = [
-  /\.ico$/i,  // 全ての.icoファイル
-  /favicon[^/]*\.(png|svg)$/i,
-  /apple-touch-icon[^/]*\.png$/i,
-  /\/icon-?\d*x?\d*\.png$/i,
-  /\/icons?\/[^/]*\.(png|ico|svg)$/i,
-  /android-chrome[^/]*\.png$/i,
-];
+function getFilename(url: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const lastSlash = pathname.lastIndexOf("/");
+    return pathname.slice(lastSlash + 1).toLowerCase();
+  } catch {
+    // Fallback: extract from raw URL
+    const lastSlash = url.lastIndexOf("/");
+    return url.slice(lastSlash + 1).toLowerCase();
+  }
+}
+
+/**
+ * Extract pathname from URL for path-based checks
+ */
+function getPathname(url: string): string {
+  try {
+    return new URL(url).pathname.toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+/**
+ * Check if a URL is a favicon using string operations (ReDoS-safe)
+ * Uses filename extraction to avoid regex backtracking issues
+ */
+function isFaviconUrl(url: string): boolean {
+  const filename = getFilename(url);
+  const pathname = getPathname(url);
+
+  // Check .ico files (most common favicon format)
+  if (filename.endsWith(".ico")) {
+    return true;
+  }
+
+  // Check favicon*.png or favicon*.svg
+  if (filename.startsWith("favicon") && (filename.endsWith(".png") || filename.endsWith(".svg"))) {
+    return true;
+  }
+
+  // Check apple-touch-icon*.png
+  if (filename.startsWith("apple-touch-icon") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // Check android-chrome*.png
+  if (filename.startsWith("android-chrome") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // Check /icon*.png (e.g., icon-192x192.png)
+  if (filename.startsWith("icon") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // Check /icons/ directory pattern
+  if (pathname.includes("/icons/") || pathname.includes("/icon/")) {
+    if (filename.endsWith(".png") || filename.endsWith(".ico") || filename.endsWith(".svg")) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function extractDomain(url: string): string | null {
   try {
@@ -51,12 +107,8 @@ export function findFaviconUrl(
 
     const isFromTargetDomain = reqDomain === domain || pageDomain === domain;
 
-    if (isFromTargetDomain) {
-      for (const pattern of FAVICON_PATTERNS) {
-        if (pattern.test(req.url)) {
-          return req.url;
-        }
-      }
+    if (isFromTargetDomain && isFaviconUrl(req.url)) {
+      return req.url;
     }
   }
   return undefined;
