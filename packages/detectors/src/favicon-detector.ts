@@ -5,13 +5,18 @@
  * 外部通信なしで、既存の通信記録からfaviconを特定する。
  */
 
+/**
+ * Favicon URL patterns
+ * Note: Using [^/]* instead of .* to prevent ReDoS attacks
+ * by limiting backtracking to path segments only
+ */
 const FAVICON_PATTERNS = [
   /\.ico$/i,  // 全ての.icoファイル
-  /favicon.*\.(png|svg)$/i,
-  /apple-touch-icon.*\.png$/i,
+  /favicon[^/]*\.(png|svg)$/i,
+  /apple-touch-icon[^/]*\.png$/i,
   /\/icon-?\d*x?\d*\.png$/i,
-  /\/icons?\/.*\.(png|ico|svg)$/i,
-  /android-chrome.*\.png$/i,
+  /\/icons?\/[^/]*\.(png|ico|svg)$/i,
+  /android-chrome[^/]*\.png$/i,
 ];
 
 function extractDomain(url: string): string | null {

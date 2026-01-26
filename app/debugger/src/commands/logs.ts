@@ -11,6 +11,23 @@ const LEVEL_COLORS: Record<LogLevel, string> = {
 
 const RESET = "\x1b[0m";
 
+/**
+ * Sanitize log message to prevent log injection attacks
+ * - Removes ANSI escape sequences (except our own color codes)
+ * - Escapes control characters
+ * - Replaces newlines with visible representation
+ */
+function sanitizeLogMessage(message: string): string {
+  // Remove ANSI escape sequences from user input
+  const withoutAnsi = message.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+  // Escape control characters (except tab) and replace newlines
+  return withoutAnsi
+    .replace(/\r\n|\r|\n/g, "\\n")
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, (char) =>
+      `\\x${char.charCodeAt(0).toString(16).padStart(2, "0")}`
+    );
+}
+
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
   info: 1,
@@ -23,8 +40,11 @@ function formatLog(entry: LogEntry, useColor: boolean): string {
   const level = entry.level.toUpperCase().padEnd(5);
   const color = useColor ? LEVEL_COLORS[entry.level] : "";
   const reset = useColor ? RESET : "";
+  // Sanitize user-controlled data to prevent log injection
+  const sanitizedModule = sanitizeLogMessage(entry.module);
+  const sanitizedMessage = sanitizeLogMessage(entry.message);
 
-  return `${color}[${time}] ${level} [${entry.module}] ${entry.message}${reset}`;
+  return `${color}[${time}] ${level} [${sanitizedModule}] ${sanitizedMessage}${reset}`;
 }
 
 function shouldShowLog(

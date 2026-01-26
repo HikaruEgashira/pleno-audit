@@ -144,6 +144,9 @@ export function classifyByModelName(
 /**
  * 既知のAIサービスドメインパターン
  * ADR-011に従い、補助的な確信度向上のみに使用
+ *
+ * Note: All patterns use (?:^|[/:]) anchor to ensure domain boundaries
+ * and prevent partial matches (e.g., "evil-api.openai.com.attacker.com")
  */
 const KNOWN_AI_DOMAINS: Array<{
   pattern: RegExp;
@@ -152,109 +155,109 @@ const KNOWN_AI_DOMAINS: Array<{
 }> = [
   // OpenAI
   {
-    pattern: /api\.openai\.com/i,
+    pattern: /(?:^|[/:])api\.openai\.com(?:$|[/:])/i,
     provider: "openai",
     confidence: "high",
   },
   {
-    pattern: /chatgpt\.com\/backend-api/i,
+    pattern: /(?:^|[/:])chatgpt\.com\/backend-api(?:$|[/?])/i,
     provider: "openai",
     confidence: "high",
   },
 
   // Anthropic
   {
-    pattern: /api\.anthropic\.com/i,
+    pattern: /(?:^|[/:])api\.anthropic\.com(?:$|[/:])/i,
     provider: "anthropic",
     confidence: "high",
   },
-  { pattern: /claude\.ai\/api/i, provider: "anthropic", confidence: "high" },
+  { pattern: /(?:^|[/:])claude\.ai\/api(?:$|[/?])/i, provider: "anthropic", confidence: "high" },
 
   // Google
   {
-    pattern: /generativelanguage\.googleapis\.com/i,
+    pattern: /(?:^|[/:])generativelanguage\.googleapis\.com(?:$|[/:])/i,
     provider: "google",
     confidence: "high",
   },
   {
-    pattern: /aiplatform\.googleapis\.com/i,
+    pattern: /(?:^|[/:])aiplatform\.googleapis\.com(?:$|[/:])/i,
     provider: "google",
     confidence: "high",
   },
 
   // Azure OpenAI
   {
-    pattern: /\.openai\.azure\.com/i,
+    pattern: /(?:^|[/:.])openai\.azure\.com(?:$|[/:])/i,
     provider: "azure",
     confidence: "high",
   },
   {
-    pattern: /\.cognitiveservices\.azure\.com.*openai/i,
+    pattern: /(?:^|[/:.])cognitiveservices\.azure\.com[^]*openai/i,
     provider: "azure",
     confidence: "high",
   },
 
   // Cohere
-  { pattern: /api\.cohere\.(ai|com)/i, provider: "cohere", confidence: "high" },
+  { pattern: /(?:^|[/:])api\.cohere\.(?:ai|com)(?:$|[/:])/i, provider: "cohere", confidence: "high" },
 
   // Mistral
-  { pattern: /api\.mistral\.ai/i, provider: "mistral", confidence: "high" },
+  { pattern: /(?:^|[/:])api\.mistral\.ai(?:$|[/:])/i, provider: "mistral", confidence: "high" },
 
   // Together.ai
   {
-    pattern: /api\.together\.(xyz|ai)/i,
+    pattern: /(?:^|[/:])api\.together\.(?:xyz|ai)(?:$|[/:])/i,
     provider: "together",
     confidence: "high",
   },
 
   // Replicate
-  { pattern: /api\.replicate\.com/i, provider: "replicate", confidence: "high" },
+  { pattern: /(?:^|[/:])api\.replicate\.com(?:$|[/:])/i, provider: "replicate", confidence: "high" },
 
   // Hugging Face
   {
-    pattern: /api-inference\.huggingface\.co/i,
+    pattern: /(?:^|[/:])api-inference\.huggingface\.co(?:$|[/:])/i,
     provider: "huggingface",
     confidence: "high",
   },
   {
-    pattern: /huggingface\.co\/api/i,
+    pattern: /(?:^|[/:])huggingface\.co\/api(?:$|[/?])/i,
     provider: "huggingface",
     confidence: "medium",
   },
 
   // Perplexity
   {
-    pattern: /api\.perplexity\.ai/i,
+    pattern: /(?:^|[/:])api\.perplexity\.ai(?:$|[/:])/i,
     provider: "perplexity",
     confidence: "high",
   },
 
   // Groq
-  { pattern: /api\.groq\.com/i, provider: "groq", confidence: "high" },
+  { pattern: /(?:^|[/:])api\.groq\.com(?:$|[/:])/i, provider: "groq", confidence: "high" },
 
   // DeepSeek
-  { pattern: /api\.deepseek\.com/i, provider: "deepseek", confidence: "high" },
+  { pattern: /(?:^|[/:])api\.deepseek\.com(?:$|[/:])/i, provider: "deepseek", confidence: "high" },
 
   // Moonshot
   {
-    pattern: /api\.moonshot\.cn/i,
+    pattern: /(?:^|[/:])api\.moonshot\.cn(?:$|[/:])/i,
     provider: "moonshot",
     confidence: "high",
   },
 
   // Zhipu AI
-  { pattern: /open\.bigmodel\.cn/i, provider: "zhipu", confidence: "high" },
+  { pattern: /(?:^|[/:])open\.bigmodel\.cn(?:$|[/:])/i, provider: "zhipu", confidence: "high" },
 
   // Baidu
   {
-    pattern: /aip\.baidubce\.com/i,
+    pattern: /(?:^|[/:])aip\.baidubce\.com(?:$|[/:])/i,
     provider: "baidu",
     confidence: "high",
   },
 
   // Alibaba
   {
-    pattern: /dashscope\.aliyuncs\.com/i,
+    pattern: /(?:^|[/:])dashscope\.aliyuncs\.com(?:$|[/:])/i,
     provider: "alibaba",
     confidence: "high",
   },

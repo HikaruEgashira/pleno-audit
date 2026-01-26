@@ -17,6 +17,19 @@ interface DebugResponse {
   error?: string;
 }
 
+/**
+ * Validate storage key to prevent prototype pollution
+ */
+function isValidStorageKey(key: unknown): key is string {
+  if (typeof key !== "string") return false;
+  // Reject prototype pollution keys
+  const dangerousKeys = ["__proto__", "constructor", "prototype"];
+  if (dangerousKeys.includes(key)) return false;
+  // Reject keys starting with __ (reserved)
+  if (key.startsWith("__")) return false;
+  return true;
+}
+
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
@@ -232,6 +245,9 @@ async function setStorageValue(params: {
   key: string;
   value: unknown;
 }): Promise<Omit<DebugResponse, "id">> {
+  if (!isValidStorageKey(params.key)) {
+    return { success: false, error: "Invalid storage key" };
+  }
   await chrome.storage.local.set({ [params.key]: params.value });
   return { success: true };
 }
