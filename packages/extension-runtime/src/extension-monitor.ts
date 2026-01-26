@@ -58,6 +58,16 @@ let isListenerRegistered = false;
 let isExtensionListInitialized = false;
 let isDNRRulesRegistered = false;
 let lastMatchedRulesCheck = 0;
+
+// DNR API レート制限対策
+// Chrome制限: 10分間に最大20回、30秒以上の間隔が必要
+const DNR_QUOTA_INTERVAL_MS = 10 * 60 * 1000; // 10分
+const DNR_MAX_CALLS_PER_INTERVAL = 18; // 余裕を持たせる（Chrome制限は20）
+const DNR_MIN_INTERVAL_MS = 35 * 1000; // 35秒（安全マージン）
+
+let lastDNRCallTime = 0;
+let dnrCallCount = 0;
+let dnrQuotaWindowStart = 0;
 // ルールID→拡張機能IDの明示的マッピング（拡張機能追加/削除時の不整合を防ぐ）
 let dnrRuleToExtensionMap = new Map<number, string>();
 
@@ -247,12 +257,35 @@ export async function checkMatchedDNRRules(): Promise<ExtensionRequestRecord[]> 
     return [];
   }
 
+  const now = Date.now();
+
+  // クォータウィンドウのリセット（10分経過時）
+  if (now - dnrQuotaWindowStart >= DNR_QUOTA_INTERVAL_MS) {
+    dnrQuotaWindowStart = now;
+    dnrCallCount = 0;
+  }
+
+  // クォータチェック（10分間に18回まで）
+  if (dnrCallCount >= DNR_MAX_CALLS_PER_INTERVAL) {
+    logger.debug("DNR quota limit reached, skipping check");
+    return [];
+  }
+
+  // 最小間隔チェック（35秒未満はスキップ）
+  if (now - lastDNRCallTime < DNR_MIN_INTERVAL_MS) {
+    logger.debug("DNR rate limit: skipping (too frequent)");
+    return [];
+  }
+
+  lastDNRCallTime = now;
+  dnrCallCount++;
+
   try {
     const matchedRules = await chrome.declarativeNetRequest.getMatchedRules({
       minTimeStamp: lastMatchedRulesCheck,
     });
 
-    lastMatchedRulesCheck = Date.now();
+    lastMatchedRulesCheck = now;
 
     const records: ExtensionRequestRecord[] = [];
 
@@ -307,6 +340,13 @@ export async function checkMatchedDNRRules(): Promise<ExtensionRequestRecord[]> 
 
     return records;
   } catch (error) {
+    const errorMessage = String(error);
+    // quota/rateエラー時はバックオフモードに入る
+    if (errorMessage.includes("quota") || errorMessage.includes("QUOTA") || errorMessage.includes("MAX_GETMATCHEDRULES_CALLS")) {
+      logger.warn("DNR quota exceeded, entering backoff mode");
+      dnrCallCount = DNR_MAX_CALLS_PER_INTERVAL; // バックオフ：次のウィンドウまで停止
+      return [];
+    }
     logger.error("Failed to check matched DNR rules:", error);
     return [];
   }

@@ -68,10 +68,11 @@ jobs:
             pleno-battacker-firefox.zip
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da54e9c8 # v3.8.1
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
 
       - name: Sign artifacts with Sigstore
         run: |
+          set -e
           for file in pleno-audit-chrome.zip pleno-audit-firefox.zip pleno-battacker-chrome.zip pleno-battacker-firefox.zip checksums.txt; do
             cosign sign-blob "$file" --yes --bundle "${file}.sigstore.json"
           done

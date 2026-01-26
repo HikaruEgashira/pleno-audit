@@ -31,3 +31,4 @@
 | [028](./028-battacker-extension-sandbox.md) | Battacker 拡張機能サンドボックス層 (Phase 17) | Accepted |
 | [030](./030-firefox-support.md) | Firefox Support | Accepted |
 | [031](./031-parquet-storage-migration.md) | parquet-storageへの完全移行 | Accepted |
+| [032](./032-extensions-analysis-tab.md) | 拡張機能分析タブのOSS移行 | Accepted |

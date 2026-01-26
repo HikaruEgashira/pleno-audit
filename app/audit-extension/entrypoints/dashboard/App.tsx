@@ -13,6 +13,7 @@ import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme, type ThemeColors, spacing } from "../../lib/theme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, SettingsMenu, StatCard, Sidebar, StatsGrid, NotificationBanner, useNotifications } from "../../components";
 import { SkeletonDashboard } from "../../components/Skeleton";
+import { ExtensionsTab } from "./views/ExtensionsTab";
 
 interface TotalCounts {
   violations: number;
@@ -22,7 +23,7 @@ interface TotalCounts {
 }
 
 type Period = "1h" | "24h" | "7d" | "30d" | "all";
-type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events";
+type TabType = "overview" | "violations" | "network" | "domains" | "ai" | "services" | "events" | "extensions";
 
 function truncate(str: string, len: number): string {
   return str && str.length > len ? str.substring(0, len) + "..." : str || "";
@@ -220,7 +221,7 @@ function DashboardContent() {
 
   const getInitialTab = (): TabType => {
     const hash = window.location.hash.slice(1);
-    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events"];
+    const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions"];
     // permissionsはextensionsに統合されたのでリダイレクト
     if (hash === "permissions") return "extensions";
     return validTabs.includes(hash as TabType) ? (hash as TabType) : "overview";
@@ -244,7 +245,7 @@ function DashboardContent() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events"];
+      const validTabs: TabType[] = ["overview", "violations", "network", "domains", "ai", "services", "events", "extensions"];
       if (hash === "permissions") {
         setActiveTab("extensions");
       } else if (validTabs.includes(hash as TabType)) {
@@ -376,7 +377,7 @@ function DashboardContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
-        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events"];
+        const tabIds: TabType[] = ["overview", "violations", "domains", "ai", "services", "network", "events", "extensions"];
         const idx = parseInt(e.key) - 1;
         if (tabIds[idx]) setActiveTab(tabIds[idx]);
       }
@@ -478,6 +479,7 @@ function DashboardContent() {
     { id: "services", label: "サービス" },
     { id: "network", label: "ネットワーク" },
     { id: "events", label: "イベント" },
+    { id: "extensions", label: "拡張機能" },
   ];
 
   const filteredViolations = useMemo(() => {
@@ -992,6 +994,12 @@ function DashboardContent() {
               },
             ]}
           />
+        </div>
+      )}
+
+      {activeTab === "extensions" && (
+        <div style={styles.section}>
+          <ExtensionsTab colors={colors} />
         </div>
       )}
 

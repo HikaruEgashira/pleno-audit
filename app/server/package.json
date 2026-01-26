@@ -4,6 +4,10 @@
   "description": "Local development server for Pleno Audit reports",
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapter": "./src/exports.ts"
+  },
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts"
