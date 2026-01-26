@@ -5,14 +5,64 @@
  * 外部通信なしで、既存の通信記録からfaviconを特定する。
  */
 
-const FAVICON_PATTERNS = [
-  /\.ico$/i,  // 全ての.icoファイル
-  /favicon[^\/]*\.(png|svg)$/i,
-  /apple-touch-icon[^\/]*\.png$/i,
-  /\/icon-?\d*x?\d*\.png$/i,
-  /\/icons?\/[^\/]+\.(png|ico|svg)$/i,
-  /android-chrome[^\/]*\.png$/i,
-];
+/**
+ * Extract filename from URL path (last segment after /)
+ */
+function getFilename(url: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const lastSlash = pathname.lastIndexOf("/");
+    return lastSlash >= 0 ? pathname.slice(lastSlash + 1).toLowerCase() : pathname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Check if a filename matches favicon patterns
+ * Uses string methods instead of regex to avoid ReDoS
+ */
+function isFaviconFile(url: string): boolean {
+  const filename = getFilename(url);
+  if (!filename) return false;
+
+  // .ico files
+  if (filename.endsWith(".ico")) return true;
+
+  // favicon*.png or favicon*.svg
+  if (filename.startsWith("favicon") && (filename.endsWith(".png") || filename.endsWith(".svg"))) {
+    return true;
+  }
+
+  // apple-touch-icon*.png
+  if (filename.startsWith("apple-touch-icon") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // icon*.png (including icon-32x32.png, icon32.png, etc.)
+  if (filename.startsWith("icon") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // android-chrome*.png
+  if (filename.startsWith("android-chrome") && filename.endsWith(".png")) {
+    return true;
+  }
+
+  // Check for /icons/ directory pattern
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    if (pathname.includes("/icons/") || pathname.includes("/icon/")) {
+      if (filename.endsWith(".png") || filename.endsWith(".ico") || filename.endsWith(".svg")) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore URL parsing errors
+  }
+
+  return false;
+}
 
 function extractDomain(url: string): string | null {
   try {
@@ -46,12 +96,8 @@ export function findFaviconUrl(
 
     const isFromTargetDomain = reqDomain === domain || pageDomain === domain;
 
-    if (isFromTargetDomain) {
-      for (const pattern of FAVICON_PATTERNS) {
-        if (pattern.test(req.url)) {
-          return req.url;
-        }
-      }
+    if (isFromTargetDomain && isFaviconFile(req.url)) {
+      return req.url;
     }
   }
   return undefined;
