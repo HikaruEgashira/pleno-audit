@@ -797,31 +797,7 @@ async function initExtensionMonitor() {
 }
 
 async function flushExtensionRequestBuffer() {
-  // declarativeNetRequestのマッチルールをチェック（Service Workerからのリクエスト検出用）
-  if (extensionMonitor) {
-    try {
-      const dnrRecords = await extensionMonitor.checkDNRMatches();
-      for (const record of dnrRecords) {
-        extensionRequestBuffer.push(record);
-        await addEvent({
-          type: "extension_request",
-          domain: record.domain,
-          timestamp: record.timestamp,
-          details: {
-            extensionId: record.extensionId,
-            extensionName: record.extensionName,
-            url: record.url,
-            method: record.method,
-            resourceType: record.resourceType,
-            detectedBy: record.detectedBy,
-          },
-        });
-      }
-    } catch (err) {
-      logger.debug("DNR match check failed:", err);
-    }
-  }
-
+  // DNRチェックは別アラーム（checkDNRMatches）で実行されるため、ここでは行わない
   if (extensionRequestBuffer.length === 0) return;
 
   const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);
@@ -832,6 +808,23 @@ async function flushExtensionRequestBuffer() {
   requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
 
   await setStorage({ extensionRequests: requests });
+}
+
+/**
+ * DNRマッチルールを定期チェック
+ * Chrome DNR APIのレート制限（10分間に最大20回）に対応するため、
+ * 36秒間隔の別アラームで実行する
+ *
+ * 注意: checkDNRMatches()内でglobalCallbacksが呼ばれ、
+ * onRequestコールバック経由でバッファ追加とイベント追加が自動的に行われる
+ */
+async function checkDNRMatchesHandler() {
+  if (!extensionMonitor) return;
+  try {
+    await extensionMonitor.checkDNRMatches();
+  } catch (err) {
+    logger.debug("DNR match check failed:", err);
+  }
 }
 
 // クールダウン定数
@@ -2477,6 +2470,8 @@ export default defineBackground(() => {
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
   chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  // DNR API rate limit対応: 36秒間隔（Chrome制限: 10分間に最大20回、30秒以上の間隔）
+  chrome.alarms.create("checkDNRMatches", { periodInMinutes: 0.6 });
   // Extension risk analysis (runs every 5 minutes)
   chrome.alarms.create("extensionRiskAnalysis", { periodInMinutes: 5 });
   // Data cleanup alarm (runs once per day)
@@ -2492,6 +2487,9 @@ export default defineBackground(() => {
     }
     if (alarm.name === "flushExtensionRequests") {
       flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
+    }
+    if (alarm.name === "checkDNRMatches") {
+      checkDNRMatchesHandler().catch((err) => logger.debug("DNR match check failed:", err));
     }
     if (alarm.name === "extensionRiskAnalysis") {
       analyzeExtensionRisks().catch((err) => logger.debug("Extension risk analysis failed:", err));

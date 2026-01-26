@@ -1,0 +1,71 @@
+name: Create Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "PR title (optional, auto-generated if empty)"
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: canary
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Get version and generate title
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./app/audit-extension/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [ -n "${{ inputs.title }}" ]; then
+            echo "title=${{ inputs.title }}" >> $GITHUB_OUTPUT
+          else
+            echo "title=Release v$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate PR body
+        id: body
+        run: |
+          COMMITS=$(git log origin/main..origin/canary --oneline --no-merges | head -20)
+          {
+            echo "body<<EOF"
+            echo "## Release v${{ steps.meta.outputs.version }}"
+            echo ""
+            echo "### Changes from canary"
+            echo ""
+            echo "\`\`\`"
+            echo "$COMMITS"
+            echo "\`\`\`"
+            echo ""
+            echo "### Checklist"
+            echo "- [ ] All CI checks pass"
+            echo "- [ ] CODEOWNERS review completed"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING_PR=$(gh pr list --base main --head canary --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists"
+            gh pr view "$EXISTING_PR" --web || true
+          else
+            gh pr create \
+              --base main \
+              --head canary \
+              --title "${{ steps.meta.outputs.title }}" \
+              --body "${{ steps.body.outputs.body }}"
+          fi

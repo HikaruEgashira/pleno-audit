@@ -22,10 +22,18 @@
       :root {
         --bg-primary: #fff;
         --bg-secondary: #fafafa;
+        --bg-hover: #fafafa;
         --text-primary: #111;
         --scrollbar-track: hsl(0 0% 95%);
         --scrollbar-thumb: hsl(0 0% 75%);
         --scrollbar-thumb-hover: hsl(0 0% 60%);
+      }
+      /* Hover utility class */
+      .hover-bg {
+        transition: background-color 0.15s;
+      }
+      .hover-bg:hover {
+        background-color: var(--bg-hover);
       }
       ::-webkit-scrollbar {
         width: 8px;

@@ -7,10 +7,8 @@ const styles: Record<string, CSSProperties> = {
     padding: "8px 12px",
     border: "none",
     borderRadius: "4px",
-    background: "transparent",
     fontSize: "13px",
     cursor: "pointer",
-    transition: "background-color 0.15s",
     display: "flex",
     alignItems: "center",
     gap: "8px",
@@ -38,17 +36,12 @@ export function ThemeToggle() {
 
   return (
     <button
+      className="hover-bg"
       style={{
         ...styles.button,
         color: colors.textSecondary,
       }}
       onClick={() => setMode(nextMode)}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgSecondary;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-      }}
       title={`テーマ: ${modeLabels[mode]} → ${modeLabels[nextMode]}`}
     >
       <span style={{ width: "16px", textAlign: "center" }}>{modeIcons[mode]}</span>
