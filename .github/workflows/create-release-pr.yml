@@ -13,23 +13,30 @@ permissions: {}
 jobs:
   create-pr:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: 2739992
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: canary
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Get version and generate title
         id: meta
+        env:
+          INPUT_TITLE: ${{ inputs.title }}
         run: |
           VERSION=$(node -p "require('./app/audit-extension/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          if [ -n "${{ inputs.title }}" ]; then
-            echo "title=${{ inputs.title }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_TITLE" ]; then
+            echo "title=$INPUT_TITLE" >> $GITHUB_OUTPUT
           else
             echo "title=Release v$VERSION" >> $GITHUB_OUTPUT
           fi
@@ -56,7 +63,7 @@ jobs:
 
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           EXISTING_PR=$(gh pr list --base main --head canary --json number --jq '.[0].number')
           if [ -n "$EXISTING_PR" ]; then
