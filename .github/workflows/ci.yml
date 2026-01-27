@@ -18,7 +18,7 @@ jobs:
       - name: Check PR source
         env:
           HEAD_REF: ${{ github.head_ref }}
-          ACTOR: ${{ github.actor }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           # mainへのPRはcanaryからのみ許可
           if [ "$HEAD_REF" != "canary" ]; then
@@ -26,8 +26,8 @@ jobs:
             exit 1
           fi
           # PRはplenoai[bot]のみ許可
-          if [ "$ACTOR" != "plenoai[bot]" ]; then
-            echo "::error::PRs to main can only be created by plenoai app"
+          if [ "$PR_AUTHOR" != "pleno-ai[bot]" ]; then
+            echo "::error::PRs to main can only be created by plenoai app (author: $PR_AUTHOR)"
             exit 1
           fi
 
