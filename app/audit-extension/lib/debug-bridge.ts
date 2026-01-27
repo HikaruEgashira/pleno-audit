@@ -314,7 +314,10 @@ async function setStorageValue(params: {
   if (!isValidStorageKey(params.key)) {
     return { success: false, error: "Invalid storage key" };
   }
-  await chrome.storage.local.set({ [params.key]: params.value });
+  // Use Object.create(null) to prevent prototype pollution via property injection
+  const data: Record<string, unknown> = Object.create(null);
+  data[params.key] = params.value;
+  await chrome.storage.local.set(data);
   return { success: true };
 }
 

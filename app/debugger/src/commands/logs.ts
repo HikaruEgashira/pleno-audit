@@ -82,7 +82,7 @@ export const logsCommand = new Command("logs")
         if (response.type === "DEBUG_LOG") {
           const entry = response.data as LogEntry;
           if (shouldShowLog(entry, minLevel, moduleFilter)) {
-            console.log(formatLog(entry, useColor));
+            process.stdout.write(`${formatLog(entry, useColor)}\n`);
           }
         }
       });
