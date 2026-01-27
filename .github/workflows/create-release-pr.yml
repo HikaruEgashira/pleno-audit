@@ -7,12 +7,25 @@ on:
         description: "PR title (optional, auto-generated if empty)"
         required: false
         type: string
+      bump:
+        description: "Version bump type"
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
 
 permissions: {}
 
 jobs:
   create-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -28,51 +41,121 @@ jobs:
           persist-credentials: true
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Get version and generate title
-        id: meta
-        env:
-          INPUT_TITLE: ${{ inputs.title }}
+      - name: Get commit log
+        id: commits
         run: |
-          VERSION=$(node -p "require('./app/audit-extension/package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          if [ -n "$INPUT_TITLE" ]; then
-            echo "title=$INPUT_TITLE" >> $GITHUB_OUTPUT
-          else
-            echo "title=Release v$VERSION" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Generate PR body
-        id: body
-        run: |
-          COMMITS=$(git log origin/main..origin/canary --oneline --no-merges | head -20)
           {
-            echo "body<<EOF"
-            echo "## Release v${{ steps.meta.outputs.version }}"
-            echo ""
-            echo "### Changes from canary"
-            echo ""
-            echo "\`\`\`"
-            echo "$COMMITS"
-            echo "\`\`\`"
-            echo ""
-            echo "### Checklist"
-            echo "- [ ] All CI checks pass"
-            echo "- [ ] CODEOWNERS review completed"
+            echo "log<<EOF"
+            git log origin/main..origin/canary --oneline --no-merges
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Create Pull Request
+      - name: Claude Code Action - Generate CHANGELOG and bump version
+        id: claude
+        uses: anthropics/claude-code-action@231bd75b7196d48291c1498f1c6d277c2810d9a3 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "Read,Write,Edit,Bash"
+          max_turns: 15
+          prompt: |
+            あなたはリリースエンジニアです。以下のコミットログを分析し、CHANGELOG.mdの生成とバージョンバンプを行ってください。
+
+            ## コミットログ (origin/main..origin/canary)
+            ```
+            ${{ steps.commits.outputs.log }}
+            ```
+
+            ## バージョンバンプ入力: `${{ inputs.bump }}`
+
+            ## タスク
+
+            ### 1. バージョンバンプ種別の決定
+            - `${{ inputs.bump }}`が`auto`以外の場合、その値をそのまま使用
+            - `auto`の場合、コミットプレフィックスから判定:
+              - `BREAKING CHANGE`または`!:`を含む → major
+              - `feat`で始まる → minor
+              - それ以外 → patch
+
+            ### 2. バージョン更新
+            - `app/audit-extension/package.json`のversionフィールドを更新
+            - ルートの`package.json`のversionフィールドを同じバージョンに更新
+            - **注意**: `battacker-extension`は独立バージョン管理のため更新しない
+
+            ### 3. CHANGELOG.md生成
+            - ルートディレクトリの`CHANGELOG.md`を更新（存在しない場合は新規作成）
+            - 「Keep a Changelog」形式（https://keepachangelog.com/）に従う
+            - コミットをconventional commitsのプレフィックスで分類:
+              - `feat` → Added
+              - `fix` → Fixed
+              - `refactor`, `perf` → Changed
+              - `docs` → Documentation
+              - `chore`, `ci`, `build` → その他（Miscellaneous）
+            - マージコミット、CI専用の変更は除外
+            - 各エントリはコミットメッセージのサマリーを使用（プレフィックスは除く）
+            - 日付はISO 8601形式（YYYY-MM-DD）で今日の日付を使用
+
+            ### 4. 出力
+            最後に以下の形式で新しいバージョンを標準出力に出力してください:
+            ```
+            NEW_VERSION=x.y.z
+            ```
+
+      - name: Extract version and commit changes
+        id: version
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          VERSION=$(node -p "require('./app/audit-extension/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git config user.name "pleno-ai[bot]"
+            git config user.email "257570732+pleno-ai[bot]@users.noreply.github.com"
+            git add CHANGELOG.md package.json app/audit-extension/package.json
+            git commit -m "chore: release v$VERSION"
+            git push origin canary
+          fi
+
+      - name: Create or update Pull Request
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          INPUT_TITLE: ${{ inputs.title }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ -n "$INPUT_TITLE" ]; then
+            PR_TITLE="$INPUT_TITLE"
+          else
+            PR_TITLE="Release v$VERSION"
+          fi
+
+          COMMITS=$(git log origin/main..origin/canary --oneline --no-merges | head -20)
+          PR_BODY=$(cat <<EOF
+          ## Release v$VERSION
+
+          ### Changes from canary
+
+          \`\`\`
+          $COMMITS
+          \`\`\`
+
+          ### Checklist
+          - [ ] All CI checks pass
+          - [ ] CODEOWNERS review completed
+          EOF
+          )
+
           EXISTING_PR=$(gh pr list --base main --head canary --json number --jq '.[0].number')
           if [ -n "$EXISTING_PR" ]; then
-            echo "PR #$EXISTING_PR already exists"
-            gh pr view "$EXISTING_PR" --web || true
+            echo "Updating existing PR #$EXISTING_PR"
+            gh pr edit "$EXISTING_PR" \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY"
           else
             gh pr create \
               --base main \
               --head canary \
-              --title "${{ steps.meta.outputs.title }}" \
-              --body "${{ steps.body.outputs.body }}"
+              --title "$PR_TITLE" \
+              --body "$PR_BODY"
           fi
