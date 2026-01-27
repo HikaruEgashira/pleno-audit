@@ -32,3 +32,4 @@
 | [030](./030-firefox-support.md) | Firefox Support | Accepted |
 | [031](./031-parquet-storage-migration.md) | parquet-storageへの完全移行 | Accepted |
 | [032](./032-extensions-analysis-tab.md) | 拡張機能分析タブのOSS移行 | Accepted |
+| [033](./033-external-communication-policy.md) | 外部通信制御ポリシー | Accepted |

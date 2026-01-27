@@ -11,7 +11,7 @@
       "error",
       {
         "name": "fetch",
-        "message": "External communication is forbidden. Add exception to .oxlintrc.json overrides if required."
+        "message": "External communication is forbidden by default (ADR-033). Add exception to .oxlintrc.json overrides if required."
       },
       {
         "name": "XMLHttpRequest",
@@ -24,6 +24,11 @@
     ]
   },
   "overrides": [
+    // External communication exceptions (ADR-033: External Communication Policy)
+    // Default: All external communication is DISABLED
+    // OSS version: User opt-in required
+    // Enterprise version: Admin policy required
+
     // Debugger CLI - console is intentional for user output
     {
       "files": ["app/debugger/src/**/*"],

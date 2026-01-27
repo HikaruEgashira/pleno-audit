@@ -42,12 +42,34 @@ pnpm --filter @pleno-audit/debugger start browser open example.com
 pnpm --filter @pleno-audit/debugger start status
 ```
 
-## Prodct Policy
+## Product Policy
 
-### 外部通信禁止
-- プライバシー保護のため、外部サーバーとの通信は禁止する
-- oxlintにて違反を検出しています
-- ユーザーの同意を経て、デフォルトで無効化するなどの措置を取る上でoxlintrcでの除外設定とプライバシーポリシーの更新が必要です
+### 外部通信制御
+
+**原則（Principle）**: デフォルトで外部通信を禁止する
+
+これはpleno-auditの根幹をなすプライバシー保護の原則である。
+
+#### OSS版（pleno-audit）
+
+- **デフォルト**: 全ての外部通信を禁止
+- **制御方式**: ユーザーのオプトイン（明示的な有効化）
+- **対象機能**:
+  - RDAP問い合わせ（NRD検出の精度向上）
+  - リモートAPI同期
+  - CSP違反レポート送信
+- **実装**: oxlintで外部通信を静的検出し、`.oxlintrc.json`で明示的に除外された機能のみ実装可能
+
+#### Enterprise版（pleno-audit-internal）
+
+- **デフォルト**: 全ての外部通信を禁止（OSS版と同じ原則）
+- **制御方式**: 管理者のポリシー設定による制御
+- **対象機能**:
+  - SIEM連携（Splunk、Wiz等）
+  - Webhook通知
+  - SSO認証（OIDC/SAML）
+  - 外部統合（Slack、Jira、GitHub）
+- **要件**: ユーザー同意とプライバシーポリシーの更新が必要
 
 ### 外部DB禁止
 - GETではあるが、通信しないというポリシーに従って外部DB（脆弱性DB、Blacklist）へのアクセスは禁止する
