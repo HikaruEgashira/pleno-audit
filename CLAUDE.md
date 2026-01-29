@@ -2,16 +2,43 @@ CASB/Browser Security
 
 ## 構造
 
+### ZTAパッケージ構造（NIST SP 800-207準拠）
+
+```
+packages/
+├── control-plane/
+│   ├── policy-engine/    - PolicyManager, TrustAlgorithm
+│   └── policy-admin/     - EnterpriseManager
+├── data-plane/
+│   └── pep/              - BlockingEngine, AlertManager, CooldownManager
+├── data-sources/
+│   ├── cdm/              - ExtensionRiskAnalyzer, DoHMonitor, CookieMonitor
+│   ├── id-management/    - SSOManager
+│   └── activity-logs/    - Storage, ApiClient（将来移行予定）
+├── siem/                 - ExtensionStatsAnalyzer
+└── runtime-platform/     - Logger, BrowserAdapter, MessageHandler
+```
+
+### 独立ライブラリ
+
 - `packages/detectors/` - CASBドメイン（サービス検出、認証検出）
 - `packages/csp/` - CSP監査（違反検出、ポリシー生成、レポーター）
 - `packages/nrd/` - NRDアルゴリズム
-- `packages/typosquat` - typosquattingアルゴリズム
-- `packages/ai-detector` - AI検出アルゴリズム
+- `packages/typosquat/` - typosquattingアルゴリズム
+- `packages/ai-detector/` - AI検出アルゴリズム
 - `packages/api/` - REST API（Hono + parquet-storage）
-- `packages/extension-runtime/` - 拡張機能ランタイム（ストレージ、API クライアント、同期）
+- `packages/battacker/` - 防御テストツール
+
+### レガシー（後方互換）
+
+- `packages/extension-runtime/` - 新パッケージへのre-export shim
+- `packages/alerts/` - pepへのre-export shim
+
+### アプリケーション
+
 - `app/audit-extension/` - Chrome拡張（WXT + Preact）
 
-詳細は各パッケージの`index.ts`を参照。
+詳細: [ADR-034: ZTAパッケージ構造](./docs/adr/034-zta-package-structure.md)
 
 ## ロギング
 
