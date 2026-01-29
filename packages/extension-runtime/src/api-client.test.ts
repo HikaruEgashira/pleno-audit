@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { CSPReport, CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 
 // Mock logger
-vi.mock("./logger.js", () => ({
+vi.mock("@pleno-audit/runtime-platform", () => ({
   createLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock("./logger.js", () => ({
 }));
 
 // Mock sso-manager
-vi.mock("./sso-manager.js", () => ({
+vi.mock("@pleno-audit/id-management", () => ({
   getSSOManager: vi.fn().mockResolvedValue({
     getSession: vi.fn().mockResolvedValue(null),
   }),
@@ -317,7 +317,7 @@ describe("ApiClient", () => {
 
     describe("SSO integration", () => {
       it("adds Authorization header when SSO session exists", async () => {
-        const { getSSOManager } = await import("./sso-manager.js");
+        const { getSSOManager } = await import("@pleno-audit/id-management");
         vi.mocked(getSSOManager).mockResolvedValue({
           getSession: vi.fn().mockResolvedValue({
             provider: "oidc",
@@ -343,7 +343,7 @@ describe("ApiClient", () => {
       });
 
       it("does not add Authorization header when no SSO session", async () => {
-        const { getSSOManager } = await import("./sso-manager.js");
+        const { getSSOManager } = await import("@pleno-audit/id-management");
         vi.mocked(getSSOManager).mockResolvedValue({
           getSession: vi.fn().mockResolvedValue(null),
         } as ReturnType<typeof getSSOManager> extends Promise<infer T> ? T : never);

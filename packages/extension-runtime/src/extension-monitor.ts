@@ -16,7 +16,7 @@ import type {
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
 } from "./storage-types.js";
-import { createLogger } from "./logger.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
 import {
   generateDashboardStats,
   globalExtensionStatsCache,

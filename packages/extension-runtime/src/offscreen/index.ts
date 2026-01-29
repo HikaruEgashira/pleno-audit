@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Offscreen Package (Shim)
+ *
+ * This module is a backward-compatibility shim that re-exports from runtime-platform.
+ * New code should import directly from @pleno-audit/runtime-platform/offscreen.
+ *
+ * @deprecated Import from @pleno-audit/runtime-platform/offscreen instead
+ */
+
 export {
   type LocalApiRequest,
   type LocalApiResponse,
@@ -8,6 +17,5 @@ export {
   type DBMessage,
   type DBResponse,
   isLocalApiRequest,
-} from "./db-schema.js";
-
-export { IndexedDBStorage } from "./indexeddb-storage.js";
+  IndexedDBStorage,
+} from "@pleno-audit/runtime-platform/offscreen";

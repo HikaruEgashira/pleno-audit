@@ -261,7 +261,14 @@ importers:
 
   packages/ai-detector: {}
 
-  packages/alerts: {}
+  packages/alerts:
+    dependencies:
+      '@pleno-audit/pep':
+        specifier: workspace:*
+        version: link:../data-plane/pep
+      '@pleno-audit/policy-engine':
+        specifier: workspace:*
+        version: link:../control-plane/policy-engine
 
   packages/api:
     dependencies:
@@ -352,12 +359,30 @@ importers:
 
   packages/extension-runtime:
     dependencies:
+      '@pleno-audit/cdm':
+        specifier: workspace:*
+        version: link:../data-sources/cdm
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
+      '@pleno-audit/id-management':
+        specifier: workspace:*
+        version: link:../data-sources/id-management
+      '@pleno-audit/pep':
+        specifier: workspace:*
+        version: link:../data-plane/pep
+      '@pleno-audit/policy-admin':
+        specifier: workspace:*
+        version: link:../control-plane/policy-admin
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../runtime-platform
+      '@pleno-audit/siem':
+        specifier: workspace:*
+        version: link:../siem
 
   packages/nrd: {}
 
