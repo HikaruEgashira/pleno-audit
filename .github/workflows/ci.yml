@@ -25,9 +25,9 @@ jobs:
             echo "::error::PRs to main must come from canary branch only"
             exit 1
           fi
-          # PRはplenoai[bot]のみ許可
+          # PRはpleno-ai[bot]のみ許可
           if [ "$PR_AUTHOR" != "pleno-ai[bot]" ]; then
-            echo "::error::PRs to main can only be created by plenoai app (author: $PR_AUTHOR)"
+            echo "::error::PRs to main can only be created by pleno-ai app (author: $PR_AUTHOR)"
             exit 1
           fi
 
