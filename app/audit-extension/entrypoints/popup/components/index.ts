@@ -1,3 +1,3 @@
-export { ServicesTab } from "./ServicesTab";
-export { SessionsTab } from "./SessionsTab";
-export { RequestsTab } from "./RequestsTab";
+export { ServiceTab } from "./ServiceTab";
+export { ThreatTab } from "./ThreatTab";
+export { PolicyTab } from "./PolicyTab";

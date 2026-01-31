@@ -10,10 +10,9 @@ import {
   type ServiceTag,
   type SortType,
 } from "../utils/serviceAggregator";
-import { DetectionSettings } from "./DetectionSettings";
 import { usePopupStyles } from "../styles";
 
-interface ServicesTabProps {
+interface ServiceTabProps {
   services: DetectedService[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
@@ -95,7 +94,7 @@ function formatRelativeTime(timestamp: number): string {
   return "たった今";
 }
 
-export function ServicesTab({ services, violations, networkRequests }: ServicesTabProps) {
+export function ServiceTab({ services, violations, networkRequests }: ServiceTabProps) {
   const { colors } = useTheme();
   const popupStyles = usePopupStyles();
   const [unifiedServices, setUnifiedServices] = useState<UnifiedService[]>([]);
@@ -108,7 +107,6 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
     [unifiedServices, sortType]
   );
 
-  // サービスデータをロード
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -404,8 +402,6 @@ export function ServicesTab({ services, violations, networkRequests }: ServicesT
       <div style={styles.summary}>
         合計: {sortedServices.length} サービス
       </div>
-
-      <DetectionSettings />
     </div>
   );
 }

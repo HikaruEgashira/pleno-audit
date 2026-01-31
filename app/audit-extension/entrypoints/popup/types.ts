@@ -1,9 +1,9 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type {
   DetectedService,
-  EventLog,
   CapturedAIPrompt,
 } from "@pleno-audit/detectors";
+import type { DoHRequestRecord } from "@pleno-audit/extension-runtime";
 
 export interface ViolationProps {
   violations: CSPViolation[];
@@ -13,18 +13,13 @@ export interface ServiceProps {
   services: DetectedService[];
 }
 
-export interface EventProps {
-  events: EventLog[];
-}
-
-export interface ServicesTabProps extends ServiceProps, ViolationProps {
+export interface ServiceTabProps extends ServiceProps, ViolationProps {
   networkRequests: NetworkRequest[];
 }
 
-export interface SessionsTabProps extends EventProps {
+export interface ThreatTabProps extends ServiceProps, ViolationProps {
   aiPrompts: CapturedAIPrompt[];
+  doHRequests: DoHRequestRecord[];
 }
 
-export interface RequestsTabProps extends ViolationProps {
-  networkRequests: NetworkRequest[];
-}
+export interface PolicyTabProps extends ViolationProps {}
