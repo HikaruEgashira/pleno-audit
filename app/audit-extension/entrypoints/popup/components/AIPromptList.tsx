@@ -4,6 +4,14 @@ import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
+function safeGetHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url || "unknown";
+  }
+}
+
 interface Props {
   prompts: CapturedAIPrompt[];
 }
@@ -61,7 +69,7 @@ function PromptCard({
     second: "2-digit",
   });
   const preview = getPreview(prompt);
-  const domain = new URL(prompt.apiEndpoint).hostname;
+  const domain = safeGetHostname(prompt.apiEndpoint);
   const displayProvider = prompt.provider && prompt.provider !== "unknown" ? prompt.provider : domain;
 
   return (
