@@ -322,9 +322,10 @@ export function detectJapaneseHomoglyphs(domain: string): HomoglyphMatch[] {
 
 /**
  * Punycodeドメインを検出
+ * 各ラベル（ドットで区切られた部分）がxn--で始まるかをチェック
  */
 export function isPunycodeDomain(domain: string): boolean {
-  return domain.includes("xn--");
+  return domain.split(".").some((label) => label.startsWith("xn--"));
 }
 
 /**
