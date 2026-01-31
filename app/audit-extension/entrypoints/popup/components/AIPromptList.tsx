@@ -4,6 +4,14 @@ import { Badge } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
+function safeGetHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url || "unknown";
+  }
+}
+
 interface Props {
   prompts: CapturedAIPrompt[];
 }
@@ -61,7 +69,8 @@ function PromptCard({
     second: "2-digit",
   });
   const preview = getPreview(prompt);
-  const showProvider = prompt.provider && prompt.provider !== "unknown";
+  const domain = safeGetHostname(prompt.apiEndpoint);
+  const displayProvider = prompt.provider && prompt.provider !== "unknown" ? prompt.provider : domain;
 
   return (
     <div style={styles.card}>
@@ -70,20 +79,18 @@ function PromptCard({
         style={{
           cursor: "pointer",
           display: "flex",
-          flexDirection: showProvider ? "column" : "row",
+          flexDirection: "column",
           gap: "3px",
-          alignItems: showProvider ? "stretch" : "center",
+          alignItems: "stretch",
         }}
       >
-        {showProvider && (
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Badge variant="info">{prompt.provider}</Badge>
-            {prompt.model && (
-              <code style={{ ...styles.code, marginLeft: "8px" }}>{prompt.model}</code>
-            )}
-            <span style={{ fontSize: "11px", color: colors.textSecondary, marginLeft: "auto" }}>{time}</span>
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Badge variant="info">{displayProvider}</Badge>
+          {prompt.model && (
+            <code style={{ ...styles.code, marginLeft: "8px" }}>{prompt.model}</code>
+          )}
+          <span style={{ fontSize: "11px", color: colors.textSecondary, marginLeft: "auto" }}>{time}</span>
+        </div>
         <p
           style={{
             fontSize: "12px",
@@ -92,14 +99,10 @@ function PromptCard({
             overflow: "hidden",
             textOverflow: "ellipsis",
             color: colors.textPrimary,
-            flex: showProvider ? undefined : 1,
           }}
         >
           {preview}
         </p>
-        {!showProvider && (
-          <span style={{ fontSize: "11px", color: colors.textSecondary, flexShrink: 0 }}>{time}</span>
-        )}
       </div>
 
       {expanded && (
@@ -182,9 +185,7 @@ function getPreview(prompt: CapturedAIPrompt): string {
       "";
   }
 
-  const promptText = text || "(empty)";
-  const domain = new URL(prompt.apiEndpoint).hostname;
-  return `${domain} - ${promptText}`;
+  return text || "(empty)";
 }
 
 function formatPrompt(prompt: CapturedAIPrompt): string {
