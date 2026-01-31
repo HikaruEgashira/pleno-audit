@@ -58,15 +58,13 @@ pnpm --filter @pleno-audit/debugger start status
 
 ## ブランチ運用
 
-- `main` - 安定版リリース（PR必須、障害対応時はforce push可）
-- `canary` - 開発版リリース（pushごとにcanaryリリース作成）
+- `main` - 開発ブランチ（pushごとにrelease作成）
 
 ### 開発フロー
 
-1. canaryからworktreeを作成
-2. worktreeで開発・テスト
-3. canaryにマージ → canaryリリース自動作成
-4. 安定版リリース時はcanary→mainへPR作成
+1. mainからfeatureブランチを作成
+2. featureブランチで開発・テスト
+3. mainにPR作成 → マージ → release自動作成
 
 ## ADR
 
