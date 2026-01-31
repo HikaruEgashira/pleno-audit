@@ -59,7 +59,7 @@ jobs:
           sha256sum pleno-audit-chrome.zip pleno-audit-firefox.zip pleno-battacker-chrome.zip pleno-battacker-firefox.zip > checksums.txt
 
       - name: Generate attestations
-        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.1.0
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v2.1.0
         with:
           subject-path: |
             pleno-audit-chrome.zip
