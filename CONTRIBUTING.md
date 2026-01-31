@@ -27,11 +27,11 @@ pnpm lint
 
 ## Pull Request Process
 
-1. Create a branch from `canary`
+1. Create a branch from `main`
 2. Make your changes
 3. Ensure tests pass: `pnpm test`
 4. Ensure linting passes: `pnpm lint`
-5. Submit a pull request to `canary`
+5. Submit a pull request to `main`
 
 ## Commit Messages
 

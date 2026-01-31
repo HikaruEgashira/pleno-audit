@@ -66,7 +66,7 @@ Firefoxで利用できないChrome固有機能は、適切なフォールバッ�
 CI/CDで両ブラウザ向けビルドを生成:
 
 ```yaml
-# canary-release.yml / release.yml
+# release.yml
 - name: Build extensions
   run: |
     pnpm build              # Chrome MV3
@@ -137,7 +137,6 @@ Firefox MV3の完全サポートを待つ。
 | `packages/extension-runtime/src/enterprise-manager.ts` | hasManagedStorage()による機能検出 |
 | `app/audit-extension/package.json` | `build:firefox`コマンド追加 |
 | `app/audit-extension/wxt.config.ts` | MV2/MV3分岐ロジック |
-| `.github/workflows/canary-release.yml` | Firefoxビルド追加 |
 | `.github/workflows/release.yml` | Firefoxビルド追加 |
 
 ## 関連ADR

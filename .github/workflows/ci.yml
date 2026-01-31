@@ -2,40 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main, canary]
+    branches: [main]
   pull_request:
-    branches: [main, canary]
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  validate-pr:
-    name: Validate PR
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    steps:
-      - name: Check PR source
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: |
-          # dependabot[bot]はセキュリティアップデートのため許可
-          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
-            echo "Dependabot PR allowed"
-            exit 0
-          fi
-          # mainへのPRはcanaryからのみ許可
-          if [ "$HEAD_REF" != "canary" ]; then
-            echo "::error::PRs to main must come from canary branch only"
-            exit 1
-          fi
-          # PRはplenoai[bot]のみ許可
-          if [ "$PR_AUTHOR" != "pleno-ai[bot]" ]; then
-            echo "::error::PRs to main can only be created by plenoai app (author: $PR_AUTHOR)"
-            exit 1
-          fi
-
   test:
     name: Test
     runs-on: ubuntu-latest

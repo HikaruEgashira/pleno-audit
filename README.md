@@ -33,8 +33,6 @@ Personal `#Browser Security` `#BDR` `#CASB`
 5. 「パッケージ化されていない拡張機能を読み込む」をクリック
 6. 展開したフォルダを選択
 
-[Canary Releases](https://github.com/HikaruEgashira/pleno-audit/releases?q=canary&expanded=true)
-
 ## Documentation
 
 詳細な設計判断については [ADR (Architecture Decision Records)](./docs/adr/README.md) を参照してください。
