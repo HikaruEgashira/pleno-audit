@@ -10,6 +10,12 @@
   },
   "dependencies": {
     "@pleno-audit/detectors": "workspace:*",
-    "@pleno-audit/csp": "workspace:*"
+    "@pleno-audit/csp": "workspace:*",
+    "@pleno-audit/runtime-platform": "workspace:*",
+    "@pleno-audit/cdm": "workspace:*",
+    "@pleno-audit/pep": "workspace:*",
+    "@pleno-audit/siem": "workspace:*",
+    "@pleno-audit/id-management": "workspace:*",
+    "@pleno-audit/policy-admin": "workspace:*"
   }
 }

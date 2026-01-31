@@ -16,17 +16,17 @@ import type {
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
 } from "./storage-types.js";
-import { createLogger } from "./logger.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
 import {
   generateDashboardStats,
   globalExtensionStatsCache,
   type DashboardStats,
-} from "./extension-stats-analyzer.js";
+} from "@pleno-audit/siem";
 import {
   detectAllSuspiciousPatterns,
   DEFAULT_SUSPICIOUS_PATTERN_CONFIG,
   type SuspiciousPattern,
-} from "./suspicious-pattern-detector.js";
+} from "@pleno-audit/cdm";
 
 const logger = createLogger("extension-monitor");
 

@@ -33,6 +33,48 @@ describe("createPolicyManager", () => {
       pm.updateConfig({ enabled: false });
       expect(pm.getConfig().enabled).toBe(false);
     });
+
+    it("does not mutate original config when adding rules", () => {
+      const originalConfig = createTestConfig();
+      const originalLength = originalConfig.domainRules.length;
+
+      const pm = createPolicyManager(originalConfig);
+      pm.addDomainRule({
+        id: "test-rule",
+        name: "Test Rule",
+        pattern: "example.com",
+        matchType: "exact",
+        action: "block",
+        enabled: true,
+        priority: 100,
+      });
+
+      // Original config should not be mutated
+      expect(originalConfig.domainRules.length).toBe(originalLength);
+      // Policy manager config should have the new rule
+      expect(pm.getConfig().domainRules.length).toBe(originalLength + 1);
+    });
+
+    it("does not share rules between instances", () => {
+      const sharedConfig = createTestConfig();
+
+      const pm1 = createPolicyManager(sharedConfig);
+      const pm2 = createPolicyManager(sharedConfig);
+
+      pm1.addDomainRule({
+        id: "rule-1",
+        name: "Rule 1",
+        pattern: "example1.com",
+        matchType: "exact",
+        action: "block",
+        enabled: true,
+        priority: 100,
+      });
+
+      // pm2 should not have the rule added to pm1
+      expect(pm1.getConfig().domainRules.length).toBe(1);
+      expect(pm2.getConfig().domainRules.length).toBe(0);
+    });
   });
 
   describe("checkDomain", () => {

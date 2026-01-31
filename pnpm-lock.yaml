@@ -261,7 +261,14 @@ importers:
 
   packages/ai-detector: {}
 
-  packages/alerts: {}
+  packages/alerts:
+    dependencies:
+      '@pleno-audit/pep':
+        specifier: workspace:*
+        version: link:../data-plane/pep
+      '@pleno-audit/policy-engine':
+        specifier: workspace:*
+        version: link:../control-plane/policy-engine
 
   packages/api:
     dependencies:
@@ -284,9 +291,53 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/control-plane/policy-admin:
+    dependencies:
+      '@pleno-audit/id-management':
+        specifier: workspace:*
+        version: link:../../data-sources/id-management
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../../runtime-platform
+
+  packages/control-plane/policy-engine: {}
+
   packages/csp: {}
 
   packages/data-export: {}
+
+  packages/data-plane/pep:
+    dependencies:
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../../runtime-platform
+
+  packages/data-sources/activity-logs:
+    dependencies:
+      '@pleno-audit/csp':
+        specifier: workspace:*
+        version: link:../../csp
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../../detectors
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../../runtime-platform
+
+  packages/data-sources/cdm:
+    dependencies:
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../../detectors
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../../runtime-platform
+
+  packages/data-sources/id-management:
+    dependencies:
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../../runtime-platform
 
   packages/detectors:
     dependencies:
@@ -308,12 +359,30 @@ importers:
 
   packages/extension-runtime:
     dependencies:
+      '@pleno-audit/cdm':
+        specifier: workspace:*
+        version: link:../data-sources/cdm
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../csp
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../detectors
+      '@pleno-audit/id-management':
+        specifier: workspace:*
+        version: link:../data-sources/id-management
+      '@pleno-audit/pep':
+        specifier: workspace:*
+        version: link:../data-plane/pep
+      '@pleno-audit/policy-admin':
+        specifier: workspace:*
+        version: link:../control-plane/policy-admin
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../runtime-platform
+      '@pleno-audit/siem':
+        specifier: workspace:*
+        version: link:../siem
 
   packages/nrd: {}
 
@@ -329,6 +398,21 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  packages/runtime-platform:
+    dependencies:
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../detectors
+
+  packages/siem:
+    dependencies:
+      '@pleno-audit/cdm':
+        specifier: workspace:*
+        version: link:../data-sources/cdm
+      '@pleno-audit/runtime-platform':
+        specifier: workspace:*
+        version: link:../runtime-platform
 
   packages/storage:
     dependencies:

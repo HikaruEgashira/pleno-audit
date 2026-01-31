@@ -4,7 +4,7 @@ import {
   createInMemoryAlertStore,
   type AlertStore,
 } from "./alert-manager.js";
-import type { SecurityAlert, AlertConfig } from "./types.js";
+import type { SecurityAlert, AlertConfig } from "./alert-types.js";
 
 describe("createInMemoryAlertStore", () => {
   let store: AlertStore;

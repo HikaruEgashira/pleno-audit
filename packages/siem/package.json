@@ -1,5 +1,5 @@
 {
-  "name": "@pleno-audit/alerts",
+  "name": "@pleno-audit/siem",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@pleno-audit/policy-engine": "workspace:*",
-    "@pleno-audit/pep": "workspace:*"
+    "@pleno-audit/runtime-platform": "workspace:*",
+    "@pleno-audit/cdm": "workspace:*"
   }
 }

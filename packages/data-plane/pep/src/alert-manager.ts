@@ -13,7 +13,7 @@ import type {
   AlertRule,
   AlertAction,
   AlertDetails,
-} from "./types.js";
+} from "./alert-types.js";
 
 /**
  * Generate unique alert ID

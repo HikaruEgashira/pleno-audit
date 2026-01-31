@@ -8,8 +8,8 @@
  * - detectedBy別の内訳
  */
 
-import type { ExtensionRequestRecord } from "./storage-types.js";
-import { createLogger } from "./logger.js";
+import type { ExtensionRequestRecord } from "@pleno-audit/cdm";
+import { createLogger } from "@pleno-audit/runtime-platform";
 
 const logger = createLogger("extension-stats-analyzer");
 

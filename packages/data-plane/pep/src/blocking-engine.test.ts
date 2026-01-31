@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createBlockingEngine, type BlockingConfig } from "./blocking-engine.js";
-import { DEFAULT_BLOCKING_CONFIG } from "./storage-types.js";
+import { createBlockingEngine } from "./blocking-engine.js";
+import { DEFAULT_BLOCKING_CONFIG, type BlockingConfig } from "./blocking-types.js";
 
 // Mock crypto.randomUUID
 vi.stubGlobal("crypto", {
@@ -8,7 +8,7 @@ vi.stubGlobal("crypto", {
 });
 
 // Mock logger
-vi.mock("./logger.js", () => ({
+vi.mock("@pleno-audit/runtime-platform", () => ({
   createLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),

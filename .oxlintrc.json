@@ -11,7 +11,7 @@
       "error",
       {
         "name": "fetch",
-        "message": "External communication is forbidden. Add exception to .oxlintrc.json overrides if required."
+        "message": "External communication is forbidden by default (ADR-033). Add exception to .oxlintrc.json overrides if required."
       },
       {
         "name": "XMLHttpRequest",
@@ -24,6 +24,11 @@
     ]
   },
   "overrides": [
+    // External communication exceptions (ADR-033: External Communication Policy)
+    // Default: All external communication is DISABLED
+    // OSS version: User opt-in required
+    // Enterprise version: Admin policy required
+
     // Debugger CLI - console is intentional for user output
     {
       "files": ["app/debugger/src/**/*"],
@@ -91,7 +96,7 @@
     },
     // SSO Manager - requires OAuth token exchange (enterprise feature, default: OFF)
     {
-      "files": ["packages/extension-runtime/src/sso-manager.ts"],
+      "files": ["packages/data-sources/id-management/src/sso-manager.ts"],
       "rules": { "no-restricted-globals": "off" }
     },
     // Debug WebSocket - developer tooling for debugging

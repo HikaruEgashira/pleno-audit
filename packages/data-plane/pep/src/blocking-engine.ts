@@ -1,13 +1,13 @@
 /**
  * @fileoverview Blocking Engine
  *
- * ローカルブロック機能を提供する。
- * ユーザー同意ベースで、デフォルト無効。
+ * Policy Enforcement Point (PEP) blocking functionality.
+ * User consent based, default disabled.
  */
 
-import type { BlockingConfig } from "./storage-types.js";
-import { DEFAULT_BLOCKING_CONFIG } from "./storage-types.js";
-import { createLogger } from "./logger.js";
+import type { BlockingConfig } from "./blocking-types.js";
+import { DEFAULT_BLOCKING_CONFIG } from "./blocking-types.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
 
 const logger = createLogger("blocking-engine");
 
@@ -16,16 +16,16 @@ const logger = createLogger("blocking-engine");
 // ============================================================================
 
 /**
- * ブロック対象の種類
+ * Block target type
  */
 export type BlockTarget =
-  | "typosquat" // タイポスクワットドメイン
-  | "nrd_login" // NRDでのログイン
-  | "high_risk_extension" // 高リスク拡張機能
-  | "sensitive_data_ai"; // 機密データのAI送信
+  | "typosquat"
+  | "nrd_login"
+  | "high_risk_extension"
+  | "sensitive_data_ai";
 
 /**
- * ブロック判定結果
+ * Block decision result
  */
 export interface BlockDecision {
   shouldBlock: boolean;
@@ -36,7 +36,7 @@ export interface BlockDecision {
 }
 
 /**
- * ブロックイベント
+ * Block event
  */
 export interface BlockEvent {
   id: string;
@@ -53,7 +53,7 @@ export interface BlockEvent {
 // ============================================================================
 
 /**
- * ブロッキングエンジンを作成
+ * Create blocking engine
  */
 export function createBlockingEngine(
   initialConfig: BlockingConfig = DEFAULT_BLOCKING_CONFIG
@@ -62,40 +62,25 @@ export function createBlockingEngine(
   const blockEvents: BlockEvent[] = [];
   const maxEvents = 1000;
 
-  /**
-   * 設定を更新
-   */
   function updateConfig(updates: Partial<BlockingConfig>): void {
     config = { ...config, ...updates };
     logger.info("Blocking config updated", { enabled: config.enabled });
   }
 
-  /**
-   * 現在の設定を取得
-   */
   function getConfig(): BlockingConfig {
     return { ...config };
   }
 
-  /**
-   * ブロック機能が有効か
-   */
   function isEnabled(): boolean {
     return config.enabled && config.userConsentGiven;
   }
 
-  /**
-   * ユーザー同意を記録
-   */
   function recordConsent(): void {
     config.userConsentGiven = true;
     config.consentTimestamp = Date.now();
     logger.info("User consent recorded for blocking");
   }
 
-  /**
-   * タイポスクワットをチェック
-   */
   function checkTyposquat(params: {
     domain: string;
     confidence: "high" | "medium" | "low" | "none";
@@ -134,9 +119,6 @@ export function createBlockingEngine(
     };
   }
 
-  /**
-   * NRDでのログインをチェック
-   */
   function checkNRDLogin(params: {
     domain: string;
     isNRD: boolean;
@@ -160,7 +142,7 @@ export function createBlockingEngine(
       });
 
       return {
-        shouldBlock: true, // 警告として表示
+        shouldBlock: true,
         target: "nrd_login",
         reason: `新規登録ドメインでのログイン: ${params.domain}`,
         domain: params.domain,
@@ -176,9 +158,6 @@ export function createBlockingEngine(
     };
   }
 
-  /**
-   * 高リスク拡張機能をチェック
-   */
   function checkHighRiskExtension(params: {
     extensionId: string;
     extensionName: string;
@@ -223,9 +202,6 @@ export function createBlockingEngine(
     };
   }
 
-  /**
-   * 機密データのAI送信をチェック
-   */
   function checkSensitiveDataToAI(params: {
     domain: string;
     provider: string;
@@ -243,7 +219,6 @@ export function createBlockingEngine(
       };
     }
 
-    // 資格情報は常にブロック
     if (params.hasCredentials) {
       recordBlockEvent({
         target: "sensitive_data_ai",
@@ -264,7 +239,6 @@ export function createBlockingEngine(
       };
     }
 
-    // 金融情報は警告
     if (params.hasFinancial) {
       recordBlockEvent({
         target: "sensitive_data_ai",
@@ -293,9 +267,6 @@ export function createBlockingEngine(
     };
   }
 
-  /**
-   * ブロックイベントを記録
-   */
   function recordBlockEvent(event: Omit<BlockEvent, "id" | "timestamp">): void {
     const blockEvent: BlockEvent = {
       id: crypto.randomUUID(),
@@ -305,7 +276,6 @@ export function createBlockingEngine(
 
     blockEvents.unshift(blockEvent);
 
-    // 最大件数を超えたら古いイベントを削除
     if (blockEvents.length > maxEvents) {
       blockEvents.splice(maxEvents);
     }
@@ -317,9 +287,6 @@ export function createBlockingEngine(
     });
   }
 
-  /**
-   * ブロックイベント一覧を取得
-   */
   function getBlockEvents(options?: {
     limit?: number;
     target?: BlockTarget;
@@ -337,9 +304,6 @@ export function createBlockingEngine(
     return result;
   }
 
-  /**
-   * 統計情報を取得
-   */
   function getStats(): {
     totalBlocked: number;
     totalWarned: number;
@@ -369,9 +333,6 @@ export function createBlockingEngine(
     return stats;
   }
 
-  /**
-   * イベントをクリア
-   */
   function clearEvents(): void {
     blockEvents.length = 0;
   }

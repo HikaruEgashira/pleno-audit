@@ -130,7 +130,7 @@ jobs:
             PR_TITLE="Release v$VERSION"
           fi
 
-          COMMITS=$(git log origin/main..origin/canary --oneline --no-merges | head -20)
+          COMMITS=$(echo "${{ steps.commits.outputs.log }}" | head -20)
           PR_BODY=$(cat <<EOF
           ## Release v$VERSION
 

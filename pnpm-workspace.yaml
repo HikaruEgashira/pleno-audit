@@ -1,3 +1,6 @@
 packages:
   - "app/*"
   - "packages/*"
+  - "packages/control-plane/*"
+  - "packages/data-plane/*"
+  - "packages/data-sources/*"

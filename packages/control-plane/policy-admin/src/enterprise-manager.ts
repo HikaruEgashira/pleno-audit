@@ -1,14 +1,18 @@
-import { createLogger } from "./logger.js";
+import {
+  createLogger,
+  getBrowserAPI,
+  hasManagedStorage,
+  isFirefox,
+} from "@pleno-audit/runtime-platform";
 import type {
   EnterpriseManagedConfig,
   EnterpriseStatus,
   DetectionConfig,
   BlockingConfig,
   NotificationConfig,
-} from "./storage-types.js";
-import type { SSOConfig } from "./sso-manager.js";
-import { getSSOManager } from "./sso-manager.js";
-import { getBrowserAPI, hasManagedStorage, isFirefox } from "./browser-adapter.js";
+} from "./enterprise-types.js";
+import type { SSOConfig } from "@pleno-audit/id-management";
+import { getSSOManager } from "@pleno-audit/id-management";
 
 const logger = createLogger("enterprise-manager");
 

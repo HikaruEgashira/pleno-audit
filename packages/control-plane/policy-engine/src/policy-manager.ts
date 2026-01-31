@@ -16,6 +16,29 @@ import type {
 import { DEFAULT_POLICY_CONFIG } from "./policy-types.js";
 
 /**
+ * Deep clone policy config to prevent mutation of shared objects
+ */
+function deepCloneConfig(config: PolicyConfig): PolicyConfig {
+  return {
+    ...config,
+    domainRules: config.domainRules.map((rule) => ({ ...rule })),
+    toolRules: config.toolRules.map((rule) => ({
+      ...rule,
+      patterns: [...rule.patterns],
+    })),
+    aiRules: config.aiRules.map((rule) => ({
+      ...rule,
+      blockedDataTypes: rule.blockedDataTypes ? [...rule.blockedDataTypes] : undefined,
+    })),
+    dataTransferRules: config.dataTransferRules.map((rule) => ({
+      ...rule,
+      blockedDestinations: rule.blockedDestinations ? [...rule.blockedDestinations] : undefined,
+      allowedDestinations: rule.allowedDestinations ? [...rule.allowedDestinations] : undefined,
+    })),
+  };
+}
+
+/**
  * Policy check result
  */
 export interface PolicyCheckResult {
@@ -73,20 +96,20 @@ function matchesAnyPattern(
  * Create policy manager
  */
 export function createPolicyManager(config: PolicyConfig = DEFAULT_POLICY_CONFIG) {
-  let currentConfig = { ...config };
+  let currentConfig = deepCloneConfig(config);
 
   /**
    * Update policy configuration
    */
   function updateConfig(newConfig: Partial<PolicyConfig>): void {
-    currentConfig = { ...currentConfig, ...newConfig };
+    currentConfig = deepCloneConfig({ ...currentConfig, ...newConfig });
   }
 
   /**
    * Get current configuration
    */
   function getConfig(): PolicyConfig {
-    return { ...currentConfig };
+    return deepCloneConfig(currentConfig);
   }
 
   /**

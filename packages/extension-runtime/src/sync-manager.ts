@@ -1,5 +1,5 @@
 import { ApiClient, getApiClient } from "./api-client.js";
-import { createLogger } from "./logger.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
 
 const logger = createLogger("sync-manager");
 

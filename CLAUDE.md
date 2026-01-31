@@ -2,16 +2,43 @@ CASB/Browser Security
 
 ## 構造
 
+### ZTAパッケージ構造（NIST SP 800-207準拠）
+
+```
+packages/
+├── control-plane/
+│   ├── policy-engine/    - PolicyManager, TrustAlgorithm
+│   └── policy-admin/     - EnterpriseManager
+├── data-plane/
+│   └── pep/              - BlockingEngine, AlertManager, CooldownManager
+├── data-sources/
+│   ├── cdm/              - ExtensionRiskAnalyzer, DoHMonitor, CookieMonitor
+│   ├── id-management/    - SSOManager
+│   └── activity-logs/    - Storage, ApiClient（将来移行予定）
+├── siem/                 - ExtensionStatsAnalyzer
+└── runtime-platform/     - Logger, BrowserAdapter, MessageHandler
+```
+
+### 独立ライブラリ
+
 - `packages/detectors/` - CASBドメイン（サービス検出、認証検出）
 - `packages/csp/` - CSP監査（違反検出、ポリシー生成、レポーター）
 - `packages/nrd/` - NRDアルゴリズム
-- `packages/typosquat` - typosquattingアルゴリズム
-- `packages/ai-detector` - AI検出アルゴリズム
+- `packages/typosquat/` - typosquattingアルゴリズム
+- `packages/ai-detector/` - AI検出アルゴリズム
 - `packages/api/` - REST API（Hono + parquet-storage）
-- `packages/extension-runtime/` - 拡張機能ランタイム（ストレージ、API クライアント、同期）
+- `packages/battacker/` - 防御テストツール
+
+### レガシー（後方互換）
+
+- `packages/extension-runtime/` - 新パッケージへのre-export shim
+- `packages/alerts/` - pepへのre-export shim
+
+### アプリケーション
+
 - `app/audit-extension/` - Chrome拡張（WXT + Preact）
 
-詳細は各パッケージの`index.ts`を参照。
+詳細: [ADR-034: ZTAパッケージ構造](./docs/adr/034-zta-package-structure.md)
 
 ## ロギング
 
@@ -42,12 +69,60 @@ pnpm --filter @pleno-audit/debugger start browser open example.com
 pnpm --filter @pleno-audit/debugger start status
 ```
 
-## Prodct Policy
+## Product Policy
 
-### 外部通信禁止
-- プライバシー保護のため、外部サーバーとの通信は禁止する
-- oxlintにて違反を検出しています
-- ユーザーの同意を経て、デフォルトで無効化するなどの措置を取る上でoxlintrcでの除外設定とプライバシーポリシーの更新が必要です
+### 外部通信制御
+
+**原則（Principle）**: デフォルトで外部通信を禁止する
+
+これはpleno-auditの根幹をなすプライバシー保護の原則である。
+
+#### OSS版（pleno-audit）
+
+- **デフォルト**: 全ての外部通信を禁止
+- **制御方式**: ユーザーのオプトイン（明示的な有効化）
+- **対象機能**:
+  - RDAP問い合わせ（NRD検出の精度向上）
+  - リモートAPI同期
+  - CSP違反レポート送信
+- **実装**: oxlintで外部通信を静的検出し、`.oxlintrc.json`で明示的に除外された機能のみ実装可能
+
+#### Enterprise版（pleno-audit-internal）
+
+- **デフォルト**: 全ての外部通信を禁止（OSS版と同じ原則）
+- **制御方式**: 管理者のポリシー設定による制御
+- **対象機能**:
+  - SIEM連携（Splunk、Wiz等）
+  - Webhook通知
+  - SSO認証（OIDC/SAML）
+  - 外部統合（Slack、Jira、GitHub）
+- **要件**: ユーザー同意とプライバシーポリシーの更新が必要
+
+### ゼロトラスト実装方針
+
+pleno-auditは**ローカル型ゼロトラスト**を実装する。
+
+#### ローカル型ゼロトラスト（OSS版）
+
+- **継続的な脅威検証**: ブラウザ内でCSP違反、ネットワークリクエスト、AIプロンプト等を監視
+- **セッション単位のアクセス制御**: ブラウザセッションごとの脅威評価
+- **デバイス整合性監視**: 拡張機能の権限、DoH設定等を監視
+- **外部通信なし**: 全てローカルで完結
+
+#### ネットワーク型ゼロトラスト（Enterprise版）
+
+- **ローカル型の機能を継承**: 上記の全機能を保持
+- **組織全体への拡張**: 管理者がポリシーで有効化した場合、SIEM連携により組織レベルの可視性を追加
+- **明示的な制御**: ポリシー未設定時はローカル型として動作
+
+#### NIST SP 800-207との整合性
+
+NIST原則7「可能な限り多くの情報を収集」は、**外部送信を要求していない**。
+- pleno-auditはローカルで情報を収集・分析し、セキュリティを高める
+- Enterprise版では、管理者の判断で外部SIEMへの送信も選択可能
+- これにより、個人のプライバシーと組織のセキュリティを両立
+
+詳細: [ADR-033: 外部通信制御ポリシー](./docs/adr/033-external-communication-policy.md)
 
 ### 外部DB禁止
 - GETではあるが、通信しないというポリシーに従って外部DB（脆弱性DB、Blacklist）へのアクセスは禁止する

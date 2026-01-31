@@ -7,7 +7,7 @@
  * - リスクスコア算出
  */
 
-import type { ExtensionRequestRecord } from "./storage-types.js";
+import type { ExtensionRequestRecord } from "./cdm-types.js";
 
 // ============================================================================
 // Risk Categories

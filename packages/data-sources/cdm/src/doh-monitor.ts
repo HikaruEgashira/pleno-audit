@@ -5,13 +5,13 @@
  * 特定のサービスリストを持たず、汎用的に検出
  */
 
-import { createLogger } from "./logger.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
 import type {
   DoHAction,
   DoHDetectionMethod,
   DoHMonitorConfig,
   DoHRequestRecord,
-} from "./storage-types.js";
+} from "./cdm-types.js";
 
 const logger = createLogger("doh-monitor");
 

@@ -95,7 +95,7 @@ async function simulateUISpoofiingAndAddressBarFakery(): Promise<AttackResult> {
     `;
     invisibleButton.textContent = "Confirm deletion";
     invisibleButton.onclick = () => {
-      console.log("Critical action executed from invisible button");
+      // Critical action executed from invisible button (intentionally silent for test)
     };
 
     uiSpoofingVectors.push({
@@ -214,7 +214,7 @@ async function simulateDeviceSensorExploitation(): Promise<AttackResult> {
     }
 
     // センサー4: 画面サイズ & ピクセル密度
-    const screenInfo = {
+    const _screenInfo = {
       width: window.screen.width,
       height: window.screen.height,
       pixelDepth: window.screen.pixelDepth,
@@ -292,9 +292,9 @@ async function simulatePageVisibilityExploitation(): Promise<AttackResult> {
     });
 
     // 悪用2: blur/focus イベントの無視
-    let hasFocus = true;
+    let _hasFocus = true;
     window.addEventListener("blur", () => {
-      hasFocus = false;
+      _hasFocus = false;
       // 権限の昇格を続行
     });
 
@@ -304,10 +304,9 @@ async function simulatePageVisibilityExploitation(): Promise<AttackResult> {
     });
 
     // 悪用3: setTimeout & setInterval の background 実行
-    const backgroundTimer = setInterval(() => {
+    const _backgroundTimer = setInterval(() => {
       if (isHidden) {
-        // バックグラウンドで攻撃継続
-        console.log("Background attack continuing");
+        // バックグラウンドで攻撃継続 (intentionally silent for test)
       }
     }, 1000);
 
@@ -398,7 +397,7 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
         resource: "Memory exhaustion",
         exhaustible: largeArrays.length > 10,
       });
-    } catch (e) {
+    } catch {
       exhaustionVectors.push({
         resource: "Memory exhaustion",
         exhaustible: true, // メモリが制限されている = 枯渇可能
@@ -406,11 +405,11 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
     }
 
     // 枯渇2: CPU 占有
-    let cpuIntensive = 0;
+    let _cpuIntensive = 0;
     const startCpuTime = performance.now();
     while (performance.now() - startCpuTime < 100) {
       // 100ms 間 CPU を占有
-      cpuIntensive++;
+      _cpuIntensive++;
     }
     exhaustionVectors.push({
       resource: "CPU exhaustion",
@@ -419,7 +418,7 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
 
     // 枯渇3: IndexedDB ストレージ枯渇
     try {
-      const dbRequest = indexedDB.open("exhaustion-db");
+      const _dbRequest = indexedDB.open("exhaustion-db");
       exhaustionVectors.push({
         resource: "IndexedDB exhaustion",
         exhaustible: true, // ストレージクォータ制限あり
@@ -441,7 +440,7 @@ async function simulateResourceExhaustionAttack(): Promise<AttackResult> {
         try {
           localStorage.setItem(`${testKey}-${i}`, testValue);
           storageSize += testValue.length;
-        } catch (e) {
+        } catch {
           // 枯渇検出
           break;
         }
@@ -564,7 +563,7 @@ async function simulateBrowserHistoryHijacking(): Promise<AttackResult> {
     });
 
     // ジャッキング4: location.href の設定を追跡
-    const originalHref = location.href;
+    const _originalHref = location.href;
     historyHijackVectors.push({
       vector: "Location tracking",
       effective: true, // ページ遷移の完全な追跡

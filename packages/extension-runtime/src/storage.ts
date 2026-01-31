@@ -25,7 +25,7 @@ import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
 import { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./extension-monitor.js";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
-import { getBrowserAPI } from "./browser-adapter.js";
+import { getBrowserAPI } from "@pleno-audit/runtime-platform";
 
 const STORAGE_KEYS = [
   "services",

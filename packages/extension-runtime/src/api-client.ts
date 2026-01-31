@@ -1,7 +1,7 @@
 import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
 import type { LocalApiResponse } from "./offscreen/db-schema.js";
-import { createLogger } from "./logger.js";
-import { getSSOManager } from "./sso-manager.js";
+import { createLogger } from "@pleno-audit/runtime-platform";
+import { getSSOManager } from "@pleno-audit/id-management";
 
 const logger = createLogger("api-client");
 
