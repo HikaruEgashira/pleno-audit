@@ -96,7 +96,7 @@
     },
     // SSO Manager - requires OAuth token exchange (enterprise feature, default: OFF)
     {
-      "files": ["packages/extension-runtime/src/sso-manager.ts"],
+      "files": ["packages/data-sources/id-management/src/sso-manager.ts"],
       "rules": { "no-restricted-globals": "off" }
     },
     // Debug WebSocket - developer tooling for debugging
