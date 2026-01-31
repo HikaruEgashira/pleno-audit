@@ -358,22 +358,6 @@ async function saveStorage(data: Partial<StorageData>) {
   await chrome.storage.local.set(data);
 }
 
-async function updateBadge() {
-  try {
-    const result = await chrome.storage.local.get(["services"]);
-    const services = result.services || {};
-    // Count only problematic detections (NRD or typosquat)
-    const count = Object.values(services).filter(
-      (service: DetectedService) =>
-        service.nrdResult?.isNRD || service.typosquatResult?.isTyposquat
-    ).length;
-    await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
-    await chrome.action.setBadgeBackgroundColor({ color: count > 0 ? "#dc2626" : "#666" });
-  } catch (error) {
-    logger.warn("Failed to update badge:", error);
-  }
-}
-
 function generateEventId(): string {
   return crypto.randomUUID();
 }
@@ -535,7 +519,6 @@ async function addEvent(event: NewEvent): Promise<EventLog> {
 
   // Parquetストアに記録
   await store.addEvents([parquetEvent]);
-  await updateBadge();
   return newEvent;
 }
 
@@ -1163,7 +1146,6 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
     };
 
     await saveStorage({ services: storage.services });
-    await updateBadge();
 
     // Check domain policy for new domains
     if (isNewDomain) {
@@ -1189,7 +1171,6 @@ async function addCookieToService(domain: string, cookie: CookieInfo) {
     }
 
     await saveStorage({ services: storage.services });
-    await updateBadge();
   });
 }
 
@@ -3155,6 +3136,4 @@ export default defineBackground(() => {
       },
     }).catch((err) => logger.debug("Add cookie event failed:", err));
   });
-
-  updateBadge();
 });
