@@ -2,35 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main, canary]
+    branches: [main]
   pull_request:
-    branches: [main, canary]
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  validate-pr:
-    name: Validate PR
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    steps:
-      - name: Check PR source
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: |
-          # botからのPRは許可
-          if [[ "$PR_AUTHOR" == *"[bot]" ]]; then
-            echo "Bot PR detected (author: $PR_AUTHOR), allowing"
-            exit 0
-          fi
-          # 人間からのPRはcanaryブランチからのみ許可
-          if [ "$HEAD_REF" != "canary" ]; then
-            echo "::error::PRs to main must come from canary branch only (author: $PR_AUTHOR)"
-            exit 1
-          fi
-
   test:
     name: Test
     runs-on: ubuntu-latest

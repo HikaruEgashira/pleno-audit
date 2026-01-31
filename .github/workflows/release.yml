@@ -1,4 +1,4 @@
-name: Release
+name: Stable Release
 
 on:
   push:
@@ -10,6 +10,8 @@ permissions: {}
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    # Only run for commits with [stable-release] marker (from create-release-pr workflow)
+    if: contains(github.event.head_commit.message, '[stable-release]')
     permissions:
       contents: write
       id-token: write
@@ -82,7 +84,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./app/audit-extension/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
@@ -107,11 +109,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           KEEP_COUNT=10
 
+          # Clean up old stable releases (keep latest 10)
           gh release list --limit 1000 --json tagName,createdAt \
-            --jq "[.[] | select(.tagName | test(\"^v${VERSION}-[a-f0-9]+$\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
+            --jq "[.[] | select(.tagName | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
             | while read -r tag; do
               [ -n "$tag" ] && gh release delete "$tag" --yes --cleanup-tag && echo "Deleted: $tag"
             done

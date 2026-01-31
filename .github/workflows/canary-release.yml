@@ -3,7 +3,7 @@ name: Canary Release
 on:
   push:
     branches:
-      - canary
+      - main
 
 permissions: {}
 

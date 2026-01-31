@@ -133,15 +133,20 @@ NIST原則7「可能な限り多くの情報を収集」は、**外部送信を�
 
 ## ブランチ運用
 
-- `main` - 安定版リリース（PR必須、障害対応時はforce push可）
-- `canary` - 開発版リリース（pushごとにcanaryリリース作成）
+- `main` - 開発ブランチ（pushごとにcanary release作成）
 
 ### 開発フロー
 
-1. canaryからworktreeを作成
-2. worktreeで開発・テスト
-3. canaryにマージ → canaryリリース自動作成
-4. 安定版リリース時はcanary→mainへPR作成
+1. mainからfeatureブランチを作成
+2. featureブランチで開発・テスト
+3. mainにPR作成 → マージ → canary release自動作成
+
+### リリースフロー
+
+1. canary releaseを人間がレビュー
+2. create-release-prワークフローを実行
+3. バージョンバンプ+CHANGELOG更新がmainにpush
+4. stable release自動作成
 
 ## ADR
 

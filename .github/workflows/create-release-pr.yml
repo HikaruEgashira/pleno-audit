@@ -1,10 +1,10 @@
-name: Create Release PR
+name: Create Stable Release
 
 on:
   workflow_dispatch:
     inputs:
       title:
-        description: "PR title (optional, auto-generated if empty)"
+        description: "Release title (optional, auto-generated if empty)"
         required: false
         type: string
       bump:
@@ -21,11 +21,10 @@ on:
 permissions: {}
 
 jobs:
-  create-pr:
+  create-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -36,17 +35,28 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: canary
+          ref: main
           fetch-depth: 0
           persist-credentials: true
           token: ${{ steps.app-token.outputs.token }}
+
+      - name: Get last release tag
+        id: last-release
+        run: |
+          # Get the latest stable release tag (excludes canary)
+          LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -v 'canary' | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous release found, using initial commit"
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Get commit log
         id: commits
         run: |
           {
             echo "log<<EOF"
-            git log origin/main..origin/canary --oneline --no-merges
+            git log ${{ steps.last-release.outputs.tag }}..HEAD --oneline --no-merges
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -60,7 +70,7 @@ jobs:
           prompt: |
             あなたはリリースエンジニアです。以下のコミットログを分析し、CHANGELOG.mdの生成とバージョンバンプを行ってください。
 
-            ## コミットログ (origin/main..origin/canary)
+            ## コミットログ (since last release)
             ```
             ${{ steps.commits.outputs.log }}
             ```
@@ -100,7 +110,7 @@ jobs:
             NEW_VERSION=x.y.z
             ```
 
-      - name: Extract version and commit changes
+      - name: Commit and push version bump
         id: version
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -110,52 +120,18 @@ jobs:
 
           if git diff --quiet && git diff --cached --quiet; then
             echo "No changes to commit"
-          else
-            git config user.name "pleno-ai[bot]"
-            git config user.email "257570732+pleno-ai[bot]@users.noreply.github.com"
-            git add CHANGELOG.md package.json app/audit-extension/package.json
-            git commit -m "chore: release v$VERSION"
-            git push origin canary
+            exit 1
           fi
 
-      - name: Create or update Pull Request
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          INPUT_TITLE: ${{ inputs.title }}
-          VERSION: ${{ steps.version.outputs.version }}
+          git config user.name "pleno-ai[bot]"
+          git config user.email "257570732+pleno-ai[bot]@users.noreply.github.com"
+          git add CHANGELOG.md package.json app/audit-extension/package.json
+          git commit -m "chore: release v$VERSION [stable-release]"
+          git push origin main
+
+      - name: Output release info
         run: |
-          if [ -n "$INPUT_TITLE" ]; then
-            PR_TITLE="$INPUT_TITLE"
-          else
-            PR_TITLE="Release v$VERSION"
-          fi
-
-          COMMITS=$(echo "${{ steps.commits.outputs.log }}" | head -20)
-          PR_BODY=$(cat <<EOF
-          ## Release v$VERSION
-
-          ### Changes from canary
-
-          \`\`\`
-          $COMMITS
-          \`\`\`
-
-          ### Checklist
-          - [ ] All CI checks pass
-          - [ ] CODEOWNERS review completed
-          EOF
-          )
-
-          EXISTING_PR=$(gh pr list --base main --head canary --json number --jq '.[0].number')
-          if [ -n "$EXISTING_PR" ]; then
-            echo "Updating existing PR #$EXISTING_PR"
-            gh pr edit "$EXISTING_PR" \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY"
-          else
-            gh pr create \
-              --base main \
-              --head canary \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY"
-          fi
+          echo "## Stable Release v${{ steps.version.outputs.version }} prepared" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "A commit with [stable-release] marker has been pushed to main." >> "$GITHUB_STEP_SUMMARY"
+          echo "The release workflow will now create the stable release." >> "$GITHUB_STEP_SUMMARY"
