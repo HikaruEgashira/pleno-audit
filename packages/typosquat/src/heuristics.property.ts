@@ -394,11 +394,11 @@ describe("typosquat heuristics - property tests", () => {
       );
     });
 
-    // ASCII文字のみならfalse
+    // ASCII文字のみでxn--を含まないならfalse
     it("should return false for ASCII-only domains without xn--", () => {
       fc.assert(
         fc.property(
-          domainLabelArb,
+          domainLabelArb.filter(label => !label.includes("xn--")),
           tldArb,
           (sld, tld) => {
             const domain = `${sld}.${tld}`;
