@@ -1,45 +1,54 @@
 import { useState, useEffect } from "preact/hooks";
 import type {
   DetectedService,
-  EventLog,
   CapturedAIPrompt,
 } from "@pleno-audit/detectors";
+import { analyzePromptPII, assessPromptRisk } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { StorageData, DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, PopupSettingsMenu } from "../../components";
 import {
-  ServicesTab,
-  SessionsTab,
-  RequestsTab,
+  ServiceTab,
+  ThreatTab,
+  PolicyTab,
 } from "./components";
 import { createStyles } from "./styles";
 import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
 import { sendMessage } from "./utils/messaging";
 
-type Tab = "services" | "sessions" | "requests";
+type Tab = "service" | "threat" | "policy";
+
+function countThreats(data: TabData): number {
+  const nrdCount = data.services.filter((s) => s.nrdResult?.isNRD).length;
+  const typosquatCount = data.services.filter((s) => s.typosquatResult?.isTyposquat).length;
+  let aiRiskCount = 0;
+  for (const prompt of data.aiPrompts) {
+    const pii = analyzePromptPII(prompt.prompt);
+    if (pii.hasSensitiveData) {
+      const risk = assessPromptRisk(prompt.prompt);
+      if (risk.riskLevel !== "info" && risk.riskLevel !== "low") {
+        aiRiskCount++;
+      }
+    }
+  }
+  return nrdCount + typosquatCount + aiRiskCount + data.violations.length + data.doHRequests.length;
+}
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
-  { key: "services", label: "Services", count: (d) => d.unifiedServices.length },
-  { key: "sessions", label: "Sessions", count: (d) => d.events.length + d.aiPrompts.length },
-  { key: "requests", label: "Requests", count: (d) => d.violations.length + d.networkRequests.length + d.doHRequests.length },
+  { key: "service", label: "Service", count: (d) => d.unifiedServices.length },
+  { key: "threat", label: "Threat", count: countThreats },
+  { key: "policy", label: "Policy" },
 ];
 
 interface TabData {
   services: DetectedService[];
   unifiedServices: UnifiedService[];
   aiPrompts: CapturedAIPrompt[];
-  events: EventLog[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
   doHRequests: DoHRequestRecord[];
-}
-
-interface EventQueryResult {
-  events: EventLog[];
-  total: number;
-  hasMore: boolean;
 }
 
 function getStatus(data: TabData) {
@@ -54,7 +63,7 @@ function PopupContent() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [data, setData] = useState<StorageData>({ services: {}, events: [] });
-  const [tab, setTab] = useState<Tab>("services");
+  const [tab, setTab] = useState<Tab>("service");
   const [loading, setLoading] = useState(true);
   const [violations, setViolations] = useState<CSPViolation[]>([]);
   const [networkRequests, setNetworkRequests] = useState<NetworkRequest[]>([]);
@@ -89,15 +98,10 @@ function PopupContent() {
 
   async function loadData() {
     try {
-      const [servicesResult, eventsResult] = await Promise.all([
-        chrome.storage.local.get(["services"]),
-        sendMessage<EventQueryResult>({ type: "GET_EVENTS", data: {} }),
-      ]);
-
-      const events = eventsResult?.events || [];
+      const servicesResult = await chrome.storage.local.get(["services"]);
       setData({
         services: servicesResult.services || {},
-        events,
+        events: [],
       });
     } catch {
       setData({
@@ -160,9 +164,8 @@ function PopupContent() {
   }
 
   const services = Object.values(data.services) as DetectedService[];
-  const events = data.events;
 
-  const tabData: TabData = { services, unifiedServices, aiPrompts, events, violations, networkRequests, doHRequests };
+  const tabData: TabData = { services, unifiedServices, aiPrompts, violations, networkRequests, doHRequests };
   const status = getStatus(tabData);
 
   function renderContent() {
@@ -170,18 +173,25 @@ function PopupContent() {
       return <p style={styles.emptyText}>読み込み中...</p>;
     }
     switch (tab) {
-      case "services":
+      case "service":
         return (
-          <ServicesTab
+          <ServiceTab
             services={services}
             violations={violations}
             networkRequests={networkRequests}
           />
         );
-      case "sessions":
-        return <SessionsTab events={events} aiPrompts={aiPrompts} />;
-      case "requests":
-        return <RequestsTab violations={violations} networkRequests={networkRequests} doHRequests={doHRequests} />;
+      case "threat":
+        return (
+          <ThreatTab
+            services={services}
+            violations={violations}
+            aiPrompts={aiPrompts}
+            doHRequests={doHRequests}
+          />
+        );
+      case "policy":
+        return <PolicyTab violations={violations} />;
       default:
         return null;
     }
