@@ -63,8 +63,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/storage
       hono:
-        specifier: ^4.11.5
-        version: 4.11.5
+        specifier: ^4.11.7
+        version: 4.11.7
       lucide-preact:
         specifier: ^0.563.0
         version: 0.563.0(preact@10.28.2)
@@ -176,7 +176,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: ^1.19.9
-        version: 1.19.9(hono@4.11.5)
+        version: 1.19.9(hono@4.11.7)
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
@@ -187,8 +187,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/parquet-storage
       hono:
-        specifier: ^4.11.5
-        version: 4.11.5
+        specifier: ^4.11.7
+        version: 4.11.7
     devDependencies:
       tsx:
         specifier: ^4.21.0
@@ -275,8 +275,8 @@ importers:
         specifier: workspace:*
         version: link:../parquet-storage
       hono:
-        specifier: ^4.11.5
-        version: 4.11.5
+        specifier: ^4.11.7
+        version: 4.11.7
 
   packages/battacker:
     devDependencies:
@@ -1991,8 +1991,8 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
-  hono@4.11.5:
-    resolution: {integrity: sha512-WemPi9/WfyMwZs+ZUXdiwcCh9Y+m7L+8vki9MzDw3jJ+W9Lc+12HGsd368Qc1vZi1xwW8BWMMsnK5efYKPdt4g==}
+  hono@4.11.7:
+    resolution: {integrity: sha512-l7qMiNee7t82bH3SeyUCt9UF15EVmaBvsppY2zQtrbIhl/yzBTny+YUxsVjSjQ6gaqaeVtZmGocom8TzBlA4Yw==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -3762,9 +3762,9 @@ snapshots:
 
   '@exodus/bytes@1.9.0': {}
 
-  '@hono/node-server@1.19.9(hono@4.11.5)':
+  '@hono/node-server@1.19.9(hono@4.11.7)':
     dependencies:
-      hono: 4.11.5
+      hono: 4.11.7
 
   '@isaacs/balanced-match@4.0.1': {}
 
@@ -4918,7 +4918,7 @@ snapshots:
 
   he@1.2.0: {}
 
-  hono@4.11.5: {}
+  hono@4.11.7: {}
 
   hookable@5.5.3: {}
 
