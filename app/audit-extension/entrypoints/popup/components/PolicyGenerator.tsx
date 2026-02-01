@@ -37,13 +37,11 @@ export function PolicyGenerator() {
     // Listen for storage changes
     const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.generatedCSPPolicy?.newValue) {
-        setResult(changes.generatedCSPPolicy.newValue);
-        if (
-          changes.generatedCSPPolicy.newValue.policies?.length > 0 &&
-          !expandedDomain
-        ) {
-          setExpandedDomain(changes.generatedCSPPolicy.newValue.policies[0].domain);
-        }
+        const newData = changes.generatedCSPPolicy.newValue as GeneratedCSPByDomain;
+        setResult(newData);
+        setExpandedDomain((prev) =>
+          prev ? prev : newData.policies?.[0]?.domain ?? null
+        );
       }
     };
     chrome.storage.onChanged.addListener(listener);
