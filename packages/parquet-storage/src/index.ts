@@ -23,6 +23,8 @@ export {
   parquetRecordToCspViolation,
   networkRequestToParquetRecord,
   parquetRecordToNetworkRequest,
+  networkRequestRecordToParquetRecord,
+  parquetRecordToNetworkRequestRecord,
   eventToParquetRecord,
   parquetRecordToEvent,
   getDateString,

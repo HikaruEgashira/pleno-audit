@@ -386,9 +386,22 @@ export function typosquatResultToParquetRecord(
   };
 }
 
+// Cookie型定義（CookieInfo相当）
+interface CookieRecord {
+  domain: string;
+  name: string;
+  detectedAt: number;
+  value?: string;
+  isSession?: boolean;
+  expirationDate?: number;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: string;
+}
+
 // Phase 8: CookieをParquetレコードに変換
 export function cookieToParquetRecord(
-  cookie: any // CookieInfo型
+  cookie: CookieRecord
 ): Record<string, unknown> {
   return {
     domain: cookie.domain,
@@ -403,10 +416,16 @@ export function cookieToParquetRecord(
   };
 }
 
+// ログイン検出詳細型定義
+interface LoginDetectedDetails {
+  hasPasswordInput?: boolean;
+  isLoginUrl?: boolean;
+}
+
 // Phase 9: LoginDetectedDetailsをParquetレコードに変換
 export function loginDetectionToParquetRecord(
   domain: string,
-  login: any,
+  login: LoginDetectedDetails,
   detectedAt: number
 ): Record<string, unknown> {
   return {
@@ -437,9 +456,22 @@ export function termsOfServiceToParquetRecord(
   return { domain, detectedAt, url, method };
 }
 
+// DetectedService相当の型定義
+interface ServiceForRiskProfile {
+  domain: string;
+  nrdResult?: { isNRD?: boolean };
+  typosquatResult?: { isTyposquat?: boolean };
+  hasLoginPage?: boolean;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
+  aiDetected?: { hasAIActivity?: boolean; providers?: string[] };
+  cookies?: unknown[];
+  faviconUrl?: string;
+}
+
 // Phase 10: Domain Risk Profileをレコードに変換
 export function domainRiskProfileToParquetRecord(
-  service: any // DetectedService
+  service: ServiceForRiskProfile
 ): Record<string, unknown> {
   let riskLevel = "low";
   const riskFactors = [
@@ -477,7 +509,7 @@ export function domainRiskProfileToParquetRecord(
 
 // Phase 11: Service Inventory Snapshotを生成
 export function createServiceInventorySnapshot(
-  services: Record<string, any>
+  services: Record<string, ServiceForRiskProfile>
 ): Record<string, unknown> {
   const serviceList = Object.values(services).filter(Boolean);
 
