@@ -858,9 +858,10 @@ function DashboardContent() {
               }},
               { key: "initiatorType", header: "送信元", width: "120px", render: (r) => {
                 // Network Monitorレコード（initiatorType/extensionName あり）
-                const initiatorType = r.initiatorType || (r.initiator ? "page" : "unknown");
+                const record = r as NetworkRequest & { initiatorType?: string; extensionId?: string; extensionName?: string };
+                const initiatorType = record.initiatorType || (r.initiator ? "page" : "unknown");
                 if (initiatorType === "extension") {
-                  return <Badge variant="purple">{(r as any).extensionName || (r as any).extensionId?.slice(0, 8) || "Extension"}</Badge>;
+                  return <Badge variant="purple">{record.extensionName || record.extensionId?.slice(0, 8) || "Extension"}</Badge>;
                 }
                 if (initiatorType === "page") {
                   try {
