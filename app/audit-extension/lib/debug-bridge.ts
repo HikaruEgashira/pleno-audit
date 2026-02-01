@@ -517,27 +517,28 @@ async function getDoHRequests(params?: {
 }
 
 /**
- * DNR (Extension Monitor) operations - Legacy support
- * Note: maxStoredRequests is kept for backward compatibility with existing stored configs.
- * ADR 033 adopts unlimitedStorage, so this value is not enforced for new Network Monitor.
+ * Network Monitor operations
+ * Parquet-based network request storage
  */
-const DEFAULT_DNR_CONFIG = {
+const DEFAULT_NETWORK_CONFIG = {
   enabled: true,
+  captureAllRequests: true,
   excludeOwnExtension: true,
+  excludedDomains: [] as string[],
   excludedExtensions: [] as string[],
 };
 
 async function getDNRConfig(): Promise<Omit<DebugResponse, "id">> {
   try {
-    const storage = await chrome.storage.local.get("extensionMonitorConfig");
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
     return {
       success: true,
-      data: storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG,
+      data: storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG,
     };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get DNR config",
+      error: error instanceof Error ? error.message : "Failed to get network monitor config",
     };
   }
 }
@@ -547,13 +548,13 @@ async function setDNRConfig(params: {
   excludeOwnExtension?: boolean;
 }): Promise<Omit<DebugResponse, "id">> {
   try {
-    const storage = await chrome.storage.local.get("extensionMonitorConfig");
-    const currentConfig = storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG;
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    const currentConfig = storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG;
     const newConfig = { ...currentConfig, ...params };
-    await chrome.storage.local.set({ extensionMonitorConfig: newConfig });
+    await chrome.storage.local.set({ networkMonitorConfig: newConfig });
 
     chrome.runtime.sendMessage({
-      type: "SET_EXTENSION_MONITOR_CONFIG",
+      type: "SET_NETWORK_MONITOR_CONFIG",
       data: newConfig,
     }).catch(() => {});
 
@@ -561,7 +562,7 @@ async function setDNRConfig(params: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to set DNR config",
+      error: error instanceof Error ? error.message : "Failed to set network monitor config",
     };
   }
 }
