@@ -1,5 +1,5 @@
 import { createLogger, isManifestV3, getBrowserAPI } from "@pleno-audit/extension-runtime";
-import type { DefenseScore } from "@pleno-audit/battacker";
+import type { DefenseScore, ScanProgressEvent } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
 
@@ -12,6 +12,12 @@ interface MessageRequest {
 
 // Track which tabs have content script ready
 const readyTabs = new Set<number>();
+
+// Track panel Ports for progress streaming
+const panelPorts = new Set<chrome.runtime.Port>();
+
+// Current scan progress state (for late-connecting panels)
+let currentScanProgress: ScanProgressEvent | null = null;
 
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
@@ -157,6 +163,59 @@ export default defineBackground(() => {
   chrome.windows.onRemoved.addListener((windowId) => {
     if (windowId === panelWindowId) {
       panelWindowId = null;
+    }
+  });
+
+  // Port connection handler for progress streaming
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "battacker-scan") {
+      // Content script sending progress
+      logger.info("Scan port connected, panel ports:", panelPorts.size);
+
+      port.onMessage.addListener((message: ScanProgressEvent) => {
+        // Store current progress for late-connecting panels
+        currentScanProgress = message;
+
+        logger.info(`Relay progress: ${message.completed}/${message.total} to ${panelPorts.size} panels`);
+        // Relay to all connected panel ports
+        for (const panelPort of panelPorts) {
+          try {
+            panelPort.postMessage(message);
+          } catch (e) {
+            logger.warn("Failed to relay to panel:", e);
+            panelPorts.delete(panelPort);
+          }
+        }
+
+        // Clear progress state when scan completes
+        if (message.phase === "completed") {
+          currentScanProgress = null;
+        }
+      });
+
+      port.onDisconnect.addListener(() => {
+        logger.info("Scan port disconnected");
+        currentScanProgress = null;
+      });
+    } else if (port.name === "battacker-panel") {
+      // Panel connecting to receive progress
+      logger.info("Panel port connected, total:", panelPorts.size + 1);
+      panelPorts.add(port);
+
+      // Send current progress if scan is running
+      if (currentScanProgress) {
+        logger.info("Sending current progress to new panel");
+        try {
+          port.postMessage(currentScanProgress);
+        } catch (e) {
+          logger.warn("Failed to send initial progress:", e);
+        }
+      }
+
+      port.onDisconnect.addListener(() => {
+        logger.info("Panel port disconnected");
+        panelPorts.delete(port);
+      });
     }
   });
 

@@ -4,6 +4,7 @@ import {
   calculateDefenseScore,
   runAllTests,
   type DefenseScore,
+  type ScanProgressEvent,
 } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker-content");
@@ -41,19 +42,51 @@ export default defineContentScript({
 });
 
 async function executeTests(): Promise<DefenseScore | { error: string }> {
+  // Establish Port connection for progress streaming
+  const port = chrome.runtime.connect({ name: "battacker-scan" });
+
   try {
     logger.info(`Starting ${allAttacks.length} attack simulations...`);
 
     const results = await runAllTests(allAttacks, (completed, total, current) => {
       logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
+
+      // Send progress event through Port
+      const progressEvent: ScanProgressEvent = {
+        type: "BATTACKER_SCAN_PROGRESS",
+        completed,
+        total,
+        currentTest: {
+          id: current.id,
+          name: current.name,
+          category: current.category,
+          severity: current.severity,
+        },
+        phase: "running",
+      };
+      port.postMessage(progressEvent);
     });
 
     const score = calculateDefenseScore(results);
     logger.info(`Tests complete. Score: ${score.totalScore} (${score.grade})`);
 
+    // Send completion event
+    const completedEvent: ScanProgressEvent = {
+      type: "BATTACKER_SCAN_PROGRESS",
+      completed: results.length,
+      total: results.length,
+      currentTest: null,
+      phase: "completed",
+    };
+    port.postMessage(completedEvent);
+
+    // Disconnect Port
+    port.disconnect();
+
     return score;
   } catch (error) {
     logger.error("Test execution error:", error);
+    port.disconnect();
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
