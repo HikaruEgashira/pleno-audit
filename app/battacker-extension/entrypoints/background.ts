@@ -1,5 +1,5 @@
 import { createLogger, isManifestV3, getBrowserAPI } from "@pleno-audit/extension-runtime";
-import type { DefenseScore } from "@pleno-audit/battacker";
+import type { DefenseScore, ScanProgressEvent } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker");
 
@@ -12,6 +12,9 @@ interface MessageRequest {
 
 // Track which tabs have content script ready
 const readyTabs = new Set<number>();
+
+// Track panel Ports for progress streaming
+const panelPorts = new Set<chrome.runtime.Port>();
 
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
@@ -157,6 +160,38 @@ export default defineBackground(() => {
   chrome.windows.onRemoved.addListener((windowId) => {
     if (windowId === panelWindowId) {
       panelWindowId = null;
+    }
+  });
+
+  // Port connection handler for progress streaming
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "battacker-scan") {
+      // Content script sending progress
+      logger.debug("Scan port connected");
+
+      port.onMessage.addListener((message: ScanProgressEvent) => {
+        // Relay to all connected panel ports
+        for (const panelPort of panelPorts) {
+          try {
+            panelPort.postMessage(message);
+          } catch {
+            panelPorts.delete(panelPort);
+          }
+        }
+      });
+
+      port.onDisconnect.addListener(() => {
+        logger.debug("Scan port disconnected");
+      });
+    } else if (port.name === "battacker-panel") {
+      // Panel connecting to receive progress
+      logger.debug("Panel port connected");
+      panelPorts.add(port);
+
+      port.onDisconnect.addListener(() => {
+        logger.debug("Panel port disconnected");
+        panelPorts.delete(port);
+      });
     }
   });
 

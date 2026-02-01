@@ -61,6 +61,19 @@ export interface StoredTestHistory {
   lastTestedAt: number;
 }
 
+export interface ScanProgressEvent {
+  type: "BATTACKER_SCAN_PROGRESS";
+  completed: number;
+  total: number;
+  currentTest: {
+    id: string;
+    name: string;
+    category: AttackCategory;
+    severity: Severity;
+  } | null;
+  phase: "running" | "completed";
+}
+
 export const CATEGORY_WEIGHTS: Record<AttackCategory, number> = {
   network: 0.09,
   phishing: 0.05,
