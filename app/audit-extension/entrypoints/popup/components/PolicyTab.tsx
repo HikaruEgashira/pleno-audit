@@ -3,6 +3,7 @@ import { PolicyGenerator } from "./PolicyGenerator";
 import { DetectionSettings } from "./DetectionSettings";
 import { CSPSettings } from "./CSPSettings";
 import { DoHSettings } from "./DoHSettings";
+import { NetworkMonitorSettings } from "./NetworkMonitorSettings";
 import { EnterprisePolicyStatus } from "./EnterprisePolicyStatus";
 import { usePopupStyles } from "../styles";
 
@@ -30,6 +31,9 @@ export function PolicyTab({ violations }: PolicyTabProps) {
 
       {/* DoH Settings */}
       <DoHSettings />
+
+      {/* Network Monitor Settings */}
+      <NetworkMonitorSettings />
 
       {/* Enterprise Policy Status */}
       <EnterprisePolicyStatus />

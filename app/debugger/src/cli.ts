@@ -11,6 +11,7 @@ import { logsCommand } from "./commands/logs.js";
 import { installCommand as serverCommand } from "./commands/install.js";
 import { browserCommand } from "./commands/browser.js";
 import { dohCommand } from "./commands/doh.js";
+import { networkCommand } from "./commands/network.js";
 import { devCommand } from "./commands/dev.js";
 
 const program = new Command();
@@ -42,6 +43,9 @@ program.addCommand(browserCommand);
 
 // DoH monitoring
 program.addCommand(dohCommand);
+
+// Network Monitor
+program.addCommand(networkCommand);
 
 // Development environment
 program.addCommand(devCommand);

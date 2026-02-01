@@ -48,7 +48,7 @@ vi.stubGlobal("chrome", mockChrome);
 // Mock fetch
 vi.stubGlobal("fetch", vi.fn());
 
-import { createSSOManager, type OIDCConfig, type SAMLConfig, type SSOSession } from "./sso-manager.js";
+import { createSSOManager, type SSOSession } from "./sso-manager.js";
 
 describe("SSOManager", () => {
   beforeEach(() => {

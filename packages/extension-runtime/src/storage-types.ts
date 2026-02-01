@@ -19,6 +19,59 @@ export interface ExtensionMonitorConfig {
   maxStoredRequests: number;
 }
 
+/**
+ * Network Monitor Config - 全ネットワークリクエスト監視設定
+ * CSPと並ぶコア機能として、全リクエストを記録しposture（態勢）を可視化
+ */
+export interface NetworkMonitorConfig {
+  enabled: boolean;
+  /** 全リクエストをキャプチャ（trueの場合、拡張機能以外も監視） */
+  captureAllRequests: boolean;
+  /** 自身の拡張機能を除外 */
+  excludeOwnExtension: boolean;
+  /** 除外するドメイン */
+  excludedDomains: string[];
+  /** 除外する拡張機能ID */
+  excludedExtensions: string[];
+}
+
+export const DEFAULT_NETWORK_MONITOR_CONFIG: NetworkMonitorConfig = {
+  enabled: true,
+  captureAllRequests: true,
+  excludeOwnExtension: true,
+  excludedDomains: [],
+  excludedExtensions: [],
+};
+
+/** リクエストの発信元タイプ */
+export type InitiatorType = "extension" | "page" | "browser" | "unknown";
+
+/**
+ * Network Request Record - 全ネットワークリクエストの統一型
+ */
+export interface NetworkRequestRecord {
+  id: string;
+  timestamp: number;
+  url: string;
+  method: string;
+  domain: string;
+  resourceType: string;
+  /** リクエスト発信元 (chrome-extension://xxx, https://xxx, null) */
+  initiator: string | null;
+  /** 発信元タイプ */
+  initiatorType: InitiatorType;
+  /** 拡張機能の場合のID */
+  extensionId?: string;
+  /** 拡張機能の場合の名前 */
+  extensionName?: string;
+  /** タブID (-1 = Service Worker) */
+  tabId: number;
+  /** フレームID (0 = main frame) */
+  frameId: number;
+  /** 検出方法 */
+  detectedBy: "webRequest" | "declarativeNetRequest";
+}
+
 export interface DataRetentionConfig {
   retentionDays: number;
   autoCleanupEnabled: boolean;
@@ -143,8 +196,14 @@ export interface StorageData {
   aiPrompts?: CapturedAIPrompt[];
   aiMonitorConfig?: AIMonitorConfig;
   nrdConfig?: NRDConfig;
+  /** @deprecated Use networkRequests instead */
   extensionRequests?: ExtensionRequestRecord[];
+  /** @deprecated Use networkMonitorConfig instead */
   extensionMonitorConfig?: ExtensionMonitorConfig;
+  /** 全ネットワークリクエスト記録 */
+  networkRequests?: NetworkRequestRecord[];
+  /** ネットワーク監視設定 */
+  networkMonitorConfig?: NetworkMonitorConfig;
   doHRequests?: DoHRequestRecord[];
   doHMonitorConfig?: DoHMonitorConfig;
   dataRetentionConfig?: DataRetentionConfig;
@@ -226,4 +285,7 @@ export type {
   DetectionConfig,
   NotificationConfig,
   AlertCooldownData,
+  InitiatorType,
+  NetworkRequestRecord,
+  NetworkMonitorConfig,
 };

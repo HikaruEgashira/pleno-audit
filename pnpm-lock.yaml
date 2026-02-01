@@ -159,6 +159,9 @@ importers:
         specifier: ^8.18.0
         version: 8.19.0
     devDependencies:
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../../packages/extension-runtime
       '@types/node':
         specifier: ^25.0.10
         version: 25.0.10

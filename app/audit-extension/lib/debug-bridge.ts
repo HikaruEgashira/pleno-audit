@@ -7,8 +7,10 @@
  * Only active in development mode.
  */
 
-import { setDebuggerSink, type LogEntry } from "@pleno-audit/extension-runtime";
+import { setDebuggerSink, createLogger, type LogEntry } from "@pleno-audit/extension-runtime";
 import { ParquetStore } from "@pleno-audit/parquet-storage";
+
+const logger = createLogger("debug-bridge");
 
 // Shared ParquetStore instance
 let parquetStore: ParquetStore | null = null;
@@ -94,7 +96,7 @@ export function initDebugBridge(): void {
   // Set up logger sink to forward logs to debug server
   setDebuggerSink(sendLog);
 
-  console.log("[debug-bridge] Initializing...");
+  logger.info("Initializing...");
   connect();
 }
 
@@ -110,7 +112,7 @@ function connect(): void {
     ws = new WebSocket(DEBUG_SERVER_URL);
 
     ws.onopen = () => {
-      console.log("[debug-bridge] Connected to debug server");
+      logger.info("Connected to debug server");
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -137,22 +139,22 @@ function connect(): void {
         const response = await handleMessage(message);
         sendResponse({ id: message.id, ...response });
       } catch (error) {
-        console.error("[debug-bridge] Error handling message:", error);
+        logger.error("Error handling message:", error);
       }
     };
 
     ws.onclose = (event) => {
-      console.log(`[debug-bridge] Disconnected from debug server (code: ${event.code}, reason: ${event.reason || "none"})`);
+      logger.info(`Disconnected from debug server (code: ${event.code}, reason: ${event.reason || "none"})`);
       ws = null;
       scheduleReconnect();
     };
 
     ws.onerror = (error) => {
-      console.error("[debug-bridge] WebSocket error:", error);
+      logger.error("WebSocket error:", error);
       ws?.close();
     };
   } catch (error) {
-    console.error("[debug-bridge] Connection error:", error);
+    logger.error("Connection error:", error);
     scheduleReconnect();
   }
 }
@@ -246,6 +248,21 @@ async function handleMessage(
       case "DEBUG_DOH_REQUESTS":
         return await getDoHRequests(data as { limit?: number; offset?: number });
 
+      case "DEBUG_DNR_CONFIG_GET":
+        return await getDNRConfig();
+
+      case "DEBUG_DNR_CONFIG_SET":
+        return await setDNRConfig(data as { enabled?: boolean; excludeOwnExtension?: boolean });
+
+      case "DEBUG_NETWORK_CONFIG_GET":
+        return await getNetworkConfig();
+
+      case "DEBUG_NETWORK_CONFIG_SET":
+        return await setNetworkConfig(data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean });
+
+      case "DEBUG_NETWORK_REQUESTS_GET":
+        return await getNetworkRequests(data as { limit?: number; initiatorType?: string });
+
       default:
         // Forward to background script as a regular message
         return await forwardToBackground(type, data);
@@ -276,7 +293,7 @@ async function getSnapshot(): Promise<Omit<DebugResponse, "id">> {
       },
     };
   } catch (error) {
-    console.error("[debug-bridge] getSnapshot error:", error);
+    logger.error("getSnapshot error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -380,7 +397,7 @@ async function getEvents(params: {
       data: filteredEvents,
     };
   } catch (error) {
-    console.error("[debug-bridge] getEvents error:", error);
+    logger.error("getEvents error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get events",
@@ -398,7 +415,7 @@ async function getEventsCount(): Promise<Omit<DebugResponse, "id">> {
       data: result.total,
     };
   } catch (error) {
-    console.error("[debug-bridge] getEventsCount error:", error);
+    logger.error("getEventsCount error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get events count",
@@ -415,7 +432,7 @@ async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
       success: true,
     };
   } catch (error) {
-    console.error("[debug-bridge] clearEvents error:", error);
+    logger.error("clearEvents error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to clear events",
@@ -495,6 +512,131 @@ async function getDoHRequests(params?: {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get DoH requests",
+    };
+  }
+}
+
+/**
+ * DNR (Extension Monitor) operations - Legacy support
+ * Note: maxStoredRequests is kept for backward compatibility with existing stored configs.
+ * ADR 033 adopts unlimitedStorage, so this value is not enforced for new Network Monitor.
+ */
+const DEFAULT_DNR_CONFIG = {
+  enabled: true,
+  excludeOwnExtension: true,
+  excludedExtensions: [] as string[],
+};
+
+async function getDNRConfig(): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("extensionMonitorConfig");
+    return {
+      success: true,
+      data: storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get DNR config",
+    };
+  }
+}
+
+async function setDNRConfig(params: {
+  enabled?: boolean;
+  excludeOwnExtension?: boolean;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("extensionMonitorConfig");
+    const currentConfig = storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG;
+    const newConfig = { ...currentConfig, ...params };
+    await chrome.storage.local.set({ extensionMonitorConfig: newConfig });
+
+    chrome.runtime.sendMessage({
+      type: "SET_EXTENSION_MONITOR_CONFIG",
+      data: newConfig,
+    }).catch(() => {});
+
+    return { success: true, data: newConfig };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to set DNR config",
+    };
+  }
+}
+
+/**
+ * Network Monitor operations
+ */
+const DEFAULT_NETWORK_CONFIG = {
+  enabled: true,
+  captureAllRequests: true,
+  excludeOwnExtension: true,
+  excludedDomains: [] as string[],
+  excludedExtensions: [] as string[],
+};
+
+async function getNetworkConfig(): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    return {
+      success: true,
+      data: storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get Network config",
+    };
+  }
+}
+
+async function setNetworkConfig(params: {
+  enabled?: boolean;
+  captureAllRequests?: boolean;
+  excludeOwnExtension?: boolean;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    const currentConfig = storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG;
+    const newConfig = { ...currentConfig, ...params };
+    await chrome.storage.local.set({ networkMonitorConfig: newConfig });
+
+    chrome.runtime.sendMessage({
+      type: "SET_NETWORK_MONITOR_CONFIG",
+      data: newConfig,
+    }).catch(() => {});
+
+    return { success: true, data: newConfig };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to set Network config",
+    };
+  }
+}
+
+async function getNetworkRequests(params?: {
+  limit?: number;
+  initiatorType?: string;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkRequests");
+    let requests = storage.networkRequests || [];
+
+    if (params?.initiatorType) {
+      requests = requests.filter((r: { initiatorType: string }) => r.initiatorType === params.initiatorType);
+    }
+
+    const limit = params?.limit || 20;
+    requests = requests.slice(0, limit);
+
+    return { success: true, data: requests };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get network requests",
     };
   }
 }

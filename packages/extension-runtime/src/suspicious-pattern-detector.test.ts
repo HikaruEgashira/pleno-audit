@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   detectBulkRequests,
   detectLateNightActivity,
@@ -6,7 +6,6 @@ import {
   detectDomainDiversity,
   detectAllSuspiciousPatterns,
   DEFAULT_SUSPICIOUS_PATTERN_CONFIG,
-  type SuspiciousPatternConfig,
 } from "./suspicious-pattern-detector.js";
 import type { ExtensionRequestRecord } from "./storage-types.js";
 
