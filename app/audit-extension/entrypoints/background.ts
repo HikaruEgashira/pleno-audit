@@ -863,9 +863,9 @@ async function analyzeExtensionRisks(): Promise<void> {
       return;
     }
 
-    // Parquetから拡張機能リクエストを取得
-    const result = await getNetworkRequests({ limit: 10000 });
-    const requests = result.requests.filter(r => r.initiatorType === "extension" && r.extensionId);
+    // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+    const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+    const requests = result.requests.filter(r => r.extensionId);
     if (requests.length === 0) return;
 
     // 拡張機能ごとにリクエストをグループ化
@@ -930,9 +930,9 @@ async function analyzeExtensionRisks(): Promise<void> {
  * 拡張機能リスク分析結果を取得
  */
 async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
-  // Parquetから拡張機能リクエストを取得
-  const result = await getNetworkRequests({ limit: 10000 });
-  const requests = result.requests.filter(r => r.initiatorType === "extension" && r.extensionId === extensionId);
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId === extensionId);
 
   // NetworkRequestRecord → ExtensionRequestRecord互換に変換
   const compatRequests = requests.map(r => ({
@@ -954,9 +954,9 @@ async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionR
  * すべての拡張機能のリスク分析結果を取得
  */
 async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
-  // Parquetから拡張機能リクエストを取得
-  const result = await getNetworkRequests({ limit: 10000 });
-  const requests = result.requests.filter(r => r.initiatorType === "extension" && r.extensionId);
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId);
 
   // 拡張機能ごとにグループ化
   const requestsByExtension = new Map<string, NetworkRequestRecord[]>();
@@ -992,16 +992,19 @@ async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
   return results.sort((a, b) => b.riskScore - a.riskScore);
 }
 
-async function getNetworkRequests(options?: { limit?: number; offset?: number; since?: number }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
+async function getNetworkRequests(options?: { limit?: number; offset?: number; since?: number; initiatorType?: "extension" | "page" | "browser" | "unknown" }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
   try {
     const store = await getOrInitParquetStore();
     const allRecords = await store.queryRows("network-requests");
 
     let filtered = allRecords.map(r => parquetRecordToNetworkRequestRecord(r));
 
-    // フィルタリング
+    // フィルタリング（ページネーション前に適用）
     if (options?.since) {
       filtered = filtered.filter(r => r.timestamp >= options.since!);
+    }
+    if (options?.initiatorType) {
+      filtered = filtered.filter(r => r.initiatorType === options.initiatorType);
     }
 
     // 新しいものから順に並び替え
@@ -1020,10 +1023,12 @@ async function getNetworkRequests(options?: { limit?: number; offset?: number; s
 }
 
 async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
-  // Parquetから拡張機能リクエスト（initiatorType === "extension"）のみ取得
-  const result = await getNetworkRequests({ limit: options?.limit || 500, offset: options?.offset || 0 });
-  const extensionRequests = result.requests.filter(r => r.initiatorType === "extension");
-  return { requests: extensionRequests, total: extensionRequests.length };
+  // initiatorTypeフィルタを使用してページネーション前にフィルタリング
+  return getNetworkRequests({
+    limit: options?.limit || 500,
+    offset: options?.offset || 0,
+    initiatorType: "extension",
+  });
 }
 
 function getKnownExtensions(): Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }> {
@@ -1039,9 +1044,9 @@ interface ExtensionStats {
 }
 
 async function getExtensionStats(): Promise<ExtensionStats> {
-  // Parquetから拡張機能リクエストを取得
-  const result = await getNetworkRequests({ limit: 10000 });
-  const requests = result.requests.filter(r => r.initiatorType === "extension" && r.extensionId);
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId);
 
   const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
   const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
