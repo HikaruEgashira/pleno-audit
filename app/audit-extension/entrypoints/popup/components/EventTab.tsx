@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import type { DetectedService, CapturedAIPrompt } from "@pleno-audit/detectors";
-import type { CSPViolation } from "@pleno-audit/csp";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import type { AlertSeverity, AlertCategory } from "@pleno-audit/detectors";
 import { analyzePromptPII, assessPromptRisk } from "@pleno-audit/detectors";
@@ -11,6 +11,7 @@ import { useTheme } from "../../../lib/theme";
 interface EventTabProps {
   services: DetectedService[];
   violations: CSPViolation[];
+  networkRequests: NetworkRequest[];
   aiPrompts: CapturedAIPrompt[];
   doHRequests: DoHRequestRecord[];
 }
@@ -27,6 +28,7 @@ interface EventItem {
 function convertToEvents(
   services: DetectedService[],
   violations: CSPViolation[],
+  networkRequests: NetworkRequest[],
   aiPrompts: CapturedAIPrompt[],
   doHRequests: DoHRequestRecord[]
 ): EventItem[] {
@@ -96,6 +98,24 @@ function convertToEvents(
     });
   }
 
+  // Network requests (info level)
+  for (const req of networkRequests.slice(0, 100)) {
+    let domain: string;
+    try {
+      domain = new URL(req.url).hostname;
+    } catch {
+      domain = req.url;
+    }
+    events.push({
+      id: `net-${req.timestamp}-${req.url}`,
+      category: "network" as AlertCategory,
+      severity: "info",
+      title: `${req.method} ${domain}`,
+      domain,
+      timestamp: new Date(req.timestamp).getTime(),
+    });
+  }
+
   const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
   return events.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 }
@@ -115,20 +135,21 @@ const CATEGORY_LABELS: Record<string, string> = {
   ai_sensitive: "AI",
   csp_violation: "CSP",
   shadow_ai: "DoH",
+  network: "Net",
 };
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function EventTab({ services, violations, aiPrompts, doHRequests }: EventTabProps) {
+export function EventTab({ services, violations, networkRequests, aiPrompts, doHRequests }: EventTabProps) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
 
   const events = useMemo(
-    () => convertToEvents(services, violations, aiPrompts, doHRequests),
-    [services, violations, aiPrompts, doHRequests]
+    () => convertToEvents(services, violations, networkRequests, aiPrompts, doHRequests),
+    [services, violations, networkRequests, aiPrompts, doHRequests]
   );
 
   const counts = useMemo(() => {

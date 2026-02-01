@@ -33,7 +33,7 @@ function countEvents(data: TabData): number {
       }
     }
   }
-  return nrdCount + typosquatCount + aiRiskCount + data.violations.length + data.doHRequests.length;
+  return nrdCount + typosquatCount + aiRiskCount + data.violations.length + data.doHRequests.length + data.networkRequests.length;
 }
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
@@ -186,6 +186,7 @@ function PopupContent() {
           <EventTab
             services={services}
             violations={violations}
+            networkRequests={networkRequests}
             aiPrompts={aiPrompts}
             doHRequests={doHRequests}
           />
