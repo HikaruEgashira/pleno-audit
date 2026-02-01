@@ -78,6 +78,7 @@ import {
   type ExtensionMonitor,
   type ExtensionMonitorConfig,
   type ExtensionRequestRecord,
+  type NetworkRequestRecord,
   type DataRetentionConfig,
   type DetectionConfig,
   type ExtensionRiskAnalysis,
@@ -95,7 +96,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
+import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord, networkRequestRecordToParquetRecord, parquetRecordToNetworkRequestRecord } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
   createPolicyManager,
@@ -329,9 +330,10 @@ const typosquatCacheAdapter: TyposquatCache = {
   clear: () => typosquatCache.clear(),
 };
 
-// Extension Monitor
+// Extension Monitor / Network Monitor
 let extensionMonitor: ExtensionMonitor | null = null;
 const extensionRequestBuffer: ExtensionRequestRecord[] = [];
+const networkRequestBuffer: NetworkRequestRecord[] = [];
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -760,7 +762,24 @@ async function initExtensionMonitor() {
   extensionMonitor = createExtensionMonitor(config, ownId);
 
   extensionMonitor.onRequest(async (record) => {
-    extensionRequestBuffer.push(record);
+    // Parquetに保存（Network Monitor統合）
+    networkRequestBuffer.push(record as NetworkRequestRecord);
+
+    // 後方互換性: 拡張機能リクエストのみchrome.storage.localに保存
+    if (record.extensionId) {
+      const extRecord: ExtensionRequestRecord = {
+        id: record.id,
+        extensionId: record.extensionId,
+        extensionName: record.extensionName || "Unknown",
+        timestamp: record.timestamp,
+        url: record.url,
+        method: record.method,
+        resourceType: record.resourceType,
+        domain: record.domain,
+        detectedBy: record.detectedBy,
+      };
+      extensionRequestBuffer.push(extRecord);
+    }
 
     // Add to event log
     await addEvent({
@@ -773,13 +792,26 @@ async function initExtensionMonitor() {
         url: record.url,
         method: record.method,
         resourceType: record.resourceType,
-        statusCode: record.statusCode,
+        initiatorType: (record as NetworkRequestRecord).initiatorType,
       },
     });
   });
 
   await extensionMonitor.start();
   logger.info("Extension monitor started");
+}
+
+async function flushNetworkRequestBuffer() {
+  if (networkRequestBuffer.length === 0) return;
+
+  const toFlush = networkRequestBuffer.splice(0, networkRequestBuffer.length);
+  try {
+    const store = await getOrInitParquetStore();
+    const records = toFlush.map(r => networkRequestRecordToParquetRecord(r));
+    await store.appendRows("network-requests", records);
+  } catch (error) {
+    logger.error("Failed to flush network requests to Parquet:", error);
+  }
 }
 
 async function flushExtensionRequestBuffer() {
@@ -933,6 +965,33 @@ async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
 
   // リスクスコア降順でソート
   return results.sort((a, b) => b.riskScore - a.riskScore);
+}
+
+async function getNetworkRequests(options?: { limit?: number; offset?: number; since?: number }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
+  try {
+    const store = await getOrInitParquetStore();
+    const allRecords = await store.queryRows("network-requests");
+
+    let filtered = allRecords.map(r => parquetRecordToNetworkRequestRecord(r));
+
+    // フィルタリング
+    if (options?.since) {
+      filtered = filtered.filter(r => r.timestamp >= options.since!);
+    }
+
+    // 新しいものから順に並び替え
+    filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+    const total = filtered.length;
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 500;
+    const sliced = filtered.slice(offset, offset + limit);
+
+    return { requests: sliced, total };
+  } catch (error) {
+    logger.error("Failed to query network requests:", error);
+    return { requests: [], total: 0 };
+  }
 }
 
 async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
@@ -2494,7 +2553,10 @@ export default defineBackground(() => {
       flushReportQueue().catch((err) => logger.debug("Flush reports failed:", err));
     }
     if (alarm.name === "flushExtensionRequests") {
-      flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
+      Promise.all([
+        flushNetworkRequestBuffer().catch((err) => logger.debug("Flush network requests failed:", err)),
+        flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err)),
+      ]);
     }
     if (alarm.name === "checkDNRMatches") {
       checkDNRMatchesHandler().catch((err) => logger.debug("DNR match check failed:", err));
@@ -2974,6 +3036,14 @@ export default defineBackground(() => {
           sendResponse({ success: false });
         }
       })();
+      return true;
+    }
+
+    // Network Monitor handlers
+    if (message.type === "GET_NETWORK_REQUESTS") {
+      getNetworkRequests(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ requests: [], total: 0 }));
       return true;
     }
 

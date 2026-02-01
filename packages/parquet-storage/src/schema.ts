@@ -1,5 +1,6 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { NRDResult, TyposquatResult } from "@pleno-audit/detectors";
+import type { NetworkRequestRecord } from "@pleno-audit/extension-runtime";
 import type { ParquetEvent } from "./types";
 
 // Parquetスキーマ定義（parquet-wasmで使用可能な形式）
@@ -24,13 +25,19 @@ export const SCHEMAS = {
   "network-requests": {
     type: "struct",
     fields: [
-      { name: "timestamp", type: "string" },
-      { name: "pageUrl", type: "string" },
+      { name: "id", type: "string" },
+      { name: "timestamp", type: "int64" },
       { name: "url", type: "string" },
       { name: "method", type: "string" },
-      { name: "initiator", type: "string" },
       { name: "domain", type: "string" },
-      { name: "resourceType", type: { type: "option", inner: "string" } },
+      { name: "resourceType", type: "string" },
+      { name: "initiator", type: { type: "option", inner: "string" } },
+      { name: "initiatorType", type: "string" },
+      { name: "extensionId", type: { type: "option", inner: "string" } },
+      { name: "extensionName", type: { type: "option", inner: "string" } },
+      { name: "tabId", type: "int32" },
+      { name: "frameId", type: "int32" },
+      { name: "detectedBy", type: "string" },
     ],
   },
 
@@ -211,7 +218,49 @@ export function parquetRecordToCspViolation(
   };
 }
 
-// NetworkRequestをParquetレコードに変換
+// NetworkRequestRecordをParquetレコードに変換
+export function networkRequestRecordToParquetRecord(
+  r: NetworkRequestRecord
+): Record<string, unknown> {
+  return {
+    id: r.id,
+    timestamp: r.timestamp,
+    url: r.url,
+    method: r.method,
+    domain: r.domain,
+    resourceType: r.resourceType,
+    initiator: r.initiator || null,
+    initiatorType: r.initiatorType,
+    extensionId: r.extensionId || null,
+    extensionName: r.extensionName || null,
+    tabId: r.tabId,
+    frameId: r.frameId,
+    detectedBy: r.detectedBy,
+  };
+}
+
+// ParquetレコードをNetworkRequestRecordに変換
+export function parquetRecordToNetworkRequestRecord(
+  record: Record<string, unknown>
+): NetworkRequestRecord {
+  return {
+    id: record.id as string,
+    timestamp: record.timestamp as number,
+    url: record.url as string,
+    method: record.method as string,
+    domain: record.domain as string,
+    resourceType: record.resourceType as string,
+    initiator: (record.initiator as string | null) || null,
+    initiatorType: record.initiatorType as "extension" | "page" | "browser" | "unknown",
+    extensionId: (record.extensionId as string | undefined) || undefined,
+    extensionName: (record.extensionName as string | undefined) || undefined,
+    tabId: record.tabId as number,
+    frameId: record.frameId as number,
+    detectedBy: record.detectedBy as "webRequest" | "declarativeNetRequest",
+  };
+}
+
+// NetworkRequestをParquetレコードに変換（CSP互換性のため保持）
 export function networkRequestToParquetRecord(
   r: NetworkRequest
 ): Record<string, unknown> {
@@ -226,7 +275,7 @@ export function networkRequestToParquetRecord(
   };
 }
 
-// ParquetレコードをNetworkRequestに変換
+// ParquetレコードをNetworkRequestに変換（CSP互換性のため保持）
 export function parquetRecordToNetworkRequest(
   record: Record<string, unknown>
 ): NetworkRequest {
