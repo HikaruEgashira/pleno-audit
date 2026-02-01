@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { NRDResult, TyposquatResult } from "@pleno-audit/detectors";
 import {

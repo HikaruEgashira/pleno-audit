@@ -196,12 +196,6 @@ export interface StorageData {
   aiPrompts?: CapturedAIPrompt[];
   aiMonitorConfig?: AIMonitorConfig;
   nrdConfig?: NRDConfig;
-  /** @deprecated Use networkRequests instead */
-  extensionRequests?: ExtensionRequestRecord[];
-  /** @deprecated Use networkMonitorConfig instead */
-  extensionMonitorConfig?: ExtensionMonitorConfig;
-  /** 全ネットワークリクエスト記録 */
-  networkRequests?: NetworkRequestRecord[];
   /** ネットワーク監視設定 */
   networkMonitorConfig?: NetworkMonitorConfig;
   doHRequests?: DoHRequestRecord[];

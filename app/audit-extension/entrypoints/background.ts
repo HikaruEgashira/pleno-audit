@@ -59,7 +59,7 @@ import {
   registerExtensionMonitorListener,
   createLogger,
   analyzeInstalledExtension,
-  DEFAULT_EXTENSION_MONITOR_CONFIG,
+  DEFAULT_NETWORK_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
@@ -77,7 +77,8 @@ import {
   type QueryOptions,
   type ExtensionMonitor,
   type ExtensionMonitorConfig,
-  type ExtensionRequestRecord,
+  type NetworkMonitorConfig,
+  type NetworkRequestRecord,
   type DataRetentionConfig,
   type DetectionConfig,
   type ExtensionRiskAnalysis,
@@ -95,7 +96,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord } from "@pleno-audit/parquet-storage";
+import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord, networkRequestRecordToParquetRecord, parquetRecordToNetworkRequestRecord } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
   createPolicyManager,
@@ -329,9 +330,9 @@ const typosquatCacheAdapter: TyposquatCache = {
   clear: () => typosquatCache.clear(),
 };
 
-// Extension Monitor
+// Extension Monitor / Network Monitor
 let extensionMonitor: ExtensionMonitor | null = null;
-const extensionRequestBuffer: ExtensionRequestRecord[] = [];
+const networkRequestBuffer: NetworkRequestRecord[] = [];
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -729,14 +730,14 @@ async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success
 // Extension Network Monitor
 // ============================================================================
 
-async function getExtensionMonitorConfig(): Promise<ExtensionMonitorConfig> {
+async function getNetworkMonitorConfig(): Promise<NetworkMonitorConfig> {
   const storage = await getStorage();
-  return storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
+  return storage.networkMonitorConfig || DEFAULT_NETWORK_MONITOR_CONFIG;
 }
 
-async function setExtensionMonitorConfig(newConfig: ExtensionMonitorConfig): Promise<{ success: boolean }> {
+async function setNetworkMonitorConfig(newConfig: NetworkMonitorConfig): Promise<{ success: boolean }> {
   try {
-    await setStorage({ extensionMonitorConfig: newConfig });
+    await setStorage({ networkMonitorConfig: newConfig });
     // Restart monitor with new config
     if (extensionMonitor) {
       extensionMonitor.stop();
@@ -747,20 +748,29 @@ async function setExtensionMonitorConfig(newConfig: ExtensionMonitorConfig): Pro
     }
     return { success: true };
   } catch (error) {
-    logger.error("Error setting extension monitor config:", error);
+    logger.error("Error setting network monitor config:", error);
     return { success: false };
   }
 }
 
 async function initExtensionMonitor() {
-  const config = await getExtensionMonitorConfig();
-  if (!config.enabled) return;
+  const networkConfig = await getNetworkMonitorConfig();
+  if (!networkConfig.enabled) return;
+
+  // NetworkMonitorConfig → ExtensionMonitorConfig に変換
+  const config: ExtensionMonitorConfig = {
+    enabled: networkConfig.enabled,
+    excludeOwnExtension: networkConfig.excludeOwnExtension,
+    excludedExtensions: networkConfig.excludedExtensions,
+    maxStoredRequests: 10000, // Parquetに保存するため固定値
+  };
 
   const ownId = chrome.runtime.id;
   extensionMonitor = createExtensionMonitor(config, ownId);
 
   extensionMonitor.onRequest(async (record) => {
-    extensionRequestBuffer.push(record);
+    // Parquetに保存（Network Monitor統合）
+    networkRequestBuffer.push(record as NetworkRequestRecord);
 
     // Add to event log
     await addEvent({
@@ -773,7 +783,7 @@ async function initExtensionMonitor() {
         url: record.url,
         method: record.method,
         resourceType: record.resourceType,
-        statusCode: record.statusCode,
+        initiatorType: (record as NetworkRequestRecord).initiatorType,
       },
     });
   });
@@ -782,18 +792,19 @@ async function initExtensionMonitor() {
   logger.info("Extension monitor started");
 }
 
-async function flushExtensionRequestBuffer() {
-  // DNRチェックは別アラーム（checkDNRMatches）で実行されるため、ここでは行わない
-  if (extensionRequestBuffer.length === 0) return;
+async function flushNetworkRequestBuffer() {
+  if (networkRequestBuffer.length === 0) return;
 
-  const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);
-  const storage = await getStorage();
-  const config = storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
-
-  let requests = storage.extensionRequests || [];
-  requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
-
-  await setStorage({ extensionRequests: requests });
+  const toFlush = networkRequestBuffer.splice(0, networkRequestBuffer.length);
+  try {
+    const store = await getOrInitParquetStore();
+    const records = toFlush.map(r => networkRequestRecordToParquetRecord(r));
+    await store.appendRows("network-requests", records);
+  } catch (error) {
+    // 失敗時は次回フラッシュに回すために再キューイング
+    networkRequestBuffer.unshift(...toFlush);
+    logger.error("Failed to flush network requests to Parquet:", error);
+  }
 }
 
 /**
@@ -852,12 +863,15 @@ async function analyzeExtensionRisks(): Promise<void> {
       return;
     }
 
-    const requests = storage.extensionRequests || [];
+    // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+    const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+    const requests = result.requests.filter(r => r.extensionId);
     if (requests.length === 0) return;
 
     // 拡張機能ごとにリクエストをグループ化
-    const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+    const requestsByExtension = new Map<string, NetworkRequestRecord[]>();
     for (const req of requests) {
+      if (!req.extensionId) continue;
       const existing = requestsByExtension.get(req.extensionId) || [];
       existing.push(req);
       requestsByExtension.set(req.extensionId, existing);
@@ -873,7 +887,20 @@ async function analyzeExtensionRisks(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+      // NetworkRequestRecord → ExtensionRequestRecord互換に変換
+      const compatRequests = extRequests.map(r => ({
+        id: r.id,
+        extensionId: r.extensionId!,
+        extensionName: r.extensionName || "Unknown",
+        timestamp: r.timestamp,
+        url: r.url,
+        method: r.method,
+        resourceType: r.resourceType,
+        domain: r.domain,
+        detectedBy: r.detectedBy,
+      }));
+
+      const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
       if (!analysis) continue;
 
       // 危険な拡張機能を検出したらアラート
@@ -903,21 +930,38 @@ async function analyzeExtensionRisks(): Promise<void> {
  * 拡張機能リスク分析結果を取得
  */
 async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
-  const storage = await getStorage();
-  const requests = (storage.extensionRequests || []).filter(r => r.extensionId === extensionId);
-  return analyzeInstalledExtension(extensionId, requests);
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId === extensionId);
+
+  // NetworkRequestRecord → ExtensionRequestRecord互換に変換
+  const compatRequests = requests.map(r => ({
+    id: r.id,
+    extensionId: r.extensionId!,
+    extensionName: r.extensionName || "Unknown",
+    timestamp: r.timestamp,
+    url: r.url,
+    method: r.method,
+    resourceType: r.resourceType,
+    domain: r.domain,
+    detectedBy: r.detectedBy,
+  }));
+
+  return analyzeInstalledExtension(extensionId, compatRequests);
 }
 
 /**
  * すべての拡張機能のリスク分析結果を取得
  */
 async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
-  const storage = await getStorage();
-  const requests = storage.extensionRequests || [];
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId);
 
   // 拡張機能ごとにグループ化
-  const requestsByExtension = new Map<string, ExtensionRequestRecord[]>();
+  const requestsByExtension = new Map<string, NetworkRequestRecord[]>();
   for (const req of requests) {
+    if (!req.extensionId) continue;
     const existing = requestsByExtension.get(req.extensionId) || [];
     existing.push(req);
     requestsByExtension.set(req.extensionId, existing);
@@ -925,7 +969,20 @@ async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
 
   const results: ExtensionRiskAnalysis[] = [];
   for (const [extensionId, extRequests] of requestsByExtension) {
-    const analysis = await analyzeInstalledExtension(extensionId, extRequests);
+    // NetworkRequestRecord → ExtensionRequestRecord互換に変換
+    const compatRequests = extRequests.map(r => ({
+      id: r.id,
+      extensionId: r.extensionId!,
+      extensionName: r.extensionName || "Unknown",
+      timestamp: r.timestamp,
+      url: r.url,
+      method: r.method,
+      resourceType: r.resourceType,
+      domain: r.domain,
+      detectedBy: r.detectedBy,
+    }));
+
+    const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
     if (analysis) {
       results.push(analysis);
     }
@@ -935,16 +992,43 @@ async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
   return results.sort((a, b) => b.riskScore - a.riskScore);
 }
 
-async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: ExtensionRequestRecord[]; total: number }> {
-  const storage = await getStorage();
-  const requests = storage.extensionRequests || [];
-  const total = requests.length;
+async function getNetworkRequests(options?: { limit?: number; offset?: number; since?: number; initiatorType?: "extension" | "page" | "browser" | "unknown" }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
+  try {
+    const store = await getOrInitParquetStore();
+    const allRecords = await store.queryRows("network-requests");
 
-  const offset = options?.offset || 0;
-  const limit = options?.limit || 500;
-  const sliced = requests.slice(offset, offset + limit);
+    let filtered = allRecords.map(r => parquetRecordToNetworkRequestRecord(r));
 
-  return { requests: sliced, total };
+    // フィルタリング（ページネーション前に適用）
+    if (options?.since) {
+      filtered = filtered.filter(r => r.timestamp >= options.since!);
+    }
+    if (options?.initiatorType) {
+      filtered = filtered.filter(r => r.initiatorType === options.initiatorType);
+    }
+
+    // 新しいものから順に並び替え
+    filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+    const total = filtered.length;
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 500;
+    const sliced = filtered.slice(offset, offset + limit);
+
+    return { requests: sliced, total };
+  } catch (error) {
+    logger.error("Failed to query network requests:", error);
+    return { requests: [], total: 0 };
+  }
+}
+
+async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
+  // initiatorTypeフィルタを使用してページネーション前にフィルタリング
+  return getNetworkRequests({
+    limit: options?.limit || 500,
+    offset: options?.offset || 0,
+    initiatorType: "extension",
+  });
 }
 
 function getKnownExtensions(): Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }> {
@@ -960,16 +1044,18 @@ interface ExtensionStats {
 }
 
 async function getExtensionStats(): Promise<ExtensionStats> {
-  const storage = await getStorage();
-  const requests = storage.extensionRequests || [];
+  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
+  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
+  const requests = result.requests.filter(r => r.extensionId);
 
   const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
   const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
 
   for (const req of requests) {
+    if (!req.extensionId) continue;
     // By extension
     if (!byExtension[req.extensionId]) {
-      byExtension[req.extensionId] = { name: req.extensionName, count: 0, domains: new Set() };
+      byExtension[req.extensionId] = { name: req.extensionName || "Unknown", count: 0, domains: new Set() };
     }
     byExtension[req.extensionId].count++;
     byExtension[req.extensionId].domains.add(req.domain);
@@ -1048,12 +1134,7 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
       await setStorage({ aiPrompts: filteredPrompts });
     }
 
-    // Delete old extension requests
-    const extensionRequests = storage.extensionRequests || [];
-    const filteredRequests = extensionRequests.filter(r => r.timestamp >= cutoffMs);
-    if (filteredRequests.length < extensionRequests.length) {
-      await setStorage({ extensionRequests: filteredRequests });
-    }
+    // Network requests are stored in Parquet with automatic retention
 
     // Update last cleanup timestamp
     await setStorage({
@@ -2477,7 +2558,7 @@ export default defineBackground(() => {
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
-  chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  chrome.alarms.create("flushNetworkRequests", { periodInMinutes: 0.1 });
   // DNR API rate limit対応: 36秒間隔（Chrome制限: 10分間に最大20回、30秒以上の間隔）
   chrome.alarms.create("checkDNRMatches", { periodInMinutes: 0.6 });
   // Extension risk analysis (runs every 5 minutes)
@@ -2493,8 +2574,8 @@ export default defineBackground(() => {
     if (alarm.name === "flushCSPReports") {
       flushReportQueue().catch((err) => logger.debug("Flush reports failed:", err));
     }
-    if (alarm.name === "flushExtensionRequests") {
-      flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err));
+    if (alarm.name === "flushNetworkRequests") {
+      flushNetworkRequestBuffer().catch((err) => logger.debug("Flush network requests failed:", err));
     }
     if (alarm.name === "checkDNRMatches") {
       checkDNRMatchesHandler().catch((err) => logger.debug("DNR match check failed:", err));
@@ -2977,6 +3058,14 @@ export default defineBackground(() => {
       return true;
     }
 
+    // Network Monitor handlers
+    if (message.type === "GET_NETWORK_REQUESTS") {
+      getNetworkRequests(message.data)
+        .then(sendResponse)
+        .catch(() => sendResponse({ requests: [], total: 0 }));
+      return true;
+    }
+
     // Extension Monitor handlers
     if (message.type === "GET_EXTENSION_REQUESTS") {
       getExtensionRequests(message.data)
@@ -2997,15 +3086,15 @@ export default defineBackground(() => {
       return true;
     }
 
-    if (message.type === "GET_EXTENSION_MONITOR_CONFIG") {
-      getExtensionMonitorConfig()
+    if (message.type === "GET_NETWORK_MONITOR_CONFIG") {
+      getNetworkMonitorConfig()
         .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_EXTENSION_MONITOR_CONFIG));
+        .catch(() => sendResponse(DEFAULT_NETWORK_MONITOR_CONFIG));
       return true;
     }
 
-    if (message.type === "SET_EXTENSION_MONITOR_CONFIG") {
-      setExtensionMonitorConfig(message.data)
+    if (message.type === "SET_NETWORK_MONITOR_CONFIG") {
+      setNetworkMonitorConfig(message.data)
         .then(sendResponse)
         .catch(() => sendResponse({ success: false }));
       return true;

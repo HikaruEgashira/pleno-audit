@@ -248,12 +248,6 @@ async function handleMessage(
       case "DEBUG_DOH_REQUESTS":
         return await getDoHRequests(data as { limit?: number; offset?: number });
 
-      case "DEBUG_DNR_CONFIG_GET":
-        return await getDNRConfig();
-
-      case "DEBUG_DNR_CONFIG_SET":
-        return await setDNRConfig(data as { enabled?: boolean; excludeOwnExtension?: boolean });
-
       case "DEBUG_NETWORK_CONFIG_GET":
         return await getNetworkConfig();
 
@@ -517,57 +511,8 @@ async function getDoHRequests(params?: {
 }
 
 /**
- * DNR (Extension Monitor) operations - Legacy support
- * Note: maxStoredRequests is kept for backward compatibility with existing stored configs.
- * ADR 033 adopts unlimitedStorage, so this value is not enforced for new Network Monitor.
- */
-const DEFAULT_DNR_CONFIG = {
-  enabled: true,
-  excludeOwnExtension: true,
-  excludedExtensions: [] as string[],
-};
-
-async function getDNRConfig(): Promise<Omit<DebugResponse, "id">> {
-  try {
-    const storage = await chrome.storage.local.get("extensionMonitorConfig");
-    return {
-      success: true,
-      data: storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get DNR config",
-    };
-  }
-}
-
-async function setDNRConfig(params: {
-  enabled?: boolean;
-  excludeOwnExtension?: boolean;
-}): Promise<Omit<DebugResponse, "id">> {
-  try {
-    const storage = await chrome.storage.local.get("extensionMonitorConfig");
-    const currentConfig = storage.extensionMonitorConfig || DEFAULT_DNR_CONFIG;
-    const newConfig = { ...currentConfig, ...params };
-    await chrome.storage.local.set({ extensionMonitorConfig: newConfig });
-
-    chrome.runtime.sendMessage({
-      type: "SET_EXTENSION_MONITOR_CONFIG",
-      data: newConfig,
-    }).catch(() => {});
-
-    return { success: true, data: newConfig };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to set DNR config",
-    };
-  }
-}
-
-/**
  * Network Monitor operations
+ * Parquet-based network request storage
  */
 const DEFAULT_NETWORK_CONFIG = {
   enabled: true,
@@ -587,7 +532,7 @@ async function getNetworkConfig(): Promise<Omit<DebugResponse, "id">> {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get Network config",
+      error: error instanceof Error ? error.message : "Failed to get network monitor config",
     };
   }
 }
@@ -612,7 +557,7 @@ async function setNetworkConfig(params: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to set Network config",
+      error: error instanceof Error ? error.message : "Failed to set network monitor config",
     };
   }
 }

@@ -275,7 +275,7 @@ function DashboardContent() {
 
       const [violationsResult, networkResult, configResult, aiPromptsResult, storageResult, eventsResult, eventsCountResult, aiPromptsCountResult] = await Promise.all([
         safeMessage({ type: "GET_CSP_REPORTS", data: { type: "csp-violation", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
-        safeMessage({ type: "GET_CSP_REPORTS", data: { type: "network-request", since: sinceISO, limit: 500 } }, { reports: [], total: 0 }),
+        safeMessage({ type: "GET_NETWORK_REQUESTS", data: { since: sinceTs, limit: 500 } }, { requests: [], total: 0 }),
         safeMessage({ type: "GET_CONNECTION_CONFIG" }, { mode: "local" }),
         safeMessage({ type: "GET_AI_PROMPTS" }, []),
         chrome.storage.local.get(["services"]),
@@ -286,8 +286,10 @@ function DashboardContent() {
 
       // Combine violations and network into reports
       const violationsData = Array.isArray(violationsResult) ? violationsResult : (violationsResult?.reports ?? []);
-      const networkData = Array.isArray(networkResult) ? networkResult : (networkResult?.reports ?? []);
-      setReports([...violationsData, ...networkData]);
+      const networkData = Array.isArray(networkResult) ? networkResult : (networkResult?.requests ?? []);
+      // Network Monitor由来のデータにtype: "network-request"を付与
+      const normalizedNetworkData = networkData.map((r: NetworkRequest) => ({ ...r, type: "network-request" as const }));
+      setReports([...violationsData, ...normalizedNetworkData]);
 
       // Get totals from API response
       const violationsTotal = violationsResult?.total ?? violationsData.length;
@@ -851,8 +853,31 @@ function DashboardContent() {
             rowKey={(r, i) => `${r.timestamp}-${i}`}
             emptyMessage="ネットワークリクエストは記録されていません"
             columns={[
-              { key: "timestamp", header: "日時", width: "160px", render: (r) => new Date(r.timestamp).toLocaleString("ja-JP") },
-              { key: "initiator", header: "Type", width: "80px", render: (r) => <Badge>{r.initiator}</Badge> },
+              { key: "timestamp", header: "日時", width: "160px", render: (r) => {
+                // Parquetから来たレコードはtimestampがnumber（ms）
+                const ts = typeof r.timestamp === "number" ? r.timestamp : new Date(r.timestamp).getTime();
+                return new Date(ts).toLocaleString("ja-JP");
+              }},
+              { key: "initiatorType", header: "送信元", width: "120px", render: (r) => {
+                // Network Monitorレコード（initiatorType/extensionName あり）
+                const record = r as NetworkRequest & { initiatorType?: string; extensionId?: string; extensionName?: string };
+                const initiatorType = record.initiatorType || (r.initiator ? "page" : "unknown");
+                if (initiatorType === "extension") {
+                  return <Badge variant="purple">{record.extensionName || record.extensionId?.slice(0, 8) || "Extension"}</Badge>;
+                }
+                if (initiatorType === "page") {
+                  try {
+                    const domain = r.initiator ? new URL(r.initiator).hostname : "Page";
+                    return <Badge variant="blue">{truncate(domain, 12)}</Badge>;
+                  } catch {
+                    return <Badge variant="blue">Page</Badge>;
+                  }
+                }
+                if (initiatorType === "browser") {
+                  return <Badge variant="gray">Browser</Badge>;
+                }
+                return <Badge variant="gray">Unknown</Badge>;
+              }},
               { key: "method", header: "Method", width: "80px", render: (r) => <code style={{ fontSize: "11px" }}>{r.method || "GET"}</code> },
               { key: "domain", header: "ドメイン", width: "160px", render: (r) => r.domain },
               { key: "url", header: "URL", render: (r) => <span title={r.url}>{truncate(r.url, 50)}</span> },
