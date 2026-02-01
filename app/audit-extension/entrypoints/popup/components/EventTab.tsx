@@ -232,6 +232,15 @@ export function EventTab({ services, violations, networkRequests, aiPrompts, doH
             Medium ({counts.medium})
           </Button>
         )}
+        {(counts.info ?? 0) > 0 && (
+          <Button
+            variant={searchQuery === "info" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setSearchQuery(searchQuery === "info" ? "" : "info")}
+          >
+            Info ({counts.info})
+          </Button>
+        )}
       </div>
 
       {/* Table */}
