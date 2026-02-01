@@ -35,16 +35,6 @@ export function DNRSettings() {
     }).catch(() => {});
   }
 
-  function handleMaxStoredRequestsChange(value: number) {
-    if (!config) return;
-    const newConfig = { ...config, maxStoredRequests: value };
-    setConfig(newConfig);
-    sendMessage({
-      type: "SET_EXTENSION_MONITOR_CONFIG",
-      data: newConfig,
-    }).catch(() => {});
-  }
-
   const styles = {
     container: {
       marginTop: "12px",
@@ -104,31 +94,6 @@ export function DNRSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
-    sliderSection: {
-      marginTop: "8px",
-      display: "flex",
-      flexDirection: "column" as const,
-      gap: "4px",
-    },
-    sliderLabel: {
-      fontSize: "10px",
-      color: colors.textSecondary,
-    },
-    sliderContainer: {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    slider: {
-      flex: 1,
-      accentColor: colors.accent,
-    },
-    sliderValue: {
-      fontSize: "11px",
-      color: colors.textPrimary,
-      minWidth: "50px",
-      textAlign: "right" as const,
-    },
   };
 
   if (!config) return null;
@@ -145,48 +110,31 @@ export function DNRSettings() {
       </div>
 
       {expanded && (
-        <>
-          <div style={styles.content}>
-            {DNR_OPTIONS.map((opt) => (
-              <label
-                key={opt.key}
-                style={styles.option}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={config[opt.key]}
-                  onChange={() => handleToggle(opt.key)}
-                  style={styles.checkbox}
-                />
-                <div style={styles.labelContainer}>
-                  <span style={styles.label}>{opt.label}</span>
-                  <span style={styles.description}>{opt.description}</span>
-                </div>
-              </label>
-            ))}
-          </div>
-          <div style={styles.sliderSection}>
-            <label style={styles.sliderLabel}>最大保存リクエスト数</label>
-            <div style={styles.sliderContainer}>
+        <div style={styles.content}>
+          {DNR_OPTIONS.map((opt) => (
+            <label
+              key={opt.key}
+              style={styles.option}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = colors.bgTertiary || colors.border;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
+              }}
+            >
               <input
-                type="range"
-                min="1000"
-                max="10000"
-                step="1000"
-                value={config.maxStoredRequests}
-                onChange={(e) => handleMaxStoredRequestsChange(Number((e.target as HTMLInputElement).value))}
-                style={styles.slider}
+                type="checkbox"
+                checked={config[opt.key]}
+                onChange={() => handleToggle(opt.key)}
+                style={styles.checkbox}
               />
-              <span style={styles.sliderValue}>{config.maxStoredRequests.toLocaleString()}</span>
-            </div>
-          </div>
-        </>
+              <div style={styles.labelContainer}>
+                <span style={styles.label}>{opt.label}</span>
+                <span style={styles.description}>{opt.description}</span>
+              </div>
+            </label>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -533,7 +533,6 @@ async function getDNRConfig(): Promise<Omit<DebugResponse, "id">> {
 async function setDNRConfig(params: {
   enabled?: boolean;
   excludeOwnExtension?: boolean;
-  maxStoredRequests?: number;
 }): Promise<Omit<DebugResponse, "id">> {
   try {
     const storage = await chrome.storage.local.get("extensionMonitorConfig");

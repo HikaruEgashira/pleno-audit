@@ -5,7 +5,6 @@ interface DNRConfig {
   enabled: boolean;
   excludeOwnExtension: boolean;
   excludedExtensions: string[];
-  maxStoredRequests: number;
 }
 
 export const dnrCommand = new Command("dnr").description(
@@ -17,11 +16,11 @@ dnrCommand
   .description("Get or set Extension Monitor config")
   .option("-e, --enabled <boolean>", "Enable/disable monitoring (true/false)")
   .option("-x, --exclude-own <boolean>", "Exclude own extension (true/false)")
-  .option("-m, --max-requests <number>", "Max stored requests")
   .option("-p, --pretty", "Pretty print JSON output")
   .action(async (options) => {
+    let client;
     try {
-      const client = await getExtensionClient();
+      client = await getExtensionClient();
 
       const updates: Partial<DNRConfig> = {};
       if (options.enabled !== undefined) {
@@ -29,9 +28,6 @@ dnrCommand
       }
       if (options.excludeOwn !== undefined) {
         updates.excludeOwnExtension = options.excludeOwn === "true";
-      }
-      if (options.maxRequests !== undefined) {
-        updates.maxStoredRequests = parseInt(options.maxRequests, 10);
       }
 
       if (Object.keys(updates).length > 0) {
@@ -41,7 +37,6 @@ dnrCommand
           const config = response.data as DNRConfig;
           console.log(`  Enabled: ${config.enabled}`);
           console.log(`  Exclude own extension: ${config.excludeOwnExtension}`);
-          console.log(`  Max stored requests: ${config.maxStoredRequests}`);
         } else {
           console.error(`Error: ${response.error}`);
           process.exit(1);
@@ -56,19 +51,18 @@ dnrCommand
             console.log(`Enabled: ${config.enabled}`);
             console.log(`Exclude own extension: ${config.excludeOwnExtension}`);
             console.log(`Excluded extensions: ${config.excludedExtensions.length}`);
-            console.log(`Max stored requests: ${config.maxStoredRequests}`);
           }
         } else {
           console.error(`Error: ${response.error}`);
           process.exit(1);
         }
       }
-
-      client.disconnect();
     } catch (error) {
       console.error(
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
       process.exit(1);
+    } finally {
+      client?.disconnect();
     }
   });

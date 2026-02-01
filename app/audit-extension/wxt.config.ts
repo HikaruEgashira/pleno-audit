@@ -22,7 +22,8 @@ export default defineConfig({
     const isMV2 = isFirefox || isSafari;
 
     // Base permissions (cross-browser)
-    const basePermissions = ["cookies", "storage", "activeTab", "alarms", "webRequest", "management", "notifications"];
+    // unlimitedStorage: ZTA監査証跡の完全保持のため
+    const basePermissions = ["cookies", "storage", "unlimitedStorage", "activeTab", "alarms", "webRequest", "management", "notifications"];
 
     // Chrome/Edge MV3 permissions
     const mv3Permissions = [...basePermissions, "offscreen", "scripting", "declarativeNetRequest", "declarativeNetRequestFeedback", "identity"];

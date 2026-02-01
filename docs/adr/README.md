@@ -32,3 +32,4 @@
 | [030](./030-firefox-support.md) | Firefox Support | Accepted |
 | [031](./031-parquet-storage-migration.md) | parquet-storageへの完全移行 | Accepted |
 | [032](./032-extensions-analysis-tab.md) | 拡張機能分析タブのOSS移行 | Accepted |
+| [033](./033-unlimited-storage-for-zta.md) | ZTA監査証跡のためのunlimitedStorage採用 | Accepted |
