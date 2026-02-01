@@ -265,7 +265,8 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
       <div style={styles.filterBar}>
         <input
-          type="text"
+          type="search"
+          aria-label="サービス検索"
           value={searchQuery}
           onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
           placeholder="検索..."
@@ -349,7 +350,8 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
           </thead>
           <tbody>
             {filtered.slice(0, 100).map((service) => {
-              const isExpanded = expandedIds.has(service.id);
+              const hasConnections = service.connections.length > 0;
+              const isExpanded = hasConnections && expandedIds.has(service.id);
               const isDomain = service.source.type === "domain";
               const displayName = isDomain
                 ? service.source.domain
@@ -361,11 +363,15 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
                 <tr key={service.id} style={popupStyles.tableRow}>
                   <td style={popupStyles.tableCell}>
                     <button
-                      onClick={() => toggleExpand(service.id)}
+                      onClick={() => hasConnections && toggleExpand(service.id)}
+                      disabled={!hasConnections}
+                      aria-label={isExpanded ? "接続を折りたたむ" : "接続を展開する"}
+                      aria-expanded={isExpanded}
                       style={{
                         background: "none",
                         border: "none",
-                        cursor: "pointer",
+                        cursor: hasConnections ? "pointer" : "default",
+                        opacity: hasConnections ? 1 : 0.4,
                         padding: 0,
                         color: colors.textSecondary,
                         fontSize: "10px",
