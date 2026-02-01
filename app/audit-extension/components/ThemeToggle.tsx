@@ -39,6 +39,7 @@ export function ThemeToggle() {
       className="hover-bg"
       style={{
         ...styles.button,
+        background: "transparent",
         color: colors.textSecondary,
       }}
       onClick={() => setMode(nextMode)}
