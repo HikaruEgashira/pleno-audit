@@ -116,8 +116,8 @@ function convertToEvents(
     });
   }
 
-  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-  return events.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  // Sort by timestamp descending (newest first)
+  return events.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 function getSeverityVariant(sev: AlertSeverity): "danger" | "warning" | "info" | "default" {
