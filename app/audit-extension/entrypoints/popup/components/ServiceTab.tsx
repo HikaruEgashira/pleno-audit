@@ -139,7 +139,6 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   const filtered = useMemo(() => {
     let result = sortedServices;
 
-    // Text search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -151,7 +150,6 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
       );
     }
 
-    // Category filter
     if (activeFilters.size > 0) {
       result = result.filter((s) => {
         for (const filter of activeFilters) {
@@ -171,7 +169,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
       } catch {
-        // Failed to load data
+        // ignore
       } finally {
         setLoading(false);
       }
@@ -265,7 +263,6 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-      {/* Filter Bar */}
       <div style={styles.filterBar}>
         <input
           type="text"
@@ -332,7 +329,6 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
         </select>
       </div>
 
-      {/* Table */}
       <div style={{ ...popupStyles.card, padding: 0, overflow: "hidden" }}>
         <table style={{ ...popupStyles.table, tableLayout: "fixed" }}>
           <colgroup>
