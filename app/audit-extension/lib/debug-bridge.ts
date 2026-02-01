@@ -518,12 +518,13 @@ async function getDoHRequests(params?: {
 
 /**
  * DNR (Extension Monitor) operations - Legacy support
+ * Note: maxStoredRequests is kept for backward compatibility with existing stored configs.
+ * ADR 033 adopts unlimitedStorage, so this value is not enforced for new Network Monitor.
  */
 const DEFAULT_DNR_CONFIG = {
   enabled: true,
   excludeOwnExtension: true,
   excludedExtensions: [] as string[],
-  maxStoredRequests: 5000,
 };
 
 async function getDNRConfig(): Promise<Omit<DebugResponse, "id">> {

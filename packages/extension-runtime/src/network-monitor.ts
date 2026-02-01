@@ -121,6 +121,11 @@ function handleWebRequest(
 
   const initiatorType = classifyInitiator(details.initiator);
 
+  // captureAllRequests=falseの場合、拡張機能以外をスキップ
+  if (!globalConfig.captureAllRequests && initiatorType !== "extension") {
+    return;
+  }
+
   // 自身の拡張機能を除外
   if (globalConfig.excludeOwnExtension && initiatorType === "extension") {
     const extId = extractExtensionId(details.initiator!);
