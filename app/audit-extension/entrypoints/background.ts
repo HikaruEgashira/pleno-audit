@@ -1811,17 +1811,12 @@ async function storeCSPReport(report: CSPReport) {
       apiClient = await getApiClient();
     }
     await apiClient.postReports([report]);
-    // Trigger CSP policy auto-generation after storing report
     scheduleCSPPolicyGeneration();
   } catch (error) {
     logger.error("Error storing report:", error);
   }
 }
 
-/**
- * Schedule CSP policy auto-generation with debouncing
- * Generates policies 500ms after last report to avoid frequent regeneration
- */
 function scheduleCSPPolicyGeneration() {
   if (cspGenerationTimer) {
     clearTimeout(cspGenerationTimer);
@@ -1841,9 +1836,6 @@ function scheduleCSPPolicyGeneration() {
   }, 500);
 }
 
-/**
- * Save generated CSP policy to chrome.storage.local
- */
 async function saveGeneratedCSPPolicy(result: GeneratedCSPByDomain) {
   await chrome.storage.local.set({ generatedCSPPolicy: result });
 }

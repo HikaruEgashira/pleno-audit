@@ -23,7 +23,6 @@ export function PolicyGenerator() {
   const [loading, setLoading] = useState(false);
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
 
-  // Load generated policy from storage on mount
   useEffect(() => {
     chrome.storage.local.get("generatedCSPPolicy", (data) => {
       if (data.generatedCSPPolicy) {
@@ -34,7 +33,6 @@ export function PolicyGenerator() {
       }
     });
 
-    // Listen for storage changes
     const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.generatedCSPPolicy?.newValue) {
         const newData = changes.generatedCSPPolicy.newValue as GeneratedCSPByDomain;
