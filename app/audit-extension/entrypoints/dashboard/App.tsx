@@ -287,7 +287,9 @@ function DashboardContent() {
       // Combine violations and network into reports
       const violationsData = Array.isArray(violationsResult) ? violationsResult : (violationsResult?.reports ?? []);
       const networkData = Array.isArray(networkResult) ? networkResult : (networkResult?.requests ?? []);
-      setReports([...violationsData, ...networkData]);
+      // Network Monitor由来のデータにtype: "network-request"を付与
+      const normalizedNetworkData = networkData.map((r: NetworkRequest) => ({ ...r, type: "network-request" as const }));
+      setReports([...violationsData, ...normalizedNetworkData]);
 
       // Get totals from API response
       const violationsTotal = violationsResult?.total ?? violationsData.length;

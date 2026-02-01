@@ -332,7 +332,6 @@ const typosquatCacheAdapter: TyposquatCache = {
 
 // Extension Monitor / Network Monitor
 let extensionMonitor: ExtensionMonitor | null = null;
-const extensionRequestBuffer: ExtensionRequestRecord[] = [];
 const networkRequestBuffer: NetworkRequestRecord[] = [];
 
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -765,22 +764,6 @@ async function initExtensionMonitor() {
     // Parquetに保存（Network Monitor統合）
     networkRequestBuffer.push(record as NetworkRequestRecord);
 
-    // 後方互換性: 拡張機能リクエストのみchrome.storage.localに保存
-    if (record.extensionId) {
-      const extRecord: ExtensionRequestRecord = {
-        id: record.id,
-        extensionId: record.extensionId,
-        extensionName: record.extensionName || "Unknown",
-        timestamp: record.timestamp,
-        url: record.url,
-        method: record.method,
-        resourceType: record.resourceType,
-        domain: record.domain,
-        detectedBy: record.detectedBy,
-      };
-      extensionRequestBuffer.push(extRecord);
-    }
-
     // Add to event log
     await addEvent({
       type: "extension_request",
@@ -810,22 +793,10 @@ async function flushNetworkRequestBuffer() {
     const records = toFlush.map(r => networkRequestRecordToParquetRecord(r));
     await store.appendRows("network-requests", records);
   } catch (error) {
+    // 失敗時は次回フラッシュに回すために再キューイング
+    networkRequestBuffer.unshift(...toFlush);
     logger.error("Failed to flush network requests to Parquet:", error);
   }
-}
-
-async function flushExtensionRequestBuffer() {
-  // DNRチェックは別アラーム（checkDNRMatches）で実行されるため、ここでは行わない
-  if (extensionRequestBuffer.length === 0) return;
-
-  const toFlush = extensionRequestBuffer.splice(0, extensionRequestBuffer.length);
-  const storage = await getStorage();
-  const config = storage.extensionMonitorConfig || DEFAULT_EXTENSION_MONITOR_CONFIG;
-
-  let requests = storage.extensionRequests || [];
-  requests = [...toFlush, ...requests].slice(0, config.maxStoredRequests);
-
-  await setStorage({ extensionRequests: requests });
 }
 
 /**
@@ -2536,7 +2507,7 @@ export default defineBackground(() => {
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
-  chrome.alarms.create("flushExtensionRequests", { periodInMinutes: 0.1 });
+  chrome.alarms.create("flushNetworkRequests", { periodInMinutes: 0.1 });
   // DNR API rate limit対応: 36秒間隔（Chrome制限: 10分間に最大20回、30秒以上の間隔）
   chrome.alarms.create("checkDNRMatches", { periodInMinutes: 0.6 });
   // Extension risk analysis (runs every 5 minutes)
@@ -2552,11 +2523,8 @@ export default defineBackground(() => {
     if (alarm.name === "flushCSPReports") {
       flushReportQueue().catch((err) => logger.debug("Flush reports failed:", err));
     }
-    if (alarm.name === "flushExtensionRequests") {
-      Promise.all([
-        flushNetworkRequestBuffer().catch((err) => logger.debug("Flush network requests failed:", err)),
-        flushExtensionRequestBuffer().catch((err) => logger.debug("Flush extension requests failed:", err)),
-      ]);
+    if (alarm.name === "flushNetworkRequests") {
+      flushNetworkRequestBuffer().catch((err) => logger.debug("Flush network requests failed:", err));
     }
     if (alarm.name === "checkDNRMatches") {
       checkDNRMatchesHandler().catch((err) => logger.debug("DNR match check failed:", err));
