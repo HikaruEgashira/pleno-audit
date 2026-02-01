@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "preact/hooks";
 import type { DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import { useTheme } from "../../../lib/theme";
-import { Badge } from "../../../components";
+import { Badge, Button } from "../../../components";
 import {
   aggregateServices,
   sortServices,
@@ -79,6 +79,15 @@ const SORT_OPTIONS: { value: SortType; label: string }[] = [
   { value: "name", label: "名前順" },
 ];
 
+type FilterCategory = "nrd" | "typosquat" | "ai" | "login" | "extension";
+
+function hasTag(service: UnifiedService, category: FilterCategory): boolean {
+  if (category === "extension") {
+    return service.source.type === "extension";
+  }
+  return service.tags.some((t) => t.type === category);
+}
+
 function formatRelativeTime(timestamp: number): string {
   if (timestamp === 0) return "";
   const now = Date.now();
@@ -101,11 +110,57 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [sortType, setSortType] = useState<SortType>("activity");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilters, setActiveFilters] = useState<Set<FilterCategory>>(new Set());
 
   const sortedServices = useMemo(
     () => sortServices(unifiedServices, sortType),
     [unifiedServices, sortType]
   );
+
+  const counts = useMemo(() => {
+    const result: Record<FilterCategory, number> = {
+      nrd: 0,
+      typosquat: 0,
+      ai: 0,
+      login: 0,
+      extension: 0,
+    };
+    for (const service of sortedServices) {
+      if (hasTag(service, "nrd")) result.nrd++;
+      if (hasTag(service, "typosquat")) result.typosquat++;
+      if (hasTag(service, "ai")) result.ai++;
+      if (hasTag(service, "login")) result.login++;
+      if (hasTag(service, "extension")) result.extension++;
+    }
+    return result;
+  }, [sortedServices]);
+
+  const filtered = useMemo(() => {
+    let result = sortedServices;
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (s) =>
+          (s.source.type === "domain" &&
+            (s.source.domain.toLowerCase().includes(q))) ||
+          (s.source.type === "extension" &&
+            s.source.extensionName.toLowerCase().includes(q))
+      );
+    }
+
+    if (activeFilters.size > 0) {
+      result = result.filter((s) => {
+        for (const filter of activeFilters) {
+          if (hasTag(s, filter)) return true;
+        }
+        return false;
+      });
+    }
+
+    return result;
+  }, [sortedServices, searchQuery, activeFilters]);
 
   useEffect(() => {
     async function loadData() {
@@ -114,7 +169,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
       } catch {
-        // Failed to load data
+        // ignore
       } finally {
         setLoading(false);
       }
@@ -134,119 +189,42 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
     });
   }
 
+  function toggleFilter(category: FilterCategory) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }
+
   const styles = {
-    header: {
-      fontSize: "12px",
-      fontWeight: 500,
-      color: colors.textSecondary,
-      marginBottom: "4px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
     emptyText: {
       color: colors.textMuted,
       fontSize: "13px",
       textAlign: "center" as const,
       padding: "16px",
     },
-    serviceItem: {
-      background: colors.bgPrimary,
-      border: `1px solid ${colors.border}`,
-      borderRadius: "8px",
-      overflow: "hidden",
-    },
-    serviceHeader: {
+    filterBar: {
       display: "flex",
-      flexDirection: "column" as const,
-      padding: "10px 12px",
-      cursor: "pointer",
-      transition: "background 0.15s",
-    },
-    serviceHeaderRow: {
-      display: "flex",
+      gap: "8px",
       alignItems: "center",
-      gap: "3px",
+      flexWrap: "wrap" as const,
+      marginBottom: "12px",
     },
-    chevron: {
-      fontSize: "10px",
-      color: colors.textSecondary,
-      transition: "transform 0.2s",
-      width: "16px",
-      textAlign: "center" as const,
-    },
-    chevronExpanded: {
-      transform: "rotate(90deg)",
-    },
-    icon: {
-      width: "20px",
-      height: "20px",
-      borderRadius: "4px",
-      flexShrink: 0,
-    },
-    iconPlaceholder: {
-      width: "20px",
-      height: "20px",
-      borderRadius: "4px",
-      background: colors.bgSecondary,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "10px",
-      color: colors.textSecondary,
-      flexShrink: 0,
-    },
-    serviceName: {
+    filterInput: {
       flex: 1,
-      fontSize: "13px",
-      color: colors.textPrimary,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap" as const,
-      fontFamily: "monospace",
-    },
-    timestamp: {
-      fontSize: "10px",
-      color: colors.textMuted,
-      flexShrink: 0,
-    },
-    tagColumn: {
-      display: "flex",
-      alignItems: "center",
-      gap: "3px",
-      flexShrink: 0,
-    },
-    connectionList: {
-      borderTop: `1px solid ${colors.borderLight}`,
-      background: colors.bgSecondary,
-      padding: "8px 12px 8px 48px",
-    },
-    connectionItem: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "4px 0",
+      minWidth: "120px",
+      padding: "6px 10px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
       fontSize: "12px",
-    },
-    connectionName: {
-      color: colors.textSecondary,
-      fontFamily: "monospace",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap" as const,
-    },
-    connectionCount: {
-      color: colors.textMuted,
-      fontSize: "11px",
-      flexShrink: 0,
-      marginLeft: "8px",
-    },
-    summary: {
-      fontSize: "11px",
-      color: colors.textSecondary,
-      textAlign: "center" as const,
-      padding: "8px",
-      borderTop: `1px solid ${colors.borderLight}`,
+      background: colors.bgPrimary,
+      color: colors.textPrimary,
+      outline: "none",
     },
     sortSelect: {
       background: colors.bgSecondary,
@@ -257,6 +235,17 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
       color: colors.textSecondary,
       cursor: "pointer",
       outline: "none",
+    },
+    connectionRow: {
+      paddingLeft: "48px",
+      background: colors.bgSecondary,
+    },
+    connectionName: {
+      color: colors.textSecondary,
+      fontFamily: "monospace",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap" as const,
     },
   };
 
@@ -273,9 +262,61 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   }
 
   return (
-    <div style={popupStyles.tabContent}>
-      <div style={styles.header}>
-        <span>サービス ({sortedServices.length})</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div style={styles.filterBar}>
+        <input
+          type="search"
+          aria-label="サービス検索"
+          value={searchQuery}
+          onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          placeholder="検索..."
+          style={styles.filterInput}
+        />
+        {counts.nrd > 0 && (
+          <Button
+            variant={activeFilters.has("nrd") ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFilter("nrd")}
+          >
+            NRD ({counts.nrd})
+          </Button>
+        )}
+        {counts.typosquat > 0 && (
+          <Button
+            variant={activeFilters.has("typosquat") ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFilter("typosquat")}
+          >
+            Typosquat ({counts.typosquat})
+          </Button>
+        )}
+        {counts.ai > 0 && (
+          <Button
+            variant={activeFilters.has("ai") ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFilter("ai")}
+          >
+            AI ({counts.ai})
+          </Button>
+        )}
+        {counts.login > 0 && (
+          <Button
+            variant={activeFilters.has("login") ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFilter("login")}
+          >
+            login ({counts.login})
+          </Button>
+        )}
+        {counts.extension > 0 && (
+          <Button
+            variant={activeFilters.has("extension") ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFilter("extension")}
+          >
+            Extension ({counts.extension})
+          </Button>
+        )}
         <select
           value={sortType}
           onChange={(e) => setSortType((e.target as HTMLSelectElement).value as SortType)}
@@ -289,118 +330,212 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
         </select>
       </div>
 
-      {sortedServices.slice(0, 15).map((service) => {
-        const isExpanded = expandedIds.has(service.id);
-        const isDomain = service.source.type === "domain";
-        const displayName = isDomain
-          ? service.source.domain
-          : service.source.extensionName;
-        const icon = isDomain ? null : service.source.icon;
-        const domain = isDomain ? service.source.domain : "";
+      <div style={{ ...popupStyles.card, padding: 0, overflow: "hidden" }}>
+        <table style={{ ...popupStyles.table, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "24px" }} />
+            <col style={{ width: "130px" }} />
+            <col />
+            <col style={{ width: "64px" }} />
+            <col style={{ width: "56px" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={popupStyles.tableHeader}></th>
+              <th style={popupStyles.tableHeader}>Name</th>
+              <th style={popupStyles.tableHeader}>Tags</th>
+              <th style={popupStyles.tableHeader}>Connections</th>
+              <th style={{ ...popupStyles.tableHeader, textAlign: "right" }}>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.slice(0, 100).map((service) => {
+              const hasConnections = service.connections.length > 0;
+              const isExpanded = hasConnections && expandedIds.has(service.id);
+              const isDomain = service.source.type === "domain";
+              const displayName = isDomain
+                ? service.source.domain
+                : service.source.extensionName;
+              const icon = isDomain ? null : service.source.icon;
+              const domain = isDomain ? service.source.domain : "";
 
-        return (
-          <div key={service.id} style={styles.serviceItem}>
-            <div
-              style={styles.serviceHeader}
-              onClick={() => toggleExpand(service.id)}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = colors.bgSecondary;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "";
-              }}
-            >
-              <div style={styles.serviceHeaderRow}>
-                <span
-                  style={{
-                    ...styles.chevron,
-                    ...(isExpanded ? styles.chevronExpanded : {}),
-                  }}
-                >
-                  ▶
-                </span>
-                {isDomain && service.faviconUrl ? (
-                  <img src={service.faviconUrl} style={styles.icon} alt="" />
-                ) : isDomain ? (
-                  <div style={styles.iconPlaceholder}>🌐</div>
-                ) : icon ? (
-                  <img src={icon} style={styles.icon} alt="" />
-                ) : (
-                  <div style={styles.iconPlaceholder}>E</div>
-                )}
-                <span style={styles.serviceName} title={displayName}>
-                  {!isDomain && "Extension: "}
-                  {displayName}
-                </span>
-                {service.lastActivity > 0 && (
-                  <span style={styles.timestamp}>
-                    {formatRelativeTime(service.lastActivity)}
-                  </span>
-                )}
-                {service.tags.length > 0 && (
-                  <div style={styles.tagColumn}>
-                    {service.tags.map((tag, i) => (
-                      <TagBadge key={i} tag={tag} domain={domain} />
-                    ))}
-                  </div>
-                )}
-                {service.connections.length > 0 && (
-                  <Badge size="sm">{service.connections.length}</Badge>
-                )}
-              </div>
-            </div>
-
-            {isExpanded && (
-              <div style={styles.connectionList}>
-                {service.connections.length === 0 ? (
-                  <div
+              return [
+                <tr key={service.id} style={popupStyles.tableRow}>
+                  <td style={popupStyles.tableCell}>
+                    <button
+                      onClick={() => hasConnections && toggleExpand(service.id)}
+                      disabled={!hasConnections}
+                      aria-label={isExpanded ? "接続を折りたたむ" : "接続を展開する"}
+                      aria-expanded={isExpanded}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: hasConnections ? "pointer" : "default",
+                        opacity: hasConnections ? 1 : 0.4,
+                        padding: 0,
+                        color: colors.textSecondary,
+                        fontSize: "10px",
+                        transition: "transform 0.2s",
+                        transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      ▶
+                    </button>
+                  </td>
+                  <td style={popupStyles.tableCell}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {isDomain && service.faviconUrl ? (
+                        <img
+                          src={service.faviconUrl}
+                          style={{
+                            width: "16px",
+                            height: "16px",
+                            borderRadius: "2px",
+                            flexShrink: 0,
+                          }}
+                          alt=""
+                        />
+                      ) : isDomain ? (
+                        <span style={{ fontSize: "14px", flexShrink: 0 }}>🌐</span>
+                      ) : icon ? (
+                        <img
+                          src={icon}
+                          style={{
+                            width: "16px",
+                            height: "16px",
+                            borderRadius: "2px",
+                            flexShrink: 0,
+                          }}
+                          alt=""
+                        />
+                      ) : (
+                        <span style={{ fontSize: "12px", flexShrink: 0 }}>E</span>
+                      )}
+                      <code
+                        style={{
+                          ...popupStyles.code,
+                          background: "transparent",
+                          padding: 0,
+                          fontSize: "12px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={displayName}
+                      >
+                        {displayName}
+                      </code>
+                    </div>
+                  </td>
+                  <td style={popupStyles.tableCell}>
+                    <div style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
+                      {service.tags
+                        .filter((t) => ["nrd", "typosquat", "ai", "login"].includes(t.type))
+                        .map((tag, i) => (
+                          <TagBadge key={i} tag={tag} domain={domain} />
+                        ))}
+                    </div>
+                  </td>
+                  <td style={popupStyles.tableCell}>
+                    {service.connections.length > 0 && (
+                      <Badge size="sm">{service.connections.length}</Badge>
+                    )}
+                  </td>
+                  <td
                     style={{
-                      ...styles.connectionItem,
+                      ...popupStyles.tableCell,
+                      textAlign: "right",
+                      fontFamily: "monospace",
+                      fontSize: "11px",
                       color: colors.textMuted,
-                      fontStyle: "italic",
                     }}
                   >
-                    接続先なし
-                  </div>
-                ) : (
-                  <>
-                    {service.connections.slice(0, 10).map((conn) => (
-                      <div key={conn.domain} style={styles.connectionItem}>
-                        <span style={styles.connectionName} title={conn.domain}>
-                          {conn.domain.length > 30
-                            ? conn.domain.substring(0, 30) + "..."
-                            : conn.domain}
-                        </span>
-                        <span style={styles.connectionCount}>{conn.requestCount}</span>
-                      </div>
-                    ))}
-                    {service.connections.length > 10 && (
-                      <div
+                    {formatRelativeTime(service.lastActivity)}
+                  </td>
+                </tr>,
+                isExpanded &&
+                  service.connections.length > 0 &&
+                  service.connections.slice(0, 10).map((conn) => (
+                    <tr key={`${service.id}-${conn.domain}`} style={popupStyles.tableRow}>
+                      <td style={{ ...popupStyles.tableCell, padding: "4px 6px" }}></td>
+                      <td
+                        colSpan={4}
                         style={{
-                          ...styles.connectionItem,
+                          ...popupStyles.tableCell,
+                          ...styles.connectionRow,
+                          padding: "4px 12px",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <code
+                            style={{
+                              ...styles.connectionName,
+                              fontSize: "11px",
+                            }}
+                            title={conn.domain}
+                          >
+                            └ {conn.domain}
+                          </code>
+                          <span
+                            style={{
+                              color: colors.textMuted,
+                              fontSize: "10px",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            {conn.requestCount}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )),
+                isExpanded &&
+                  service.connections.length > 10 && (
+                    <tr key={`${service.id}-more`} style={popupStyles.tableRow}>
+                      <td
+                        colSpan={5}
+                        style={{
+                          ...popupStyles.tableCell,
+                          ...styles.connectionRow,
+                          padding: "4px 12px",
                           color: colors.textMuted,
                           fontStyle: "italic",
+                          fontSize: "11px",
                         }}
                       >
                         他 {service.connections.length - 10} 件
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+                      </td>
+                    </tr>
+                  ),
+              ];
+            })}
+          </tbody>
+        </table>
+        {filtered.length > 100 && (
+          <div
+            style={{
+              padding: "8px",
+              textAlign: "center",
+              fontSize: "11px",
+              color: colors.textMuted,
+              borderTop: `1px solid ${colors.borderLight}`,
+            }}
+          >
+            +{filtered.length - 100} more
           </div>
-        );
-      })}
-
-      {sortedServices.length > 15 && (
-        <p style={{ ...styles.emptyText, padding: "8px" }}>
-          他 {sortedServices.length - 15} 件のサービス
-        </p>
-      )}
-
-      <div style={styles.summary}>
-        合計: {sortedServices.length} サービス
+        )}
+        {filtered.length === 0 && (
+          <div
+            style={{
+              padding: "16px",
+              textAlign: "center",
+              fontSize: "12px",
+              color: colors.textMuted,
+            }}
+          >
+            該当するサービスがありません
+          </div>
+        )}
       </div>
     </div>
   );
