@@ -75,7 +75,7 @@ function convertToEvents(
   }
 
   for (const v of violations.slice(0, 50)) {
-    threats.push({
+    events.push({
       id: `csp-${v.timestamp}-${v.blockedURL}`,
       category: "csp_violation",
       severity: v.directive === "script-src" || v.directive === "default-src" ? "high" : "medium",
@@ -86,7 +86,7 @@ function convertToEvents(
   }
 
   for (const r of doHRequests.slice(0, 20)) {
-    threats.push({
+    events.push({
       id: `doh-${r.id}`,
       category: "shadow_ai",
       severity: r.blocked ? "high" : "medium",
