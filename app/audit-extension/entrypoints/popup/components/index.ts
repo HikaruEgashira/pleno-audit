@@ -1,3 +1,3 @@
 export { ServiceTab } from "./ServiceTab";
-export { ThreatTab } from "./ThreatTab";
+export { EventTab } from "./EventTab";
 export { PolicyTab } from "./PolicyTab";

@@ -17,7 +17,7 @@ export interface ServiceTabProps extends ServiceProps, ViolationProps {
   networkRequests: NetworkRequest[];
 }
 
-export interface ThreatTabProps extends ServiceProps, ViolationProps {
+export interface EventTabProps extends ServiceProps, ViolationProps {
   aiPrompts: CapturedAIPrompt[];
   doHRequests: DoHRequestRecord[];
 }

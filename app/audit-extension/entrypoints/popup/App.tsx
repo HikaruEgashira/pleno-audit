@@ -11,16 +11,16 @@ import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, PopupSettingsMenu } from "../../components";
 import {
   ServiceTab,
-  ThreatTab,
+  EventTab,
   PolicyTab,
 } from "./components";
 import { createStyles } from "./styles";
 import { aggregateServices, type UnifiedService } from "./utils/serviceAggregator";
 import { sendMessage } from "./utils/messaging";
 
-type Tab = "service" | "threat" | "policy";
+type Tab = "service" | "event" | "policy";
 
-function countThreats(data: TabData): number {
+function countEvents(data: TabData): number {
   const nrdCount = data.services.filter((s) => s.nrdResult?.isNRD).length;
   const typosquatCount = data.services.filter((s) => s.typosquatResult?.isTyposquat).length;
   let aiRiskCount = 0;
@@ -38,7 +38,7 @@ function countThreats(data: TabData): number {
 
 const TABS: { key: Tab; label: string; count?: (data: TabData) => number }[] = [
   { key: "service", label: "Service", count: (d) => d.unifiedServices.length },
-  { key: "threat", label: "Threat", count: countThreats },
+  { key: "event", label: "Event", count: countEvents },
   { key: "policy", label: "Policy" },
 ];
 
@@ -181,9 +181,9 @@ function PopupContent() {
             networkRequests={networkRequests}
           />
         );
-      case "threat":
+      case "event":
         return (
-          <ThreatTab
+          <EventTab
             services={services}
             violations={violations}
             aiPrompts={aiPrompts}
