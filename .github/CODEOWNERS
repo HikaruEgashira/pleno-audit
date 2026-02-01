@@ -1,6 +1,0 @@
-# Default owners for everything in the repo
-* @HikaruEgashira
-
-# Security-related files require explicit review
-.github/workflows/ @HikaruEgashira
-.github/SECURITY.md @HikaruEgashira
