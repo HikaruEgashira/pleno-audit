@@ -4,8 +4,6 @@
  * ai-hooks.jsはbackground.tsのregisterContentScriptsで注入される
  */
 
-import type { CapturedAIPrompt } from "@pleno-audit/detectors";
-
 function isExtensionContextValid(): boolean {
   try {
     return chrome.runtime?.id != null;

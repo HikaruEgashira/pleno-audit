@@ -7,8 +7,10 @@
  * Only active in development mode.
  */
 
-import { setDebuggerSink, type LogEntry } from "@pleno-audit/extension-runtime";
+import { setDebuggerSink, createLogger, type LogEntry } from "@pleno-audit/extension-runtime";
 import { ParquetStore } from "@pleno-audit/parquet-storage";
+
+const logger = createLogger("debug-bridge");
 
 // Shared ParquetStore instance
 let parquetStore: ParquetStore | null = null;
@@ -94,7 +96,7 @@ export function initDebugBridge(): void {
   // Set up logger sink to forward logs to debug server
   setDebuggerSink(sendLog);
 
-  console.log("[debug-bridge] Initializing...");
+  logger.info("Initializing...");
   connect();
 }
 
@@ -110,7 +112,7 @@ function connect(): void {
     ws = new WebSocket(DEBUG_SERVER_URL);
 
     ws.onopen = () => {
-      console.log("[debug-bridge] Connected to debug server");
+      logger.info("Connected to debug server");
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -137,22 +139,22 @@ function connect(): void {
         const response = await handleMessage(message);
         sendResponse({ id: message.id, ...response });
       } catch (error) {
-        console.error("[debug-bridge] Error handling message:", error);
+        logger.error("Error handling message:", error);
       }
     };
 
     ws.onclose = (event) => {
-      console.log(`[debug-bridge] Disconnected from debug server (code: ${event.code}, reason: ${event.reason || "none"})`);
+      logger.info(`Disconnected from debug server (code: ${event.code}, reason: ${event.reason || "none"})`);
       ws = null;
       scheduleReconnect();
     };
 
     ws.onerror = (error) => {
-      console.error("[debug-bridge] WebSocket error:", error);
+      logger.error("WebSocket error:", error);
       ws?.close();
     };
   } catch (error) {
-    console.error("[debug-bridge] Connection error:", error);
+    logger.error("Connection error:", error);
     scheduleReconnect();
   }
 }
@@ -291,7 +293,7 @@ async function getSnapshot(): Promise<Omit<DebugResponse, "id">> {
       },
     };
   } catch (error) {
-    console.error("[debug-bridge] getSnapshot error:", error);
+    logger.error("getSnapshot error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -395,7 +397,7 @@ async function getEvents(params: {
       data: filteredEvents,
     };
   } catch (error) {
-    console.error("[debug-bridge] getEvents error:", error);
+    logger.error("getEvents error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get events",
@@ -413,7 +415,7 @@ async function getEventsCount(): Promise<Omit<DebugResponse, "id">> {
       data: result.total,
     };
   } catch (error) {
-    console.error("[debug-bridge] getEventsCount error:", error);
+    logger.error("getEventsCount error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get events count",
@@ -430,7 +432,7 @@ async function clearEvents(): Promise<Omit<DebugResponse, "id">> {
       success: true,
     };
   } catch (error) {
-    console.error("[debug-bridge] clearEvents error:", error);
+    logger.error("clearEvents error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to clear events",
