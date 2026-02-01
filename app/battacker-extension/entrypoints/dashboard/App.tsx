@@ -32,6 +32,13 @@ export function App() {
 
   useEffect(() => {
     loadData();
+    // Cleanup port on unmount
+    return () => {
+      if (portRef.current) {
+        portRef.current.disconnect();
+        portRef.current = null;
+      }
+    };
   }, []);
 
   async function loadData() {

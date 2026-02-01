@@ -48,7 +48,9 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
   try {
     logger.info(`Starting ${allAttacks.length} attack simulations...`);
 
-    const results = await runAllTests(allAttacks, (completed, total, current) => {
+    const results = await runAllTests(allAttacks, (completedIndex, total, current) => {
+      // Convert 0-based index to 1-based completed count
+      const completed = completedIndex + 1;
       logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
 
       // Send progress event through Port
@@ -80,13 +82,11 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
     };
     port.postMessage(completedEvent);
 
-    // Disconnect Port
-    port.disconnect();
-
     return score;
   } catch (error) {
     logger.error("Test execution error:", error);
-    port.disconnect();
     return { error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    port.disconnect();
   }
 }

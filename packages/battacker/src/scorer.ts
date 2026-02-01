@@ -128,6 +128,6 @@ export async function runAllTests(
     }
   }
 
-  onProgress?.(total, total, attacks[attacks.length - 1]);
+  // Note: completion notification is handled by caller (content.ts)
   return results;
 }

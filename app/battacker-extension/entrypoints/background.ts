@@ -173,6 +173,11 @@ export default defineBackground(() => {
       logger.info("Scan port connected, panel ports:", panelPorts.size);
 
       port.onMessage.addListener((message: ScanProgressEvent) => {
+        // Validate message structure before relaying
+        if (message.type !== "BATTACKER_SCAN_PROGRESS") {
+          return;
+        }
+
         // Store current progress for late-connecting panels
         currentScanProgress = message;
 
