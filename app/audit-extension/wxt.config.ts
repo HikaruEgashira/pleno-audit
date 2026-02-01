@@ -69,6 +69,12 @@ export default defineConfig({
       ...(!isMV2 && {
         content_scripts: [
           {
+            js: ["api-hooks.js"],
+            matches: ["<all_urls>"],
+            run_at: "document_start",
+            world: "MAIN",
+          },
+          {
             js: ["ai-hooks.js"],
             matches: ["<all_urls>"],
             run_at: "document_start",
