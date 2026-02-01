@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { GeneratedCSPPolicy } from "@pleno-audit/csp";
 import { Badge, Button } from "../../../components";
 import { usePopupStyles } from "../styles";
@@ -23,19 +23,44 @@ export function PolicyGenerator() {
   const [loading, setLoading] = useState(false);
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
 
-  async function handleGenerate() {
+  useEffect(() => {
+    chrome.storage.local.get("generatedCSPPolicy", (data) => {
+      if (data.generatedCSPPolicy) {
+        setResult(data.generatedCSPPolicy);
+        if (data.generatedCSPPolicy.policies?.length > 0) {
+          setExpandedDomain(data.generatedCSPPolicy.policies[0].domain);
+        }
+      }
+    });
+
+    const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.generatedCSPPolicy?.newValue) {
+        const newData = changes.generatedCSPPolicy.newValue as GeneratedCSPByDomain;
+        setResult(newData);
+        setExpandedDomain((prev) =>
+          prev ? prev : newData.policies?.[0]?.domain ?? null
+        );
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  async function handleRegenerate() {
     setLoading(true);
     try {
       const data = await sendMessage<GeneratedCSPByDomain>({
-        type: "GENERATE_CSP_BY_DOMAIN",
+        type: "REGENERATE_CSP_POLICY",
         data: { options: { strictMode: false, includeReportUri: true } },
       });
-      setResult(data);
-      if (data?.policies?.length > 0) {
-        setExpandedDomain(data.policies[0].domain);
+      if (data) {
+        setResult(data);
+        if (data.policies?.length > 0) {
+          setExpandedDomain(data.policies[0].domain);
+        }
       }
     } catch {
-      // Failed to generate policy
+      // Failed to regenerate policy
     } finally {
       setLoading(false);
     }
@@ -50,29 +75,21 @@ export function PolicyGenerator() {
     }
   }
 
-  if (!result) {
+  if (!result || result.policies.length === 0) {
     return (
       <div style={styles.section}>
         <p style={{ ...styles.emptyText, marginBottom: "12px" }}>
-          ドメイン別にCSPポリシーを生成
+          CSP違反データがまだ収集されていません
+        </p>
+        <p style={{ ...styles.emptyText, fontSize: "11px", marginBottom: "12px" }}>
+          ブラウジングするとバックグラウンドで自動的にポリシーが生成されます
         </p>
         <Button
-          onClick={handleGenerate}
+          onClick={handleRegenerate}
           disabled={loading}
-          variant="primary"
+          variant="secondary"
         >
-          {loading ? "生成中..." : "CSPポリシーを生成"}
-        </Button>
-      </div>
-    );
-  }
-
-  if (result.policies.length === 0) {
-    return (
-      <div style={styles.section}>
-        <p style={styles.emptyText}>データがまだ収集されていません</p>
-        <Button onClick={() => setResult(null)} variant="secondary">
-          クリア
+          {loading ? "生成中..." : "手動で再生成"}
         </Button>
       </div>
     );
@@ -91,8 +108,13 @@ export function PolicyGenerator() {
         <h3 style={{ ...styles.sectionTitle, margin: 0 }}>
           CSPポリシー ({result.totalDomains})
         </h3>
-        <Button onClick={() => setResult(null)} variant="ghost" size="sm">
-          クリア
+        <Button
+          onClick={handleRegenerate}
+          disabled={loading}
+          variant="ghost"
+          size="sm"
+        >
+          {loading ? "..." : "再生成"}
         </Button>
       </div>
 
@@ -130,7 +152,7 @@ function DomainPolicyCard({
   onToggle: () => void;
   onCopy: () => void;
   styles: ReturnType<typeof usePopupStyles>;
-  colors: any;
+  colors: ReturnType<typeof useTheme>["colors"];
 }) {
   return (
     <div style={styles.card}>
