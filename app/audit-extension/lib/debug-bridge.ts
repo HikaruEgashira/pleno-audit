@@ -250,7 +250,16 @@ async function handleMessage(
         return await getDNRConfig();
 
       case "DEBUG_DNR_CONFIG_SET":
-        return await setDNRConfig(data as { enabled?: boolean; excludeOwnExtension?: boolean; maxStoredRequests?: number });
+        return await setDNRConfig(data as { enabled?: boolean; excludeOwnExtension?: boolean });
+
+      case "DEBUG_NETWORK_CONFIG_GET":
+        return await getNetworkConfig();
+
+      case "DEBUG_NETWORK_CONFIG_SET":
+        return await setNetworkConfig(data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean });
+
+      case "DEBUG_NETWORK_REQUESTS_GET":
+        return await getNetworkRequests(data as { limit?: number; initiatorType?: string });
 
       default:
         // Forward to background script as a regular message
@@ -506,7 +515,7 @@ async function getDoHRequests(params?: {
 }
 
 /**
- * DNR (Extension Monitor) operations
+ * DNR (Extension Monitor) operations - Legacy support
  */
 const DEFAULT_DNR_CONFIG = {
   enabled: true,
@@ -540,7 +549,6 @@ async function setDNRConfig(params: {
     const newConfig = { ...currentConfig, ...params };
     await chrome.storage.local.set({ extensionMonitorConfig: newConfig });
 
-    // Notify background to update monitor config via message
     chrome.runtime.sendMessage({
       type: "SET_EXTENSION_MONITOR_CONFIG",
       data: newConfig,
@@ -551,6 +559,81 @@ async function setDNRConfig(params: {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to set DNR config",
+    };
+  }
+}
+
+/**
+ * Network Monitor operations
+ */
+const DEFAULT_NETWORK_CONFIG = {
+  enabled: true,
+  captureAllRequests: true,
+  excludeOwnExtension: true,
+  excludedDomains: [] as string[],
+  excludedExtensions: [] as string[],
+};
+
+async function getNetworkConfig(): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    return {
+      success: true,
+      data: storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get Network config",
+    };
+  }
+}
+
+async function setNetworkConfig(params: {
+  enabled?: boolean;
+  captureAllRequests?: boolean;
+  excludeOwnExtension?: boolean;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    const currentConfig = storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG;
+    const newConfig = { ...currentConfig, ...params };
+    await chrome.storage.local.set({ networkMonitorConfig: newConfig });
+
+    chrome.runtime.sendMessage({
+      type: "SET_NETWORK_MONITOR_CONFIG",
+      data: newConfig,
+    }).catch(() => {});
+
+    return { success: true, data: newConfig };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to set Network config",
+    };
+  }
+}
+
+async function getNetworkRequests(params?: {
+  limit?: number;
+  initiatorType?: string;
+}): Promise<Omit<DebugResponse, "id">> {
+  try {
+    const storage = await chrome.storage.local.get("networkRequests");
+    let requests = storage.networkRequests || [];
+
+    if (params?.initiatorType) {
+      requests = requests.filter((r: { initiatorType: string }) => r.initiatorType === params.initiatorType);
+    }
+
+    const limit = params?.limit || 20;
+    requests = requests.slice(0, limit);
+
+    return { success: true, data: requests };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get network requests",
     };
   }
 }

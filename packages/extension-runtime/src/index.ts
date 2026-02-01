@@ -66,6 +66,9 @@ export type {
   AIMonitorConfig,
   ExtensionMonitorConfig,
   ExtensionRequestRecord,
+  NetworkMonitorConfig,
+  NetworkRequestRecord,
+  InitiatorType,
   DataRetentionConfig,
   DetectionConfig,
   BlockingConfig,
@@ -77,20 +80,27 @@ export {
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
   DEFAULT_NOTIFICATION_CONFIG,
+  DEFAULT_NETWORK_MONITOR_CONFIG,
 } from "./storage-types.js";
 
-// Extension Monitor
+// Network Monitor (primary)
 export {
-  createExtensionMonitor,
-  registerExtensionMonitorListener,
+  createNetworkMonitor,
+  registerNetworkMonitorListener,
   clearGlobalCallbacks,
-  DEFAULT_EXTENSION_MONITOR_CONFIG,
   registerDNRRulesForExtensions,
   checkMatchedDNRRules,
   clearDNRRules,
-  type ExtensionMonitor,
+  addDNRRuleForExtension,
+  removeDNRRuleForExtension,
+  type NetworkMonitor,
   type ExtensionInfo,
-} from "./extension-monitor.js";
+  // Backward compatibility aliases
+  createExtensionMonitor,
+  registerExtensionMonitorListener,
+  DEFAULT_EXTENSION_MONITOR_CONFIG,
+  type ExtensionMonitor as ExtensionMonitorType,
+} from "./network-monitor.js";
 
 // Extension Stats Analyzer
 export {

@@ -1,36 +1,37 @@
 import { useState, useEffect } from "preact/hooks";
-import type { ExtensionMonitorConfig } from "@pleno-audit/extension-runtime";
+import type { NetworkMonitorConfig } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
-interface DNROption {
-  key: keyof Pick<ExtensionMonitorConfig, "enabled" | "excludeOwnExtension">;
+interface NetworkMonitorOption {
+  key: keyof Pick<NetworkMonitorConfig, "enabled" | "captureAllRequests" | "excludeOwnExtension">;
   label: string;
   description: string;
 }
 
-const DNR_OPTIONS: DNROption[] = [
-  { key: "enabled", label: "拡張機能監視", description: "拡張機能の通信を監視" },
+const NETWORK_MONITOR_OPTIONS: NetworkMonitorOption[] = [
+  { key: "enabled", label: "ネットワーク監視", description: "全リクエストを監視" },
+  { key: "captureAllRequests", label: "全リクエスト", description: "拡張機能以外も記録" },
   { key: "excludeOwnExtension", label: "自身を除外", description: "Pleno Auditを除外" },
 ];
 
-export function DNRSettings() {
+export function NetworkMonitorSettings() {
   const { colors } = useTheme();
-  const [config, setConfig] = useState<ExtensionMonitorConfig | null>(null);
+  const [config, setConfig] = useState<NetworkMonitorConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    sendMessage<ExtensionMonitorConfig>({ type: "GET_EXTENSION_MONITOR_CONFIG" })
+    sendMessage<NetworkMonitorConfig>({ type: "GET_NETWORK_MONITOR_CONFIG" })
       .then(setConfig)
       .catch(() => {});
   }, []);
 
-  function handleToggle(key: DNROption["key"]) {
+  function handleToggle(key: NetworkMonitorOption["key"]) {
     if (!config) return;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     sendMessage({
-      type: "SET_EXTENSION_MONITOR_CONFIG",
+      type: "SET_NETWORK_MONITOR_CONFIG",
       data: newConfig,
     }).catch(() => {});
   }
@@ -62,7 +63,7 @@ export function DNRSettings() {
     content: {
       marginTop: "8px",
       display: "grid",
-      gridTemplateColumns: "1fr 1fr",
+      gridTemplateColumns: "1fr",
       gap: "6px",
     },
     option: {
@@ -98,20 +99,20 @@ export function DNRSettings() {
 
   if (!config) return null;
 
-  const enabledCount = DNR_OPTIONS.filter(opt => config[opt.key]).length;
+  const enabledCount = NETWORK_MONITOR_OPTIONS.filter(opt => config[opt.key]).length;
 
   return (
     <div style={styles.container}>
       <div style={styles.header} onClick={() => setExpanded(!expanded)}>
         <span style={styles.title}>
-          DNR設定 ({enabledCount}/{DNR_OPTIONS.length})
+          Network Monitor ({enabledCount}/{NETWORK_MONITOR_OPTIONS.length})
         </span>
         <span style={styles.chevron}>▶</span>
       </div>
 
       {expanded && (
         <div style={styles.content}>
-          {DNR_OPTIONS.map((opt) => (
+          {NETWORK_MONITOR_OPTIONS.map((opt) => (
             <label
               key={opt.key}
               style={styles.option}
@@ -139,3 +140,6 @@ export function DNRSettings() {
     </div>
   );
 }
+
+// 後方互換性のためのエイリアス
+export { NetworkMonitorSettings as DNRSettings };
