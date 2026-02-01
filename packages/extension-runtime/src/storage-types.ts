@@ -8,7 +8,7 @@ import type {
   AIMonitorConfig,
   NRDConfig,
 } from "@pleno-audit/detectors";
-import type { CSPConfig, CSPReport } from "@pleno-audit/csp";
+import type { CSPConfig, CSPReport, GeneratedCSPByDomain } from "@pleno-audit/csp";
 
 // Forecast config removed - enterprise feature
 
@@ -139,6 +139,7 @@ export interface StorageData {
   events: EventLog[];
   cspReports?: CSPReport[];
   cspConfig?: CSPConfig;
+  generatedCSPPolicy?: GeneratedCSPByDomain;
   aiPrompts?: CapturedAIPrompt[];
   aiMonitorConfig?: AIMonitorConfig;
   nrdConfig?: NRDConfig;
@@ -213,6 +214,7 @@ export type {
   EventLog,
   CSPConfig,
   CSPReport,
+  GeneratedCSPByDomain,
   CapturedAIPrompt,
   AIMonitorConfig,
   NRDConfig,

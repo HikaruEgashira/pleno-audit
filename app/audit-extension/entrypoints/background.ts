@@ -124,6 +124,9 @@ let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
 let doHMonitor: DoHMonitor | null = null;
 
+// CSP Policy auto-generation debounce timer
+let cspGenerationTimer: ReturnType<typeof setTimeout> | null = null;
+
 // ============================================================================
 // Alert Manager
 // ============================================================================
@@ -1808,9 +1811,41 @@ async function storeCSPReport(report: CSPReport) {
       apiClient = await getApiClient();
     }
     await apiClient.postReports([report]);
+    // Trigger CSP policy auto-generation after storing report
+    scheduleCSPPolicyGeneration();
   } catch (error) {
     logger.error("Error storing report:", error);
   }
+}
+
+/**
+ * Schedule CSP policy auto-generation with debouncing
+ * Generates policies 500ms after last report to avoid frequent regeneration
+ */
+function scheduleCSPPolicyGeneration() {
+  if (cspGenerationTimer) {
+    clearTimeout(cspGenerationTimer);
+  }
+
+  cspGenerationTimer = setTimeout(async () => {
+    try {
+      const result = await generateCSPPolicyByDomain({
+        strictMode: false,
+        includeReportUri: true,
+      });
+      await saveGeneratedCSPPolicy(result);
+      logger.debug("CSP policy auto-generated", { totalDomains: result.totalDomains });
+    } catch (error) {
+      logger.error("Error auto-generating CSP policy:", error);
+    }
+  }, 500);
+}
+
+/**
+ * Save generated CSP policy to chrome.storage.local
+ */
+async function saveGeneratedCSPPolicy(result: GeneratedCSPByDomain) {
+  await chrome.storage.local.set({ generatedCSPPolicy: result });
 }
 
 async function flushReportQueue() {
@@ -2605,6 +2640,23 @@ export default defineBackground(() => {
     if (message.type === "GENERATE_CSP_BY_DOMAIN") {
       generateCSPPolicyByDomain(message.data?.options)
         .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+
+    if (message.type === "GET_GENERATED_CSP_POLICY") {
+      chrome.storage.local.get("generatedCSPPolicy", (data) => {
+        sendResponse(data.generatedCSPPolicy || null);
+      });
+      return true;
+    }
+
+    if (message.type === "REGENERATE_CSP_POLICY") {
+      generateCSPPolicyByDomain(message.data?.options || { strictMode: false, includeReportUri: true })
+        .then(async (result) => {
+          await saveGeneratedCSPPolicy(result);
+          sendResponse(result);
+        })
         .catch(() => sendResponse(null));
       return true;
     }
