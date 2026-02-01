@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import type { DetectedService, CapturedAIPrompt } from "@pleno-audit/detectors";
-import type { CSPViolation } from "@pleno-audit/csp";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import type { AlertSeverity, AlertCategory } from "@pleno-audit/detectors";
 import { analyzePromptPII, assessPromptRisk } from "@pleno-audit/detectors";
@@ -8,14 +8,15 @@ import { Badge, Button } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 
-interface ThreatTabProps {
+interface EventTabProps {
   services: DetectedService[];
   violations: CSPViolation[];
+  networkRequests: NetworkRequest[];
   aiPrompts: CapturedAIPrompt[];
   doHRequests: DoHRequestRecord[];
 }
 
-interface ThreatItem {
+interface EventItem {
   id: string;
   category: AlertCategory;
   severity: AlertSeverity;
@@ -24,18 +25,19 @@ interface ThreatItem {
   timestamp: number;
 }
 
-function convertToThreats(
+function convertToEvents(
   services: DetectedService[],
   violations: CSPViolation[],
+  networkRequests: NetworkRequest[],
   aiPrompts: CapturedAIPrompt[],
   doHRequests: DoHRequestRecord[]
-): ThreatItem[] {
-  const threats: ThreatItem[] = [];
+): EventItem[] {
+  const events: EventItem[] = [];
 
   for (const service of services) {
     if (service.nrdResult?.isNRD) {
       const age = service.nrdResult.domainAge;
-      threats.push({
+      events.push({
         id: `nrd-${service.domain}`,
         category: "nrd",
         severity: age !== null && age < 7 ? "critical" : "high",
@@ -46,7 +48,7 @@ function convertToThreats(
     }
     if (service.typosquatResult?.isTyposquat) {
       const score = service.typosquatResult.score || 0;
-      threats.push({
+      events.push({
         id: `typosquat-${service.domain}`,
         category: "typosquat",
         severity: score >= 0.9 ? "critical" : score >= 0.7 ? "high" : "medium",
@@ -62,7 +64,7 @@ function convertToThreats(
     if (pii.hasSensitiveData) {
       const risk = assessPromptRisk(prompt.prompt);
       if (risk.riskLevel !== "info" && risk.riskLevel !== "low") {
-        threats.push({
+        events.push({
           id: `ai-${prompt.id}`,
           category: "ai_sensitive",
           severity: risk.riskLevel,
@@ -75,7 +77,7 @@ function convertToThreats(
   }
 
   for (const v of violations.slice(0, 50)) {
-    threats.push({
+    events.push({
       id: `csp-${v.timestamp}-${v.blockedURL}`,
       category: "csp_violation",
       severity: v.directive === "script-src" || v.directive === "default-src" ? "high" : "medium",
@@ -86,7 +88,7 @@ function convertToThreats(
   }
 
   for (const r of doHRequests.slice(0, 20)) {
-    threats.push({
+    events.push({
       id: `doh-${r.id}`,
       category: "shadow_ai",
       severity: r.blocked ? "high" : "medium",
@@ -96,8 +98,26 @@ function convertToThreats(
     });
   }
 
+  // Network requests (info level)
+  for (const req of networkRequests.slice(0, 100)) {
+    let domain: string;
+    try {
+      domain = new URL(req.url).hostname;
+    } catch {
+      domain = req.url;
+    }
+    events.push({
+      id: `net-${req.timestamp}-${req.url}`,
+      category: "network" as AlertCategory,
+      severity: "info",
+      title: `${req.method} ${domain}`,
+      domain,
+      timestamp: new Date(req.timestamp).getTime(),
+    });
+  }
+
   const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-  return threats.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  return events.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 }
 
 function getSeverityVariant(sev: AlertSeverity): "danger" | "warning" | "info" | "default" {
@@ -115,50 +135,46 @@ const CATEGORY_LABELS: Record<string, string> = {
   ai_sensitive: "AI",
   csp_violation: "CSP",
   shadow_ai: "DoH",
+  network: "Net",
 };
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function ThreatTab({ services, violations, aiPrompts, doHRequests }: ThreatTabProps) {
+export function EventTab({ services, violations, networkRequests, aiPrompts, doHRequests }: EventTabProps) {
   const styles = usePopupStyles();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const threats = useMemo(
-    () => convertToThreats(services, violations, aiPrompts, doHRequests),
-    [services, violations, aiPrompts, doHRequests]
+  const events = useMemo(
+    () => convertToEvents(services, violations, networkRequests, aiPrompts, doHRequests),
+    [services, violations, networkRequests, aiPrompts, doHRequests]
   );
 
   const counts = useMemo(() => {
-    const byCat: Record<string, number> = {};
-    for (const t of threats) {
-      byCat[t.category] = (byCat[t.category] || 0) + 1;
+    const bySeverity: Record<string, number> = {};
+    for (const e of events) {
+      bySeverity[e.severity] = (bySeverity[e.severity] || 0) + 1;
     }
-    return byCat;
-  }, [threats]);
+    return bySeverity;
+  }, [events]);
 
   const filtered = useMemo(() => {
-    if (!searchQuery) return threats;
+    if (!searchQuery) return events;
     const q = searchQuery.toLowerCase();
-    // Category filter
-    if (["nrd", "typosquat", "ai", "csp", "doh"].includes(q)) {
-      const catMap: Record<string, string> = { nrd: "nrd", typosquat: "typosquat", ai: "ai_sensitive", csp: "csp_violation", doh: "shadow_ai" };
-      return threats.filter((t) => t.category === catMap[q]);
-    }
     // Severity filter
-    if (["critical", "high", "medium"].includes(q)) {
-      return threats.filter((t) => t.severity === q);
+    if (["critical", "high", "medium", "low", "info"].includes(q)) {
+      return events.filter((e) => e.severity === q);
     }
     // Text search
-    return threats.filter((t) => t.title.toLowerCase().includes(q) || t.domain.toLowerCase().includes(q));
-  }, [threats, searchQuery]);
+    return events.filter((e) => e.title.toLowerCase().includes(q) || e.domain.toLowerCase().includes(q));
+  }, [events, searchQuery]);
 
-  if (threats.length === 0) {
+  if (events.length === 0) {
     return (
       <div style={styles.section}>
-        <p style={styles.emptyText}>脅威は検出されていません</p>
+        <p style={styles.emptyText}>イベントはありません</p>
       </div>
     );
   }
@@ -189,31 +205,40 @@ export function ThreatTab({ services, violations, aiPrompts, doHRequests }: Thre
             outline: "none",
           }}
         />
-        {counts.nrd > 0 && (
+        {(counts.critical ?? 0) > 0 && (
           <Button
-            variant={searchQuery === "nrd" ? "primary" : "secondary"}
+            variant={searchQuery === "critical" ? "primary" : "secondary"}
             size="sm"
-            onClick={() => setSearchQuery(searchQuery === "nrd" ? "" : "nrd")}
+            onClick={() => setSearchQuery(searchQuery === "critical" ? "" : "critical")}
           >
-            NRD ({counts.nrd})
+            Critical ({counts.critical})
           </Button>
         )}
-        {counts.typosquat > 0 && (
+        {(counts.high ?? 0) > 0 && (
           <Button
-            variant={searchQuery === "typosquat" ? "primary" : "secondary"}
+            variant={searchQuery === "high" ? "primary" : "secondary"}
             size="sm"
-            onClick={() => setSearchQuery(searchQuery === "typosquat" ? "" : "typosquat")}
+            onClick={() => setSearchQuery(searchQuery === "high" ? "" : "high")}
           >
-            Typosquat ({counts.typosquat})
+            High ({counts.high})
           </Button>
         )}
-        {counts.csp_violation > 0 && (
+        {(counts.medium ?? 0) > 0 && (
           <Button
-            variant={searchQuery === "csp" ? "primary" : "secondary"}
+            variant={searchQuery === "medium" ? "primary" : "secondary"}
             size="sm"
-            onClick={() => setSearchQuery(searchQuery === "csp" ? "" : "csp")}
+            onClick={() => setSearchQuery(searchQuery === "medium" ? "" : "medium")}
           >
-            CSP ({counts.csp_violation})
+            Medium ({counts.medium})
+          </Button>
+        )}
+        {(counts.info ?? 0) > 0 && (
+          <Button
+            variant={searchQuery === "info" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setSearchQuery(searchQuery === "info" ? "" : "info")}
+          >
+            Info ({counts.info})
           </Button>
         )}
       </div>
@@ -236,19 +261,19 @@ export function ThreatTab({ services, violations, aiPrompts, doHRequests }: Thre
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 100).map((t) => (
-              <tr key={t.id} style={styles.tableRow}>
+            {filtered.slice(0, 100).map((e) => (
+              <tr key={e.id} style={styles.tableRow}>
                 <td style={styles.tableCell}>
-                  <Badge variant={getSeverityVariant(t.severity)} size="sm">{t.severity}</Badge>
+                  <Badge variant={getSeverityVariant(e.severity)} size="sm">{e.severity}</Badge>
                 </td>
                 <td style={styles.tableCell}>
-                  <Badge size="sm">{CATEGORY_LABELS[t.category] || t.category}</Badge>
+                  <Badge size="sm">{CATEGORY_LABELS[e.category] || e.category}</Badge>
                 </td>
                 <td style={{ ...styles.tableCell, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  <code style={{ ...styles.code, background: "transparent", padding: 0 }} title={t.title}>{t.title}</code>
+                  <code style={{ ...styles.code, background: "transparent", padding: 0 }} title={e.title}>{e.title}</code>
                 </td>
                 <td style={{ ...styles.tableCell, textAlign: "right", fontFamily: "monospace", fontSize: "11px", color: colors.textMuted }}>
-                  {formatTime(t.timestamp)}
+                  {formatTime(e.timestamp)}
                 </td>
               </tr>
             ))}
@@ -261,7 +286,7 @@ export function ThreatTab({ services, violations, aiPrompts, doHRequests }: Thre
         )}
         {filtered.length === 0 && (
           <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: colors.textMuted }}>
-            該当する脅威がありません
+            該当するイベントがありません
           </div>
         )}
       </div>
