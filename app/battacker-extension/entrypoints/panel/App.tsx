@@ -1,24 +1,50 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
 import { useState, useEffect } from "preact/hooks";
 import { motion } from "motion/react";
-import type { DefenseScore } from "@pleno-audit/battacker";
+import type { DefenseScore, ScanProgressEvent, AttackCategory } from "@pleno-audit/battacker";
 import { CATEGORY_LABELS } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker-popup");
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface ScanState {
+  completed: number;
+  total: number;
+  currentTest: {
+    name: string;
+    category: AttackCategory;
+  } | null;
 }
 
 export function App() {
   const [score, setScore] = useState<DefenseScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanPhase, setScanPhase] = useState("");
+  const [scanState, setScanState] = useState<ScanState>({
+    completed: 0,
+    total: 0,
+    currentTest: null,
+  });
 
   useEffect(() => {
     loadLastResult();
+
+    // Listen for progress messages from background
+    const handleMessage = (message: ScanProgressEvent) => {
+      if (message.type === "BATTACKER_SCAN_PROGRESS") {
+        setScanState({
+          completed: message.completed,
+          total: message.total,
+          currentTest: message.currentTest
+            ? { name: message.currentTest.name, category: message.currentTest.category }
+            : null,
+        });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
   }, []);
 
   async function loadLastResult() {
@@ -34,51 +60,10 @@ export function App() {
 
   async function runTests() {
     setRunning(true);
-    setScanProgress(0);
+    setScanState({ completed: 0, total: 0, currentTest: null });
 
     try {
-      const resultPromise = chrome.runtime.sendMessage({ type: "RUN_TESTS" });
-
-      // Cinematic scan sequence
-      setScanPhase("INIT");
-      for (let i = 0; i <= 15; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("TRACK");
-      for (let i = 15; i <= 35; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("PROBE");
-      for (let i = 35; i <= 55; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("SCAN");
-      for (let i = 55; i <= 75; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("ANALYZE");
-      for (let i = 75; i <= 95; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("DONE");
-      for (let i = 95; i <= 100; i++) {
-        setScanProgress(i);
-        await delay(30);
-      }
-
-      await delay(400);
-
-      const result = await resultPromise;
+      const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
       if (!("error" in result)) {
         setScore(result);
       }
@@ -86,8 +71,7 @@ export function App() {
       logger.error("Failed to run tests:", error);
     } finally {
       setRunning(false);
-      setScanProgress(0);
-      setScanPhase("");
+      setScanState({ completed: 0, total: 0, currentTest: null });
     }
   }
 
@@ -102,11 +86,11 @@ export function App() {
       </div>
 
       <UnifiedGauge
-        value={running ? scanProgress : (score?.totalScore ?? 0)}
+        value={running ? (scanState.total > 0 ? Math.round((scanState.completed / scanState.total) * 100) : 0) : (score?.totalScore ?? 0)}
         grade={running ? "" : (score?.grade ?? "?")}
         isScanning={running}
         isLoading={loading}
-        phase={scanPhase}
+        scanState={running ? scanState : undefined}
         onClick={running || loading ? undefined : runTests}
       />
 
@@ -126,14 +110,14 @@ function UnifiedGauge({
   grade,
   isScanning,
   isLoading,
-  phase,
+  scanState,
   onClick,
 }: {
   value: number;
   grade: string;
   isScanning: boolean;
   isLoading: boolean;
-  phase: string;
+  scanState?: ScanState;
   onClick?: () => void;
 }) {
   const size = 180;
@@ -373,24 +357,40 @@ function UnifiedGauge({
             >
               INIT
             </motion.div>
-          ) : isScanning ? (
+          ) : isScanning && scanState ? (
             <motion.div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <motion.div
-                style={{ fontSize: 40, fontWeight: 800, fontFamily: "'SF Mono', monospace", color: "#fff", letterSpacing: 2 }}
-                animate={{ opacity: [1, 0.6, 1] }}
+                style={{ fontSize: 32, fontWeight: 800, fontFamily: "'SF Mono', monospace", color: "#fff", letterSpacing: 1, lineHeight: 1 }}
+                animate={{ opacity: [1, 0.7, 1] }}
                 transition={{ duration: 0.8, repeat: Infinity }}
               >
-                {value}
+                {scanState.completed}
               </motion.div>
-              <motion.div
-                key={phase}
-                style={{ fontSize: 9, fontWeight: 600, letterSpacing: 3, color: "#555", marginTop: 4 }}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {phase}
-              </motion.div>
+              <div style={{ fontSize: 14, color: "#666", fontFamily: "'SF Mono', monospace", marginTop: 2 }}>
+                /{scanState.total || "?"}
+              </div>
+              {scanState.currentTest && (
+                <>
+                  <motion.div
+                    key={scanState.currentTest.category}
+                    style={{ fontSize: 9, fontWeight: 600, letterSpacing: 2, color: "#888", marginTop: 6, textTransform: "uppercase" }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {scanState.currentTest.category.toUpperCase()}
+                  </motion.div>
+                  <motion.div
+                    key={scanState.currentTest.name}
+                    style={{ fontSize: 8, color: "#555", marginTop: 2, maxWidth: 100, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    {scanState.currentTest.name}
+                  </motion.div>
+                </>
+              )}
             </motion.div>
           ) : hasResult ? (
             <>

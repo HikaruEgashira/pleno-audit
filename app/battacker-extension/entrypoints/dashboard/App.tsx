@@ -1,15 +1,20 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
 import { useState, useEffect } from "preact/hooks";
 import { motion } from "motion/react";
-import type { DefenseScore, CategoryScore, TestResult } from "@pleno-audit/battacker";
+import type { DefenseScore, CategoryScore, TestResult, ScanProgressEvent, AttackCategory } from "@pleno-audit/battacker";
 import { CATEGORY_LABELS } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker-dashboard");
 
 type TabType = "overview" | "results" | "history";
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface ScanState {
+  completed: number;
+  total: number;
+  currentTest: {
+    name: string;
+    category: AttackCategory;
+  } | null;
 }
 
 export function App() {
@@ -18,11 +23,32 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanPhase, setScanPhase] = useState("");
+  const [scanState, setScanState] = useState<ScanState>({
+    completed: 0,
+    total: 0,
+    currentTest: null,
+  });
 
   useEffect(() => {
     loadData();
+
+    // Listen for progress messages from background
+    const handleMessage = (message: ScanProgressEvent) => {
+      if (message.type === "BATTACKER_SCAN_PROGRESS") {
+        setScanState({
+          completed: message.completed,
+          total: message.total,
+          currentTest: message.currentTest
+            ? { name: message.currentTest.name, category: message.currentTest.category }
+            : null,
+        });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
   }, []);
 
   async function loadData() {
@@ -42,51 +68,10 @@ export function App() {
 
   async function runTests() {
     setRunning(true);
-    setScanProgress(0);
+    setScanState({ completed: 0, total: 0, currentTest: null });
 
     try {
-      const resultPromise = chrome.runtime.sendMessage({ type: "RUN_TESTS" });
-
-      // Cinematic scan sequence
-      setScanPhase("INITIALIZING");
-      for (let i = 0; i <= 15; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("TRACKING VECTORS");
-      for (let i = 15; i <= 35; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("PROBING DEFENSES");
-      for (let i = 35; i <= 55; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("NETWORK SCAN");
-      for (let i = 55; i <= 75; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("ANALYZING DATA");
-      for (let i = 75; i <= 95; i++) {
-        setScanProgress(i);
-        await delay(40);
-      }
-
-      setScanPhase("COMPLETE");
-      for (let i = 95; i <= 100; i++) {
-        setScanProgress(i);
-        await delay(30);
-      }
-
-      await delay(400);
-
-      const result = await resultPromise;
+      const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
       if (!("error" in result)) {
         setScore(result);
         setHistory((prev) => [...prev, result]);
@@ -95,8 +80,7 @@ export function App() {
       logger.error("Failed to run tests:", error);
     } finally {
       setRunning(false);
-      setScanProgress(0);
-      setScanPhase("");
+      setScanState({ completed: 0, total: 0, currentTest: null });
     }
   }
 
@@ -148,8 +132,7 @@ export function App() {
               score={score}
               isScanning={running}
               isLoading={loading}
-              scanProgress={scanProgress}
-              scanPhase={scanPhase}
+              scanState={scanState}
               onScan={runTests}
             />
           )}
@@ -160,11 +143,11 @@ export function App() {
         <div class="initial-state">
           <div class="score-card initial">
             <CyberGauge
-              value={running ? scanProgress : 0}
+              value={running ? (scanState.total > 0 ? Math.round((scanState.completed / scanState.total) * 100) : 0) : 0}
               grade=""
               isScanning={running}
               isLoading={loading}
-              phase={scanPhase}
+              scanState={running ? scanState : undefined}
               onClick={running || loading ? undefined : runTests}
             />
             <div class="score-meta">
@@ -181,17 +164,17 @@ function OverviewTab({
   score,
   isScanning,
   isLoading,
-  scanProgress,
-  scanPhase,
+  scanState,
   onScan,
 }: {
   score: DefenseScore;
   isScanning: boolean;
   isLoading: boolean;
-  scanProgress: number;
-  scanPhase: string;
+  scanState: ScanState;
   onScan: () => void;
 }) {
+  // Calculate progress percentage
+  const scanProgress = scanState.total > 0 ? Math.round((scanState.completed / scanState.total) * 100) : 0;
   // Calculate which categories should be "revealed" based on scan progress
   const categoryCount = score.categories.length;
   const revealThreshold = 100 / (categoryCount + 1);
@@ -204,7 +187,7 @@ function OverviewTab({
           grade={isScanning ? "" : score.grade}
           isScanning={isScanning}
           isLoading={isLoading}
-          phase={scanPhase}
+          scanState={isScanning ? scanState : undefined}
           onClick={isScanning || isLoading ? undefined : onScan}
         />
         {isScanning ? (
@@ -247,7 +230,7 @@ function OverviewTab({
         </div>
       </div>
 
-      {isScanning && <ScanDataStream progress={scanProgress} phase={scanPhase} />}
+      {isScanning && <ScanDataStream scanState={scanState} />}
     </div>
   );
 }
@@ -430,12 +413,16 @@ function DecodingCategoryBar({ category, index }: { category: CategoryScore; ind
 }
 
 // Live data stream visualization during scan
-function ScanDataStream({ progress, phase }: { progress: number; phase: string }) {
+function ScanDataStream({ scanState }: { scanState: ScanState }) {
+  const progress = scanState.total > 0 ? Math.round((scanState.completed / scanState.total) * 100) : 0;
+  const currentCategory = scanState.currentTest?.category?.toUpperCase() || "INIT";
+  const currentTest = scanState.currentTest?.name || "Initializing...";
+
   const dataLines = [
-    `[${String(progress).padStart(3, "0")}%] SCANNING DEFENSE LAYER...`,
-    `> VECTOR: ${phase}`,
-    `> PACKETS: ${Math.floor(progress * 12.7)}`,
-    `> LATENCY: ${(Math.random() * 50 + 10).toFixed(1)}ms`,
+    `[${String(scanState.completed).padStart(3, "0")}/${scanState.total || "?"}] SCANNING DEFENSE LAYER...`,
+    `> CATEGORY: ${currentCategory}`,
+    `> TEST: ${currentTest}`,
+    `> PROGRESS: ${progress}%`,
   ];
 
   return (
@@ -478,14 +465,14 @@ function CyberGauge({
   grade,
   isScanning,
   isLoading,
-  phase,
+  scanState,
   onClick,
 }: {
   value: number;
   grade: string;
   isScanning: boolean;
   isLoading?: boolean;
-  phase: string;
+  scanState?: ScanState;
   onClick?: () => void;
 }) {
   const isInteractive = onClick && !isScanning && !isLoading;
@@ -693,7 +680,7 @@ function CyberGauge({
       </svg>
 
       <div class="score-text">
-        {isScanning ? (
+        {isScanning && scanState ? (
           <motion.div
             style={{
               display: "flex",
@@ -702,23 +689,37 @@ function CyberGauge({
             }}
           >
             <motion.div
-              class="score-value"
-              style={{ color: "#fff" }}
-              animate={{ opacity: [1, 0.6, 1] }}
+              style={{ fontSize: 36, fontWeight: 800, fontFamily: "'SF Mono', monospace", color: "#fff", letterSpacing: 1, lineHeight: 1 }}
+              animate={{ opacity: [1, 0.7, 1] }}
               transition={{ duration: 0.8, repeat: Infinity }}
             >
-              {value}
+              {scanState.completed}
             </motion.div>
-            <motion.div
-              key={phase}
-              class="score-grade"
-              style={{ fontSize: 11 }}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {phase}
-            </motion.div>
+            <div style={{ fontSize: 16, color: "#666", fontFamily: "'SF Mono', monospace", marginTop: 4 }}>
+              /{scanState.total || "?"}
+            </div>
+            {scanState.currentTest && (
+              <>
+                <motion.div
+                  key={scanState.currentTest.category}
+                  style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, color: "#888", marginTop: 8, textTransform: "uppercase" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {scanState.currentTest.category.toUpperCase()}
+                </motion.div>
+                <motion.div
+                  key={scanState.currentTest.name}
+                  style={{ fontSize: 9, color: "#555", marginTop: 2, maxWidth: 120, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  initial={{ opacity: 0, y: 3 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.1 }}
+                >
+                  {scanState.currentTest.name}
+                </motion.div>
+              </>
+            )}
           </motion.div>
         ) : isLoading ? (
           <motion.div

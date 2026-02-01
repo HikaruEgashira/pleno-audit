@@ -4,6 +4,7 @@ import {
   calculateDefenseScore,
   runAllTests,
   type DefenseScore,
+  type ScanProgressEvent,
 } from "@pleno-audit/battacker";
 
 const logger = createLogger("battacker-content");
@@ -44,12 +45,41 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
   try {
     logger.info(`Starting ${allAttacks.length} attack simulations...`);
 
-    const results = await runAllTests(allAttacks, (completed, total, current) => {
+    const results = await runAllTests(allAttacks, (completedIndex, total, current) => {
+      // Convert 0-based index to 1-based completed count
+      const completed = completedIndex + 1;
       logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
+
+      // Send progress via sendMessage (simple and reliable)
+      const progressEvent: ScanProgressEvent = {
+        type: "BATTACKER_SCAN_PROGRESS",
+        completed,
+        total,
+        currentTest: {
+          id: current.id,
+          name: current.name,
+          category: current.category,
+          severity: current.severity,
+        },
+        phase: "running",
+      };
+      chrome.runtime.sendMessage(progressEvent).catch(() => {
+        // Ignore errors - panel might not be listening
+      });
     });
 
     const score = calculateDefenseScore(results);
     logger.info(`Tests complete. Score: ${score.totalScore} (${score.grade})`);
+
+    // Send completion event
+    const completedEvent: ScanProgressEvent = {
+      type: "BATTACKER_SCAN_PROGRESS",
+      completed: results.length,
+      total: results.length,
+      currentTest: null,
+      phase: "completed",
+    };
+    chrome.runtime.sendMessage(completedEvent).catch(() => {});
 
     return score;
   } catch (error) {
