@@ -1,13 +1,6 @@
 import { Command } from "commander";
 import { getExtensionClient } from "../extension-client.js";
-
-interface NetworkMonitorConfig {
-  enabled: boolean;
-  captureAllRequests: boolean;
-  excludeOwnExtension: boolean;
-  excludedDomains: string[];
-  excludedExtensions: string[];
-}
+import type { NetworkMonitorConfig } from "@pleno-audit/extension-runtime";
 
 export const networkCommand = new Command("network").description(
   "Network Monitor operations"
