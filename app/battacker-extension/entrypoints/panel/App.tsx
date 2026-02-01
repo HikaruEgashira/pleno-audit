@@ -1,5 +1,5 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { motion } from "motion/react";
 import type { DefenseScore, ScanProgressEvent, AttackCategory } from "@pleno-audit/battacker";
 import { CATEGORY_LABELS } from "@pleno-audit/battacker";
@@ -24,16 +24,26 @@ export function App() {
     total: 0,
     currentTest: null,
   });
-  const portRef = useRef<chrome.runtime.Port | null>(null);
 
   useEffect(() => {
     loadLastResult();
-    // Cleanup port on unmount
-    return () => {
-      if (portRef.current) {
-        portRef.current.disconnect();
-        portRef.current = null;
+
+    // Listen for progress messages from background
+    const handleMessage = (message: ScanProgressEvent) => {
+      if (message.type === "BATTACKER_SCAN_PROGRESS") {
+        setScanState({
+          completed: message.completed,
+          total: message.total,
+          currentTest: message.currentTest
+            ? { name: message.currentTest.name, category: message.currentTest.category }
+            : null,
+        });
       }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
     };
   }, []);
 
@@ -52,25 +62,6 @@ export function App() {
     setRunning(true);
     setScanState({ completed: 0, total: 0, currentTest: null });
 
-    // Connect to background for progress streaming
-    const port = chrome.runtime.connect({ name: "battacker-panel" });
-    portRef.current = port;
-
-    port.onMessage.addListener((message: ScanProgressEvent) => {
-      if (message.type === "BATTACKER_SCAN_PROGRESS") {
-        setScanState({
-          completed: message.completed,
-          total: message.total,
-          currentTest: message.currentTest
-            ? { name: message.currentTest.name, category: message.currentTest.category }
-            : null,
-        });
-      }
-    });
-
-    // Small delay to ensure port is registered in background
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
     try {
       const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
       if (!("error" in result)) {
@@ -81,8 +72,6 @@ export function App() {
     } finally {
       setRunning(false);
       setScanState({ completed: 0, total: 0, currentTest: null });
-      port.disconnect();
-      portRef.current = null;
     }
   }
 

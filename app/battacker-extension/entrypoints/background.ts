@@ -7,17 +7,11 @@ const logger = createLogger("battacker");
 let panelWindowId: number | null = null;
 
 interface MessageRequest {
-  type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY" | "BATTACKER_CONTENT_READY";
+  type: "RUN_TESTS" | "GET_LAST_RESULT" | "GET_HISTORY" | "BATTACKER_CONTENT_READY" | "BATTACKER_SCAN_PROGRESS";
 }
 
 // Track which tabs have content script ready
 const readyTabs = new Set<number>();
-
-// Track panel Ports for progress streaming
-const panelPorts = new Set<chrome.runtime.Port>();
-
-// Current scan progress state (for late-connecting panels)
-let currentScanProgress: ScanProgressEvent | null = null;
 
 let lastResult: DefenseScore | null = null;
 let isRunning = false;
@@ -26,42 +20,30 @@ const TEST_TARGET_URL = "https://example.com";
 
 interface TargetTabResult {
   targetTab: chrome.tabs.Tab;
-  returnToTabId?: number; // Dashboard tab ID to return to after scan
+  returnToTabId?: number;
 }
 
-/**
- * Find or create a suitable target tab for testing.
- * - Popup: uses the current active tab
- * - Dashboard: opens example.com in a new tab, returns dashboard tab ID
- */
 async function findTargetTab(): Promise<TargetTabResult | null> {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const activeTab = activeTabs[0];
 
-  // If active tab is a regular web page (called from popup), use it
   if (activeTab?.url && isTestableUrl(activeTab.url)) {
     logger.debug(`Using active tab: ${activeTab.url}`);
     return { targetTab: activeTab };
   }
 
-  // Called from dashboard (chrome-extension://), open example.com
   logger.info("Dashboard detected, opening test target page...");
   const targetTab = await openTestTargetTab();
   if (!targetTab) return null;
 
   return {
     targetTab,
-    returnToTabId: activeTab?.id, // Save dashboard tab ID to return later
+    returnToTabId: activeTab?.id,
   };
 }
 
-/**
- * Open example.com in a new tab for testing from dashboard.
- * Switches focus to the new tab.
- */
 async function openTestTargetTab(): Promise<chrome.tabs.Tab | null> {
   try {
-    // Create tab with active: true to switch focus
     const tab = await chrome.tabs.create({ url: TEST_TARGET_URL, active: true });
 
     if (!tab.id) {
@@ -70,11 +52,8 @@ async function openTestTargetTab(): Promise<chrome.tabs.Tab | null> {
     }
 
     logger.debug(`Created test tab ${tab.id}, waiting for load...`);
-
-    // Wait for the tab to finish loading
     await waitForTabLoad(tab.id);
 
-    // Return updated tab info
     const updatedTab = await chrome.tabs.get(tab.id);
     logger.info(`Test target ready: ${updatedTab.url}`);
     return updatedTab;
@@ -84,9 +63,6 @@ async function openTestTargetTab(): Promise<chrome.tabs.Tab | null> {
   }
 }
 
-/**
- * Return focus to the dashboard tab after scan completes.
- */
 async function returnToDashboard(tabId: number): Promise<void> {
   try {
     await chrome.tabs.update(tabId, { active: true });
@@ -96,9 +72,6 @@ async function returnToDashboard(tabId: number): Promise<void> {
   }
 }
 
-/**
- * Wait for a tab to finish loading.
- */
 async function waitForTabLoad(tabId: number): Promise<void> {
   return new Promise((resolve) => {
     const checkStatus = async () => {
@@ -110,7 +83,7 @@ async function waitForTabLoad(tabId: number): Promise<void> {
           setTimeout(checkStatus, 100);
         }
       } catch {
-        resolve(); // Tab might be closed
+        resolve();
       }
     };
     checkStatus();
@@ -118,15 +91,9 @@ async function waitForTabLoad(tabId: number): Promise<void> {
 }
 
 function isTestableUrl(url: string): boolean {
-  return (
-    url.startsWith("http://") ||
-    url.startsWith("https://")
-  );
+  return url.startsWith("http://") || url.startsWith("https://");
 }
 
-/**
- * Open or focus the panel window
- */
 async function openOrFocusPanelWindow(): Promise<void> {
   if (panelWindowId !== null) {
     try {
@@ -154,82 +121,31 @@ async function openOrFocusPanelWindow(): Promise<void> {
 export default defineBackground(() => {
   logger.info("Background started");
 
-  // Extension icon click handler - open panel as independent window
   chrome.action.onClicked.addListener(async () => {
     await openOrFocusPanelWindow();
   });
 
-  // Track panel window close
   chrome.windows.onRemoved.addListener((windowId) => {
     if (windowId === panelWindowId) {
       panelWindowId = null;
     }
   });
 
-  // Port connection handler for progress streaming
-  chrome.runtime.onConnect.addListener((port) => {
-    if (port.name === "battacker-scan") {
-      // Content script sending progress
-      logger.info("Scan port connected, panel ports:", panelPorts.size);
-
-      port.onMessage.addListener((message: ScanProgressEvent) => {
-        // Validate message structure before relaying
-        if (message.type !== "BATTACKER_SCAN_PROGRESS") {
-          return;
-        }
-
-        // Store current progress for late-connecting panels
-        currentScanProgress = message;
-
-        logger.info(`Relay progress: ${message.completed}/${message.total} to ${panelPorts.size} panels`);
-        // Relay to all connected panel ports
-        for (const panelPort of panelPorts) {
-          try {
-            panelPort.postMessage(message);
-          } catch (e) {
-            logger.warn("Failed to relay to panel:", e);
-            panelPorts.delete(panelPort);
-          }
-        }
-
-        // Clear progress state when scan completes
-        if (message.phase === "completed") {
-          currentScanProgress = null;
-        }
-      });
-
-      port.onDisconnect.addListener(() => {
-        logger.info("Scan port disconnected");
-        currentScanProgress = null;
-      });
-    } else if (port.name === "battacker-panel") {
-      // Panel connecting to receive progress
-      logger.info("Panel port connected, total:", panelPorts.size + 1);
-      panelPorts.add(port);
-
-      // Send current progress if scan is running
-      if (currentScanProgress) {
-        logger.info("Sending current progress to new panel");
-        try {
-          port.postMessage(currentScanProgress);
-        } catch (e) {
-          logger.warn("Failed to send initial progress:", e);
-        }
-      }
-
-      port.onDisconnect.addListener(() => {
-        logger.info("Panel port disconnected");
-        panelPorts.delete(port);
-      });
-    }
-  });
-
   chrome.runtime.onMessage.addListener(
     (
-      message: MessageRequest,
+      message: MessageRequest | ScanProgressEvent,
       sender: chrome.runtime.MessageSender,
       sendResponse: (response: unknown) => void,
     ) => {
+      // Handle progress events from content script - broadcast to extension pages
+      if (message.type === "BATTACKER_SCAN_PROGRESS") {
+        // Re-broadcast to all extension pages (panel, dashboard)
+        chrome.runtime.sendMessage(message).catch(() => {
+          // Ignore - no listeners
+        });
+        return false;
+      }
+
       switch (message.type) {
         case "RUN_TESTS":
           handleRunTests().then(sendResponse);
@@ -258,7 +174,6 @@ export default defineBackground(() => {
     },
   );
 
-  // Clean up readyTabs when tab is closed
   chrome.tabs.onRemoved.addListener((tabId) => {
     readyTabs.delete(tabId);
   });
@@ -275,7 +190,6 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
   let returnToTabId: number | undefined;
 
   try {
-    // Find a suitable target tab for testing
     const result = await findTargetTab();
 
     if (!result?.targetTab?.id) {
@@ -290,24 +204,20 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
       return { error: "Cannot run tests on browser internal pages. Please navigate to a regular web page." };
     }
 
-    // Check if content script is already ready (from manifest-based auto-injection)
     if (!readyTabs.has(targetTab.id)) {
-      // Inject content script (needed for dev mode where content_scripts is not in manifest)
       try {
         await injectContentScript(targetTab.id);
         logger.debug("Content script injected");
       } catch (injectError) {
-        // Script might already be injected or page doesn't allow injection
         logger.debug("Content script injection skipped:", injectError);
       }
 
-      // Wait for content script to signal readiness (with timeout)
-      const maxWaitTime = 5000; // 5 seconds max
+      const maxWaitTime = 5000;
       const checkInterval = 100;
       let waited = 0;
 
       while (!readyTabs.has(targetTab.id) && waited < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waited += checkInterval;
       }
 
@@ -322,9 +232,9 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
 
     let response: DefenseScore | { error: string };
     try {
-      response = await chrome.tabs.sendMessage(targetTab.id, {
+      response = (await chrome.tabs.sendMessage(targetTab.id, {
         type: "BATTACKER_RUN_TESTS",
-      }) as DefenseScore | { error: string };
+      })) as DefenseScore | { error: string };
     } catch (sendError) {
       logger.error("sendMessage error:", sendError);
       if (sendError instanceof Error && sendError.message.includes("Receiving end does not exist")) {
@@ -355,7 +265,6 @@ async function handleRunTests(): Promise<DefenseScore | { error: string }> {
     return { error: error instanceof Error ? error.message : String(error) };
   } finally {
     isRunning = false;
-    // Return to dashboard if we came from there
     if (returnToTabId) {
       await returnToDashboard(returnToTabId);
     }
@@ -390,18 +299,13 @@ async function saveResult(score: DefenseScore): Promise<void> {
   await chrome.storage.local.set({ battacker_history: filteredHistory });
 }
 
-/**
- * Inject content script using MV3 scripting API or MV2 tabs.executeScript
- */
 async function injectContentScript(tabId: number): Promise<void> {
   if (isManifestV3()) {
-    // Chrome MV3: use scripting API
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ["content-scripts/content.js"],
     });
   } else {
-    // Firefox MV2: use tabs.executeScript (via browser API)
     const browserAPI = getBrowserAPI();
     await browserAPI.tabs.executeScript(tabId, {
       file: "content-scripts/content.js",

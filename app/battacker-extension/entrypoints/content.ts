@@ -42,9 +42,6 @@ export default defineContentScript({
 });
 
 async function executeTests(): Promise<DefenseScore | { error: string }> {
-  // Establish Port connection for progress streaming
-  const port = chrome.runtime.connect({ name: "battacker-scan" });
-
   try {
     logger.info(`Starting ${allAttacks.length} attack simulations...`);
 
@@ -53,7 +50,7 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
       const completed = completedIndex + 1;
       logger.debug(`Progress: ${completed}/${total} - ${current.name}`);
 
-      // Send progress event through Port
+      // Send progress via sendMessage (simple and reliable)
       const progressEvent: ScanProgressEvent = {
         type: "BATTACKER_SCAN_PROGRESS",
         completed,
@@ -66,7 +63,9 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
         },
         phase: "running",
       };
-      port.postMessage(progressEvent);
+      chrome.runtime.sendMessage(progressEvent).catch(() => {
+        // Ignore errors - panel might not be listening
+      });
     });
 
     const score = calculateDefenseScore(results);
@@ -80,13 +79,11 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
       currentTest: null,
       phase: "completed",
     };
-    port.postMessage(completedEvent);
+    chrome.runtime.sendMessage(completedEvent).catch(() => {});
 
     return score;
   } catch (error) {
     logger.error("Test execution error:", error);
     return { error: error instanceof Error ? error.message : String(error) };
-  } finally {
-    port.disconnect();
   }
 }
