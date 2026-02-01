@@ -76,6 +76,9 @@ export function App() {
       }
     });
 
+    // Small delay to ensure port is registered in background
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     try {
       const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
       if (!("error" in result)) {
