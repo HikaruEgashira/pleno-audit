@@ -44,6 +44,67 @@ export class ParquetStore {
     await this.writeBuffer.add(type, records);
   }
 
+  /**
+   * Append rows immediately without waiting for write buffer flush.
+   * This is used by real-time log paths in the extension background worker.
+   */
+  async appendRows(
+    type: ParquetLogType,
+    rows: Record<string, unknown>[]
+  ): Promise<void> {
+    if (rows.length === 0) return;
+    // Reuse WriteBuffer path to avoid concurrent direct flush races.
+    await this.writeBuffer.add(type, rows);
+    await this.writeBuffer.flush(type);
+  }
+
+  /**
+   * Query raw rows for a given parquet type.
+   * Flushes pending buffered writes first to make reads consistent.
+   */
+  async queryRows(
+    type: ParquetLogType,
+    options?: { since?: string; until?: string }
+  ): Promise<Record<string, unknown>[]> {
+    await this.writeBuffer.flush(type);
+
+    let files: ParquetFileRecord[];
+    if (options?.since || options?.until) {
+      const now = new Date();
+      const startDate = options?.since ? new Date(options.since) : new Date(0);
+      const endDate = options?.until ? new Date(options.until) : now;
+
+      if (options?.since && !Number.isFinite(startDate.getTime())) {
+        throw new Error(`Invalid date parameter: since (${options.since})`);
+      }
+      if (options?.until && !Number.isFinite(endDate.getTime())) {
+        throw new Error(`Invalid date parameter: until (${options.until})`);
+      }
+      if (endDate.getTime() < startDate.getTime()) {
+        throw new Error("Invalid date range: until must be greater than or equal to since");
+      }
+
+      files = await this.indexedDB.listByDateRange(
+        type,
+        getDateString(startDate),
+        getDateString(endDate)
+      );
+    } else {
+      files = await this.indexedDB.listByType(type);
+    }
+
+    files.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.lastModified - b.lastModified;
+    });
+
+    const rows: Record<string, unknown>[] = [];
+    for (const file of files) {
+      rows.push(...this.deserializeParquetData(file.data));
+    }
+    return rows;
+  }
+
   private async flushBuffer(
     type: ParquetLogType,
     records: unknown[],
