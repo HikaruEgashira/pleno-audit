@@ -93,18 +93,20 @@ export function buildAISensitiveAlert(
 ): CreateAlertInput {
   const hasCredentials = params.dataTypes.includes("credentials");
   const severity: AlertSeverity = hasCredentials ? "critical" : "high";
+  const displayedDataTypes =
+    params.dataTypes.length > 0 ? params.dataTypes : ["不明なデータ"];
 
   return {
     category: "ai_sensitive",
     severity,
     title: `機密情報をAIに送信: ${params.domain}`,
-    description: `${params.provider}に${params.dataTypes.join(", ")}を送信`,
+    description: `${params.provider}に${displayedDataTypes.join(", ")}を送信`,
     domain: params.domain,
     details: {
       type: "ai_sensitive",
       provider: params.provider,
       model: params.model,
-      dataTypes: params.dataTypes,
+      dataTypes: displayedDataTypes,
     },
   };
 }
@@ -166,16 +168,7 @@ export interface ExtensionAlertParams {
 }
 
 export function buildExtensionAlert(params: ExtensionAlertParams): CreateAlertInput {
-  let severity: AlertSeverity;
-  if (params.riskLevel === "critical") {
-    severity = "critical";
-  } else if (params.riskLevel === "high") {
-    severity = "high";
-  } else if (params.riskLevel === "medium") {
-    severity = "medium";
-  } else {
-    severity = "low";
-  }
+  const severity: AlertSeverity = params.riskLevel;
 
   const flagsPreview = params.flags.slice(0, 2).join(", ");
 
