@@ -71,6 +71,17 @@ export class ParquetStore {
       const now = new Date();
       const startDate = options?.since ? new Date(options.since) : new Date(0);
       const endDate = options?.until ? new Date(options.until) : now;
+
+      if (options?.since && !Number.isFinite(startDate.getTime())) {
+        throw new Error(`Invalid date parameter: since (${options.since})`);
+      }
+      if (options?.until && !Number.isFinite(endDate.getTime())) {
+        throw new Error(`Invalid date parameter: until (${options.until})`);
+      }
+      if (endDate.getTime() < startDate.getTime()) {
+        throw new Error("Invalid date range: until must be greater than or equal to since");
+      }
+
       files = await this.indexedDB.listByDateRange(
         type,
         getDateString(startDate),

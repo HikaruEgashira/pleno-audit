@@ -8,8 +8,15 @@ export const installCommand = new Command("server")
     process.env.DEBUG_PORT || "9222"
   )
   .action(async (options) => {
-    const port = parseInt(options.port, 10);
-    if (Number.isNaN(port) || port <= 0) {
+    const rawPort = String(options.port ?? "");
+    const isStrictNumeric = /^\d+$/.test(rawPort);
+    const port = Number(rawPort);
+    if (
+      !isStrictNumeric ||
+      !Number.isInteger(port) ||
+      port < 1 ||
+      port > 65535
+    ) {
       console.error(`Invalid port: ${options.port}`);
       process.exit(1);
     }
