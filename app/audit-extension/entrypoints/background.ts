@@ -139,6 +139,40 @@ let doHMonitor: DoHMonitor | null = null;
 // CSP Policy auto-generation debounce timer
 let cspGenerationTimer: ReturnType<typeof setTimeout> | null = null;
 
+type PolicyViolation = ReturnType<PolicyManager["checkDomain"]>["violations"][number];
+
+async function ensureApiClient(): Promise<ApiClient> {
+  if (!apiClient) {
+    apiClient = await getApiClient();
+  }
+  return apiClient;
+}
+
+async function ensureSyncManager(): Promise<SyncManager> {
+  if (!syncManager) {
+    syncManager = await getSyncManager();
+  }
+  return syncManager;
+}
+
+async function alertPolicyViolations(domain: string, violations: PolicyViolation[]): Promise<void> {
+  if (violations.length === 0) {
+    return;
+  }
+  const am = getAlertManager();
+  for (const violation of violations) {
+    await am.alertPolicyViolation({
+      domain,
+      ruleId: violation.ruleId,
+      ruleName: violation.ruleName,
+      ruleType: violation.ruleType,
+      action: violation.action,
+      matchedPattern: violation.matchedPattern,
+      target: violation.target,
+    });
+  }
+}
+
 // ============================================================================
 // Alert Manager
 // ============================================================================
@@ -177,21 +211,7 @@ async function getPolicyManager(): Promise<PolicyManager> {
 async function checkDomainPolicy(domain: string): Promise<void> {
   const pm = await getPolicyManager();
   const result = pm.checkDomain(domain);
-
-  if (result.violations.length > 0) {
-    const am = getAlertManager();
-    for (const violation of result.violations) {
-      await am.alertPolicyViolation({
-        domain,
-        ruleId: violation.ruleId,
-        ruleName: violation.ruleName,
-        ruleType: violation.ruleType,
-        action: violation.action,
-        matchedPattern: violation.matchedPattern,
-        target: violation.target,
-      });
-    }
-  }
+  await alertPolicyViolations(domain, result.violations);
 }
 
 async function checkAIServicePolicy(params: {
@@ -201,21 +221,7 @@ async function checkAIServicePolicy(params: {
 }): Promise<void> {
   const pm = await getPolicyManager();
   const result = pm.checkAIService(params);
-
-  if (result.violations.length > 0) {
-    const am = getAlertManager();
-    for (const violation of result.violations) {
-      await am.alertPolicyViolation({
-        domain: params.domain,
-        ruleId: violation.ruleId,
-        ruleName: violation.ruleName,
-        ruleType: violation.ruleType,
-        action: violation.action,
-        matchedPattern: violation.matchedPattern,
-        target: violation.target,
-      });
-    }
-  }
+  await alertPolicyViolations(params.domain, result.violations);
 }
 
 async function checkDataTransferPolicy(params: {
@@ -224,21 +230,7 @@ async function checkDataTransferPolicy(params: {
 }): Promise<void> {
   const pm = await getPolicyManager();
   const result = pm.checkDataTransfer(params);
-
-  if (result.violations.length > 0) {
-    const am = getAlertManager();
-    for (const violation of result.violations) {
-      await am.alertPolicyViolation({
-        domain: params.destination,
-        ruleId: violation.ruleId,
-        ruleName: violation.ruleName,
-        ruleType: violation.ruleType,
-        action: violation.action,
-        matchedPattern: violation.matchedPattern,
-        target: violation.target,
-      });
-    }
-  }
+  await alertPolicyViolations(params.destination, result.violations);
 }
 
 async function showChromeNotification(alert: SecurityAlert): Promise<void> {
@@ -607,12 +599,9 @@ async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: tr
     }
 
     // Log detection result to ParquetStore
-    if (!parquetStore) {
-      parquetStore = new ParquetStore();
-      await parquetStore.init();
-    }
+    const store = await getOrInitParquetStore();
     const record = nrdResultToParquetRecord(result);
-    await parquetStore.write("nrd-detections", [record]);
+    await store.write("nrd-detections", [record]);
 
     return result;
   } catch (error) {
@@ -709,12 +698,9 @@ async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | {
     }
 
     // Log detection result to ParquetStore
-    if (!parquetStore) {
-      parquetStore = new ParquetStore();
-      await parquetStore.init();
-    }
+    const store = await getOrInitParquetStore();
     const record = typosquatResultToParquetRecord(result);
-    await parquetStore.write("typosquat-detections", [record]);
+    await store.write("typosquat-detections", [record]);
 
     return result;
   } catch (error) {
@@ -1100,12 +1086,10 @@ async function cleanupOldData(): Promise<{ deleted: number }> {
     const cutoffTimestamp = cutoffDate.toISOString();
     const cutoffMs = cutoffDate.getTime();
 
-    if (!apiClient) {
-      apiClient = await getApiClient();
-    }
+    const client = await ensureApiClient();
 
     // Delete old CSP reports from database
-    const deleted = await apiClient.deleteOldReports(cutoffTimestamp);
+    const deleted = await client.deleteOldReports(cutoffTimestamp);
 
     // Delete old events from Parquet storage
     const store = await getOrInitParquetStore();
@@ -1874,10 +1858,8 @@ function extractDomainFromUrl(url: string): string {
 
 async function storeCSPReport(report: CSPReport) {
   try {
-    if (!apiClient) {
-      apiClient = await getApiClient();
-    }
-    await apiClient.postReports([report]);
+    const client = await ensureApiClient();
+    await client.postReports([report]);
     scheduleCSPPolicyGeneration();
   } catch (error) {
     logger.error("Error storing report:", error);
@@ -1975,10 +1957,8 @@ async function setCSPConfig(
 
 async function clearCSPData(): Promise<{ success: boolean }> {
   try {
-    if (!apiClient) {
-      apiClient = await getApiClient();
-    }
-    await apiClient.clearReports();
+    const client = await ensureApiClient();
+    await client.clearReports();
     reportQueue = [];
     return { success: true };
   } catch (error) {
@@ -2022,6 +2002,20 @@ async function clearAllData(): Promise<{ success: boolean }> {
   }
 }
 
+function buildCSPReportsResponse(
+  reports: CSPReport[],
+  options: { total?: number; hasMore?: boolean; withPagination: boolean },
+): CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean } {
+  if (!options.withPagination) {
+    return reports;
+  }
+  return {
+    reports,
+    total: options.total ?? 0,
+    hasMore: options.hasMore ?? false,
+  };
+}
+
 async function getCSPReports(options?: {
   type?: "csp-violation" | "network-request";
   limit?: number;
@@ -2030,9 +2024,7 @@ async function getCSPReports(options?: {
   until?: string;
 }): Promise<CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean }> {
   try {
-    if (!apiClient) {
-      apiClient = await getApiClient();
-    }
+    const client = await ensureApiClient();
 
     const queryOptions: QueryOptions = {
       limit: options?.limit,
@@ -2041,28 +2033,36 @@ async function getCSPReports(options?: {
       until: options?.until,
     };
 
-    const hasPaginationParams = options?.limit !== undefined || options?.offset !== undefined || options?.since || options?.until;
+    const hasPaginationParams = Boolean(
+      options?.limit !== undefined
+      || options?.offset !== undefined
+      || options?.since !== undefined
+      || options?.until !== undefined,
+    );
 
     if (options?.type === "csp-violation") {
-      const result = await apiClient.getViolations(queryOptions);
-      if (hasPaginationParams) {
-        return { reports: result.violations, total: result.total ?? 0, hasMore: result.hasMore ?? false };
-      }
-      return result.violations;
+      const result = await client.getViolations(queryOptions);
+      return buildCSPReportsResponse(result.violations, {
+        total: result.total,
+        hasMore: result.hasMore,
+        withPagination: hasPaginationParams,
+      });
     }
     if (options?.type === "network-request") {
-      const result = await apiClient.getNetworkRequests(queryOptions);
-      if (hasPaginationParams) {
-        return { reports: result.requests, total: result.total ?? 0, hasMore: result.hasMore ?? false };
-      }
-      return result.requests;
+      const result = await client.getNetworkRequests(queryOptions);
+      return buildCSPReportsResponse(result.requests, {
+        total: result.total,
+        hasMore: result.hasMore,
+        withPagination: hasPaginationParams,
+      });
     }
 
-    const result = await apiClient.getReports(queryOptions);
-    if (hasPaginationParams) {
-      return { reports: result.reports, total: result.total ?? 0, hasMore: result.hasMore ?? false };
-    }
-    return result.reports;
+    const result = await client.getReports(queryOptions);
+    return buildCSPReportsResponse(result.reports, {
+      total: result.total,
+      hasMore: result.hasMore,
+      withPagination: hasPaginationParams,
+    });
   } catch (error) {
     logger.error("Error getting CSP reports:", error);
     return [];
@@ -2070,12 +2070,10 @@ async function getCSPReports(options?: {
 }
 
 async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: string | null }> {
-  if (!apiClient) {
-    apiClient = await getApiClient();
-  }
+  const client = await ensureApiClient();
   return {
-    mode: apiClient.getMode(),
-    endpoint: apiClient.getEndpoint(),
+    mode: client.getMode(),
+    endpoint: client.getEndpoint(),
   };
 }
 
@@ -2324,12 +2322,10 @@ async function setConnectionConfig(
 }
 
 async function getSyncConfig(): Promise<{ enabled: boolean; endpoint: string | null }> {
-  if (!syncManager) {
-    syncManager = await getSyncManager();
-  }
+  const manager = await ensureSyncManager();
   return {
-    enabled: syncManager.isEnabled(),
-    endpoint: syncManager.getRemoteEndpoint(),
+    enabled: manager.isEnabled(),
+    endpoint: manager.getRemoteEndpoint(),
   };
 }
 
@@ -2338,10 +2334,8 @@ async function setSyncConfig(
   endpoint?: string
 ): Promise<{ success: boolean }> {
   try {
-    if (!syncManager) {
-      syncManager = await getSyncManager();
-    }
-    await syncManager.setEnabled(enabled, endpoint);
+    const manager = await ensureSyncManager();
+    await manager.setEnabled(enabled, endpoint);
     return { success: true };
   } catch (error) {
     logger.error("Error setting sync config:", error);
@@ -2351,10 +2345,8 @@ async function setSyncConfig(
 
 async function triggerSync(): Promise<{ success: boolean; sent: number; received: number }> {
   try {
-    if (!syncManager) {
-      syncManager = await getSyncManager();
-    }
-    const result = await syncManager.sync();
+    const manager = await ensureSyncManager();
+    const result = await manager.sync();
     return { success: true, ...result };
   } catch (error) {
     logger.error("Error triggering sync:", error);
@@ -2365,73 +2357,76 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 // Main world script is now registered statically via manifest.json content_scripts
 // Dynamic registration removed to avoid caching issues
 
+type DebugForwardResult = { success: boolean; data?: unknown; error?: string };
+type DebugForwardHandler = (data: unknown) => Promise<DebugForwardResult>;
+
+function createDebugForwardHandlers(): Map<string, DebugForwardHandler> {
+  return new Map<string, DebugForwardHandler>([
+    ["DEBUG_EVENTS_LIST", async (rawData) => {
+      const params = rawData as { limit?: number; type?: string } | undefined;
+      const store = await getOrInitParquetStore();
+      const result = await store.getEvents({
+        limit: params?.limit || 100,
+      });
+      const events = result.data.map((e) => ({
+        id: e.id,
+        type: e.type,
+        domain: e.domain,
+        timestamp: e.timestamp,
+        details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
+      }));
+      const filteredEvents = params?.type
+        ? events.filter((event) => event.type === params.type)
+        : events;
+      return { success: true, data: filteredEvents };
+    }],
+    ["DEBUG_EVENTS_COUNT", async () => {
+      const store = await getOrInitParquetStore();
+      const result = await store.getEvents({ limit: 0 });
+      return { success: true, data: result.total };
+    }],
+    ["DEBUG_EVENTS_CLEAR", async () => {
+      const store = await getOrInitParquetStore();
+      await store.clearAll();
+      return { success: true };
+    }],
+    ["DEBUG_TAB_OPEN", async (rawData) => {
+      const params = rawData as { url: string };
+      let url = params.url;
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = `https://${url}`;
+      }
+      const tab = await chrome.tabs.create({ url, active: true });
+      return { success: true, data: { tabId: tab.id, url: tab.url || url } };
+    }],
+    ["DEBUG_DOH_CONFIG_GET", async () => {
+      const config = await getDoHMonitorConfig();
+      return { success: true, data: config };
+    }],
+    ["DEBUG_DOH_CONFIG_SET", async (rawData) => {
+      const params = rawData as Partial<DoHMonitorConfig>;
+      await setDoHMonitorConfig(params);
+      return { success: true };
+    }],
+    ["DEBUG_DOH_REQUESTS", async (rawData) => {
+      const params = rawData as { limit?: number; offset?: number } | undefined;
+      const result = await getDoHRequests(params);
+      return { success: true, data: result };
+    }],
+  ]);
+}
+const debugForwardHandlers = createDebugForwardHandlers();
+
 async function handleDebugBridgeForward(
   type: string,
   data: unknown
-): Promise<{ success: boolean; data?: unknown; error?: string }> {
+): Promise<DebugForwardResult> {
   try {
-    switch (type) {
-      case "DEBUG_EVENTS_LIST": {
-        const params = data as { limit?: number; type?: string } | undefined;
-        const store = await getOrInitParquetStore();
-        const result = await store.getEvents({
-          limit: params?.limit || 100,
-        });
-        const events = result.data.map((e) => ({
-          id: e.id,
-          type: e.type,
-          domain: e.domain,
-          timestamp: e.timestamp,
-          details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
-        }));
-        const filteredEvents = params?.type
-          ? events.filter((e) => e.type === params.type)
-          : events;
-        return { success: true, data: filteredEvents };
-      }
-
-      case "DEBUG_EVENTS_COUNT": {
-        const store = await getOrInitParquetStore();
-        const result = await store.getEvents({ limit: 0 });
-        return { success: true, data: result.total };
-      }
-
-      case "DEBUG_EVENTS_CLEAR": {
-        const store = await getOrInitParquetStore();
-        await store.clearAll();
-        return { success: true };
-      }
-
-      case "DEBUG_TAB_OPEN": {
-        const params = data as { url: string };
-        let url = params.url;
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-          url = `https://${url}`;
-        }
-        const tab = await chrome.tabs.create({ url, active: true });
-        return { success: true, data: { tabId: tab.id, url: tab.url || url } };
-      }
-
-      case "DEBUG_DOH_CONFIG_GET": {
-        const config = await getDoHMonitorConfig();
-        return { success: true, data: config };
-      }
-
-      case "DEBUG_DOH_CONFIG_SET": {
-        const params = data as Partial<DoHMonitorConfig>;
-        await setDoHMonitorConfig(params);
-        return { success: true };
-      }
-
-      case "DEBUG_DOH_REQUESTS": {
-        const params = data as { limit?: number; offset?: number } | undefined;
-        const result = await getDoHRequests(params);
-        return { success: true, data: result };
-      }
-
-      default:
-        return { success: false, error: `Unknown debug message type: ${type}` };
+    const handler = debugForwardHandlers.get(type);
+    if (!handler) {
+      return { success: false, error: `Unknown debug message type: ${type}` };
     }
+    return handler(data);
   } catch (error) {
     return {
       success: false,
@@ -2440,107 +2435,109 @@ async function handleDebugBridgeForward(
   }
 }
 
-export default defineBackground(() => {
-  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
-  registerExtensionMonitorListener();
-  registerDoHMonitorListener();
-  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
+function initializeDebugBridge(): void {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+  void import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
+    initDebugBridge();
+  });
+}
 
-  if (import.meta.env.DEV) {
-    import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
-      initDebugBridge();
-    });
+async function initializeEventStore(): Promise<void> {
+  await getOrInitParquetStore();
+  logger.info("EventStore initialized");
+}
+
+async function initializeApiClientWithMigration(): Promise<void> {
+  const client = await getApiClient();
+  apiClient = client;
+
+  const needsMigration = await checkMigrationNeeded();
+  if (needsMigration) {
+    await migrateToDatabase();
+  }
+}
+
+async function initializeSyncManagerWithAutoStart(): Promise<void> {
+  const manager = await getSyncManager();
+  syncManager = manager;
+  if (manager.isEnabled()) {
+    await manager.startSync();
+  }
+}
+
+async function initializeEnterpriseManagedFlow(): Promise<void> {
+  const enterpriseManager = await getEnterpriseManager();
+  const status = enterpriseManager.getStatus();
+
+  if (!status.isManaged) {
+    return;
   }
 
-  // EventStoreを即座に初期化（ServiceWorkerスリープ対策）
-  getOrInitParquetStore()
-    .then(() => logger.info("EventStore initialized"))
-    .catch((error) => logger.error("EventStore init failed:", error));
-
-  getApiClient()
-    .then(async (client) => {
-      apiClient = client;
-      const needsMigration = await checkMigrationNeeded();
-      if (needsMigration) {
-        await migrateToDatabase();
-      }
-    })
-    .catch((err) => logger.debug("API client init failed:", err));
-
-  getSyncManager()
-    .then(async (manager) => {
-      syncManager = manager;
-      if (manager.isEnabled()) {
-        await manager.startSync();
-      }
-    })
-    .catch((err) => logger.debug("Sync manager init failed:", err));
-
-  // Enterprise Manager initialization - check for SSO requirements
-  (async () => {
-    try {
-      const enterpriseManager = await getEnterpriseManager();
-      const status = enterpriseManager.getStatus();
-
-      if (status.isManaged) {
-        logger.info("Enterprise managed mode detected", {
-          ssoRequired: status.ssoRequired,
-          settingsLocked: status.settingsLocked,
-        });
-
-        if (status.ssoRequired) {
-          const ssoManager = await getSSOManager();
-          const ssoStatus = await ssoManager.getStatus();
-
-          if (!ssoStatus.isAuthenticated) {
-            logger.info("SSO required but not authenticated - prompting user");
-
-            // Show notification to prompt user to authenticate
-            await chrome.notifications.create("sso-required", {
-              type: "basic",
-              iconUrl: chrome.runtime.getURL("icon-128.png"),
-              title: "認証が必要です",
-              message: "組織のセキュリティポリシーにより、シングルサインオンでの認証が必要です。",
-              priority: 2,
-              requireInteraction: true,
-            });
-
-            // Open dashboard auth tab
-            const dashboardUrl = chrome.runtime.getURL("dashboard.html#auth");
-            await chrome.tabs.create({ url: dashboardUrl, active: true });
-          }
-        }
-      }
-    } catch (error) {
-      logger.error("Enterprise manager init failed:", error);
-    }
-  })();
-
-  getCSPConfig().then((config) => {
-    const endpoint =
-      config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
-    cspReporter = new CSPReporter(endpoint);
+  logger.info("Enterprise managed mode detected", {
+    ssoRequired: status.ssoRequired,
+    settingsLocked: status.settingsLocked,
   });
 
-  // Migrate events from chrome.storage.local to IndexedDB if needed
-  (async () => {
-    try {
-      const needsMigration = await checkEventsMigrationNeeded();
-      if (needsMigration) {
-        const store = await getOrInitParquetStore();
-        const result = await migrateEventsToIndexedDB(store);
-        logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
-      }
-    } catch (error) {
-      logger.error("Event migration error:", error);
-    }
-  })();
+  if (!status.ssoRequired) {
+    return;
+  }
 
-  // Extension Monitor初期化
-  initExtensionMonitor()
+  const ssoManager = await getSSOManager();
+  const ssoStatus = await ssoManager.getStatus();
+
+  if (ssoStatus.isAuthenticated) {
+    return;
+  }
+
+  logger.info("SSO required but not authenticated - prompting user");
+
+  await chrome.notifications.create("sso-required", {
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("icon-128.png"),
+    title: "認証が必要です",
+    message: "組織のセキュリティポリシーにより、シングルサインオンでの認証が必要です。",
+    priority: 2,
+    requireInteraction: true,
+  });
+
+  const dashboardUrl = chrome.runtime.getURL("dashboard.html#auth");
+  await chrome.tabs.create({ url: dashboardUrl, active: true });
+}
+
+async function initializeCSPReporter(): Promise<void> {
+  const config = await getCSPConfig();
+  const endpoint = config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
+  cspReporter = new CSPReporter(endpoint);
+}
+
+async function migrateLegacyEventsIfNeeded(): Promise<void> {
+  const needsMigration = await checkEventsMigrationNeeded();
+  if (!needsMigration) {
+    return;
+  }
+
+  const store = await getOrInitParquetStore();
+  const result = await migrateEventsToIndexedDB(store);
+  logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
+}
+
+function initializeBackgroundServices(): void {
+  initializeDebugBridge();
+
+  void initializeEventStore().catch((error) => logger.error("EventStore init failed:", error));
+  void initializeApiClientWithMigration().catch((error) => logger.debug("API client init failed:", error));
+  void initializeSyncManagerWithAutoStart().catch((error) => logger.debug("Sync manager init failed:", error));
+  void initializeEnterpriseManagedFlow().catch((error) => logger.error("Enterprise manager init failed:", error));
+  void initializeCSPReporter().catch((error) => logger.error("CSP reporter init failed:", error));
+  void migrateLegacyEventsIfNeeded().catch((error) => logger.error("Event migration error:", error));
+  void initExtensionMonitor()
     .then(() => logger.info("Extension monitor initialization completed"))
-    .catch((err) => logger.error("Extension monitor init failed:", err));
+    .catch((error) => logger.error("Extension monitor init failed:", error));
+}
 
+function registerRecurringAlarms(): void {
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
@@ -2551,6 +2548,16 @@ export default defineBackground(() => {
   chrome.alarms.create("extensionRiskAnalysis", { periodInMinutes: 5 });
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
+}
+
+export default defineBackground(() => {
+  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
+  registerExtensionMonitorListener();
+  registerDoHMonitorListener();
+  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
+
+  initializeBackgroundServices();
+  registerRecurringAlarms();
 
   const alarmHandlers = createAlarmHandlersModule({
     logger,
@@ -2607,10 +2614,8 @@ export default defineBackground(() => {
     clearCSPData,
     clearAllData,
     getStats: async () => {
-      if (!apiClient) {
-        apiClient = await getApiClient();
-      }
-      return apiClient.getStats();
+      const client = await ensureApiClient();
+      return client.getStats();
     },
     getConnectionConfig,
     setConnectionConfig,
