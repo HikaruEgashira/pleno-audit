@@ -36,4 +36,4 @@
 | [034](./034-network-monitor.md) | Network Monitor - 全ネットワークリクエスト監視 | Accepted |
 | [035](./035-background-message-routing-refactor.md) | Backgroundメッセージルーティングのテーブル駆動化 | Accepted |
 | [036](./036-alert-manager-responsibility-split.md) | Alert Managerの責務分離 | Accepted |
-| [037](./037-network-monitor-state-model-refactor.md) | Network Monitorの状態管理を集約する | Accepted |
+| [037](./037-background-handler-module-split.md) | Backgroundハンドラ定義のモジュール分割 | Accepted |

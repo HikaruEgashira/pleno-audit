@@ -87,7 +87,6 @@ import {
   type DoHMonitor,
   type DoHMonitorConfig,
   type DoHRequestRecord,
-  type EnterpriseStatus,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -102,7 +101,6 @@ import {
   typosquatResultToParquetRecord,
   networkRequestRecordToParquetRecord,
   parquetRecordToNetworkRequestRecord,
-  type ParquetEvent,
 } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
@@ -113,6 +111,12 @@ import {
   type PolicyManager,
   type PolicyConfig,
 } from "@pleno-audit/alerts";
+import { createAlarmHandlers } from "./background/alarm-handlers";
+import {
+  createRuntimeMessageHandlers,
+  runAsyncMessageHandler,
+  type RuntimeMessage,
+} from "./background/runtime-handlers";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -1343,7 +1347,7 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
     (hasCookieBanner && !isCookieBannerGDPRCompliant);
 
   if (hasViolations) {
-    await alertManager.alertCompliance({
+    await getAlertManager().alertCompliance({
       pageDomain: domain,
       hasPrivacyPolicy,
       hasTermsOfService,
@@ -2065,6 +2069,13 @@ async function getCSPReports(options?: {
   }
 }
 
+async function getStats() {
+  if (!apiClient) {
+    apiClient = await getApiClient();
+  }
+  return apiClient.getStats();
+}
+
 async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: string | null }> {
   if (!apiClient) {
     apiClient = await getApiClient();
@@ -2436,502 +2447,6 @@ async function handleDebugBridgeForward(
   }
 }
 
-type RuntimeMessage = {
-  type?: string;
-  data?: unknown;
-  payload?: unknown;
-  debugType?: string;
-  debugData?: unknown;
-};
-
-type RuntimeMessageHandler = (
-  message: RuntimeMessage,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: unknown) => void
-) => boolean;
-
-interface AsyncMessageHandlerConfig {
-  execute: (message: RuntimeMessage, sender: chrome.runtime.MessageSender) => Promise<unknown>;
-  fallback: () => unknown;
-}
-
-type ParquetEventQueryOptions = Parameters<ParquetStore["getEvents"]>[0];
-
-function runAsyncMessageHandler(
-  config: AsyncMessageHandlerConfig,
-  message: RuntimeMessage,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: unknown) => void
-): true {
-  config.execute(message, sender)
-    .then(sendResponse)
-    .catch((error) => {
-      logger.error("Async message handler failed", {
-        type: message.type,
-        senderTabId: sender.tab?.id,
-        senderUrl: sender.tab?.url,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      sendResponse(config.fallback());
-    });
-  return true;
-}
-
-function normalizeEventQueryOptions(data: unknown): Record<string, unknown> {
-  const options = typeof data === "object" && data !== null
-    ? { ...(data as Record<string, unknown>) }
-    : {};
-
-  if (typeof options.since === "number") {
-    options.since = new Date(options.since).toISOString();
-  }
-  if (typeof options.until === "number") {
-    options.until = new Date(options.until).toISOString();
-  }
-
-  return options;
-}
-
-function parseEventDetails(details: unknown): unknown {
-  return typeof details === "string" ? JSON.parse(details) : details;
-}
-
-function createRuntimeMessageHandlers(): {
-  direct: Map<string, RuntimeMessageHandler>;
-  async: Map<string, AsyncMessageHandlerConfig>;
-} {
-  const directHandlers = new Map<string, RuntimeMessageHandler>([
-    ["PING", (_message, _sender, sendResponse) => {
-      sendResponse("PONG");
-      return false;
-    }],
-    ["LOCAL_API_REQUEST", () => false],
-    ["OFFSCREEN_READY", () => false],
-    ["DEBUG_BRIDGE_CONNECTED", () => {
-      logger.debug("Debug bridge: connected");
-      return false;
-    }],
-    ["DEBUG_BRIDGE_DISCONNECTED", () => {
-      logger.debug("Debug bridge: disconnected");
-      return false;
-    }],
-    ["DEBUG_BRIDGE_FORWARD", (message, _sender, sendResponse) => {
-      handleDebugBridgeForward(message.debugType as string, message.debugData)
-        .then(sendResponse)
-        .catch((error) => sendResponse({
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        }));
-      return true;
-    }],
-    ["GET_GENERATED_CSP_POLICY", (_message, _sender, sendResponse) => {
-      chrome.storage.local.get("generatedCSPPolicy", (data) => {
-        sendResponse(data.generatedCSPPolicy || null);
-      });
-      return true;
-    }],
-    ["START_SSO_AUTH", (message, _sender, sendResponse) => {
-      (async () => {
-        try {
-          const ssoManager = await getSSOManager();
-          const provider = (message.data as { provider?: string } | undefined)?.provider;
-          if (provider === "oidc") {
-            const session = await ssoManager.startOIDCAuth();
-            sendResponse({ success: true, session });
-            return;
-          }
-          if (provider === "saml") {
-            const session = await ssoManager.startSAMLAuth();
-            sendResponse({ success: true, session });
-            return;
-          }
-          sendResponse({ success: false, error: "Unknown provider" });
-        } catch (error) {
-          sendResponse({
-            success: false,
-            error: error instanceof Error ? error.message : "Auth failed",
-          });
-        }
-      })();
-      return true;
-    }],
-    ["GET_KNOWN_EXTENSIONS", (_message, _sender, sendResponse) => {
-      sendResponse(getKnownExtensions());
-      return false;
-    }],
-  ]);
-
-  const asyncHandlers = new Map<string, AsyncMessageHandlerConfig>([
-    ["PAGE_ANALYZED", {
-      execute: async (message) => {
-        await handlePageAnalysis(message.payload as PageAnalysis);
-        return { success: true };
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["CSP_VIOLATION", {
-      execute: (message, sender) => handleCSPViolation(message.data as Omit<CSPViolation, "type">, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["NETWORK_REQUEST", {
-      execute: (message, sender) => handleNetworkRequest(message.data as Omit<NetworkRequest, "type">, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["DATA_EXFILTRATION_DETECTED", {
-      execute: (message, sender) => handleDataExfiltration(message.data as DataExfiltrationData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["CREDENTIAL_THEFT_DETECTED", {
-      execute: (message, sender) => handleCredentialTheft(message.data as CredentialTheftData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["SUPPLY_CHAIN_RISK_DETECTED", {
-      execute: (message, sender) => handleSupplyChainRisk(message.data as SupplyChainRiskData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["TRACKING_BEACON_DETECTED", {
-      execute: (message, sender) => handleTrackingBeacon(message.data as TrackingBeaconData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["CLIPBOARD_HIJACK_DETECTED", {
-      execute: (message, sender) => handleClipboardHijack(message.data as ClipboardHijackData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["COOKIE_ACCESS_DETECTED", {
-      execute: (message, sender) => handleCookieAccess(message.data as CookieAccessData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["XSS_DETECTED", {
-      execute: (message, sender) => handleXSSDetected(message.data as XSSDetectedData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["DOM_SCRAPING_DETECTED", {
-      execute: (message, sender) => handleDOMScraping(message.data as DOMScrapingData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["SUSPICIOUS_DOWNLOAD_DETECTED", {
-      execute: (message, sender) => handleSuspiciousDownload(message.data as SuspiciousDownloadData, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_CSP_REPORTS", {
-      execute: (message) => getCSPReports(message.data as {
-        type?: "csp-violation" | "network-request";
-        limit?: number;
-        offset?: number;
-        since?: string;
-        until?: string;
-      }),
-      fallback: () => [],
-    }],
-    ["GENERATE_CSP", {
-      execute: (message) => generateCSPPolicy((message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options),
-      fallback: () => null,
-    }],
-    ["GENERATE_CSP_BY_DOMAIN", {
-      execute: (message) => generateCSPPolicyByDomain((message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options),
-      fallback: () => null,
-    }],
-    ["REGENERATE_CSP_POLICY", {
-      execute: async (message) => {
-        const options = (message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options
-          || { strictMode: false, includeReportUri: true };
-        const result = await generateCSPPolicyByDomain(options);
-        await saveGeneratedCSPPolicy(result);
-        return result;
-      },
-      fallback: () => null,
-    }],
-    ["GET_CSP_CONFIG", {
-      execute: () => getCSPConfig(),
-      fallback: () => DEFAULT_CSP_CONFIG,
-    }],
-    ["SET_CSP_CONFIG", {
-      execute: (message) => setCSPConfig(message.data as Partial<CSPConfig>),
-      fallback: () => ({ success: false }),
-    }],
-    ["CLEAR_CSP_DATA", {
-      execute: () => clearCSPData(),
-      fallback: () => ({ success: false }),
-    }],
-    ["CLEAR_ALL_DATA", {
-      execute: () => clearAllData(),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_STATS", {
-      execute: async () => {
-        if (!apiClient) {
-          apiClient = await getApiClient();
-        }
-        return apiClient.getStats();
-      },
-      fallback: () => ({ violations: 0, requests: 0, uniqueDomains: 0 }),
-    }],
-    ["GET_CONNECTION_CONFIG", {
-      execute: () => getConnectionConfig(),
-      fallback: () => ({ mode: "local", endpoint: null }),
-    }],
-    ["SET_CONNECTION_CONFIG", {
-      execute: (message) => {
-        const data = message.data as { mode: ConnectionMode; endpoint?: string };
-        return setConnectionConfig(data.mode, data.endpoint);
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_SYNC_CONFIG", {
-      execute: () => getSyncConfig(),
-      fallback: () => ({ enabled: false, endpoint: null }),
-    }],
-    ["SET_SYNC_CONFIG", {
-      execute: (message) => {
-        const data = message.data as { enabled: boolean; endpoint?: string };
-        return setSyncConfig(data.enabled, data.endpoint);
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["TRIGGER_SYNC", {
-      execute: () => triggerSync(),
-      fallback: () => ({ success: false, sent: 0, received: 0 }),
-    }],
-    ["GET_SSO_STATUS", {
-      execute: async () => {
-        const ssoManager = await getSSOManager();
-        return ssoManager.getStatus();
-      },
-      fallback: () => ({ enabled: false, isAuthenticated: false }),
-    }],
-    ["SET_SSO_ENABLED", {
-      execute: async (message) => {
-        const ssoManager = await getSSOManager();
-        if ((message.data as { enabled?: boolean } | undefined)?.enabled === false) {
-          await ssoManager.disableSSO();
-        }
-        return { success: true };
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["DISABLE_SSO", {
-      execute: async () => {
-        const ssoManager = await getSSOManager();
-        await ssoManager.disableSSO();
-        return { success: true };
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_ENTERPRISE_STATUS", {
-      execute: async () => {
-        const enterpriseManager = await getEnterpriseManager();
-        return enterpriseManager.getStatus();
-      },
-      fallback: () => ({
-        isManaged: false,
-        ssoRequired: false,
-        settingsLocked: false,
-        config: null,
-      } as EnterpriseStatus),
-    }],
-    ["GET_EFFECTIVE_DETECTION_CONFIG", {
-      execute: async () => {
-        const enterpriseManager = await getEnterpriseManager();
-        const userConfig = await getDetectionConfig();
-        return enterpriseManager.getEffectiveDetectionConfig(userConfig);
-      },
-      fallback: () => DEFAULT_DETECTION_CONFIG,
-    }],
-    ["AI_PROMPT_CAPTURED", {
-      execute: (message) => handleAIPromptCaptured(message.data as CapturedAIPrompt),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_AI_PROMPTS", {
-      execute: () => getAIPrompts(),
-      fallback: () => [],
-    }],
-    ["GET_AI_PROMPTS_COUNT", {
-      execute: async () => ({ count: await getAIPromptsCount() }),
-      fallback: () => ({ count: 0 }),
-    }],
-    ["GET_AI_MONITOR_CONFIG", {
-      execute: () => getAIMonitorConfig(),
-      fallback: () => DEFAULT_AI_MONITOR_CONFIG,
-    }],
-    ["SET_AI_MONITOR_CONFIG", {
-      execute: (message) => setAIMonitorConfig(message.data as Partial<AIMonitorConfig>),
-      fallback: () => ({ success: false }),
-    }],
-    ["CLEAR_AI_DATA", {
-      execute: () => clearAIData(),
-      fallback: () => ({ success: false }),
-    }],
-    ["CHECK_NRD", {
-      execute: (message) => handleNRDCheck((message.data as { domain: string }).domain),
-      fallback: () => ({ error: true }),
-    }],
-    ["GET_NRD_CONFIG", {
-      execute: () => getNRDConfig(),
-      fallback: () => DEFAULT_NRD_CONFIG,
-    }],
-    ["SET_NRD_CONFIG", {
-      execute: (message) => setNRDConfig(message.data as NRDConfig),
-      fallback: () => ({ success: false }),
-    }],
-    ["CHECK_TYPOSQUAT", {
-      execute: (message) => handleTyposquatCheck((message.data as { domain: string }).domain),
-      fallback: () => ({ error: true }),
-    }],
-    ["GET_TYPOSQUAT_CONFIG", {
-      execute: () => getTyposquatConfig(),
-      fallback: () => DEFAULT_TYPOSQUAT_CONFIG,
-    }],
-    ["SET_TYPOSQUAT_CONFIG", {
-      execute: (message) => setTyposquatConfig(message.data as TyposquatConfig),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_EVENTS", {
-      execute: async (message) => {
-        const store = await getOrInitParquetStore();
-        const options = normalizeEventQueryOptions(message.data) as ParquetEventQueryOptions;
-        const result = await store.getEvents(options);
-        const events = result.data.map((event: ParquetEvent) => ({
-          ...event,
-          details: parseEventDetails(event.details),
-          timestamp: new Date(event.timestamp).toISOString(),
-        }));
-        return { events, total: result.total, hasMore: result.hasMore };
-      },
-      fallback: () => ({ events: [], total: 0, hasMore: false }),
-    }],
-    ["GET_EVENTS_COUNT", {
-      execute: async (message) => {
-        const store = await getOrInitParquetStore();
-        const options = normalizeEventQueryOptions(message.data) as ParquetEventQueryOptions;
-        const result = await store.getEvents(options);
-        return { count: result.total };
-      },
-      fallback: () => ({ count: 0 }),
-    }],
-    ["CLEAR_EVENTS", {
-      execute: async () => {
-        const store = await getOrInitParquetStore();
-        await store.clearAll();
-        return { success: true };
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_NETWORK_REQUESTS", {
-      execute: (message) => getNetworkRequests(message.data as {
-        limit?: number;
-        offset?: number;
-        since?: number;
-        initiatorType?: "extension" | "page" | "browser" | "unknown";
-      }),
-      fallback: () => ({ requests: [], total: 0 }),
-    }],
-    ["GET_EXTENSION_REQUESTS", {
-      execute: (message) => getExtensionRequests(message.data as { limit?: number; offset?: number }),
-      fallback: () => ({ requests: [], total: 0 }),
-    }],
-    ["GET_EXTENSION_STATS", {
-      execute: () => getExtensionStats(),
-      fallback: () => ({ byExtension: {}, byDomain: {}, total: 0 }),
-    }],
-    ["GET_NETWORK_MONITOR_CONFIG", {
-      execute: () => getNetworkMonitorConfig(),
-      fallback: () => DEFAULT_NETWORK_MONITOR_CONFIG,
-    }],
-    ["SET_NETWORK_MONITOR_CONFIG", {
-      execute: (message) => setNetworkMonitorConfig(message.data as NetworkMonitorConfig),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_ALL_EXTENSION_RISKS", {
-      execute: () => getAllExtensionRisks(),
-      fallback: () => [],
-    }],
-    ["GET_EXTENSION_RISK_ANALYSIS", {
-      execute: (message) => getExtensionRiskAnalysis((message.data as { extensionId: string }).extensionId),
-      fallback: () => null,
-    }],
-    ["TRIGGER_EXTENSION_RISK_ANALYSIS", {
-      execute: async () => {
-        await analyzeExtensionRisks();
-        return { success: true };
-      },
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_DATA_RETENTION_CONFIG", {
-      execute: () => getDataRetentionConfig(),
-      fallback: () => DEFAULT_DATA_RETENTION_CONFIG,
-    }],
-    ["SET_DATA_RETENTION_CONFIG", {
-      execute: (message) => setDataRetentionConfig(message.data as DataRetentionConfig),
-      fallback: () => ({ success: false }),
-    }],
-    ["TRIGGER_DATA_CLEANUP", {
-      execute: () => cleanupOldData(),
-      fallback: () => ({ deleted: 0 }),
-    }],
-    ["GET_BLOCKING_CONFIG", {
-      execute: () => getBlockingConfig(),
-      fallback: () => DEFAULT_BLOCKING_CONFIG,
-    }],
-    ["SET_BLOCKING_CONFIG", {
-      execute: (message) => setBlockingConfig(message.data as BlockingConfig),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_DETECTION_CONFIG", {
-      execute: () => getDetectionConfig(),
-      fallback: () => DEFAULT_DETECTION_CONFIG,
-    }],
-    ["SET_DETECTION_CONFIG", {
-      execute: (message) => setDetectionConfig(message.data as Partial<DetectionConfig>),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_NOTIFICATION_CONFIG", {
-      execute: () => getNotificationConfig(),
-      fallback: () => DEFAULT_NOTIFICATION_CONFIG,
-    }],
-    ["SET_NOTIFICATION_CONFIG", {
-      execute: (message) => setNotificationConfig(message.data as Partial<NotificationConfig>),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_DOH_MONITOR_CONFIG", {
-      execute: () => getDoHMonitorConfig(),
-      fallback: () => DEFAULT_DOH_MONITOR_CONFIG,
-    }],
-    ["SET_DOH_MONITOR_CONFIG", {
-      execute: (message) => setDoHMonitorConfig(message.data as Partial<DoHMonitorConfig>),
-      fallback: () => ({ success: false }),
-    }],
-    ["GET_DOH_REQUESTS", {
-      execute: (message) => getDoHRequests(message.data as { limit?: number; offset?: number }),
-      fallback: () => ({ requests: [], total: 0 }),
-    }],
-  ]);
-
-  return {
-    direct: directHandlers,
-    async: asyncHandlers,
-  };
-}
-
-function createAlarmHandlers(): Map<string, () => void> {
-  return new Map([
-    ["flushCSPReports", () => {
-      flushReportQueue().catch((error) => logger.debug("Flush reports failed:", error));
-    }],
-    ["flushNetworkRequests", () => {
-      flushNetworkRequestBuffer().catch((error) => logger.debug("Flush network requests failed:", error));
-    }],
-    ["checkDNRMatches", () => {
-      checkDNRMatchesHandler().catch((error) => logger.debug("DNR match check failed:", error));
-    }],
-    ["extensionRiskAnalysis", () => {
-      analyzeExtensionRisks().catch((error) => logger.debug("Extension risk analysis failed:", error));
-    }],
-    ["dataCleanup", () => {
-      cleanupOldData().catch((error) => logger.debug("Data cleanup failed:", error));
-    }],
-  ]);
-}
-
 export default defineBackground(() => {
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
@@ -3044,7 +2559,14 @@ export default defineBackground(() => {
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
-  const alarmHandlers = createAlarmHandlers();
+  const alarmHandlers = createAlarmHandlers({
+    logger,
+    flushReportQueue,
+    flushNetworkRequestBuffer,
+    checkDNRMatchesHandler,
+    analyzeExtensionRisks,
+    cleanupOldData,
+  });
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "keepAlive") {
       return;
@@ -3055,7 +2577,84 @@ export default defineBackground(() => {
     }
   });
 
-  const runtimeHandlers = createRuntimeMessageHandlers();
+  const runtimeHandlers = createRuntimeMessageHandlers({
+    logger,
+    fallbacks: {
+      cspConfig: DEFAULT_CSP_CONFIG,
+      detectionConfig: DEFAULT_DETECTION_CONFIG,
+      aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
+      nrdConfig: DEFAULT_NRD_CONFIG,
+      typosquatConfig: DEFAULT_TYPOSQUAT_CONFIG,
+      networkMonitorConfig: DEFAULT_NETWORK_MONITOR_CONFIG,
+      dataRetentionConfig: DEFAULT_DATA_RETENTION_CONFIG,
+      blockingConfig: DEFAULT_BLOCKING_CONFIG,
+      notificationConfig: DEFAULT_NOTIFICATION_CONFIG,
+      doHMonitorConfig: DEFAULT_DOH_MONITOR_CONFIG,
+    },
+    handleDebugBridgeForward,
+    getKnownExtensions,
+    handlePageAnalysis: async (payload) => handlePageAnalysis(payload as PageAnalysis),
+    handleCSPViolation,
+    handleNetworkRequest,
+    handleDataExfiltration: (data, sender) => handleDataExfiltration(data as DataExfiltrationData, sender),
+    handleCredentialTheft: (data, sender) => handleCredentialTheft(data as CredentialTheftData, sender),
+    handleSupplyChainRisk: (data, sender) => handleSupplyChainRisk(data as SupplyChainRiskData, sender),
+    handleTrackingBeacon: (data, sender) => handleTrackingBeacon(data as TrackingBeaconData, sender),
+    handleClipboardHijack: (data, sender) => handleClipboardHijack(data as ClipboardHijackData, sender),
+    handleCookieAccess: (data, sender) => handleCookieAccess(data as CookieAccessData, sender),
+    handleXSSDetected: (data, sender) => handleXSSDetected(data as XSSDetectedData, sender),
+    handleDOMScraping: (data, sender) => handleDOMScraping(data as DOMScrapingData, sender),
+    handleSuspiciousDownload: (data, sender) => handleSuspiciousDownload(data as SuspiciousDownloadData, sender),
+    getCSPReports,
+    generateCSPPolicy,
+    generateCSPPolicyByDomain,
+    saveGeneratedCSPPolicy,
+    getCSPConfig,
+    setCSPConfig,
+    clearCSPData,
+    clearAllData,
+    getStats,
+    getConnectionConfig,
+    setConnectionConfig,
+    getSyncConfig,
+    setSyncConfig,
+    triggerSync,
+    getSSOManager,
+    getEnterpriseManager,
+    getDetectionConfig,
+    setDetectionConfig,
+    handleAIPromptCaptured,
+    getAIPrompts,
+    getAIPromptsCount,
+    getAIMonitorConfig,
+    setAIMonitorConfig,
+    clearAIData,
+    handleNRDCheck,
+    getNRDConfig,
+    setNRDConfig,
+    handleTyposquatCheck,
+    getTyposquatConfig,
+    setTyposquatConfig,
+    getOrInitParquetStore,
+    getNetworkRequests,
+    getExtensionRequests,
+    getExtensionStats,
+    getNetworkMonitorConfig,
+    setNetworkMonitorConfig,
+    getAllExtensionRisks,
+    getExtensionRiskAnalysis,
+    analyzeExtensionRisks,
+    getDataRetentionConfig,
+    setDataRetentionConfig,
+    cleanupOldData,
+    getBlockingConfig,
+    setBlockingConfig,
+    getNotificationConfig,
+    setNotificationConfig,
+    getDoHMonitorConfig,
+    setDoHMonitorConfig,
+    getDoHRequests,
+  });
   chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
     const message = rawMessage as RuntimeMessage;
     const type = typeof message.type === "string" ? message.type : "";
@@ -3072,7 +2671,7 @@ export default defineBackground(() => {
 
     const asyncHandler = runtimeHandlers.async.get(type);
     if (asyncHandler) {
-      return runAsyncMessageHandler(asyncHandler, message, sender, sendResponse);
+      return runAsyncMessageHandler(logger, asyncHandler, message, sender, sendResponse);
     }
 
     logger.warn("Unknown message type:", type);
