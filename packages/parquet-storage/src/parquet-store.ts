@@ -53,7 +53,9 @@ export class ParquetStore {
     rows: Record<string, unknown>[]
   ): Promise<void> {
     if (rows.length === 0) return;
-    await this.flushBuffer(type, rows, getDateString());
+    // Reuse WriteBuffer path to avoid concurrent direct flush races.
+    await this.writeBuffer.add(type, rows);
+    await this.writeBuffer.flush(type);
   }
 
   /**
