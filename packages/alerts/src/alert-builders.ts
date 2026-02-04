@@ -303,11 +303,15 @@ export function buildSupplyChainRiskAlert(
     riskDescriptions.push("crossorigin属性なし");
   }
 
+  const description = riskDescriptions.length > 0
+    ? `${params.resourceType}が${riskDescriptions.join(", ")}で読み込まれています`
+    : `${params.resourceType}が読み込まれています`;
+
   return {
     category: "supply_chain",
     severity,
     title: `サプライチェーンリスク: ${params.resourceDomain}`,
-    description: `${params.resourceType}が${riskDescriptions.join(", ")}で読み込まれています`,
+    description,
     domain: params.resourceDomain,
     details: {
       type: "supply_chain",
@@ -585,8 +589,9 @@ export interface SuspiciousDownloadAlertParams {
 export function buildSuspiciousDownloadAlert(
   params: SuspiciousDownloadAlertParams
 ): CreateAlertInput {
+  const normalizedExtension = (params.extension || "").toLowerCase();
   const severity: AlertSeverity =
-    [".exe", ".msi", ".bat", ".ps1"].includes(params.extension) ? "critical" : "high";
+    [".exe", ".msi", ".bat", ".ps1"].includes(normalizedExtension) ? "critical" : "high";
 
   return {
     category: "suspicious_download",
