@@ -96,7 +96,14 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { ParquetStore, nrdResultToParquetRecord, typosquatResultToParquetRecord, networkRequestRecordToParquetRecord, parquetRecordToNetworkRequestRecord } from "@pleno-audit/parquet-storage";
+import {
+  ParquetStore,
+  nrdResultToParquetRecord,
+  typosquatResultToParquetRecord,
+  networkRequestRecordToParquetRecord,
+  parquetRecordToNetworkRequestRecord,
+  type ParquetEvent,
+} from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
   createPolicyManager,
@@ -2458,7 +2465,15 @@ function runAsyncMessageHandler(
 ): true {
   config.execute(message, sender)
     .then(sendResponse)
-    .catch(() => sendResponse(config.fallback()));
+    .catch((error) => {
+      logger.error("Async message handler failed", {
+        type: message.type,
+        senderTabId: sender.tab?.id,
+        senderUrl: sender.tab?.url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      sendResponse(config.fallback());
+    });
   return true;
 }
 
@@ -2775,7 +2790,7 @@ function createRuntimeMessageHandlers(): {
         const store = await getOrInitParquetStore();
         const options = normalizeEventQueryOptions(message.data) as ParquetEventQueryOptions;
         const result = await store.getEvents(options);
-        const events = result.data.map((event: any) => ({
+        const events = result.data.map((event: ParquetEvent) => ({
           ...event,
           details: parseEventDetails(event.details),
           timestamp: new Date(event.timestamp).toISOString(),
