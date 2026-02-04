@@ -12,8 +12,8 @@ Accepted
 
 ## 決定
 
-- ランタイムメッセージ定義を `app/audit-extension/entrypoints/background/runtime-handlers.ts` に分離する
-- アラーム定義を `app/audit-extension/entrypoints/background/alarm-handlers.ts` に分離する
+- ランタイムメッセージ定義を `app/audit-extension/lib/background/runtime-handlers.ts` に分離する
+- アラーム定義を `app/audit-extension/lib/background/alarm-handlers.ts` に分離する
 - `background.ts` は依存関係を明示的に注入し、起動・監視・ストレージ更新の本体ロジックに集中する
 - デフォルト設定値は `fallbacks` として一箇所で定義し、メッセージごとのフォールバックを統一する
 

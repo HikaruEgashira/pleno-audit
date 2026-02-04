@@ -111,12 +111,12 @@ import {
   type PolicyManager,
   type PolicyConfig,
 } from "@pleno-audit/alerts";
-import { createAlarmHandlers } from "./background/alarm-handlers";
+import { createAlarmHandlers as createAlarmHandlersModule } from "../lib/background/alarm-handlers";
 import {
-  createRuntimeMessageHandlers,
-  runAsyncMessageHandler,
+  createRuntimeMessageHandlers as createRuntimeMessageHandlersModule,
+  runAsyncMessageHandler as runAsyncMessageHandlerModule,
   type RuntimeMessage,
-} from "./background/runtime-handlers";
+} from "../lib/background/runtime-handlers";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -2069,13 +2069,6 @@ async function getCSPReports(options?: {
   }
 }
 
-async function getStats() {
-  if (!apiClient) {
-    apiClient = await getApiClient();
-  }
-  return apiClient.getStats();
-}
-
 async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: string | null }> {
   if (!apiClient) {
     apiClient = await getApiClient();
@@ -2559,7 +2552,7 @@ export default defineBackground(() => {
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
-  const alarmHandlers = createAlarmHandlers({
+  const alarmHandlers = createAlarmHandlersModule({
     logger,
     flushReportQueue,
     flushNetworkRequestBuffer,
@@ -2577,7 +2570,7 @@ export default defineBackground(() => {
     }
   });
 
-  const runtimeHandlers = createRuntimeMessageHandlers({
+  const runtimeHandlers = createRuntimeMessageHandlersModule({
     logger,
     fallbacks: {
       cspConfig: DEFAULT_CSP_CONFIG,
@@ -2613,7 +2606,12 @@ export default defineBackground(() => {
     setCSPConfig,
     clearCSPData,
     clearAllData,
-    getStats,
+    getStats: async () => {
+      if (!apiClient) {
+        apiClient = await getApiClient();
+      }
+      return apiClient.getStats();
+    },
     getConnectionConfig,
     setConnectionConfig,
     getSyncConfig,
@@ -2671,7 +2669,7 @@ export default defineBackground(() => {
 
     const asyncHandler = runtimeHandlers.async.get(type);
     if (asyncHandler) {
-      return runAsyncMessageHandler(logger, asyncHandler, message, sender, sendResponse);
+      return runAsyncMessageHandlerModule(logger, asyncHandler, message, sender, sendResponse);
     }
 
     logger.warn("Unknown message type:", type);
