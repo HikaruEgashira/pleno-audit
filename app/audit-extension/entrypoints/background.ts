@@ -851,6 +851,38 @@ function getCooldownManager(): CooldownManager {
   return cooldownManager;
 }
 
+type ExtensionAnalysisRequest = Parameters<typeof analyzeInstalledExtension>[1][number];
+
+function mapToExtensionAnalysisRequest(request: NetworkRequestRecord): ExtensionAnalysisRequest {
+  return {
+    id: request.id,
+    extensionId: request.extensionId!,
+    extensionName: request.extensionName || "Unknown",
+    timestamp: request.timestamp,
+    url: request.url,
+    method: request.method,
+    resourceType: request.resourceType,
+    domain: request.domain,
+    detectedBy: request.detectedBy,
+  };
+}
+
+function groupRequestsByExtensionId(requests: NetworkRequestRecord[]): Map<string, NetworkRequestRecord[]> {
+  const grouped = new Map<string, NetworkRequestRecord[]>();
+  for (const request of requests) {
+    if (!request.extensionId) continue;
+    const existing = grouped.get(request.extensionId) || [];
+    existing.push(request);
+    grouped.set(request.extensionId, existing);
+  }
+  return grouped;
+}
+
+async function getExtensionInitiatedRequests(limit = 10000): Promise<NetworkRequestRecord[]> {
+  const result = await getNetworkRequests({ limit, initiatorType: "extension" });
+  return result.requests.filter((request) => request.extensionId);
+}
+
 /**
  * インストールされている拡張機能のリスク分析を実行
  */
@@ -863,42 +895,20 @@ async function analyzeExtensionRisks(): Promise<void> {
       return;
     }
 
-    // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
-    const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
-    const requests = result.requests.filter(r => r.extensionId);
+    const requests = await getExtensionInitiatedRequests();
     if (requests.length === 0) return;
-
-    // 拡張機能ごとにリクエストをグループ化
-    const requestsByExtension = new Map<string, NetworkRequestRecord[]>();
-    for (const req of requests) {
-      if (!req.extensionId) continue;
-      const existing = requestsByExtension.get(req.extensionId) || [];
-      existing.push(req);
-      requestsByExtension.set(req.extensionId, existing);
-    }
 
     const manager = getCooldownManager();
 
     // 各拡張機能のリスク分析
-    for (const [extensionId, extRequests] of requestsByExtension) {
+    for (const [extensionId, extRequests] of groupRequestsByExtensionId(requests)) {
       // クールダウンチェック（永続ストレージから取得）
       const cooldownKey = `extension:${extensionId}`;
       if (await manager.isOnCooldown(cooldownKey)) {
         continue;
       }
 
-      // NetworkRequestRecord → ExtensionRequestRecord互換に変換
-      const compatRequests = extRequests.map(r => ({
-        id: r.id,
-        extensionId: r.extensionId!,
-        extensionName: r.extensionName || "Unknown",
-        timestamp: r.timestamp,
-        url: r.url,
-        method: r.method,
-        resourceType: r.resourceType,
-        domain: r.domain,
-        detectedBy: r.detectedBy,
-      }));
+      const compatRequests = extRequests.map(mapToExtensionAnalysisRequest);
 
       const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
       if (!analysis) continue;
@@ -930,22 +940,10 @@ async function analyzeExtensionRisks(): Promise<void> {
  * 拡張機能リスク分析結果を取得
  */
 async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
-  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
-  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
-  const requests = result.requests.filter(r => r.extensionId === extensionId);
-
-  // NetworkRequestRecord → ExtensionRequestRecord互換に変換
-  const compatRequests = requests.map(r => ({
-    id: r.id,
-    extensionId: r.extensionId!,
-    extensionName: r.extensionName || "Unknown",
-    timestamp: r.timestamp,
-    url: r.url,
-    method: r.method,
-    resourceType: r.resourceType,
-    domain: r.domain,
-    detectedBy: r.detectedBy,
-  }));
+  const requests = await getExtensionInitiatedRequests();
+  const compatRequests = requests
+    .filter((request) => request.extensionId === extensionId)
+    .map(mapToExtensionAnalysisRequest);
 
   return analyzeInstalledExtension(extensionId, compatRequests);
 }
@@ -954,33 +952,12 @@ async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionR
  * すべての拡張機能のリスク分析結果を取得
  */
 async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
-  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
-  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
-  const requests = result.requests.filter(r => r.extensionId);
-
-  // 拡張機能ごとにグループ化
-  const requestsByExtension = new Map<string, NetworkRequestRecord[]>();
-  for (const req of requests) {
-    if (!req.extensionId) continue;
-    const existing = requestsByExtension.get(req.extensionId) || [];
-    existing.push(req);
-    requestsByExtension.set(req.extensionId, existing);
-  }
+  const requests = await getExtensionInitiatedRequests();
+  const requestsByExtension = groupRequestsByExtensionId(requests);
 
   const results: ExtensionRiskAnalysis[] = [];
   for (const [extensionId, extRequests] of requestsByExtension) {
-    // NetworkRequestRecord → ExtensionRequestRecord互換に変換
-    const compatRequests = extRequests.map(r => ({
-      id: r.id,
-      extensionId: r.extensionId!,
-      extensionName: r.extensionName || "Unknown",
-      timestamp: r.timestamp,
-      url: r.url,
-      method: r.method,
-      resourceType: r.resourceType,
-      domain: r.domain,
-      detectedBy: r.detectedBy,
-    }));
+    const compatRequests = extRequests.map(mapToExtensionAnalysisRequest);
 
     const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
     if (analysis) {
@@ -1044,9 +1021,7 @@ interface ExtensionStats {
 }
 
 async function getExtensionStats(): Promise<ExtensionStats> {
-  // Parquetから拡張機能リクエストを取得（initiatorTypeでフィルタ）
-  const result = await getNetworkRequests({ limit: 10000, initiatorType: "extension" });
-  const requests = result.requests.filter(r => r.extensionId);
+  const requests = await getExtensionInitiatedRequests();
 
   const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
   const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
@@ -2454,6 +2429,494 @@ async function handleDebugBridgeForward(
   }
 }
 
+type RuntimeMessage = {
+  type?: string;
+  data?: unknown;
+  payload?: unknown;
+  debugType?: string;
+  debugData?: unknown;
+};
+
+type RuntimeMessageHandler = (
+  message: RuntimeMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void
+) => boolean;
+
+interface AsyncMessageHandlerConfig {
+  execute: (message: RuntimeMessage, sender: chrome.runtime.MessageSender) => Promise<unknown>;
+  fallback: () => unknown;
+}
+
+type ParquetEventQueryOptions = Parameters<ParquetStore["getEvents"]>[0];
+
+function runAsyncMessageHandler(
+  config: AsyncMessageHandlerConfig,
+  message: RuntimeMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void
+): true {
+  config.execute(message, sender)
+    .then(sendResponse)
+    .catch(() => sendResponse(config.fallback()));
+  return true;
+}
+
+function normalizeEventQueryOptions(data: unknown): Record<string, unknown> {
+  const options = typeof data === "object" && data !== null
+    ? { ...(data as Record<string, unknown>) }
+    : {};
+
+  if (typeof options.since === "number") {
+    options.since = new Date(options.since).toISOString();
+  }
+  if (typeof options.until === "number") {
+    options.until = new Date(options.until).toISOString();
+  }
+
+  return options;
+}
+
+function parseEventDetails(details: unknown): unknown {
+  return typeof details === "string" ? JSON.parse(details) : details;
+}
+
+function createRuntimeMessageHandlers(): {
+  direct: Map<string, RuntimeMessageHandler>;
+  async: Map<string, AsyncMessageHandlerConfig>;
+} {
+  const directHandlers = new Map<string, RuntimeMessageHandler>([
+    ["PING", (_message, _sender, sendResponse) => {
+      sendResponse("PONG");
+      return false;
+    }],
+    ["LOCAL_API_REQUEST", () => false],
+    ["OFFSCREEN_READY", () => false],
+    ["DEBUG_BRIDGE_CONNECTED", () => {
+      logger.debug("Debug bridge: connected");
+      return false;
+    }],
+    ["DEBUG_BRIDGE_DISCONNECTED", () => {
+      logger.debug("Debug bridge: disconnected");
+      return false;
+    }],
+    ["DEBUG_BRIDGE_FORWARD", (message, _sender, sendResponse) => {
+      handleDebugBridgeForward(message.debugType as string, message.debugData)
+        .then(sendResponse)
+        .catch((error) => sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }));
+      return true;
+    }],
+    ["GET_GENERATED_CSP_POLICY", (_message, _sender, sendResponse) => {
+      chrome.storage.local.get("generatedCSPPolicy", (data) => {
+        sendResponse(data.generatedCSPPolicy || null);
+      });
+      return true;
+    }],
+    ["START_SSO_AUTH", (message, _sender, sendResponse) => {
+      (async () => {
+        try {
+          const ssoManager = await getSSOManager();
+          const provider = (message.data as { provider?: string } | undefined)?.provider;
+          if (provider === "oidc") {
+            const session = await ssoManager.startOIDCAuth();
+            sendResponse({ success: true, session });
+            return;
+          }
+          if (provider === "saml") {
+            const session = await ssoManager.startSAMLAuth();
+            sendResponse({ success: true, session });
+            return;
+          }
+          sendResponse({ success: false, error: "Unknown provider" });
+        } catch (error) {
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : "Auth failed",
+          });
+        }
+      })();
+      return true;
+    }],
+    ["GET_KNOWN_EXTENSIONS", (_message, _sender, sendResponse) => {
+      sendResponse(getKnownExtensions());
+      return false;
+    }],
+  ]);
+
+  const asyncHandlers = new Map<string, AsyncMessageHandlerConfig>([
+    ["PAGE_ANALYZED", {
+      execute: async (message) => {
+        await handlePageAnalysis(message.payload as PageAnalysis);
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["CSP_VIOLATION", {
+      execute: (message, sender) => handleCSPViolation(message.data as Omit<CSPViolation, "type">, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["NETWORK_REQUEST", {
+      execute: (message, sender) => handleNetworkRequest(message.data as Omit<NetworkRequest, "type">, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["DATA_EXFILTRATION_DETECTED", {
+      execute: (message, sender) => handleDataExfiltration(message.data as DataExfiltrationData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["CREDENTIAL_THEFT_DETECTED", {
+      execute: (message, sender) => handleCredentialTheft(message.data as CredentialTheftData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["SUPPLY_CHAIN_RISK_DETECTED", {
+      execute: (message, sender) => handleSupplyChainRisk(message.data as SupplyChainRiskData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["TRACKING_BEACON_DETECTED", {
+      execute: (message, sender) => handleTrackingBeacon(message.data as TrackingBeaconData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["CLIPBOARD_HIJACK_DETECTED", {
+      execute: (message, sender) => handleClipboardHijack(message.data as ClipboardHijackData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["COOKIE_ACCESS_DETECTED", {
+      execute: (message, sender) => handleCookieAccess(message.data as CookieAccessData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["XSS_DETECTED", {
+      execute: (message, sender) => handleXSSDetected(message.data as XSSDetectedData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["DOM_SCRAPING_DETECTED", {
+      execute: (message, sender) => handleDOMScraping(message.data as DOMScrapingData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["SUSPICIOUS_DOWNLOAD_DETECTED", {
+      execute: (message, sender) => handleSuspiciousDownload(message.data as SuspiciousDownloadData, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_CSP_REPORTS", {
+      execute: (message) => getCSPReports(message.data as {
+        type?: "csp-violation" | "network-request";
+        limit?: number;
+        offset?: number;
+        since?: string;
+        until?: string;
+      }),
+      fallback: () => [],
+    }],
+    ["GENERATE_CSP", {
+      execute: (message) => generateCSPPolicy((message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options),
+      fallback: () => null,
+    }],
+    ["GENERATE_CSP_BY_DOMAIN", {
+      execute: (message) => generateCSPPolicyByDomain((message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options),
+      fallback: () => null,
+    }],
+    ["REGENERATE_CSP_POLICY", {
+      execute: async (message) => {
+        const options = (message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options
+          || { strictMode: false, includeReportUri: true };
+        const result = await generateCSPPolicyByDomain(options);
+        await saveGeneratedCSPPolicy(result);
+        return result;
+      },
+      fallback: () => null,
+    }],
+    ["GET_CSP_CONFIG", {
+      execute: () => getCSPConfig(),
+      fallback: () => DEFAULT_CSP_CONFIG,
+    }],
+    ["SET_CSP_CONFIG", {
+      execute: (message) => setCSPConfig(message.data as Partial<CSPConfig>),
+      fallback: () => ({ success: false }),
+    }],
+    ["CLEAR_CSP_DATA", {
+      execute: () => clearCSPData(),
+      fallback: () => ({ success: false }),
+    }],
+    ["CLEAR_ALL_DATA", {
+      execute: () => clearAllData(),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_STATS", {
+      execute: async () => {
+        if (!apiClient) {
+          apiClient = await getApiClient();
+        }
+        return apiClient.getStats();
+      },
+      fallback: () => ({ violations: 0, requests: 0, uniqueDomains: 0 }),
+    }],
+    ["GET_CONNECTION_CONFIG", {
+      execute: () => getConnectionConfig(),
+      fallback: () => ({ mode: "local", endpoint: null }),
+    }],
+    ["SET_CONNECTION_CONFIG", {
+      execute: (message) => {
+        const data = message.data as { mode: ConnectionMode; endpoint?: string };
+        return setConnectionConfig(data.mode, data.endpoint);
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_SYNC_CONFIG", {
+      execute: () => getSyncConfig(),
+      fallback: () => ({ enabled: false, endpoint: null }),
+    }],
+    ["SET_SYNC_CONFIG", {
+      execute: (message) => {
+        const data = message.data as { enabled: boolean; endpoint?: string };
+        return setSyncConfig(data.enabled, data.endpoint);
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["TRIGGER_SYNC", {
+      execute: () => triggerSync(),
+      fallback: () => ({ success: false, sent: 0, received: 0 }),
+    }],
+    ["GET_SSO_STATUS", {
+      execute: async () => {
+        const ssoManager = await getSSOManager();
+        return ssoManager.getStatus();
+      },
+      fallback: () => ({ enabled: false, isAuthenticated: false }),
+    }],
+    ["SET_SSO_ENABLED", {
+      execute: async (message) => {
+        const ssoManager = await getSSOManager();
+        if ((message.data as { enabled?: boolean } | undefined)?.enabled === false) {
+          await ssoManager.disableSSO();
+        }
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["DISABLE_SSO", {
+      execute: async () => {
+        const ssoManager = await getSSOManager();
+        await ssoManager.disableSSO();
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_ENTERPRISE_STATUS", {
+      execute: async () => {
+        const enterpriseManager = await getEnterpriseManager();
+        return enterpriseManager.getStatus();
+      },
+      fallback: () => ({
+        isManaged: false,
+        ssoRequired: false,
+        settingsLocked: false,
+        config: null,
+      } as EnterpriseStatus),
+    }],
+    ["GET_EFFECTIVE_DETECTION_CONFIG", {
+      execute: async () => {
+        const enterpriseManager = await getEnterpriseManager();
+        const userConfig = await getDetectionConfig();
+        return enterpriseManager.getEffectiveDetectionConfig(userConfig);
+      },
+      fallback: () => DEFAULT_DETECTION_CONFIG,
+    }],
+    ["AI_PROMPT_CAPTURED", {
+      execute: (message) => handleAIPromptCaptured(message.data as CapturedAIPrompt),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_AI_PROMPTS", {
+      execute: () => getAIPrompts(),
+      fallback: () => [],
+    }],
+    ["GET_AI_PROMPTS_COUNT", {
+      execute: async () => ({ count: await getAIPromptsCount() }),
+      fallback: () => ({ count: 0 }),
+    }],
+    ["GET_AI_MONITOR_CONFIG", {
+      execute: () => getAIMonitorConfig(),
+      fallback: () => DEFAULT_AI_MONITOR_CONFIG,
+    }],
+    ["SET_AI_MONITOR_CONFIG", {
+      execute: (message) => setAIMonitorConfig(message.data as Partial<AIMonitorConfig>),
+      fallback: () => ({ success: false }),
+    }],
+    ["CLEAR_AI_DATA", {
+      execute: () => clearAIData(),
+      fallback: () => ({ success: false }),
+    }],
+    ["CHECK_NRD", {
+      execute: (message) => handleNRDCheck((message.data as { domain: string }).domain),
+      fallback: () => ({ error: true }),
+    }],
+    ["GET_NRD_CONFIG", {
+      execute: () => getNRDConfig(),
+      fallback: () => DEFAULT_NRD_CONFIG,
+    }],
+    ["SET_NRD_CONFIG", {
+      execute: (message) => setNRDConfig(message.data as NRDConfig),
+      fallback: () => ({ success: false }),
+    }],
+    ["CHECK_TYPOSQUAT", {
+      execute: (message) => handleTyposquatCheck((message.data as { domain: string }).domain),
+      fallback: () => ({ error: true }),
+    }],
+    ["GET_TYPOSQUAT_CONFIG", {
+      execute: () => getTyposquatConfig(),
+      fallback: () => DEFAULT_TYPOSQUAT_CONFIG,
+    }],
+    ["SET_TYPOSQUAT_CONFIG", {
+      execute: (message) => setTyposquatConfig(message.data as TyposquatConfig),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_EVENTS", {
+      execute: async (message) => {
+        const store = await getOrInitParquetStore();
+        const options = normalizeEventQueryOptions(message.data) as ParquetEventQueryOptions;
+        const result = await store.getEvents(options);
+        const events = result.data.map((event: any) => ({
+          ...event,
+          details: parseEventDetails(event.details),
+          timestamp: new Date(event.timestamp).toISOString(),
+        }));
+        return { events, total: result.total, hasMore: result.hasMore };
+      },
+      fallback: () => ({ events: [], total: 0, hasMore: false }),
+    }],
+    ["GET_EVENTS_COUNT", {
+      execute: async (message) => {
+        const store = await getOrInitParquetStore();
+        const options = normalizeEventQueryOptions(message.data) as ParquetEventQueryOptions;
+        const result = await store.getEvents(options);
+        return { count: result.total };
+      },
+      fallback: () => ({ count: 0 }),
+    }],
+    ["CLEAR_EVENTS", {
+      execute: async () => {
+        const store = await getOrInitParquetStore();
+        await store.clearAll();
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_NETWORK_REQUESTS", {
+      execute: (message) => getNetworkRequests(message.data as {
+        limit?: number;
+        offset?: number;
+        since?: number;
+        initiatorType?: "extension" | "page" | "browser" | "unknown";
+      }),
+      fallback: () => ({ requests: [], total: 0 }),
+    }],
+    ["GET_EXTENSION_REQUESTS", {
+      execute: (message) => getExtensionRequests(message.data as { limit?: number; offset?: number }),
+      fallback: () => ({ requests: [], total: 0 }),
+    }],
+    ["GET_EXTENSION_STATS", {
+      execute: () => getExtensionStats(),
+      fallback: () => ({ byExtension: {}, byDomain: {}, total: 0 }),
+    }],
+    ["GET_NETWORK_MONITOR_CONFIG", {
+      execute: () => getNetworkMonitorConfig(),
+      fallback: () => DEFAULT_NETWORK_MONITOR_CONFIG,
+    }],
+    ["SET_NETWORK_MONITOR_CONFIG", {
+      execute: (message) => setNetworkMonitorConfig(message.data as NetworkMonitorConfig),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_ALL_EXTENSION_RISKS", {
+      execute: () => getAllExtensionRisks(),
+      fallback: () => [],
+    }],
+    ["GET_EXTENSION_RISK_ANALYSIS", {
+      execute: (message) => getExtensionRiskAnalysis((message.data as { extensionId: string }).extensionId),
+      fallback: () => null,
+    }],
+    ["TRIGGER_EXTENSION_RISK_ANALYSIS", {
+      execute: async () => {
+        await analyzeExtensionRisks();
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_DATA_RETENTION_CONFIG", {
+      execute: () => getDataRetentionConfig(),
+      fallback: () => DEFAULT_DATA_RETENTION_CONFIG,
+    }],
+    ["SET_DATA_RETENTION_CONFIG", {
+      execute: (message) => setDataRetentionConfig(message.data as DataRetentionConfig),
+      fallback: () => ({ success: false }),
+    }],
+    ["TRIGGER_DATA_CLEANUP", {
+      execute: () => cleanupOldData(),
+      fallback: () => ({ deleted: 0 }),
+    }],
+    ["GET_BLOCKING_CONFIG", {
+      execute: () => getBlockingConfig(),
+      fallback: () => DEFAULT_BLOCKING_CONFIG,
+    }],
+    ["SET_BLOCKING_CONFIG", {
+      execute: (message) => setBlockingConfig(message.data as BlockingConfig),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_DETECTION_CONFIG", {
+      execute: () => getDetectionConfig(),
+      fallback: () => DEFAULT_DETECTION_CONFIG,
+    }],
+    ["SET_DETECTION_CONFIG", {
+      execute: (message) => setDetectionConfig(message.data as Partial<DetectionConfig>),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_NOTIFICATION_CONFIG", {
+      execute: () => getNotificationConfig(),
+      fallback: () => DEFAULT_NOTIFICATION_CONFIG,
+    }],
+    ["SET_NOTIFICATION_CONFIG", {
+      execute: (message) => setNotificationConfig(message.data as Partial<NotificationConfig>),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_DOH_MONITOR_CONFIG", {
+      execute: () => getDoHMonitorConfig(),
+      fallback: () => DEFAULT_DOH_MONITOR_CONFIG,
+    }],
+    ["SET_DOH_MONITOR_CONFIG", {
+      execute: (message) => setDoHMonitorConfig(message.data as Partial<DoHMonitorConfig>),
+      fallback: () => ({ success: false }),
+    }],
+    ["GET_DOH_REQUESTS", {
+      execute: (message) => getDoHRequests(message.data as { limit?: number; offset?: number }),
+      fallback: () => ({ requests: [], total: 0 }),
+    }],
+  ]);
+
+  return {
+    direct: directHandlers,
+    async: asyncHandlers,
+  };
+}
+
+function createAlarmHandlers(): Map<string, () => void> {
+  return new Map([
+    ["flushCSPReports", () => {
+      flushReportQueue().catch((error) => logger.debug("Flush reports failed:", error));
+    }],
+    ["flushNetworkRequests", () => {
+      flushNetworkRequestBuffer().catch((error) => logger.debug("Flush network requests failed:", error));
+    }],
+    ["checkDNRMatches", () => {
+      checkDNRMatchesHandler().catch((error) => logger.debug("DNR match check failed:", error));
+    }],
+    ["extensionRiskAnalysis", () => {
+      analyzeExtensionRisks().catch((error) => logger.debug("Extension risk analysis failed:", error));
+    }],
+    ["dataCleanup", () => {
+      cleanupOldData().catch((error) => logger.debug("Data cleanup failed:", error));
+    }],
+  ]);
+}
+
 export default defineBackground(() => {
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
@@ -2566,653 +3029,38 @@ export default defineBackground(() => {
   // Data cleanup alarm (runs once per day)
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 
+  const alarmHandlers = createAlarmHandlers();
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "keepAlive") {
-      // ServiceWorkerをアクティブに保つ（何もしない）
       return;
     }
-    if (alarm.name === "flushCSPReports") {
-      flushReportQueue().catch((err) => logger.debug("Flush reports failed:", err));
-    }
-    if (alarm.name === "flushNetworkRequests") {
-      flushNetworkRequestBuffer().catch((err) => logger.debug("Flush network requests failed:", err));
-    }
-    if (alarm.name === "checkDNRMatches") {
-      checkDNRMatchesHandler().catch((err) => logger.debug("DNR match check failed:", err));
-    }
-    if (alarm.name === "extensionRiskAnalysis") {
-      analyzeExtensionRisks().catch((err) => logger.debug("Extension risk analysis failed:", err));
-    }
-    if (alarm.name === "dataCleanup") {
-      cleanupOldData().catch((err) => logger.debug("Data cleanup failed:", err));
+    const handler = alarmHandlers.get(alarm.name);
+    if (handler) {
+      handler();
     }
   });
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Service Worker readiness check
-    if (message.type === "PING") {
-      sendResponse("PONG");
+  const runtimeHandlers = createRuntimeMessageHandlers();
+  chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
+    const message = rawMessage as RuntimeMessage;
+    const type = typeof message.type === "string" ? message.type : "";
+
+    if (!type) {
+      logger.warn("Unknown message type:", message.type);
       return false;
     }
 
-    // Messages handled by offscreen document
-    if (message.type === "LOCAL_API_REQUEST" || message.type === "OFFSCREEN_READY") {
-      return false;
+    const directHandler = runtimeHandlers.direct.get(type);
+    if (directHandler) {
+      return directHandler(message, sender, sendResponse);
     }
 
-    if (message.type === "DEBUG_BRIDGE_FORWARD") {
-      handleDebugBridgeForward(message.debugType, message.debugData)
-        .then(sendResponse)
-        .catch((err) => sendResponse({ success: false, error: err.message }));
-      return true;
+    const asyncHandler = runtimeHandlers.async.get(type);
+    if (asyncHandler) {
+      return runAsyncMessageHandler(asyncHandler, message, sender, sendResponse);
     }
 
-    if (message.type === "DEBUG_BRIDGE_CONNECTED" || message.type === "DEBUG_BRIDGE_DISCONNECTED") {
-      logger.debug(`Debug bridge: ${message.type === "DEBUG_BRIDGE_CONNECTED" ? "connected" : "disconnected"}`);
-      return false;
-    }
-
-    if (message.type === "PAGE_ANALYZED") {
-      handlePageAnalysis(message.payload)
-        .then(() => sendResponse({ success: true }))
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CSP_VIOLATION") {
-      handleCSPViolation(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "NETWORK_REQUEST") {
-      handleNetworkRequest(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "DATA_EXFILTRATION_DETECTED") {
-      handleDataExfiltration(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CREDENTIAL_THEFT_DETECTED") {
-      handleCredentialTheft(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "SUPPLY_CHAIN_RISK_DETECTED") {
-      handleSupplyChainRisk(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "TRACKING_BEACON_DETECTED") {
-      handleTrackingBeacon(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CLIPBOARD_HIJACK_DETECTED") {
-      handleClipboardHijack(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "COOKIE_ACCESS_DETECTED") {
-      handleCookieAccess(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "XSS_DETECTED") {
-      handleXSSDetected(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "DOM_SCRAPING_DETECTED") {
-      handleDOMScraping(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "SUSPICIOUS_DOWNLOAD_DETECTED") {
-      handleSuspiciousDownload(message.data, sender)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "GET_CSP_REPORTS") {
-      getCSPReports(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse([]));
-      return true;
-    }
-
-    if (message.type === "GENERATE_CSP") {
-      generateCSPPolicy(message.data?.options)
-        .then(sendResponse)
-        .catch(() => sendResponse(null));
-      return true;
-    }
-
-    if (message.type === "GENERATE_CSP_BY_DOMAIN") {
-      generateCSPPolicyByDomain(message.data?.options)
-        .then(sendResponse)
-        .catch(() => sendResponse(null));
-      return true;
-    }
-
-    if (message.type === "GET_GENERATED_CSP_POLICY") {
-      chrome.storage.local.get("generatedCSPPolicy", (data) => {
-        sendResponse(data.generatedCSPPolicy || null);
-      });
-      return true;
-    }
-
-    if (message.type === "REGENERATE_CSP_POLICY") {
-      generateCSPPolicyByDomain(message.data?.options || { strictMode: false, includeReportUri: true })
-        .then(async (result) => {
-          await saveGeneratedCSPPolicy(result);
-          sendResponse(result);
-        })
-        .catch(() => sendResponse(null));
-      return true;
-    }
-
-    if (message.type === "GET_CSP_CONFIG") {
-      getCSPConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_CSP_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_CSP_CONFIG") {
-      setCSPConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CLEAR_CSP_DATA") {
-      clearCSPData()
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CLEAR_ALL_DATA") {
-      clearAllData()
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "GET_STATS") {
-      (async () => {
-        try {
-          if (!apiClient) {
-            apiClient = await getApiClient();
-          }
-          const stats = await apiClient.getStats();
-          sendResponse(stats);
-        } catch {
-          sendResponse({ violations: 0, requests: 0, uniqueDomains: 0 });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "GET_CONNECTION_CONFIG") {
-      getConnectionConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse({ mode: "local", endpoint: null }));
-      return true;
-    }
-
-    if (message.type === "SET_CONNECTION_CONFIG") {
-      setConnectionConfig(message.data.mode, message.data.endpoint)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "GET_SYNC_CONFIG") {
-      getSyncConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse({ enabled: false, endpoint: null }));
-      return true;
-    }
-
-    if (message.type === "SET_SYNC_CONFIG") {
-      setSyncConfig(message.data.enabled, message.data.endpoint)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "TRIGGER_SYNC") {
-      triggerSync()
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false, sent: 0, received: 0 }));
-      return true;
-    }
-
-    // SSO handlers
-    if (message.type === "GET_SSO_STATUS") {
-      (async () => {
-        try {
-          const ssoManager = await getSSOManager();
-          const status = await ssoManager.getStatus();
-          sendResponse(status);
-        } catch {
-          sendResponse({ enabled: false, isAuthenticated: false });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "START_SSO_AUTH") {
-      (async () => {
-        try {
-          const ssoManager = await getSSOManager();
-          const provider = message.data?.provider;
-          let session;
-          if (provider === "oidc") {
-            session = await ssoManager.startOIDCAuth();
-          } else if (provider === "saml") {
-            session = await ssoManager.startSAMLAuth();
-          } else {
-            sendResponse({ success: false, error: "Unknown provider" });
-            return;
-          }
-          sendResponse({ success: true, session });
-        } catch (error) {
-          sendResponse({ success: false, error: error instanceof Error ? error.message : "Auth failed" });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "SET_SSO_ENABLED") {
-      (async () => {
-        try {
-          const ssoManager = await getSSOManager();
-          if (message.data?.enabled === false) {
-            await ssoManager.disableSSO();
-          }
-          sendResponse({ success: true });
-        } catch {
-          sendResponse({ success: false });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "DISABLE_SSO") {
-      (async () => {
-        try {
-          const ssoManager = await getSSOManager();
-          await ssoManager.disableSSO();
-          sendResponse({ success: true });
-        } catch {
-          sendResponse({ success: false });
-        }
-      })();
-      return true;
-    }
-
-    // Enterprise Management handlers
-    if (message.type === "GET_ENTERPRISE_STATUS") {
-      (async () => {
-        try {
-          const enterpriseManager = await getEnterpriseManager();
-          const status = enterpriseManager.getStatus();
-          sendResponse(status);
-        } catch {
-          sendResponse({
-            isManaged: false,
-            ssoRequired: false,
-            settingsLocked: false,
-            config: null,
-          } as EnterpriseStatus);
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "GET_EFFECTIVE_DETECTION_CONFIG") {
-      (async () => {
-        try {
-          const enterpriseManager = await getEnterpriseManager();
-          const userConfig = await getDetectionConfig();
-          const effectiveConfig = enterpriseManager.getEffectiveDetectionConfig(userConfig);
-          sendResponse(effectiveConfig);
-        } catch {
-          sendResponse(DEFAULT_DETECTION_CONFIG);
-        }
-      })();
-      return true;
-    }
-
-    // AI Prompt handlers
-    if (message.type === "AI_PROMPT_CAPTURED") {
-      handleAIPromptCaptured(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "GET_AI_PROMPTS") {
-      getAIPrompts()
-        .then(sendResponse)
-        .catch(() => sendResponse([]));
-      return true;
-    }
-
-    if (message.type === "GET_AI_PROMPTS_COUNT") {
-      getAIPromptsCount()
-        .then((count) => sendResponse({ count }))
-        .catch(() => sendResponse({ count: 0 }));
-      return true;
-    }
-
-    if (message.type === "GET_AI_MONITOR_CONFIG") {
-      getAIMonitorConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_AI_MONITOR_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_AI_MONITOR_CONFIG") {
-      setAIMonitorConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "CLEAR_AI_DATA") {
-      clearAIData()
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // NRD Detection handlers
-    if (message.type === "CHECK_NRD") {
-      handleNRDCheck(message.data.domain)
-        .then(sendResponse)
-        .catch(() => sendResponse({ error: true }));
-      return true;
-    }
-
-    if (message.type === "GET_NRD_CONFIG") {
-      getNRDConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_NRD_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_NRD_CONFIG") {
-      setNRDConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Typosquatting Detection handlers
-    if (message.type === "CHECK_TYPOSQUAT") {
-      handleTyposquatCheck(message.data.domain)
-        .then(sendResponse)
-        .catch(() => sendResponse({ error: true }));
-      return true;
-    }
-
-    if (message.type === "GET_TYPOSQUAT_CONFIG") {
-      getTyposquatConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_TYPOSQUAT_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_TYPOSQUAT_CONFIG") {
-      setTyposquatConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Event handlers
-    if (message.type === "GET_EVENTS") {
-      (async () => {
-        try {
-          const store = await getOrInitParquetStore();
-          // タイムスタンプ形式を ISO形式に変換（ParquetStore対応）
-          const options = message.data || {};
-          if (typeof options.since === "number") {
-            options.since = new Date(options.since).toISOString();
-          }
-          if (typeof options.until === "number") {
-            options.until = new Date(options.until).toISOString();
-          }
-          const result = await store.getEvents(options);
-          // ParquetEvent を EventLog形式に変換
-          const events = result.data.map((e: any) => ({
-            ...e,
-            details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
-            timestamp: new Date(e.timestamp).toISOString(),
-          }));
-          sendResponse({ events, total: result.total, hasMore: result.hasMore });
-        } catch {
-          sendResponse({ events: [], total: 0, hasMore: false });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "GET_EVENTS_COUNT") {
-      (async () => {
-        try {
-          const store = await getOrInitParquetStore();
-          // タイムスタンプ形式を ISO形式に変換
-          const options = message.data || {};
-          if (typeof options.since === "number") {
-            options.since = new Date(options.since).toISOString();
-          }
-          if (typeof options.until === "number") {
-            options.until = new Date(options.until).toISOString();
-          }
-          const result = await store.getEvents(options);
-          sendResponse({ count: result.total });
-        } catch {
-          sendResponse({ count: 0 });
-        }
-      })();
-      return true;
-    }
-
-    if (message.type === "CLEAR_EVENTS") {
-      (async () => {
-        try {
-          const store = await getOrInitParquetStore();
-          await store.clearAll();
-          sendResponse({ success: true });
-        } catch {
-          sendResponse({ success: false });
-        }
-      })();
-      return true;
-    }
-
-    // Network Monitor handlers
-    if (message.type === "GET_NETWORK_REQUESTS") {
-      getNetworkRequests(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ requests: [], total: 0 }));
-      return true;
-    }
-
-    // Extension Monitor handlers
-    if (message.type === "GET_EXTENSION_REQUESTS") {
-      getExtensionRequests(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ requests: [], total: 0 }));
-      return true;
-    }
-
-    if (message.type === "GET_KNOWN_EXTENSIONS") {
-      sendResponse(getKnownExtensions());
-      return false;
-    }
-
-    if (message.type === "GET_EXTENSION_STATS") {
-      getExtensionStats()
-        .then(sendResponse)
-        .catch(() => sendResponse({ byExtension: {}, byDomain: {}, total: 0 }));
-      return true;
-    }
-
-    if (message.type === "GET_NETWORK_MONITOR_CONFIG") {
-      getNetworkMonitorConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_NETWORK_MONITOR_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_NETWORK_MONITOR_CONFIG") {
-      setNetworkMonitorConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Extension Risk Analysis handlers
-    if (message.type === "GET_ALL_EXTENSION_RISKS") {
-      getAllExtensionRisks()
-        .then(sendResponse)
-        .catch(() => sendResponse([]));
-      return true;
-    }
-
-    if (message.type === "GET_EXTENSION_RISK_ANALYSIS") {
-      getExtensionRiskAnalysis(message.data.extensionId)
-        .then(sendResponse)
-        .catch(() => sendResponse(null));
-      return true;
-    }
-
-    if (message.type === "TRIGGER_EXTENSION_RISK_ANALYSIS") {
-      analyzeExtensionRisks()
-        .then(() => sendResponse({ success: true }))
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Data Retention handlers
-    if (message.type === "GET_DATA_RETENTION_CONFIG") {
-      getDataRetentionConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_DATA_RETENTION_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_DATA_RETENTION_CONFIG") {
-      setDataRetentionConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "TRIGGER_DATA_CLEANUP") {
-      cleanupOldData()
-        .then(sendResponse)
-        .catch(() => sendResponse({ deleted: 0 }));
-      return true;
-    }
-
-    // Blocking Config handlers
-    if (message.type === "GET_BLOCKING_CONFIG") {
-      getBlockingConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_BLOCKING_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_BLOCKING_CONFIG") {
-      setBlockingConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Detection Config handlers
-    if (message.type === "GET_DETECTION_CONFIG") {
-      getDetectionConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_DETECTION_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_DETECTION_CONFIG") {
-      setDetectionConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // Notification Config handlers
-    if (message.type === "GET_NOTIFICATION_CONFIG") {
-      getNotificationConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_NOTIFICATION_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_NOTIFICATION_CONFIG") {
-      setNotificationConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    // DoH Monitor handlers
-    if (message.type === "GET_DOH_MONITOR_CONFIG") {
-      getDoHMonitorConfig()
-        .then(sendResponse)
-        .catch(() => sendResponse(DEFAULT_DOH_MONITOR_CONFIG));
-      return true;
-    }
-
-    if (message.type === "SET_DOH_MONITOR_CONFIG") {
-      setDoHMonitorConfig(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ success: false }));
-      return true;
-    }
-
-    if (message.type === "GET_DOH_REQUESTS") {
-      getDoHRequests(message.data)
-        .then(sendResponse)
-        .catch(() => sendResponse({ requests: [], total: 0 }));
-      return true;
-    }
-
-    // 未知のメッセージタイプはレスポンスを返さず同期的に処理
-    logger.warn("Unknown message type:", message.type);
+    logger.warn("Unknown message type:", type);
     return false;
   });
 
