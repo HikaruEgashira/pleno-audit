@@ -567,17 +567,16 @@ async function getNetworkRequests(params?: {
   initiatorType?: string;
 }): Promise<Omit<DebugResponse, "id">> {
   try {
-    const storage = await chrome.storage.local.get("networkRequests");
-    let requests = storage.networkRequests || [];
+    // Source of truth is background's Parquet store.
+    const result = await chrome.runtime.sendMessage({
+      type: "GET_NETWORK_REQUESTS",
+      data: {
+        limit: params?.limit,
+        initiatorType: params?.initiatorType,
+      },
+    });
 
-    if (params?.initiatorType) {
-      requests = requests.filter((r: { initiatorType: string }) => r.initiatorType === params.initiatorType);
-    }
-
-    const limit = params?.limit || 20;
-    requests = requests.slice(0, limit);
-
-    return { success: true, data: requests };
+    return { success: true, data: result?.requests || [] };
   } catch (error) {
     return {
       success: false,

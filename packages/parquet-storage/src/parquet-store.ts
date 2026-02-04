@@ -44,6 +44,54 @@ export class ParquetStore {
     await this.writeBuffer.add(type, records);
   }
 
+  /**
+   * Append rows immediately without waiting for write buffer flush.
+   * This is used by real-time log paths in the extension background worker.
+   */
+  async appendRows(
+    type: ParquetLogType,
+    rows: Record<string, unknown>[]
+  ): Promise<void> {
+    if (rows.length === 0) return;
+    await this.flushBuffer(type, rows, getDateString());
+  }
+
+  /**
+   * Query raw rows for a given parquet type.
+   * Flushes pending buffered writes first to make reads consistent.
+   */
+  async queryRows(
+    type: ParquetLogType,
+    options?: { since?: string; until?: string }
+  ): Promise<Record<string, unknown>[]> {
+    await this.writeBuffer.flush(type);
+
+    let files: ParquetFileRecord[];
+    if (options?.since || options?.until) {
+      const now = new Date();
+      const startDate = options?.since ? new Date(options.since) : new Date(0);
+      const endDate = options?.until ? new Date(options.until) : now;
+      files = await this.indexedDB.listByDateRange(
+        type,
+        getDateString(startDate),
+        getDateString(endDate)
+      );
+    } else {
+      files = await this.indexedDB.listByType(type);
+    }
+
+    files.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.lastModified - b.lastModified;
+    });
+
+    const rows: Record<string, unknown>[] = [];
+    for (const file of files) {
+      rows.push(...this.deserializeParquetData(file.data));
+    }
+    return rows;
+  }
+
   private async flushBuffer(
     type: ParquetLogType,
     records: unknown[],
