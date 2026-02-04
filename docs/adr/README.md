@@ -35,3 +35,4 @@
 | [033](./033-unlimited-storage-for-zta.md) | ZTA監査証跡のためのunlimitedStorage採用 | Accepted |
 | [034](./034-network-monitor.md) | Network Monitor - 全ネットワークリクエスト監視 | Accepted |
 | [035](./035-background-message-routing-refactor.md) | Backgroundメッセージルーティングのテーブル駆動化 | Accepted |
+| [036](./036-alert-manager-responsibility-split.md) | Alert Managerの責務分離 | Accepted |
