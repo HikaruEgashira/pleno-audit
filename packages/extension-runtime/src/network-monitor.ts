@@ -72,6 +72,7 @@ const DNR_MIN_INTERVAL_MS = 35 * 1000;
 
 interface NetworkMonitorState {
   config: NetworkMonitorConfig;
+  configCacheKey: string;
   ownExtensionId: string;
   knownExtensions: Map<string, ExtensionInfo>;
   callbacks: Array<(request: NetworkRequestRecord) => void>;
@@ -86,9 +87,14 @@ interface NetworkMonitorState {
   excludedExtensions: Set<string>;
 }
 
+function createConfigCacheKey(config: NetworkMonitorConfig): string {
+  return `${config.excludedDomains.join("\u0000")}::${config.excludedExtensions.join("\u0000")}`;
+}
+
 // グローバル状態（Service Worker再起動時に再初期化される）
 const state: NetworkMonitorState = {
   config: DEFAULT_NETWORK_MONITOR_CONFIG,
+  configCacheKey: createConfigCacheKey(DEFAULT_NETWORK_MONITOR_CONFIG),
   ownExtensionId: "",
   knownExtensions: new Map<string, ExtensionInfo>(),
   callbacks: [],
@@ -104,8 +110,20 @@ const state: NetworkMonitorState = {
 };
 
 function updateConfigCaches(config: NetworkMonitorConfig): void {
+  state.configCacheKey = createConfigCacheKey(config);
   state.excludedDomains = new Set(config.excludedDomains);
   state.excludedExtensions = new Set(config.excludedExtensions);
+}
+
+function ensureConfigCachesCurrent(): void {
+  if (state.configCacheKey !== createConfigCacheKey(state.config)) {
+    updateConfigCaches(state.config);
+  }
+}
+
+function applyConfig(config: NetworkMonitorConfig): void {
+  state.config = config;
+  updateConfigCaches(config);
 }
 
 /**
@@ -241,6 +259,8 @@ function toExtensionRequestRecords(
  * 全ネットワークリクエストを処理
  */
 function handleWebRequest(details: chrome.webRequest.WebRequestBodyDetails): void {
+  ensureConfigCachesCurrent();
+
   if (!state.config.enabled) return;
 
   const initiatorType = classifyInitiator(details.initiator);
@@ -340,12 +360,11 @@ export async function registerDNRRulesForExtensions(
       .filter((rule) => isMonitorRuleId(rule.id))
       .map((rule) => rule.id);
 
-    state.dnrRuleToExtensionMap.clear();
-
     const targetExtensions = extensionIds.slice(0, DNR_RULE_CAPACITY);
+    const nextRuleMap = new Map<number, string>();
     const newRules = targetExtensions.map((extensionId, index) => {
       const ruleId = DNR_RULE_ID_BASE + index;
-      state.dnrRuleToExtensionMap.set(ruleId, extensionId);
+      nextRuleMap.set(ruleId, extensionId);
       return createDNRRule(extensionId, ruleId);
     });
 
@@ -354,6 +373,7 @@ export async function registerDNRRulesForExtensions(
       addRules: newRules,
     });
 
+    state.dnrRuleToExtensionMap = nextRuleMap;
     state.dnrRulesRegistered = true;
     logger.info(`DNR rules registered for ${newRules.length} extensions`);
   } catch (error) {
@@ -365,6 +385,8 @@ export async function registerDNRRulesForExtensions(
  * DNRマッチルールをチェック
  */
 export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
+  ensureConfigCachesCurrent();
+
   if (!state.dnrRulesRegistered || !state.config.enabled) {
     return [];
   }
@@ -522,9 +544,8 @@ export function createNetworkMonitor(
   config: NetworkMonitorConfig,
   ownExtensionId: string
 ): NetworkMonitor {
-  state.config = config;
+  applyConfig(config);
   state.ownExtensionId = ownExtensionId;
-  updateConfigCaches(config);
 
   async function refreshExtensionList(): Promise<void> {
     try {
@@ -623,7 +644,7 @@ export function createNetworkMonitor(
     async stop() {
       chrome.management.onInstalled.removeListener(handleInstalled);
       chrome.management.onUninstalled.removeListener(handleUninstalled);
-      state.config = { ...state.config, enabled: false };
+      applyConfig({ ...state.config, enabled: false });
       clearGlobalCallbacks();
       await clearDNRRules();
     },
