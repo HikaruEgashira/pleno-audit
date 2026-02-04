@@ -582,7 +582,7 @@ export function createNetworkMonitor(
     removeDNRRuleForExtension(extensionId).catch(() => {});
   }
 
-  async function restoreDNRMapping(): Promise<void> {
+  async function restoreDNRMapping(): Promise<boolean> {
     try {
       const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
       const relevantRules = existingRules.filter((rule) =>
@@ -590,19 +590,37 @@ export function createNetworkMonitor(
       );
 
       state.dnrRuleToExtensionMap.clear();
+      let needsReconciliation = false;
       for (const rule of relevantRules) {
         if (rule.condition?.initiatorDomains?.length === 1) {
           const extensionId = rule.condition.initiatorDomains[0];
-          if (EXTENSION_ID_PATTERN.test(extensionId)) {
-            state.dnrRuleToExtensionMap.set(rule.id, extensionId);
+          if (!EXTENSION_ID_PATTERN.test(extensionId)) {
+            needsReconciliation = true;
+            continue;
           }
+
+          if (
+            (state.config.excludeOwnExtension &&
+              extensionId === state.ownExtensionId) ||
+            state.excludedExtensions.has(extensionId)
+          ) {
+            needsReconciliation = true;
+            continue;
+          }
+
+          state.dnrRuleToExtensionMap.set(rule.id, extensionId);
+          continue;
         }
+
+        needsReconciliation = true;
       }
 
       state.dnrRulesRegistered = state.dnrRuleToExtensionMap.size > 0;
       logger.info(`DNR mapping restored: ${state.dnrRuleToExtensionMap.size} rules`);
+      return needsReconciliation;
     } catch (error) {
       logger.error("Failed to restore DNR mapping:", error);
+      return true;
     }
   }
 
@@ -624,8 +642,9 @@ export function createNetworkMonitor(
 
       let mappingRestored = false;
       if (!state.dnrRulesRegistered && state.dnrRuleToExtensionMap.size === 0) {
-        await restoreDNRMapping();
-        mappingRestored = state.dnrRuleToExtensionMap.size > 0;
+        const needsReconciliation = await restoreDNRMapping();
+        mappingRestored =
+          state.dnrRuleToExtensionMap.size > 0 && !needsReconciliation;
       }
 
       chrome.management.onInstalled.addListener(handleInstalled);
