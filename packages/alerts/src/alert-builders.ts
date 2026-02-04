@@ -124,8 +124,6 @@ export function buildShadowAIAlert(params: ShadowAIAlertParams): CreateAlertInpu
 
   if (params.provider === "unknown") {
     severity = "high";
-  } else if (params.category === "regional") {
-    severity = params.riskLevel === "high" ? "high" : "medium";
   } else {
     severity = params.riskLevel === "high" ? "high" : "medium";
   }
@@ -255,11 +253,14 @@ export function buildCredentialTheftAlert(
     riskDescriptions.push("クロスオリジン送信");
   }
 
+  const transportDescription =
+    riskDescriptions.length > 0 ? riskDescriptions.join(", ") : "不明な経路";
+
   return {
     category: "credential_theft",
     severity,
     title: `認証情報リスク: ${params.targetDomain}`,
-    description: `${params.fieldType}フィールドが${riskDescriptions.join(", ")}で送信されます`,
+    description: `${params.fieldType}フィールドが${transportDescription}で送信されます`,
     domain: params.targetDomain,
     details: {
       type: "credential_theft",
