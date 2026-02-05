@@ -9,21 +9,13 @@ import type {
   CapturedAIPrompt,
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-  NRDConfig,
-  NRDResult,
-  NRDCache,
-  TyposquatConfig,
-  TyposquatResult,
   TyposquatDetectedDetails,
-  TyposquatCache,
   DetectionResult,
 } from "@pleno-audit/detectors";
 import {
   DEFAULT_AI_MONITOR_CONFIG,
   DEFAULT_NRD_CONFIG,
   DEFAULT_TYPOSQUAT_CONFIG,
-  createNRDDetector,
-  createTyposquatDetector,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -78,11 +70,7 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import {
-  ParquetStore,
-  nrdResultToParquetRecord,
-  typosquatResultToParquetRecord,
-} from "@pleno-audit/parquet-storage";
+import { ParquetStore } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
   createPolicyManager,
@@ -106,6 +94,7 @@ import {
   createExtensionNetworkService,
   type ExtensionStats,
 } from "../lib/background/extension-network-service";
+import { createDomainRiskService } from "../lib/background/domain-risk-service";
 import {
   createSecurityEventHandlers,
   type ClipboardHijackData,
@@ -311,26 +300,6 @@ async function getDoHRequests(options?: { limit?: number; offset?: number }): Pr
   return { requests, total };
 }
 
-// NRD Detection
-const nrdCache: Map<string, NRDResult> = new Map();
-let nrdDetector: ReturnType<typeof createNRDDetector> | null = null;
-
-const nrdCacheAdapter: NRDCache = {
-  get: (domain) => nrdCache.get(domain) ?? null,
-  set: (domain, result) => nrdCache.set(domain, result),
-  clear: () => nrdCache.clear(),
-};
-
-// Typosquatting Detection
-const typosquatCache: Map<string, TyposquatResult> = new Map();
-let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
-
-const typosquatCacheAdapter: TyposquatCache = {
-  get: (domain) => typosquatCache.get(domain) ?? null,
-  set: (domain, result) => typosquatCache.set(domain, result),
-  clear: () => typosquatCache.clear(),
-};
-
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     storageQueue = storageQueue
@@ -532,200 +501,6 @@ const extensionNetworkService = createExtensionNetworkService({
   getAlertManager,
   getRuntimeId: () => chrome.runtime.id,
 });
-
-// ============================================================================
-// NRD Detection
-// ============================================================================
-
-async function getNRDConfig(): Promise<NRDConfig> {
-  const storage = await getStorage();
-  return storage.nrdConfig || DEFAULT_NRD_CONFIG;
-}
-
-async function initNRDDetector() {
-  const config = await getNRDConfig();
-  nrdDetector = createNRDDetector(config, nrdCacheAdapter);
-}
-
-async function checkNRD(domain: string): Promise<NRDResult> {
-  if (!nrdDetector) {
-    await initNRDDetector();
-  }
-  return nrdDetector!.checkDomain(domain);
-}
-
-async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableNRD) {
-      return { skipped: true, reason: "NRD detection disabled" };
-    }
-
-    const result = await checkNRD(domain);
-
-    // Update service with NRD result if it's a positive detection
-    if (result.isNRD) {
-      await updateService(result.domain, {
-        nrdResult: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          domainAge: result.domainAge,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "nrd_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          registrationDate: result.registrationDate,
-          domainAge: result.domainAge,
-          method: result.method,
-          suspiciousScore: result.suspiciousScores.totalScore,
-          isDDNS: result.ddns.isDDNS,
-          ddnsProvider: result.ddns.provider,
-        },
-      });
-
-      // Fire NRD alert
-      await getAlertManager().alertNRD({
-        domain: result.domain,
-        domainAge: result.domainAge,
-        registrationDate: result.registrationDate,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = nrdResultToParquetRecord(result);
-    await store.write("nrd-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("NRD check failed:", error);
-    throw error;
-  }
-}
-
-async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ nrdConfig: newConfig });
-    // Reinitialize detector with new config
-    await initNRDDetector();
-    // Clear cache on config change
-    nrdCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting NRD config:", error);
-    return { success: false };
-  }
-}
-
-// ============================================================================
-// Typosquatting Detection
-// ============================================================================
-
-async function getTyposquatConfig(): Promise<TyposquatConfig> {
-  const storage = await getStorage();
-  return storage.typosquatConfig || DEFAULT_TYPOSQUAT_CONFIG;
-}
-
-async function initTyposquatDetector() {
-  const config = await getTyposquatConfig();
-  typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-}
-
-function checkTyposquat(domain: string): TyposquatResult {
-  if (!typosquatDetector) {
-    // Sync init since detector creation is synchronous
-    const config = DEFAULT_TYPOSQUAT_CONFIG;
-    typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-  }
-  return typosquatDetector.checkDomain(domain);
-}
-
-async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableTyposquat) {
-      return { skipped: true, reason: "Typosquat detection disabled" };
-    }
-
-    // Ensure detector is initialized with latest config
-    if (!typosquatDetector) {
-      await initTyposquatDetector();
-    }
-
-    const result = checkTyposquat(domain);
-
-    // Update service with typosquat result if it's a positive detection
-    if (result.isTyposquat) {
-      await updateService(result.domain, {
-        typosquatResult: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "typosquat_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          homoglyphCount: result.heuristics.homoglyphs.length,
-          hasMixedScript: result.heuristics.hasMixedScript,
-          detectedScripts: result.heuristics.detectedScripts,
-        },
-      });
-
-      // Fire typosquat alert
-      await getAlertManager().alertTyposquat({
-        domain: result.domain,
-        homoglyphCount: result.heuristics.homoglyphs.length,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = typosquatResultToParquetRecord(result);
-    await store.write("typosquat-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("Typosquat check failed:", error);
-    throw error;
-  }
-}
-
-async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ typosquatConfig: newConfig });
-    // Reinitialize detector with new config
-    await initTyposquatDetector();
-    // Clear cache on config change
-    typosquatCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting Typosquat config:", error);
-    return { success: false };
-  }
-}
 
 // ============================================================================
 // Extension Network Monitor
@@ -1117,6 +892,16 @@ const aiPromptMonitorService = createAIPromptMonitorService({
   getAlertManager,
 });
 
+const domainRiskService = createDomainRiskService({
+  logger,
+  getStorage,
+  setStorage: async (data) => setStorage(data),
+  updateService,
+  addEvent: async (event) => addEvent(event as NewEvent),
+  getOrInitParquetStore,
+  getAlertManager,
+});
+
 async function clearAllData(): Promise<{ success: boolean }> {
   try {
     logger.info("Clearing all data...");
@@ -1411,12 +1196,12 @@ export default defineBackground(() => {
     getAIMonitorConfig: aiPromptMonitorService.getAIMonitorConfig,
     setAIMonitorConfig: aiPromptMonitorService.setAIMonitorConfig,
     clearAIData: aiPromptMonitorService.clearAIData,
-    handleNRDCheck,
-    getNRDConfig,
-    setNRDConfig,
-    handleTyposquatCheck,
-    getTyposquatConfig,
-    setTyposquatConfig,
+    handleNRDCheck: domainRiskService.handleNRDCheck,
+    getNRDConfig: domainRiskService.getNRDConfig,
+    setNRDConfig: domainRiskService.setNRDConfig,
+    handleTyposquatCheck: domainRiskService.handleTyposquatCheck,
+    getTyposquatConfig: domainRiskService.getTyposquatConfig,
+    setTyposquatConfig: domainRiskService.setTyposquatConfig,
     getOrInitParquetStore,
     getNetworkRequests,
     getExtensionRequests,
