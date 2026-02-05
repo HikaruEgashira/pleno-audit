@@ -1,38 +1,6 @@
-import type {
-  DetectedService,
-  EventLog,
-  CookieInfo,
-  LoginDetectedDetails,
-  PrivacyPolicyFoundDetails,
-  TosFoundDetails,
-  CookieSetDetails,
-  CapturedAIPrompt,
-  AIPromptSentDetails,
-  AIResponseReceivedDetails,
-  NRDConfig,
-  NRDResult,
-  NRDCache,
-  TyposquatConfig,
-  TyposquatResult,
-  TyposquatDetectedDetails,
-  TyposquatCache,
-  DetectionResult,
-} from "@pleno-audit/detectors";
-import {
-  DEFAULT_AI_MONITOR_CONFIG,
-  DEFAULT_NRD_CONFIG,
-  DEFAULT_TYPOSQUAT_CONFIG,
-  createNRDDetector,
-  createTyposquatDetector,
-} from "@pleno-audit/detectors";
-import type {
-  CSPViolation,
-  NetworkRequest,
-  CSPReport,
-  CSPConfig,
-  CSPViolationDetails,
-  NetworkRequestDetails,
-} from "@pleno-audit/csp";
+import type { CapturedAIPrompt, DetectedService } from "@pleno-audit/detectors";
+import { DEFAULT_AI_MONITOR_CONFIG, DEFAULT_NRD_CONFIG, DEFAULT_TYPOSQUAT_CONFIG } from "@pleno-audit/detectors";
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import {
   startCookieMonitor,
@@ -64,25 +32,14 @@ import {
   type ConnectionMode,
   type SyncManager,
   type NetworkMonitorConfig,
-  type DataRetentionConfig,
   type DetectionConfig,
   type NotificationConfig,
   type DoHMonitor,
-  type DoHMonitorConfig,
-  type DoHRequestRecord,
 } from "@pleno-audit/extension-runtime";
-
-const logger = createLogger("background");
-import type { ExtensionRequestDetails } from "@pleno-audit/detectors";
 import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import {
-  ParquetStore,
-  nrdResultToParquetRecord,
-  typosquatResultToParquetRecord,
-} from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
   createPolicyManager,
@@ -101,11 +58,16 @@ import {
   type RuntimeMessage,
 } from "../lib/background/runtime-handlers";
 import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
-import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
 import {
   createExtensionNetworkService,
   type ExtensionStats,
 } from "../lib/background/extension-network-service";
+import { createEventStore, type NewEvent } from "../lib/background/event-store";
+import { createStorageAccess } from "../lib/background/storage-access";
+import { createServiceRegistry, type PageAnalysis } from "../lib/background/service-registry";
+import { createRiskDetectionService } from "../lib/background/risk-detection-service";
+import { createDoHMonitorService } from "../lib/background/doh-monitor-service";
+import { createDataRetentionService } from "../lib/background/data-retention-service";
 import {
   createSecurityEventHandlers,
   type ClipboardHijackData,
@@ -119,25 +81,22 @@ import {
   type XSSDetectedData,
 } from "../lib/background/security-event-handlers";
 
+const logger = createLogger("background");
+
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
-
-interface StorageData {
-  services: Record<string, DetectedService>;
-  cspReports: CSPReport[];
-  cspConfig: CSPConfig;
-  detectionConfig: DetectionConfig;
-  policyConfig: PolicyConfig;
-}
-
-let storageQueue: Promise<void> = Promise.resolve();
 let apiClient: ApiClient | null = null;
 let syncManager: SyncManager | null = null;
-let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
 let doHMonitor: DoHMonitor | null = null;
 
 type PolicyViolation = ReturnType<PolicyManager["checkDomain"]>["violations"][number];
+
+const storageAccess = createStorageAccess();
+const { initStorage, saveStorage, queueStorageOperation } = storageAccess;
+
+const eventStore = createEventStore();
+const { getOrInitParquetStore, addEvent } = eventStore;
 
 async function ensureApiClient(): Promise<ApiClient> {
   if (!apiClient) {
@@ -274,254 +233,58 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
 });
 
-// ============================================================================
-// DoH Monitor Config
-// ============================================================================
+const serviceRegistry = createServiceRegistry({
+  logger,
+  initStorage,
+  saveStorage,
+  queueStorageOperation,
+  addEvent: (event) => addEvent(event),
+  getAlertManager,
+  checkDomainPolicy,
+  defaultDetectionConfig: DEFAULT_DETECTION_CONFIG,
+});
+const { updateService, addCookieToService, handlePageAnalysis } = serviceRegistry;
 
-async function getDoHMonitorConfig(): Promise<DoHMonitorConfig> {
-  const storage = await getStorage();
-  return storage.doHMonitorConfig || DEFAULT_DOH_MONITOR_CONFIG;
-}
+const riskDetectionService = createRiskDetectionService({
+  logger,
+  initStorage,
+  getStorage: () => getStorage(),
+  setStorage: (data) => setStorage(data),
+  updateService,
+  addEvent: (event) => addEvent(event),
+  getAlertManager,
+  getOrInitParquetStore,
+  defaultDetectionConfig: DEFAULT_DETECTION_CONFIG,
+});
+const {
+  getNRDConfig,
+  setNRDConfig,
+  handleNRDCheck,
+  getTyposquatConfig,
+  setTyposquatConfig,
+  handleTyposquatCheck,
+} = riskDetectionService;
 
-async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{ success: boolean }> {
-  const storage = await getStorage();
-  storage.doHMonitorConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
-  await setStorage(storage);
+const doHMonitorService = createDoHMonitorService({
+  logger,
+  getStorage: () => getStorage(),
+  setStorage: (data) => setStorage(data),
+});
+const {
+  getDoHMonitorConfig,
+  setDoHMonitorConfig,
+  getDoHRequests,
+  attachMonitor: attachDoHMonitor,
+} = doHMonitorService;
 
-  // Update running monitor
-  if (doHMonitor) {
-    await doHMonitor.updateConfig(storage.doHMonitorConfig);
-  }
-
-  return { success: true };
-}
-
-async function getDoHRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: DoHRequestRecord[]; total: number }> {
-  const storage = await getStorage();
-  const allRequests = storage.doHRequests || [];
-  const total = allRequests.length;
-
-  const limit = options?.limit ?? 100;
-  const offset = options?.offset ?? 0;
-
-  // Sort by timestamp descending (newest first)
-  const sorted = [...allRequests].sort((a, b) => b.timestamp - a.timestamp);
-  const requests = sorted.slice(offset, offset + limit);
-
-  return { requests, total };
-}
-
-// NRD Detection
-const nrdCache: Map<string, NRDResult> = new Map();
-let nrdDetector: ReturnType<typeof createNRDDetector> | null = null;
-
-const nrdCacheAdapter: NRDCache = {
-  get: (domain) => nrdCache.get(domain) ?? null,
-  set: (domain, result) => nrdCache.set(domain, result),
-  clear: () => nrdCache.clear(),
-};
-
-// Typosquatting Detection
-const typosquatCache: Map<string, TyposquatResult> = new Map();
-let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
-
-const typosquatCacheAdapter: TyposquatCache = {
-  get: (domain) => typosquatCache.get(domain) ?? null,
-  set: (domain, result) => typosquatCache.set(domain, result),
-  clear: () => typosquatCache.clear(),
-};
-
-function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    storageQueue = storageQueue
-      .then(() => operation())
-      .then(resolve)
-      .catch(reject);
-  });
-}
-
-async function initStorage(): Promise<StorageData> {
-  const result = await chrome.storage.local.get([
-    "services",
-    "cspReports",
-    "cspConfig",
-    "detectionConfig",
-  ]);
-  return {
-    services: result.services || {},
-    cspReports: result.cspReports || [],
-    cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
-    detectionConfig: result.detectionConfig || DEFAULT_DETECTION_CONFIG,
-  };
-}
-
-async function saveStorage(data: Partial<StorageData>) {
-  await chrome.storage.local.set(data);
-}
-
-function generateEventId(): string {
-  return crypto.randomUUID();
-}
-
-type NewEvent =
-  | {
-      type: "login_detected";
-      domain: string;
-      timestamp: number;
-      details: LoginDetectedDetails;
-    }
-  | {
-      type: "privacy_policy_found";
-      domain: string;
-      timestamp: number;
-      details: PrivacyPolicyFoundDetails;
-    }
-  | {
-      type: "terms_of_service_found";
-      domain: string;
-      timestamp: number;
-      details: TosFoundDetails;
-    }
-  | {
-      type: "cookie_set";
-      domain: string;
-      timestamp: number;
-      details: CookieSetDetails;
-    }
-  | {
-      type: "csp_violation";
-      domain: string;
-      timestamp: number;
-      details: CSPViolationDetails;
-    }
-  | {
-      type: "network_request";
-      domain: string;
-      timestamp: number;
-      details: NetworkRequestDetails;
-    }
-  | {
-      type: "ai_prompt_sent";
-      domain: string;
-      timestamp: number;
-      details: AIPromptSentDetails;
-    }
-  | {
-      type: "ai_response_received";
-      domain: string;
-      timestamp: number;
-      details: AIResponseReceivedDetails;
-    }
-  | {
-      type: "typosquat_detected";
-      domain: string;
-      timestamp: number;
-      details: TyposquatDetectedDetails;
-    }
-  | {
-      type: "extension_request";
-      domain: string;
-      timestamp: number;
-      details: ExtensionRequestDetails;
-    }
-  | {
-      type: "ai_sensitive_data_detected";
-      domain: string;
-      timestamp: number;
-      details: AISensitiveDataDetectedDetails;
-    }
-  | {
-      type: "data_exfiltration_detected";
-      domain: string;
-      timestamp: number;
-      details: DataExfiltrationDetectedDetails;
-    }
-  | {
-      type: "credential_theft_risk";
-      domain: string;
-      timestamp: number;
-      details: CredentialTheftRiskDetails;
-    }
-  | {
-      type: "supply_chain_risk";
-      domain: string;
-      timestamp: number;
-      details: SupplyChainRiskDetails;
-    };
-
-/** AI機密情報検出イベント詳細 */
-interface AISensitiveDataDetectedDetails {
-  provider: string;
-  model?: string;
-  classifications: string[];
-  highestRisk: string | null;
-  detectionCount: number;
-  riskScore: number;
-  riskLevel: string;
-}
-
-/** データ漏洩検出イベント詳細 */
-interface DataExfiltrationDetectedDetails {
-  targetUrl: string;
-  targetDomain: string;
-  method: string;
-  bodySize: number;
-  initiator: string;
-  pageUrl: string;
-}
-
-/** 認証情報窃取リスクイベント詳細 */
-interface CredentialTheftRiskDetails {
-  formAction: string;
-  targetDomain: string;
-  method: string;
-  isSecure: boolean;
-  isCrossOrigin: boolean;
-  fieldType: string;
-  risks: string[];
-  pageUrl: string;
-}
-
-/** サプライチェーンリスクイベント詳細 */
-interface SupplyChainRiskDetails {
-  url: string;
-  resourceType: string;
-  hasIntegrity: boolean;
-  hasCrossorigin: boolean;
-  isCDN: boolean;
-  risks: string[];
-  pageUrl: string;
-}
-
-async function getOrInitParquetStore(): Promise<ParquetStore> {
-  if (!parquetStore) {
-    parquetStore = new ParquetStore();
-    await parquetStore.init();
-  }
-  return parquetStore;
-}
-
-async function addEvent(event: NewEvent): Promise<EventLog> {
-  const store = await getOrInitParquetStore();
-  const eventId = generateEventId();
-  const newEvent = {
-    ...event,
-    id: eventId,
-  } as EventLog;
-
-  // ParquetEvent形式に変換
-  const parquetEvent = {
-    id: eventId,
-    type: event.type,
-    domain: event.domain,
-    timestamp: Date.now(), // ミリ秒
-    details: JSON.stringify(event.details || {}),
-  };
-
-  // Parquetストアに記録
-  await store.addEvents([parquetEvent]);
-  return newEvent;
-}
+const dataRetentionService = createDataRetentionService({
+  logger,
+  getStorage: () => getStorage(),
+  setStorage: (data) => setStorage(data),
+  ensureApiClient,
+  getOrInitParquetStore,
+});
+const { getDataRetentionConfig, setDataRetentionConfig, cleanupOldData } = dataRetentionService;
 
 const extensionNetworkService = createExtensionNetworkService({
   logger,
@@ -532,200 +295,6 @@ const extensionNetworkService = createExtensionNetworkService({
   getAlertManager,
   getRuntimeId: () => chrome.runtime.id,
 });
-
-// ============================================================================
-// NRD Detection
-// ============================================================================
-
-async function getNRDConfig(): Promise<NRDConfig> {
-  const storage = await getStorage();
-  return storage.nrdConfig || DEFAULT_NRD_CONFIG;
-}
-
-async function initNRDDetector() {
-  const config = await getNRDConfig();
-  nrdDetector = createNRDDetector(config, nrdCacheAdapter);
-}
-
-async function checkNRD(domain: string): Promise<NRDResult> {
-  if (!nrdDetector) {
-    await initNRDDetector();
-  }
-  return nrdDetector!.checkDomain(domain);
-}
-
-async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableNRD) {
-      return { skipped: true, reason: "NRD detection disabled" };
-    }
-
-    const result = await checkNRD(domain);
-
-    // Update service with NRD result if it's a positive detection
-    if (result.isNRD) {
-      await updateService(result.domain, {
-        nrdResult: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          domainAge: result.domainAge,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "nrd_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          registrationDate: result.registrationDate,
-          domainAge: result.domainAge,
-          method: result.method,
-          suspiciousScore: result.suspiciousScores.totalScore,
-          isDDNS: result.ddns.isDDNS,
-          ddnsProvider: result.ddns.provider,
-        },
-      });
-
-      // Fire NRD alert
-      await getAlertManager().alertNRD({
-        domain: result.domain,
-        domainAge: result.domainAge,
-        registrationDate: result.registrationDate,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = nrdResultToParquetRecord(result);
-    await store.write("nrd-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("NRD check failed:", error);
-    throw error;
-  }
-}
-
-async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ nrdConfig: newConfig });
-    // Reinitialize detector with new config
-    await initNRDDetector();
-    // Clear cache on config change
-    nrdCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting NRD config:", error);
-    return { success: false };
-  }
-}
-
-// ============================================================================
-// Typosquatting Detection
-// ============================================================================
-
-async function getTyposquatConfig(): Promise<TyposquatConfig> {
-  const storage = await getStorage();
-  return storage.typosquatConfig || DEFAULT_TYPOSQUAT_CONFIG;
-}
-
-async function initTyposquatDetector() {
-  const config = await getTyposquatConfig();
-  typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-}
-
-function checkTyposquat(domain: string): TyposquatResult {
-  if (!typosquatDetector) {
-    // Sync init since detector creation is synchronous
-    const config = DEFAULT_TYPOSQUAT_CONFIG;
-    typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-  }
-  return typosquatDetector.checkDomain(domain);
-}
-
-async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableTyposquat) {
-      return { skipped: true, reason: "Typosquat detection disabled" };
-    }
-
-    // Ensure detector is initialized with latest config
-    if (!typosquatDetector) {
-      await initTyposquatDetector();
-    }
-
-    const result = checkTyposquat(domain);
-
-    // Update service with typosquat result if it's a positive detection
-    if (result.isTyposquat) {
-      await updateService(result.domain, {
-        typosquatResult: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "typosquat_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          homoglyphCount: result.heuristics.homoglyphs.length,
-          hasMixedScript: result.heuristics.hasMixedScript,
-          detectedScripts: result.heuristics.detectedScripts,
-        },
-      });
-
-      // Fire typosquat alert
-      await getAlertManager().alertTyposquat({
-        domain: result.domain,
-        homoglyphCount: result.heuristics.homoglyphs.length,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = typosquatResultToParquetRecord(result);
-    await store.write("typosquat-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("Typosquat check failed:", error);
-    throw error;
-  }
-}
-
-async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ typosquatConfig: newConfig });
-    // Reinitialize detector with new config
-    await initTyposquatDetector();
-    // Clear cache on config change
-    typosquatCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting Typosquat config:", error);
-    return { success: false };
-  }
-}
 
 // ============================================================================
 // Extension Network Monitor
@@ -792,74 +361,6 @@ async function getExtensionStats(): Promise<ExtensionStats> {
 }
 
 // ============================================================================
-// Data Retention
-// ============================================================================
-
-async function getDataRetentionConfig(): Promise<DataRetentionConfig> {
-  const storage = await getStorage();
-  return storage.dataRetentionConfig || DEFAULT_DATA_RETENTION_CONFIG;
-}
-
-async function setDataRetentionConfig(newConfig: DataRetentionConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ dataRetentionConfig: newConfig });
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting data retention config:", error);
-    return { success: false };
-  }
-}
-
-async function cleanupOldData(): Promise<{ deleted: number }> {
-  try {
-    const config = await getDataRetentionConfig();
-    // retentionDays === 0 means no expiration
-    if (!config.autoCleanupEnabled || config.retentionDays === 0) {
-      return { deleted: 0 };
-    }
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
-    const cutoffTimestamp = cutoffDate.toISOString();
-    const cutoffMs = cutoffDate.getTime();
-
-    const client = await ensureApiClient();
-
-    // Delete old CSP reports from database
-    const deleted = await client.deleteOldReports(cutoffTimestamp);
-
-    // Delete old events from Parquet storage
-    const store = await getOrInitParquetStore();
-    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
-    await store.deleteOldReports(cutoffDateStr);
-
-    // Delete old AI prompts from storage
-    const storage = await getStorage();
-    const aiPrompts = storage.aiPrompts || [];
-    const filteredPrompts = aiPrompts.filter(p => p.timestamp >= cutoffMs);
-    if (filteredPrompts.length < aiPrompts.length) {
-      await setStorage({ aiPrompts: filteredPrompts });
-    }
-
-    // Network requests are stored in Parquet with automatic retention
-
-    // Update last cleanup timestamp
-    await setStorage({
-      dataRetentionConfig: {
-        ...config,
-        lastCleanupTimestamp: Date.now(),
-      },
-    });
-
-    logger.info(`Data cleanup completed. Deleted ${deleted} CSP reports.`);
-    return { deleted };
-  } catch (error) {
-    logger.error("Error during data cleanup:", error);
-    return { deleted: 0 };
-  }
-}
-
-// ============================================================================
 // Blocking Config
 // ============================================================================
 
@@ -912,172 +413,6 @@ async function setNotificationConfig(
   const updated = { ...current, ...newConfig };
   await saveStorage({ notificationConfig: updated });
   return { success: true };
-}
-
-function createDefaultService(domain: string): DetectedService {
-  return {
-    domain,
-    detectedAt: Date.now(),
-    hasLoginPage: false,
-    privacyPolicyUrl: null,
-    termsOfServiceUrl: null,
-    cookies: [],
-  };
-}
-
-async function updateService(domain: string, update: Partial<DetectedService>) {
-  return queueStorageOperation(async () => {
-    const storage = await initStorage();
-    const isNewDomain = !storage.services[domain];
-    const existing = storage.services[domain] || createDefaultService(domain);
-
-    storage.services[domain] = {
-      ...existing,
-      ...update,
-    };
-
-    await saveStorage({ services: storage.services });
-
-    // Check domain policy for new domains
-    if (isNewDomain) {
-      checkDomainPolicy(domain).catch(() => {
-        // Ignore policy check errors
-      });
-    }
-  });
-}
-
-async function addCookieToService(domain: string, cookie: CookieInfo) {
-  return queueStorageOperation(async () => {
-    const storage = await initStorage();
-
-    if (!storage.services[domain]) {
-      storage.services[domain] = createDefaultService(domain);
-    }
-
-    const service = storage.services[domain];
-    const exists = service.cookies.some((c) => c.name === cookie.name);
-    if (!exists) {
-      service.cookies.push(cookie);
-    }
-
-    await saveStorage({ services: storage.services });
-  });
-}
-
-interface CookieBannerResult {
-  found: boolean;
-  selector: string | null;
-  hasAcceptButton: boolean;
-  hasRejectButton: boolean;
-  hasSettingsButton: boolean;
-  isGDPRCompliant: boolean;
-}
-
-interface PageAnalysis {
-  url: string;
-  domain: string;
-  timestamp: number;
-  login: LoginDetectedDetails;
-  privacy: DetectionResult;
-  tos: DetectionResult;
-  cookiePolicy?: DetectionResult;
-  cookieBanner?: CookieBannerResult;
-  faviconUrl?: string | null;
-}
-
-async function handlePageAnalysis(analysis: PageAnalysis) {
-  const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
-  const storage = await initStorage();
-  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-  // faviconUrlを保存
-  if (faviconUrl) {
-    await updateService(domain, { faviconUrl });
-  }
-
-  if (detectionConfig.enableLogin && (login.hasPasswordInput || login.isLoginUrl)) {
-    await updateService(domain, { hasLoginPage: true });
-    await addEvent({
-      type: "login_detected",
-      domain,
-      timestamp,
-      details: login,
-    });
-  }
-
-  if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
-    await updateService(domain, { privacyPolicyUrl: privacy.url });
-    await addEvent({
-      type: "privacy_policy_found",
-      domain,
-      timestamp,
-      details: { url: privacy.url, method: privacy.method },
-    });
-  }
-
-  if (detectionConfig.enableTos && tos.found && tos.url) {
-    await updateService(domain, { termsOfServiceUrl: tos.url });
-    await addEvent({
-      type: "terms_of_service_found",
-      domain,
-      timestamp,
-      details: { url: tos.url, method: tos.method },
-    });
-  }
-
-  // Cookie policy detection
-  if (cookiePolicy?.found && cookiePolicy.url) {
-    await addEvent({
-      type: "cookie_policy_found",
-      domain,
-      timestamp,
-      details: { url: cookiePolicy.url, method: cookiePolicy.method },
-    });
-  }
-
-  // Cookie banner detection
-  if (cookieBanner?.found) {
-    await addEvent({
-      type: "cookie_banner_detected",
-      domain,
-      timestamp,
-      details: {
-        selector: cookieBanner.selector,
-        hasAcceptButton: cookieBanner.hasAcceptButton,
-        hasRejectButton: cookieBanner.hasRejectButton,
-        hasSettingsButton: cookieBanner.hasSettingsButton,
-        isGDPRCompliant: cookieBanner.isGDPRCompliant,
-      },
-    });
-  }
-
-  // Compliance alert - check for missing required policies on login pages
-  const hasLoginForm = login.hasPasswordInput || login.isLoginUrl;
-  const hasPrivacyPolicy = privacy.found;
-  const hasTermsOfService = tos.found;
-  const hasCookiePolicy = cookiePolicy?.found ?? false;
-  const hasCookieBanner = cookieBanner?.found ?? false;
-  const isCookieBannerGDPRCompliant = cookieBanner?.isGDPRCompliant ?? false;
-
-  // Only create compliance alert if there are potential violations
-  const hasViolations =
-    (hasLoginForm && (!hasPrivacyPolicy || !hasTermsOfService)) ||
-    !hasCookiePolicy ||
-    !hasCookieBanner ||
-    (hasCookieBanner && !isCookieBannerGDPRCompliant);
-
-  if (hasViolations) {
-    await getAlertManager().alertCompliance({
-      pageDomain: domain,
-      hasPrivacyPolicy,
-      hasTermsOfService,
-      hasCookiePolicy,
-      hasCookieBanner,
-      isCookieBannerGDPRCompliant,
-      hasLoginForm,
-    });
-  }
 }
 
 const securityEventHandlers = createSecurityEventHandlers({
@@ -1463,38 +798,7 @@ export default defineBackground(() => {
   // Initialize DoH Monitor
   doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
   doHMonitor.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
-
-  doHMonitor.onRequest(async (record: DoHRequestRecord) => {
-    try {
-      const storage = await getStorage();
-      if (!storage.doHRequests) {
-        storage.doHRequests = [];
-      }
-      storage.doHRequests.push(record);
-
-      // Keep only recent requests
-      const maxRequests = storage.doHMonitorConfig?.maxStoredRequests ?? 1000;
-      if (storage.doHRequests.length > maxRequests) {
-        storage.doHRequests = storage.doHRequests.slice(-maxRequests);
-      }
-
-      await setStorage(storage);
-      logger.debug("DoH request stored:", record.domain);
-
-      const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
-      if (config.action === "alert" || config.action === "block") {
-        await chrome.notifications.create(`doh-${record.id}`, {
-          type: "basic",
-          iconUrl: "icon-128.png",
-          title: "DoH Traffic Detected",
-          message: `DNS over HTTPS request to ${record.domain} (${record.detectionMethod})`,
-          priority: 0,
-        });
-      }
-    } catch (error) {
-      logger.error("Failed to store DoH request:", error);
-    }
-  });
+  attachDoHMonitor(doHMonitor);
 
   startCookieMonitor();
 
