@@ -19,6 +19,7 @@ interface DoHMonitorServiceDependencies {
   logger: LoggerLike;
   getStorage: () => Promise<DoHStorage>;
   setStorage: (data: DoHStorage) => Promise<void>;
+  queueStorageOperation: <T>(operation: () => Promise<T>) => Promise<T>;
   createDoHMonitor: (config: DoHMonitorConfig) => DoHMonitor;
   notify: (record: DoHRequestRecord) => Promise<void>;
 }
@@ -35,16 +36,19 @@ export function createDoHMonitorService(deps: DoHMonitorServiceDependencies): Do
 
   async function getDoHMonitorConfig(): Promise<DoHMonitorConfig> {
     const storage = await deps.getStorage();
-    return storage.doHMonitorConfig || DEFAULT_DOH_MONITOR_CONFIG;
+    return { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig };
   }
 
   async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{ success: boolean }> {
-    const storage = await deps.getStorage();
-    storage.doHMonitorConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
-    await deps.setStorage(storage);
+    const nextConfig = await deps.queueStorageOperation(async () => {
+      const storage = await deps.getStorage();
+      const mergedConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
+      await deps.setStorage({ ...storage, doHMonitorConfig: mergedConfig });
+      return mergedConfig;
+    });
 
     if (monitor) {
-      await monitor.updateConfig(storage.doHMonitorConfig);
+      await monitor.updateConfig(nextConfig);
     }
 
     return { success: true };
@@ -66,17 +70,20 @@ export function createDoHMonitorService(deps: DoHMonitorServiceDependencies): Do
 
   async function handleRequest(record: DoHRequestRecord): Promise<void> {
     try {
-      const storage = await deps.getStorage();
-      const requests = storage.doHRequests || [];
-      requests.push(record);
+      const { config } = await deps.queueStorageOperation(async () => {
+        const storage = await deps.getStorage();
+        const requests = storage.doHRequests || [];
+        requests.push(record);
 
-      const maxRequests = storage.doHMonitorConfig?.maxStoredRequests ?? 1000;
-      storage.doHRequests = requests.length > maxRequests ? requests.slice(-maxRequests) : requests;
+        const mergedConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig };
+        const maxRequests = mergedConfig.maxStoredRequests ?? 1000;
+        const nextRequests = requests.length > maxRequests ? requests.slice(-maxRequests) : requests;
+        await deps.setStorage({ ...storage, doHRequests: nextRequests });
 
-      await deps.setStorage(storage);
+        return { config: mergedConfig };
+      });
+
       deps.logger.debug("DoH request stored:", record.domain);
-
-      const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
       if (config.action === "alert" || config.action === "block") {
         await deps.notify(record);
       }

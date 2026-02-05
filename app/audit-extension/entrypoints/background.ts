@@ -485,6 +485,7 @@ const doHMonitorService = createDoHMonitorService({
   logger,
   getStorage,
   setStorage,
+  queueStorageOperation,
   createDoHMonitor,
   notify: (record) => chrome.notifications.create(`doh-${record.id}`, {
     type: "basic",
