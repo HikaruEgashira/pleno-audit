@@ -23,6 +23,7 @@ import { userDeviceLayerAttacks } from "./user-device-layer";
 import { protocolStandardsAttacks } from "./protocol-standards";
 import { renderingEngineAttacks } from "./rendering-engine";
 import { extensionSandboxAttacks } from "./extension-sandbox";
+import { cspBypassAttacks } from "./csp-bypass";
 
 export const allAttacks: AttackTest[] = [
   ...networkAttacks,
@@ -49,6 +50,7 @@ export const allAttacks: AttackTest[] = [
   ...protocolStandardsAttacks,
   ...renderingEngineAttacks,
   ...extensionSandboxAttacks,
+  ...cspBypassAttacks,
 ];
 
 export {
@@ -76,4 +78,5 @@ export {
   protocolStandardsAttacks,
   renderingEngineAttacks,
   extensionSandboxAttacks,
+  cspBypassAttacks,
 };
