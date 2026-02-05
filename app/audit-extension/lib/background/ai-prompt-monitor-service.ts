@@ -224,34 +224,36 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
     }
 
     if (pageDomain !== "unknown") {
-      const latestStorage = await params.getStorage();
-      const existingService = latestStorage.services?.[pageDomain];
-      const existingProviders = existingService?.aiDetected?.providers || [];
-      const providers = existingProviders.includes(provider)
-        ? existingProviders
-        : [...existingProviders, provider];
+      await params.queueStorageOperation(async () => {
+        const latestStorage = await params.getStorage();
+        const existingService = latestStorage.services?.[pageDomain];
+        const existingProviders = existingService?.aiDetected?.providers || [];
+        const providers = existingProviders.includes(provider)
+          ? existingProviders
+          : [...existingProviders, provider];
 
-      const existingShadowProviders = existingService?.aiDetected?.shadowAIProviders || [];
-      const shadowAIProviders = isShadowAIDetected && !existingShadowProviders.includes(provider)
-        ? [...existingShadowProviders, provider]
-        : existingShadowProviders;
+        const existingShadowProviders = existingService?.aiDetected?.shadowAIProviders || [];
+        const shadowAIProviders = isShadowAIDetected && !existingShadowProviders.includes(provider)
+          ? [...existingShadowProviders, provider]
+          : existingShadowProviders;
 
-      await params.updateService(pageDomain, {
-        aiDetected: {
-          hasAIActivity: true,
-          lastActivityAt: data.timestamp,
-          providers,
-          hasSensitiveData: analysis.pii.hasSensitiveData || existingService?.aiDetected?.hasSensitiveData,
-          sensitiveDataTypes: analysis.pii.hasSensitiveData
-            ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
-            : existingService?.aiDetected?.sensitiveDataTypes,
-          riskLevel: getHigherRiskLevel(
-            existingService?.aiDetected?.riskLevel,
-            analysis.risk.riskLevel
-          ),
-          hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
-          shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
-        },
+        await params.updateService(pageDomain, {
+          aiDetected: {
+            hasAIActivity: true,
+            lastActivityAt: data.timestamp,
+            providers,
+            hasSensitiveData: analysis.pii.hasSensitiveData || existingService?.aiDetected?.hasSensitiveData,
+            sensitiveDataTypes: analysis.pii.hasSensitiveData
+              ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
+              : existingService?.aiDetected?.sensitiveDataTypes,
+            riskLevel: getHigherRiskLevel(
+              existingService?.aiDetected?.riskLevel,
+              analysis.risk.riskLevel
+            ),
+            hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
+            shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
+          },
+        });
       });
     }
 
