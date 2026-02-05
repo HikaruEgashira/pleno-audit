@@ -125,6 +125,14 @@ function sourceLabel(source?: string): string {
   return source || "unknown";
 }
 
+function resolveEventTimestamp(timestamp: string | undefined): number {
+  if (!timestamp) {
+    return Date.now();
+  }
+  const parsed = Date.parse(timestamp);
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+}
+
 export function createSecurityEventHandlers(
   deps: SecurityEventHandlerDependencies,
 ) {
@@ -134,11 +142,12 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp);
 
       await deps.addEvent({
         type: "data_exfiltration_detected",
         domain: data.targetDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           targetUrl: data.targetUrl,
           targetDomain: data.targetDomain,
