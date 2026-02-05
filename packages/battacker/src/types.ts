@@ -23,6 +23,8 @@ export interface AttackResult {
   blocked: boolean;
   executionTime: number;
   details: string;
+  partial?: boolean;
+  leakConfirmed?: boolean;
   error?: string;
 }
 
