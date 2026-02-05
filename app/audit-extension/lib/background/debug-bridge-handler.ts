@@ -31,7 +31,15 @@ interface DebugBridgeHandlerDependencies {
 type DebugHandler = (data: unknown) => Promise<DebugBridgeResponse>;
 
 function parseEventDetails(details: unknown): unknown {
-  return typeof details === "string" ? JSON.parse(details) : details;
+  if (typeof details !== "string") {
+    return details;
+  }
+
+  try {
+    return JSON.parse(details);
+  } catch {
+    return details;
+  }
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -74,7 +82,11 @@ export function createDebugBridgeHandler(
     }],
     ["DEBUG_TAB_OPEN", async (rawData) => {
       const params = rawData as { url: string };
-      const url = normalizeUrl(params.url);
+      if (typeof params?.url !== "string" || params.url.trim() === "") {
+        return { success: false, error: "Invalid or missing URL" };
+      }
+
+      const url = normalizeUrl(params.url.trim());
       const tab = await chrome.tabs.create({ url, active: true });
       return { success: true, data: { tabId: tab.id, url: tab.url || url } };
     }],

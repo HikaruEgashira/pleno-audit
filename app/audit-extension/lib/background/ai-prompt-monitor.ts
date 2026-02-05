@@ -124,7 +124,7 @@ export function createAIPromptMonitorHandler(
         domain: apiDomain,
         timestamp: data.timestamp,
         details: {
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           classifications: analysis.pii.classifications,
           highestRisk: analysis.pii.highestRisk,
@@ -137,7 +137,7 @@ export function createAIPromptMonitorHandler(
       if (analysis.risk.shouldAlert) {
         await deps.alertAISensitive({
           domain: apiDomain,
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           dataTypes: analysis.pii.classifications,
         });
@@ -162,7 +162,7 @@ export function createAIPromptMonitorHandler(
         domain: apiDomain,
         timestamp: data.responseTimestamp || Date.now(),
         details: {
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           responsePreview: data.response.text?.substring(0, 100) || "",
           contentSize: data.response.contentSize,
