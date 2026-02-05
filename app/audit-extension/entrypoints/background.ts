@@ -9,7 +9,6 @@ import type {
   CapturedAIPrompt,
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-  AIMonitorConfig,
   NRDConfig,
   NRDResult,
   NRDCache,
@@ -33,10 +32,8 @@ import type {
   CSPConfig,
   CSPViolationDetails,
   NetworkRequestDetails,
-  GeneratedCSPPolicy,
-  CSPGenerationOptions,
 } from "@pleno-audit/csp";
-import { DEFAULT_CSP_CONFIG, CSPAnalyzer, CSPReporter, type GeneratedCSPByDomain } from "@pleno-audit/csp";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import {
   startCookieMonitor,
   onCookieChange,
@@ -66,7 +63,6 @@ import {
   type BlockingConfig,
   type ConnectionMode,
   type SyncManager,
-  type QueryOptions,
   type NetworkMonitorConfig,
   type DataRetentionConfig,
   type DetectionConfig,
@@ -97,6 +93,8 @@ import {
   type PolicyConfig,
 } from "@pleno-audit/alerts";
 import { createAlarmHandlers as createAlarmHandlersModule } from "../lib/background/alarm-handlers";
+import { createAIPromptMonitorService } from "../lib/background/ai-prompt-monitor-service";
+import { createCSPReportingService } from "../lib/background/csp-reporting-service";
 import {
   createRuntimeMessageHandlers as createRuntimeMessageHandlersModule,
   runAsyncMessageHandler as runAsyncMessageHandlerModule,
@@ -138,9 +136,6 @@ let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
 let doHMonitor: DoHMonitor | null = null;
-
-// CSP Policy auto-generation debounce timer
-let cspGenerationTimer: ReturnType<typeof setTimeout> | null = null;
 
 type PolicyViolation = ReturnType<PolicyManager["checkDomain"]>["violations"][number];
 
@@ -1085,80 +1080,6 @@ async function handlePageAnalysis(analysis: PageAnalysis) {
   }
 }
 
-let cspReporter: CSPReporter | null = null;
-let reportQueue: CSPReport[] = [];
-
-async function handleCSPViolation(
-  data: Omit<CSPViolation, "type"> & { type?: string },
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean; reason?: string }> {
-  const storage = await initStorage();
-  const config = storage.cspConfig || DEFAULT_CSP_CONFIG;
-
-  if (!config.enabled || !config.collectCSPViolations) {
-    return { success: false, reason: "Disabled" };
-  }
-
-  const violation: CSPViolation = {
-    type: "csp-violation",
-    timestamp: data.timestamp || new Date().toISOString(),
-    pageUrl: sender.tab?.url || data.pageUrl,
-    directive: data.directive,
-    blockedURL: data.blockedURL,
-    domain: data.domain,
-    disposition: data.disposition,
-    originalPolicy: data.originalPolicy,
-    sourceFile: data.sourceFile,
-    lineNumber: data.lineNumber,
-    columnNumber: data.columnNumber,
-    statusCode: data.statusCode,
-  };
-
-  await storeCSPReport(violation);
-  reportQueue.push(violation);
-
-  await addEvent({
-    type: "csp_violation",
-    domain: violation.domain,
-    timestamp: Date.now(),
-    details: {
-      directive: violation.directive,
-      blockedURL: violation.blockedURL,
-      disposition: violation.disposition,
-    },
-  });
-
-  return { success: true };
-}
-
-async function handleNetworkRequest(
-  data: Omit<NetworkRequest, "type"> & { type?: string },
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean; reason?: string }> {
-  const storage = await initStorage();
-  const config = storage.cspConfig || DEFAULT_CSP_CONFIG;
-
-  if (!config.enabled || !config.collectNetworkRequests) {
-    return { success: false, reason: "Disabled" };
-  }
-
-  const request: NetworkRequest = {
-    type: "network-request",
-    timestamp: data.timestamp || new Date().toISOString(),
-    pageUrl: sender.tab?.url || data.pageUrl,
-    url: data.url,
-    method: data.method,
-    initiator: data.initiator,
-    domain: data.domain,
-    resourceType: data.resourceType,
-  };
-
-  await storeCSPReport(request);
-  reportQueue.push(request);
-
-  return { success: true };
-}
-
 const securityEventHandlers = createSecurityEventHandlers({
   addEvent: (event) => addEvent(event as NewEvent),
   getAlertManager,
@@ -1175,123 +1096,33 @@ function extractDomainFromUrl(url: string): string {
   }
 }
 
-async function storeCSPReport(report: CSPReport) {
-  try {
-    const client = await ensureApiClient();
-    await client.postReports([report]);
-    scheduleCSPPolicyGeneration();
-  } catch (error) {
-    logger.error("Error storing report:", error);
-  }
-}
+const cspReportingService = createCSPReportingService({
+  logger,
+  ensureApiClient,
+  initStorage,
+  saveStorage: async (data) => saveStorage(data),
+  addEvent: async (event) => addEvent(event as NewEvent),
+  devReportEndpoint: DEV_REPORT_ENDPOINT,
+});
 
-function scheduleCSPPolicyGeneration() {
-  if (cspGenerationTimer) {
-    clearTimeout(cspGenerationTimer);
-  }
-
-  cspGenerationTimer = setTimeout(async () => {
-    try {
-      const result = await generateCSPPolicyByDomain({
-        strictMode: false,
-        includeReportUri: true,
-      });
-      await saveGeneratedCSPPolicy(result);
-      logger.debug("CSP policy auto-generated", { totalDomains: result.totalDomains });
-    } catch (error) {
-      logger.error("Error auto-generating CSP policy:", error);
-    }
-  }, 500);
-}
-
-async function saveGeneratedCSPPolicy(result: GeneratedCSPByDomain) {
-  await chrome.storage.local.set({ generatedCSPPolicy: result });
-}
-
-async function flushReportQueue() {
-  if (!cspReporter || reportQueue.length === 0) return;
-
-  const batch = reportQueue.splice(0, 100);
-  const success = await cspReporter.send(batch);
-
-  if (!success) {
-    reportQueue.unshift(...batch);
-  }
-}
-
-function extractReportsArray(result: CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean }): CSPReport[] {
-  return Array.isArray(result) ? result : result.reports;
-}
-
-async function generateCSPPolicy(
-  options?: Partial<CSPGenerationOptions>
-): Promise<GeneratedCSPPolicy> {
-  const result = await getCSPReports();
-  const cspReports = extractReportsArray(result);
-  const analyzer = new CSPAnalyzer(cspReports);
-  return analyzer.generatePolicy({
-    strictMode: options?.strictMode ?? false,
-    includeReportUri: options?.includeReportUri ?? false,
-    reportUri: options?.reportUri ?? "",
-    defaultSrc: options?.defaultSrc ?? "'self'",
-    includeNonce: options?.includeNonce ?? false,
-  });
-}
-
-async function generateCSPPolicyByDomain(
-  options?: Partial<CSPGenerationOptions>
-): Promise<GeneratedCSPByDomain> {
-  const result = await getCSPReports();
-  const cspReports = extractReportsArray(result);
-  const analyzer = new CSPAnalyzer(cspReports);
-  return analyzer.generatePolicyByDomain({
-    strictMode: options?.strictMode ?? false,
-    includeReportUri: options?.includeReportUri ?? false,
-    reportUri: options?.reportUri ?? "",
-    defaultSrc: options?.defaultSrc ?? "'self'",
-    includeNonce: options?.includeNonce ?? false,
-  });
-}
-
-async function getCSPConfig(): Promise<CSPConfig> {
-  const storage = await initStorage();
-  return storage.cspConfig || DEFAULT_CSP_CONFIG;
-}
-
-async function setCSPConfig(
-  newConfig: Partial<CSPConfig>
-): Promise<{ success: boolean }> {
-  const current = await getCSPConfig();
-  const updated = { ...current, ...newConfig };
-  await saveStorage({ cspConfig: updated });
-
-  if (cspReporter) {
-    const endpoint =
-      updated.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
-    cspReporter.setEndpoint(endpoint);
-  }
-
-  return { success: true };
-}
-
-async function clearCSPData(): Promise<{ success: boolean }> {
-  try {
-    const client = await ensureApiClient();
-    await client.clearReports();
-    reportQueue = [];
-    return { success: true };
-  } catch (error) {
-    logger.error("Error clearing data:", error);
-    return { success: false };
-  }
-}
+const aiPromptMonitorService = createAIPromptMonitorService({
+  defaultDetectionConfig: DEFAULT_DETECTION_CONFIG,
+  getStorage,
+  setStorage,
+  clearAIPrompts,
+  queueStorageOperation,
+  addEvent: async (event) => addEvent(event as NewEvent),
+  updateService: async (domain, update) => updateService(domain, update as Partial<DetectedService>),
+  checkAIServicePolicy,
+  getAlertManager,
+});
 
 async function clearAllData(): Promise<{ success: boolean }> {
   try {
     logger.info("Clearing all data...");
 
     // 1. Clear report queue
-    reportQueue = [];
+    cspReportingService.clearReportQueue();
 
     // 2. Clear API client reports
     if (apiClient) {
@@ -1321,149 +1152,12 @@ async function clearAllData(): Promise<{ success: boolean }> {
   }
 }
 
-function buildCSPReportsResponse(
-  reports: CSPReport[],
-  options: { total?: number; hasMore?: boolean; withPagination: boolean },
-): CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean } {
-  if (!options.withPagination) {
-    return reports;
-  }
-  return {
-    reports,
-    total: options.total ?? 0,
-    hasMore: options.hasMore ?? false,
-  };
-}
-
-async function getCSPReports(options?: {
-  type?: "csp-violation" | "network-request";
-  limit?: number;
-  offset?: number;
-  since?: string;
-  until?: string;
-}): Promise<CSPReport[] | { reports: CSPReport[]; total: number; hasMore: boolean }> {
-  try {
-    const client = await ensureApiClient();
-
-    const queryOptions: QueryOptions = {
-      limit: options?.limit,
-      offset: options?.offset,
-      since: options?.since,
-      until: options?.until,
-    };
-
-    const hasPaginationParams = Boolean(
-      options?.limit !== undefined
-      || options?.offset !== undefined
-      || options?.since !== undefined
-      || options?.until !== undefined,
-    );
-
-    if (options?.type === "csp-violation") {
-      const result = await client.getViolations(queryOptions);
-      return buildCSPReportsResponse(result.violations, {
-        total: result.total,
-        hasMore: result.hasMore,
-        withPagination: hasPaginationParams,
-      });
-    }
-    if (options?.type === "network-request") {
-      const result = await client.getNetworkRequests(queryOptions);
-      return buildCSPReportsResponse(result.requests, {
-        total: result.total,
-        hasMore: result.hasMore,
-        withPagination: hasPaginationParams,
-      });
-    }
-
-    const result = await client.getReports(queryOptions);
-    return buildCSPReportsResponse(result.reports, {
-      total: result.total,
-      hasMore: result.hasMore,
-      withPagination: hasPaginationParams,
-    });
-  } catch (error) {
-    logger.error("Error getting CSP reports:", error);
-    return [];
-  }
-}
-
 async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: string | null }> {
   const client = await ensureApiClient();
   return {
     mode: client.getMode(),
     endpoint: client.getEndpoint(),
   };
-}
-
-// ===== AI Prompt Monitor Functions =====
-
-const MAX_AI_PROMPTS = 500;
-
-const handleAIPromptCapturedModule = createAIPromptMonitorHandler({
-  defaults: {
-    detectionConfig: DEFAULT_DETECTION_CONFIG,
-    aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
-  },
-  getStorage,
-  storeAIPrompt: (prompt) => storeAIPrompt(prompt),
-  addEvent: (event) => addEvent(event as unknown as NewEvent),
-  updateService,
-  alertAISensitive: (params) => getAlertManager().alertAISensitive(params),
-  alertShadowAI: (params) => getAlertManager().alertShadowAI(params),
-  checkAIServicePolicy,
-});
-
-async function handleAIPromptCaptured(
-  data: CapturedAIPrompt
-): Promise<{ success: boolean }> {
-  return handleAIPromptCapturedModule(data);
-}
-
-async function storeAIPrompt(prompt: CapturedAIPrompt) {
-  return queueStorageOperation(async () => {
-    const storage = await getStorage();
-    const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-    const maxPrompts = config.maxStoredRecords || MAX_AI_PROMPTS;
-
-    const aiPrompts = storage.aiPrompts || [];
-    aiPrompts.unshift(prompt);
-
-    if (aiPrompts.length > maxPrompts) {
-      aiPrompts.splice(maxPrompts);
-    }
-
-    await setStorage({ aiPrompts });
-  });
-}
-
-async function getAIPrompts(): Promise<CapturedAIPrompt[]> {
-  const storage = await getStorage();
-  return storage.aiPrompts || [];
-}
-
-async function getAIPromptsCount(): Promise<number> {
-  const storage = await getStorage();
-  return (storage.aiPrompts || []).length;
-}
-
-async function getAIMonitorConfig(): Promise<AIMonitorConfig> {
-  const storage = await getStorage();
-  return storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-}
-
-async function setAIMonitorConfig(
-  newConfig: Partial<AIMonitorConfig>
-): Promise<{ success: boolean }> {
-  const current = await getAIMonitorConfig();
-  const updated = { ...current, ...newConfig };
-  await setStorage({ aiMonitorConfig: updated });
-  return { success: true };
-}
-
-async function clearAIData(): Promise<{ success: boolean }> {
-  await clearAIPrompts();
-  return { success: true };
 }
 
 async function setConnectionConfig(
@@ -1594,9 +1288,7 @@ async function initializeEnterpriseManagedFlow(): Promise<void> {
 }
 
 async function initializeCSPReporter(): Promise<void> {
-  const config = await getCSPConfig();
-  const endpoint = config.reportEndpoint ?? (import.meta.env.DEV ? DEV_REPORT_ENDPOINT : null);
-  cspReporter = new CSPReporter(endpoint);
+  await cspReportingService.initializeReporter();
 }
 
 async function migrateLegacyEventsIfNeeded(): Promise<void> {
@@ -1648,7 +1340,7 @@ export default defineBackground(() => {
 
   const alarmHandlers = createAlarmHandlersModule({
     logger,
-    flushReportQueue,
+    flushReportQueue: () => cspReportingService.flushReportQueue(),
     flushNetworkRequestBuffer,
     checkDNRMatchesHandler,
     analyzeExtensionRisks,
@@ -1681,8 +1373,8 @@ export default defineBackground(() => {
     handleDebugBridgeForward,
     getKnownExtensions,
     handlePageAnalysis: async (payload) => handlePageAnalysis(payload as PageAnalysis),
-    handleCSPViolation,
-    handleNetworkRequest,
+    handleCSPViolation: (data, sender) => cspReportingService.handleCSPViolation(data as Omit<CSPViolation, "type">, sender),
+    handleNetworkRequest: (data, sender) => cspReportingService.handleNetworkRequest(data as Omit<NetworkRequest, "type">, sender),
     handleDataExfiltration: (data, sender) => securityEventHandlers.handleDataExfiltration(data as DataExfiltrationData, sender),
     handleCredentialTheft: (data, sender) => securityEventHandlers.handleCredentialTheft(data as CredentialTheftData, sender),
     handleSupplyChainRisk: (data, sender) => securityEventHandlers.handleSupplyChainRisk(data as SupplyChainRiskData, sender),
@@ -1692,13 +1384,13 @@ export default defineBackground(() => {
     handleXSSDetected: (data, sender) => securityEventHandlers.handleXSSDetected(data as XSSDetectedData, sender),
     handleDOMScraping: (data, sender) => securityEventHandlers.handleDOMScraping(data as DOMScrapingData, sender),
     handleSuspiciousDownload: (data, sender) => securityEventHandlers.handleSuspiciousDownload(data as SuspiciousDownloadData, sender),
-    getCSPReports,
-    generateCSPPolicy,
-    generateCSPPolicyByDomain,
-    saveGeneratedCSPPolicy,
-    getCSPConfig,
-    setCSPConfig,
-    clearCSPData,
+    getCSPReports: cspReportingService.getCSPReports,
+    generateCSPPolicy: cspReportingService.generateCSPPolicy,
+    generateCSPPolicyByDomain: cspReportingService.generateCSPPolicyByDomain,
+    saveGeneratedCSPPolicy: cspReportingService.saveGeneratedCSPPolicy,
+    getCSPConfig: cspReportingService.getCSPConfig,
+    setCSPConfig: cspReportingService.setCSPConfig,
+    clearCSPData: cspReportingService.clearCSPData,
     clearAllData,
     getStats: async () => {
       const client = await ensureApiClient();
@@ -1713,12 +1405,12 @@ export default defineBackground(() => {
     getEnterpriseManager,
     getDetectionConfig,
     setDetectionConfig,
-    handleAIPromptCaptured,
-    getAIPrompts,
-    getAIPromptsCount,
-    getAIMonitorConfig,
-    setAIMonitorConfig,
-    clearAIData,
+    handleAIPromptCaptured: (payload) => aiPromptMonitorService.handleAIPromptCaptured(payload as CapturedAIPrompt),
+    getAIPrompts: aiPromptMonitorService.getAIPrompts,
+    getAIPromptsCount: aiPromptMonitorService.getAIPromptsCount,
+    getAIMonitorConfig: aiPromptMonitorService.getAIMonitorConfig,
+    setAIMonitorConfig: aiPromptMonitorService.setAIMonitorConfig,
+    clearAIData: aiPromptMonitorService.clearAIData,
     handleNRDCheck,
     getNRDConfig,
     setNRDConfig,
