@@ -53,6 +53,7 @@ export interface RuntimeMessageHandlers {
 }
 
 type ParquetEventQueryOptions = Parameters<ParquetStore["getEvents"]>[0];
+type AsyncHandlerEntry = [string, AsyncMessageHandlerConfig];
 
 interface LoggerLike {
   debug: (...args: unknown[]) => void;
@@ -232,10 +233,10 @@ function parseEventDetails(details: unknown): unknown {
   return typeof details === "string" ? JSON.parse(details) : details;
 }
 
-export function createRuntimeMessageHandlers(
+function createDirectHandlers(
   deps: RuntimeHandlerDependencies,
-): RuntimeMessageHandlers {
-  const directHandlers = new Map<string, RuntimeMessageHandler>([
+): Map<string, RuntimeMessageHandler> {
+  return new Map<string, RuntimeMessageHandler>([
     ["PING", (_message, _sender, sendResponse) => {
       sendResponse("PONG");
       return false;
@@ -295,8 +296,12 @@ export function createRuntimeMessageHandlers(
       return false;
     }],
   ]);
+}
 
-  const asyncHandlers = new Map<string, AsyncMessageHandlerConfig>([
+function createSecurityEventHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["PAGE_ANALYZED", {
       execute: async (message) => {
         await deps.handlePageAnalysis(message.payload);
@@ -348,6 +353,13 @@ export function createRuntimeMessageHandlers(
       execute: (message, sender) => deps.handleSuspiciousDownload(message.data, sender),
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createCspHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["GET_CSP_REPORTS", {
       execute: (message) => deps.getCSPReports(message.data as {
         type?: "csp-violation" | "network-request";
@@ -392,6 +404,13 @@ export function createRuntimeMessageHandlers(
       execute: () => deps.clearAllData(),
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createConnectionAndAuthHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["GET_STATS", {
       execute: () => deps.getStats(),
       fallback: () => ({ violations: 0, requests: 0, uniqueDomains: 0 }),
@@ -467,6 +486,13 @@ export function createRuntimeMessageHandlers(
       },
       fallback: () => deps.fallbacks.detectionConfig,
     }],
+  ];
+}
+
+function createAIPromptHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["AI_PROMPT_CAPTURED", {
       execute: (message) => deps.handleAIPromptCaptured(message.data as CapturedAIPrompt),
       fallback: () => ({ success: false }),
@@ -491,6 +517,13 @@ export function createRuntimeMessageHandlers(
       execute: () => deps.clearAIData(),
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createDomainRiskHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["CHECK_NRD", {
       execute: (message) => deps.handleNRDCheck((message.data as { domain: string }).domain),
       fallback: () => ({ error: true }),
@@ -515,6 +548,13 @@ export function createRuntimeMessageHandlers(
       execute: (message) => deps.setTyposquatConfig(message.data as TyposquatConfig),
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createEventStoreHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["GET_EVENTS", {
       execute: async (message) => {
         const store = await deps.getOrInitParquetStore();
@@ -546,6 +586,13 @@ export function createRuntimeMessageHandlers(
       },
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createNetworkAndExtensionHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["GET_NETWORK_REQUESTS", {
       execute: (message) => deps.getNetworkRequests(message.data as {
         limit?: number;
@@ -586,6 +633,13 @@ export function createRuntimeMessageHandlers(
       },
       fallback: () => ({ success: false }),
     }],
+  ];
+}
+
+function createConfigurationHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
     ["GET_DATA_RETENTION_CONFIG", {
       execute: () => deps.getDataRetentionConfig(),
       fallback: () => deps.fallbacks.dataRetentionConfig,
@@ -631,13 +685,36 @@ export function createRuntimeMessageHandlers(
       fallback: () => ({ success: false }),
     }],
     ["GET_DOH_REQUESTS", {
-      execute: (message) => deps.getDoHRequests(message.data as { limit?: number; offset?: number }),
+      execute: (message) => deps.getDoHRequests(message.data as {
+        limit?: number;
+        offset?: number;
+      }),
       fallback: () => ({ requests: [], total: 0 }),
     }],
-  ]);
+  ];
+}
 
+function createAsyncHandlers(
+  deps: RuntimeHandlerDependencies,
+): Map<string, AsyncMessageHandlerConfig> {
+  const entries: AsyncHandlerEntry[] = [
+    ...createSecurityEventHandlers(deps),
+    ...createCspHandlers(deps),
+    ...createConnectionAndAuthHandlers(deps),
+    ...createAIPromptHandlers(deps),
+    ...createDomainRiskHandlers(deps),
+    ...createEventStoreHandlers(deps),
+    ...createNetworkAndExtensionHandlers(deps),
+    ...createConfigurationHandlers(deps),
+  ];
+  return new Map(entries);
+}
+
+export function createRuntimeMessageHandlers(
+  deps: RuntimeHandlerDependencies,
+): RuntimeMessageHandlers {
   return {
-    direct: directHandlers,
-    async: asyncHandlers,
+    direct: createDirectHandlers(deps),
+    async: createAsyncHandlers(deps),
   };
 }
