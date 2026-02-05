@@ -82,9 +82,21 @@ export const DEFAULT_EXTENSION_MONITOR_CONFIG: ExtensionMonitorConfig = {
  *
  * Chrome 111以降でResourceTypeが利用可能
  * 利用不可能な場合はフォールバック値を使用
+ * 非拡張機能コンテキスト（テスト等）ではフォールバック値を返す
  */
 export function resolveDNRResourceTypes(): chrome.declarativeNetRequest.ResourceType[] {
-  const resourceType = chrome.declarativeNetRequest?.ResourceType;
+  // 非拡張機能コンテキスト（テスト環境など）ではchromeグローバルが存在しない
+  if (typeof chrome === "undefined" || !chrome.declarativeNetRequest) {
+    return [
+      "xmlhttprequest",
+      "other",
+      "script",
+      "sub_frame",
+      "image",
+    ] as chrome.declarativeNetRequest.ResourceType[];
+  }
+
+  const resourceType = chrome.declarativeNetRequest.ResourceType;
   if (!resourceType) {
     return [
       "xmlhttprequest",
