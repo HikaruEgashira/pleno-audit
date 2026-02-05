@@ -25,10 +25,6 @@ import {
   DEFAULT_TYPOSQUAT_CONFIG,
   createNRDDetector,
   createTyposquatDetector,
-  analyzePrompt,
-  classifyProvider,
-  isShadowAI,
-  getProviderInfo,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -117,6 +113,8 @@ import {
   runAsyncMessageHandler as runAsyncMessageHandlerModule,
   type RuntimeMessage,
 } from "../lib/background/runtime-handlers";
+import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
+import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
 import {
   createSecurityEventHandlers,
   type ClipboardHijackData,
@@ -1670,185 +1668,24 @@ async function getConnectionConfig(): Promise<{ mode: ConnectionMode; endpoint: 
 
 const MAX_AI_PROMPTS = 500;
 
+const handleAIPromptCapturedModule = createAIPromptMonitorHandler({
+  defaults: {
+    detectionConfig: DEFAULT_DETECTION_CONFIG,
+    aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
+  },
+  getStorage,
+  storeAIPrompt: (prompt) => storeAIPrompt(prompt),
+  addEvent: (event) => addEvent(event as unknown as NewEvent),
+  updateService,
+  alertAISensitive: (params) => getAlertManager().alertAISensitive(params),
+  alertShadowAI: (params) => getAlertManager().alertShadowAI(params),
+  checkAIServicePolicy,
+});
+
 async function handleAIPromptCaptured(
   data: CapturedAIPrompt
 ): Promise<{ success: boolean }> {
-  const storage = await getStorage();
-  const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-  const config = storage.aiMonitorConfig || DEFAULT_AI_MONITOR_CONFIG;
-
-  if (!detectionConfig.enableAI || !config.enabled) {
-    return { success: false };
-  }
-
-  // PII/機密情報検出
-  const analysis = analyzePrompt(data.prompt);
-
-  // Shadow AI検出（拡張プロバイダー分類）
-  const providerClassification = classifyProvider({
-    modelName: data.model,
-    url: data.apiEndpoint,
-    responseText: data.response?.text,
-  });
-
-  const isShadowAIDetected = isShadowAI(providerClassification.provider);
-  const providerInfo = getProviderInfo(providerClassification.provider);
-
-  // Store AI prompt with enhanced provider info
-  const enhancedData: CapturedAIPrompt = {
-    ...data,
-    provider: providerClassification.provider,
-  };
-  await storeAIPrompt(enhancedData);
-
-  // Extract domain from API endpoint
-  let domain = "unknown";
-  try {
-    domain = new URL(data.apiEndpoint).hostname;
-  } catch {
-    // ignore
-  }
-
-  // Add prompt sent event with Shadow AI info
-  await addEvent({
-    type: "ai_prompt_sent",
-    domain,
-    timestamp: data.timestamp,
-    details: {
-      provider: providerClassification.provider,
-      model: data.model,
-      promptPreview: getPromptPreview(data.prompt),
-      contentSize: data.prompt.contentSize,
-      messageCount: data.prompt.messages?.length,
-      isShadowAI: isShadowAIDetected,
-      providerConfidence: providerClassification.confidence,
-    },
-  });
-
-  // PII/機密情報検出時のアラートとイベント記録
-  if (analysis.pii.hasSensitiveData) {
-    // ai_sensitive_data_detected イベントを追加
-    await addEvent({
-      type: "ai_sensitive_data_detected",
-      domain,
-      timestamp: data.timestamp,
-      details: {
-        provider: data.provider || "unknown",
-        model: data.model,
-        classifications: analysis.pii.classifications,
-        highestRisk: analysis.pii.highestRisk,
-        detectionCount: analysis.pii.detectionCount,
-        riskScore: analysis.risk.riskScore,
-        riskLevel: analysis.risk.riskLevel,
-      },
-    });
-
-    // 高リスク時はアラートを発火
-    if (analysis.risk.shouldAlert) {
-      await getAlertManager().alertAISensitive({
-        domain,
-        provider: data.provider || "unknown",
-        model: data.model,
-        dataTypes: analysis.pii.classifications,
-      });
-    }
-  }
-
-  // Shadow AI検出時のアラート発火
-  if (isShadowAIDetected) {
-    await getAlertManager().alertShadowAI({
-      domain,
-      provider: providerClassification.provider,
-      providerDisplayName: providerInfo.displayName,
-      category: providerInfo.category,
-      riskLevel: providerInfo.riskLevel,
-      confidence: providerClassification.confidence,
-      model: data.model,
-    });
-  }
-
-  // Add response received event if available
-  if (data.response) {
-    await addEvent({
-      type: "ai_response_received",
-      domain,
-      timestamp: data.responseTimestamp || Date.now(),
-      details: {
-        provider: data.provider || "unknown",
-        model: data.model,
-        responsePreview: data.response.text?.substring(0, 100) || "",
-        contentSize: data.response.contentSize,
-        latencyMs: data.response.latencyMs,
-        isStreaming: data.response.isStreaming,
-      },
-    });
-  }
-
-  // Update service with AI detection info (use pageUrl domain, not API endpoint)
-  let pageDomain = "unknown";
-  try {
-    pageDomain = new URL(data.pageUrl).hostname;
-  } catch {
-    // ignore
-  }
-
-  if (pageDomain !== "unknown") {
-    const storage = await getStorage();
-    const existingService = storage.services?.[pageDomain];
-    const existingProviders = existingService?.aiDetected?.providers || [];
-    const provider = providerClassification.provider;
-    const providers = existingProviders.includes(provider)
-      ? existingProviders
-      : [...existingProviders, provider];
-
-    // Shadow AIプロバイダーの追跡
-    const existingShadowProviders = existingService?.aiDetected?.shadowAIProviders || [];
-    const shadowAIProviders = isShadowAIDetected && !existingShadowProviders.includes(provider)
-      ? [...existingShadowProviders, provider]
-      : existingShadowProviders;
-
-    await updateService(pageDomain, {
-      aiDetected: {
-        hasAIActivity: true,
-        lastActivityAt: data.timestamp,
-        providers,
-        // 機密情報検出情報を追加
-        hasSensitiveData: analysis.pii.hasSensitiveData || existingService?.aiDetected?.hasSensitiveData,
-        sensitiveDataTypes: analysis.pii.hasSensitiveData
-          ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
-          : existingService?.aiDetected?.sensitiveDataTypes,
-        riskLevel: analysis.risk.riskLevel === "critical" || analysis.risk.riskLevel === "high"
-          ? analysis.risk.riskLevel
-          : existingService?.aiDetected?.riskLevel,
-        // Shadow AI情報を追加
-        hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
-        shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
-      },
-    });
-  }
-
-  // Check AI service policy
-  checkAIServicePolicy({
-    domain,
-    provider: providerClassification.provider,
-    dataTypes: analysis.pii.hasSensitiveData ? analysis.pii.classifications : undefined,
-  }).catch(() => {
-    // Ignore policy check errors
-  });
-
-  return { success: true };
-}
-
-function getPromptPreview(prompt: CapturedAIPrompt["prompt"]): string {
-  if (prompt.messages?.length) {
-    const lastUserMsg = [...prompt.messages]
-      .reverse()
-      .find((m) => m.role === "user");
-    return lastUserMsg?.content.substring(0, 100) || "";
-  }
-  return (
-    prompt.text?.substring(0, 100) || prompt.rawBody?.substring(0, 100) || ""
-  );
+  return handleAIPromptCapturedModule(data);
 }
 
 async function storeAIPrompt(prompt: CapturedAIPrompt) {
@@ -1946,83 +1783,12 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 // Main world script is now registered statically via manifest.json content_scripts
 // Dynamic registration removed to avoid caching issues
 
-type DebugForwardResult = { success: boolean; data?: unknown; error?: string };
-type DebugForwardHandler = (data: unknown) => Promise<DebugForwardResult>;
-
-function createDebugForwardHandlers(): Map<string, DebugForwardHandler> {
-  return new Map<string, DebugForwardHandler>([
-    ["DEBUG_EVENTS_LIST", async (rawData) => {
-      const params = rawData as { limit?: number; type?: string } | undefined;
-      const store = await getOrInitParquetStore();
-      const result = await store.getEvents({
-        limit: params?.limit || 100,
-      });
-      const events = result.data.map((e) => ({
-        id: e.id,
-        type: e.type,
-        domain: e.domain,
-        timestamp: e.timestamp,
-        details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
-      }));
-      const filteredEvents = params?.type
-        ? events.filter((event) => event.type === params.type)
-        : events;
-      return { success: true, data: filteredEvents };
-    }],
-    ["DEBUG_EVENTS_COUNT", async () => {
-      const store = await getOrInitParquetStore();
-      const result = await store.getEvents({ limit: 0 });
-      return { success: true, data: result.total };
-    }],
-    ["DEBUG_EVENTS_CLEAR", async () => {
-      const store = await getOrInitParquetStore();
-      await store.clearAll();
-      return { success: true };
-    }],
-    ["DEBUG_TAB_OPEN", async (rawData) => {
-      const params = rawData as { url: string };
-      let url = params.url;
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        url = `https://${url}`;
-      }
-      const tab = await chrome.tabs.create({ url, active: true });
-      return { success: true, data: { tabId: tab.id, url: tab.url || url } };
-    }],
-    ["DEBUG_DOH_CONFIG_GET", async () => {
-      const config = await getDoHMonitorConfig();
-      return { success: true, data: config };
-    }],
-    ["DEBUG_DOH_CONFIG_SET", async (rawData) => {
-      const params = rawData as Partial<DoHMonitorConfig>;
-      await setDoHMonitorConfig(params);
-      return { success: true };
-    }],
-    ["DEBUG_DOH_REQUESTS", async (rawData) => {
-      const params = rawData as { limit?: number; offset?: number } | undefined;
-      const result = await getDoHRequests(params);
-      return { success: true, data: result };
-    }],
-  ]);
-}
-const debugForwardHandlers = createDebugForwardHandlers();
-
-async function handleDebugBridgeForward(
-  type: string,
-  data: unknown
-): Promise<DebugForwardResult> {
-  try {
-    const handler = debugForwardHandlers.get(type);
-    if (!handler) {
-      return { success: false, error: `Unknown debug message type: ${type}` };
-    }
-    return handler(data);
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
+const handleDebugBridgeForward = createDebugBridgeHandler({
+  getOrInitParquetStore,
+  getDoHMonitorConfig,
+  setDoHMonitorConfig,
+  getDoHRequests,
+});
 
 function initializeDebugBridge(): void {
   if (!import.meta.env.DEV) {
