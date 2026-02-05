@@ -107,13 +107,14 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
       url: data.apiEndpoint,
       responseText: data.response?.text,
     });
+    const provider = providerClassification.provider;
 
-    const isShadowAIDetected = isShadowAI(providerClassification.provider);
-    const providerInfo = getProviderInfo(providerClassification.provider);
+    const isShadowAIDetected = isShadowAI(provider);
+    const providerInfo = getProviderInfo(provider);
 
     const enhancedData: CapturedAIPrompt = {
       ...data,
-      provider: providerClassification.provider,
+      provider,
     };
     await storeAIPrompt(enhancedData);
 
@@ -145,7 +146,7 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
         domain,
         timestamp: data.timestamp,
         details: {
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           classifications: analysis.pii.classifications,
           highestRisk: analysis.pii.highestRisk,
@@ -158,7 +159,7 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
       if (analysis.risk.shouldAlert) {
         await params.getAlertManager().alertAISensitive({
           domain,
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           dataTypes: analysis.pii.classifications,
         });
@@ -183,7 +184,7 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
         domain,
         timestamp: data.responseTimestamp || Date.now(),
         details: {
-          provider: data.provider || "unknown",
+          provider,
           model: data.model,
           responsePreview: data.response.text?.substring(0, 100) || "",
           contentSize: data.response.contentSize,
@@ -204,7 +205,6 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
       const latestStorage = await params.getStorage();
       const existingService = latestStorage.services?.[pageDomain];
       const existingProviders = existingService?.aiDetected?.providers || [];
-      const provider = providerClassification.provider;
       const providers = existingProviders.includes(provider)
         ? existingProviders
         : [...existingProviders, provider];
@@ -234,7 +234,7 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
 
     params.checkAIServicePolicy({
       domain,
-      provider: providerClassification.provider,
+      provider,
       dataTypes: analysis.pii.hasSensitiveData ? analysis.pii.classifications : undefined,
     }).catch(() => {
       // Ignore policy check errors
