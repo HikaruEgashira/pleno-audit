@@ -37,3 +37,5 @@
 | [035](./035-background-message-routing-refactor.md) | Backgroundメッセージルーティングのテーブル駆動化 | Accepted |
 | [036](./036-alert-manager-responsibility-split.md) | Alert Managerの責務分離 | Accepted |
 | [037](./037-background-handler-module-split.md) | Backgroundハンドラ定義のモジュール分割 | Accepted |
+| [038](./038-background-bootstrap-modularization.md) | Background初期化とメッセージ定義の責務分離 | Accepted |
+| [039](./039-security-event-handler-modularization.md) | Security Event Handlerのモジュール分離 | Accepted |
