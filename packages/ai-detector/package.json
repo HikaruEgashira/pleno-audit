@@ -6,5 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pleno-audit/alerts": "workspace:*"
   }
 }

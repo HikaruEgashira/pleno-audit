@@ -74,7 +74,8 @@ function extractQueryParams(url: string): Map<string, string> {
       params.set(key, value);
     }
   } catch {
-    // URLが不正な場合はスキップ
+    // 意図的なサイレント無視: 不正なURLはスキップ
+    logger.debug("Invalid URL skipped in extractQueryParams:", url);
   }
   return params;
 }
@@ -86,6 +87,8 @@ function extractDomain(url: string): string | null {
   try {
     return new URL(url).hostname;
   } catch {
+    // 意図的なサイレント無視: 不正なURLはnullを返す
+    logger.debug("Invalid URL skipped in extractDomain:", url);
     return null;
   }
 }

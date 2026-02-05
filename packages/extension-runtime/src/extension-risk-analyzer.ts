@@ -8,6 +8,10 @@
  */
 
 import type { ExtensionRequestRecord } from "./storage-types.js";
+import {
+  scoreToExtensionRiskLevel,
+  type ExtensionRiskLevel,
+} from "@pleno-audit/alerts";
 
 // ============================================================================
 // Risk Categories
@@ -191,7 +195,7 @@ export interface ExtensionRiskAnalysis {
   extensionId: string;
   extensionName: string;
   riskScore: number;
-  riskLevel: "critical" | "high" | "medium" | "low" | "safe";
+  riskLevel: ExtensionRiskLevel;
   permissionRisks: PermissionRisk[];
   networkRisks: NetworkRisk[];
   flags: RiskFlag[];
@@ -384,15 +388,11 @@ export function calculateRiskScore(
 
 /**
  * リスクレベルを判定
+ *
+ * @deprecated scoreToExtensionRiskLevel from @pleno-audit/alerts を直接使用してください
  */
-export function scoreToRiskLevel(
-  score: number
-): ExtensionRiskAnalysis["riskLevel"] {
-  if (score >= 80) return "critical";
-  if (score >= 60) return "high";
-  if (score >= 40) return "medium";
-  if (score >= 20) return "low";
-  return "safe";
+export function scoreToRiskLevel(score: number): ExtensionRiskLevel {
+  return scoreToExtensionRiskLevel(score);
 }
 
 /**

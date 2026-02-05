@@ -14,6 +14,10 @@ import {
   type SensitiveDataResult,
   type DataClassification,
 } from "./sensitive-data-detector.js";
+import {
+  scoreToRiskLevel5,
+  type RiskLevel5,
+} from "@pleno-audit/alerts";
 
 /**
  * AIプロンプトの機密情報検出結果
@@ -38,7 +42,7 @@ export interface AIPromptRiskAssessment {
   /** リスクスコア (0-100) */
   riskScore: number;
   /** リスクレベル */
-  riskLevel: "critical" | "high" | "medium" | "low" | "info";
+  riskLevel: RiskLevel5;
   /** リスク要因 */
   factors: {
     sensitiveDataPresent: boolean;
@@ -162,15 +166,11 @@ export function calculatePromptRiskScore(piiResult: AIPromptPIIResult): number {
 
 /**
  * リスクスコアからリスクレベルへ変換
+ *
+ * @deprecated scoreToRiskLevel5 from @pleno-audit/alerts を直接使用してください
  */
-export function scoreToRiskLevel(
-  score: number
-): "critical" | "high" | "medium" | "low" | "info" {
-  if (score >= 80) return "critical";
-  if (score >= 60) return "high";
-  if (score >= 40) return "medium";
-  if (score >= 20) return "low";
-  return "info";
+export function scoreToRiskLevel(score: number): RiskLevel5 {
+  return scoreToRiskLevel5(score);
 }
 
 /**
