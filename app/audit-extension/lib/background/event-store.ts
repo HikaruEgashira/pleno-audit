@@ -260,16 +260,18 @@ export function createEventStore(): EventStore {
   async function addEvent(event: NewEvent): Promise<EventLog> {
     const store = await getOrInitParquetStore();
     const eventId = generateEventId();
+    const timestamp = event.timestamp ?? Date.now();
     const newEvent = {
       ...event,
       id: eventId,
+      timestamp,
     } as EventLog;
 
     const parquetEvent = {
       id: eventId,
       type: event.type,
       domain: event.domain,
-      timestamp: Date.now(),
+      timestamp,
       details: JSON.stringify(event.details || {}),
     };
 

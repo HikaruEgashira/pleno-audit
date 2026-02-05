@@ -147,10 +147,9 @@ export function createRiskDetectionService(deps: RiskDetectionDeps) {
     typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
   }
 
-  function checkTyposquat(domain: string): TyposquatResult {
+  async function checkTyposquat(domain: string): Promise<TyposquatResult> {
     if (!typosquatDetector) {
-      const config = DEFAULT_TYPOSQUAT_CONFIG;
-      typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
+      await initTyposquatDetector();
     }
     return typosquatDetector.checkDomain(domain);
   }
@@ -164,11 +163,7 @@ export function createRiskDetectionService(deps: RiskDetectionDeps) {
         return { skipped: true, reason: "Typosquat detection disabled" };
       }
 
-      if (!typosquatDetector) {
-        await initTyposquatDetector();
-      }
-
-      const result = checkTyposquat(domain);
+      const result = await checkTyposquat(domain);
 
       if (result.isTyposquat) {
         await deps.updateService(result.domain, {
