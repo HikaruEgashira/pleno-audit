@@ -277,7 +277,7 @@ async function addEvent(event: NewEvent): Promise<EventLog> {
     id: eventId,
     type: event.type,
     domain: event.domain,
-    timestamp: event.timestamp || Date.now(),
+    timestamp: event.timestamp ?? Date.now(),
     details: JSON.stringify(event.details || {}),
   };
 
