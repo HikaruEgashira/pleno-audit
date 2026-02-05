@@ -40,3 +40,4 @@
 | [038](./038-background-bootstrap-modularization.md) | Background初期化とメッセージ定義の責務分離 | Accepted |
 | [039](./039-security-event-handler-modularization.md) | Security Event Handlerのモジュール分離 | Accepted |
 | [040](./040-background-csp-ai-service-modularization.md) | BackgroundのCSP/AI監視責務をサービスへ分離する | Accepted |
+| [041](./041-domain-risk-doh-service-modularization.md) | Domain Risk/DoH監視のサービス分離 | Accepted |

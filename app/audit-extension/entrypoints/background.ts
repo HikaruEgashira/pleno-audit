@@ -9,21 +9,14 @@ import type {
   CapturedAIPrompt,
   AIPromptSentDetails,
   AIResponseReceivedDetails,
-  NRDConfig,
-  NRDResult,
-  NRDCache,
-  TyposquatConfig,
-  TyposquatResult,
+  NRDDetectedDetails,
   TyposquatDetectedDetails,
-  TyposquatCache,
   DetectionResult,
 } from "@pleno-audit/detectors";
 import {
   DEFAULT_AI_MONITOR_CONFIG,
   DEFAULT_NRD_CONFIG,
   DEFAULT_TYPOSQUAT_CONFIG,
-  createNRDDetector,
-  createTyposquatDetector,
 } from "@pleno-audit/detectors";
 import type {
   CSPViolation,
@@ -67,9 +60,6 @@ import {
   type DataRetentionConfig,
   type DetectionConfig,
   type NotificationConfig,
-  type DoHMonitor,
-  type DoHMonitorConfig,
-  type DoHRequestRecord,
 } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("background");
@@ -80,8 +70,6 @@ import {
 } from "@pleno-audit/storage";
 import {
   ParquetStore,
-  nrdResultToParquetRecord,
-  typosquatResultToParquetRecord,
 } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
@@ -118,6 +106,8 @@ import {
   type TrackingBeaconData,
   type XSSDetectedData,
 } from "../lib/background/security-event-handlers";
+import { createDomainRiskService } from "../lib/background/domain-risk-service";
+import { createDoHMonitorService } from "../lib/background/doh-monitor-service";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -135,7 +125,6 @@ let syncManager: SyncManager | null = null;
 let parquetStore: ParquetStore | null = null;
 let alertManager: AlertManager | null = null;
 let policyManager: PolicyManager | null = null;
-let doHMonitor: DoHMonitor | null = null;
 
 type PolicyViolation = ReturnType<PolicyManager["checkDomain"]>["violations"][number];
 
@@ -274,63 +263,6 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
 });
 
-// ============================================================================
-// DoH Monitor Config
-// ============================================================================
-
-async function getDoHMonitorConfig(): Promise<DoHMonitorConfig> {
-  const storage = await getStorage();
-  return storage.doHMonitorConfig || DEFAULT_DOH_MONITOR_CONFIG;
-}
-
-async function setDoHMonitorConfig(config: Partial<DoHMonitorConfig>): Promise<{ success: boolean }> {
-  const storage = await getStorage();
-  storage.doHMonitorConfig = { ...DEFAULT_DOH_MONITOR_CONFIG, ...storage.doHMonitorConfig, ...config };
-  await setStorage(storage);
-
-  // Update running monitor
-  if (doHMonitor) {
-    await doHMonitor.updateConfig(storage.doHMonitorConfig);
-  }
-
-  return { success: true };
-}
-
-async function getDoHRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: DoHRequestRecord[]; total: number }> {
-  const storage = await getStorage();
-  const allRequests = storage.doHRequests || [];
-  const total = allRequests.length;
-
-  const limit = options?.limit ?? 100;
-  const offset = options?.offset ?? 0;
-
-  // Sort by timestamp descending (newest first)
-  const sorted = [...allRequests].sort((a, b) => b.timestamp - a.timestamp);
-  const requests = sorted.slice(offset, offset + limit);
-
-  return { requests, total };
-}
-
-// NRD Detection
-const nrdCache: Map<string, NRDResult> = new Map();
-let nrdDetector: ReturnType<typeof createNRDDetector> | null = null;
-
-const nrdCacheAdapter: NRDCache = {
-  get: (domain) => nrdCache.get(domain) ?? null,
-  set: (domain, result) => nrdCache.set(domain, result),
-  clear: () => nrdCache.clear(),
-};
-
-// Typosquatting Detection
-const typosquatCache: Map<string, TyposquatResult> = new Map();
-let typosquatDetector: ReturnType<typeof createTyposquatDetector> | null = null;
-
-const typosquatCacheAdapter: TyposquatCache = {
-  get: (domain) => typosquatCache.get(domain) ?? null,
-  set: (domain, result) => typosquatCache.set(domain, result),
-  clear: () => typosquatCache.clear(),
-};
-
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     storageQueue = storageQueue
@@ -411,6 +343,12 @@ type NewEvent =
       domain: string;
       timestamp: number;
       details: AIResponseReceivedDetails;
+    }
+  | {
+      type: "nrd_detected";
+      domain: string;
+      timestamp: number;
+      details: NRDDetectedDetails;
     }
   | {
       type: "typosquat_detected";
@@ -533,199 +471,29 @@ const extensionNetworkService = createExtensionNetworkService({
   getRuntimeId: () => chrome.runtime.id,
 });
 
-// ============================================================================
-// NRD Detection
-// ============================================================================
+const domainRiskService = createDomainRiskService({
+  logger,
+  getStorage,
+  setStorage: (data) => setStorage(data),
+  updateService,
+  addEvent: (event) => addEvent(event as NewEvent),
+  getAlertManager,
+  getOrInitParquetStore,
+});
 
-async function getNRDConfig(): Promise<NRDConfig> {
-  const storage = await getStorage();
-  return storage.nrdConfig || DEFAULT_NRD_CONFIG;
-}
-
-async function initNRDDetector() {
-  const config = await getNRDConfig();
-  nrdDetector = createNRDDetector(config, nrdCacheAdapter);
-}
-
-async function checkNRD(domain: string): Promise<NRDResult> {
-  if (!nrdDetector) {
-    await initNRDDetector();
-  }
-  return nrdDetector!.checkDomain(domain);
-}
-
-async function handleNRDCheck(domain: string): Promise<NRDResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableNRD) {
-      return { skipped: true, reason: "NRD detection disabled" };
-    }
-
-    const result = await checkNRD(domain);
-
-    // Update service with NRD result if it's a positive detection
-    if (result.isNRD) {
-      await updateService(result.domain, {
-        nrdResult: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          domainAge: result.domainAge,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "nrd_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isNRD: result.isNRD,
-          confidence: result.confidence,
-          registrationDate: result.registrationDate,
-          domainAge: result.domainAge,
-          method: result.method,
-          suspiciousScore: result.suspiciousScores.totalScore,
-          isDDNS: result.ddns.isDDNS,
-          ddnsProvider: result.ddns.provider,
-        },
-      });
-
-      // Fire NRD alert
-      await getAlertManager().alertNRD({
-        domain: result.domain,
-        domainAge: result.domainAge,
-        registrationDate: result.registrationDate,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = nrdResultToParquetRecord(result);
-    await store.write("nrd-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("NRD check failed:", error);
-    throw error;
-  }
-}
-
-async function setNRDConfig(newConfig: NRDConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ nrdConfig: newConfig });
-    // Reinitialize detector with new config
-    await initNRDDetector();
-    // Clear cache on config change
-    nrdCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting NRD config:", error);
-    return { success: false };
-  }
-}
-
-// ============================================================================
-// Typosquatting Detection
-// ============================================================================
-
-async function getTyposquatConfig(): Promise<TyposquatConfig> {
-  const storage = await getStorage();
-  return storage.typosquatConfig || DEFAULT_TYPOSQUAT_CONFIG;
-}
-
-async function initTyposquatDetector() {
-  const config = await getTyposquatConfig();
-  typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-}
-
-function checkTyposquat(domain: string): TyposquatResult {
-  if (!typosquatDetector) {
-    // Sync init since detector creation is synchronous
-    const config = DEFAULT_TYPOSQUAT_CONFIG;
-    typosquatDetector = createTyposquatDetector(config, typosquatCacheAdapter);
-  }
-  return typosquatDetector.checkDomain(domain);
-}
-
-async function handleTyposquatCheck(domain: string): Promise<TyposquatResult | { skipped: true; reason: string }> {
-  try {
-    const storage = await initStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableTyposquat) {
-      return { skipped: true, reason: "Typosquat detection disabled" };
-    }
-
-    // Ensure detector is initialized with latest config
-    if (!typosquatDetector) {
-      await initTyposquatDetector();
-    }
-
-    const result = checkTyposquat(domain);
-
-    // Update service with typosquat result if it's a positive detection
-    if (result.isTyposquat) {
-      await updateService(result.domain, {
-        typosquatResult: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          checkedAt: result.checkedAt,
-        },
-      });
-
-      // Add event log
-      await addEvent({
-        type: "typosquat_detected",
-        domain: result.domain,
-        timestamp: Date.now(),
-        details: {
-          isTyposquat: result.isTyposquat,
-          confidence: result.confidence,
-          totalScore: result.heuristics.totalScore,
-          homoglyphCount: result.heuristics.homoglyphs.length,
-          hasMixedScript: result.heuristics.hasMixedScript,
-          detectedScripts: result.heuristics.detectedScripts,
-        },
-      });
-
-      // Fire typosquat alert
-      await getAlertManager().alertTyposquat({
-        domain: result.domain,
-        homoglyphCount: result.heuristics.homoglyphs.length,
-        confidence: result.confidence,
-      });
-    }
-
-    // Log detection result to ParquetStore
-    const store = await getOrInitParquetStore();
-    const record = typosquatResultToParquetRecord(result);
-    await store.write("typosquat-detections", [record]);
-
-    return result;
-  } catch (error) {
-    logger.error("Typosquat check failed:", error);
-    throw error;
-  }
-}
-
-async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ typosquatConfig: newConfig });
-    // Reinitialize detector with new config
-    await initTyposquatDetector();
-    // Clear cache on config change
-    typosquatCacheAdapter.clear();
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting Typosquat config:", error);
-    return { success: false };
-  }
-}
+const doHMonitorService = createDoHMonitorService({
+  logger,
+  getStorage,
+  setStorage,
+  createDoHMonitor,
+  notify: (record) => chrome.notifications.create(`doh-${record.id}`, {
+    type: "basic",
+    iconUrl: "icon-128.png",
+    title: "DoH Traffic Detected",
+    message: `DNS over HTTPS request to ${record.domain} (${record.detectionMethod})`,
+    priority: 0,
+  }),
+});
 
 // ============================================================================
 // Extension Network Monitor
@@ -1411,12 +1179,12 @@ export default defineBackground(() => {
     getAIMonitorConfig: aiPromptMonitorService.getAIMonitorConfig,
     setAIMonitorConfig: aiPromptMonitorService.setAIMonitorConfig,
     clearAIData: aiPromptMonitorService.clearAIData,
-    handleNRDCheck,
-    getNRDConfig,
-    setNRDConfig,
-    handleTyposquatCheck,
-    getTyposquatConfig,
-    setTyposquatConfig,
+    handleNRDCheck: domainRiskService.handleNRDCheck,
+    getNRDConfig: domainRiskService.getNRDConfig,
+    setNRDConfig: domainRiskService.setNRDConfig,
+    handleTyposquatCheck: domainRiskService.handleTyposquatCheck,
+    getTyposquatConfig: domainRiskService.getTyposquatConfig,
+    setTyposquatConfig: domainRiskService.setTyposquatConfig,
     getOrInitParquetStore,
     getNetworkRequests,
     getExtensionRequests,
@@ -1433,9 +1201,9 @@ export default defineBackground(() => {
     setBlockingConfig,
     getNotificationConfig,
     setNotificationConfig,
-    getDoHMonitorConfig,
-    setDoHMonitorConfig,
-    getDoHRequests,
+    getDoHMonitorConfig: doHMonitorService.getDoHMonitorConfig,
+    setDoHMonitorConfig: doHMonitorService.setDoHMonitorConfig,
+    getDoHRequests: doHMonitorService.getDoHRequests,
   });
   chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
     const message = rawMessage as RuntimeMessage;
@@ -1461,40 +1229,7 @@ export default defineBackground(() => {
   });
 
   // Initialize DoH Monitor
-  doHMonitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
-  doHMonitor.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
-
-  doHMonitor.onRequest(async (record: DoHRequestRecord) => {
-    try {
-      const storage = await getStorage();
-      if (!storage.doHRequests) {
-        storage.doHRequests = [];
-      }
-      storage.doHRequests.push(record);
-
-      // Keep only recent requests
-      const maxRequests = storage.doHMonitorConfig?.maxStoredRequests ?? 1000;
-      if (storage.doHRequests.length > maxRequests) {
-        storage.doHRequests = storage.doHRequests.slice(-maxRequests);
-      }
-
-      await setStorage(storage);
-      logger.debug("DoH request stored:", record.domain);
-
-      const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
-      if (config.action === "alert" || config.action === "block") {
-        await chrome.notifications.create(`doh-${record.id}`, {
-          type: "basic",
-          iconUrl: "icon-128.png",
-          title: "DoH Traffic Detected",
-          message: `DNS over HTTPS request to ${record.domain} (${record.detectionMethod})`,
-          priority: 0,
-        });
-      }
-    } catch (error) {
-      logger.error("Failed to store DoH request:", error);
-    }
-  });
+  doHMonitorService.start().catch((err) => logger.error("Failed to start DoH monitor:", err));
 
   startCookieMonitor();
 
