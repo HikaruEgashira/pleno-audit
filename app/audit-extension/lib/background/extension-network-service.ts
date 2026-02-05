@@ -20,7 +20,7 @@ import {
   type ParquetStore,
 } from "@pleno-audit/parquet-storage";
 import {
-  getExtensionInitiatedRequests as pickExtensionInitiatedRequests,
+  filterRequestsWithExtensionId,
   getUniqueDomains,
   groupRequestsByExtensionId,
   mapToExtensionAnalysisRequest,
@@ -140,7 +140,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
 
   async function getExtensionInitiatedRequests(limit = 10000): Promise<NetworkRequestRecord[]> {
     const result = await getNetworkRequests({ limit, initiatorType: "extension" });
-    return pickExtensionInitiatedRequests(result.requests);
+    return filterRequestsWithExtensionId(result.requests);
   }
 
   async function analyzeExtensionRisks(): Promise<void> {

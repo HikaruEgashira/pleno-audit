@@ -22,9 +22,15 @@ export interface ExtensionStats {
 export function mapToExtensionAnalysisRequest(
   request: NetworkRequestRecord
 ): ExtensionAnalysisRequest {
+  if (!request.extensionId) {
+    throw new Error(
+      `Missing extensionId on NetworkRequestRecord id=${request.id}`
+    );
+  }
+
   return {
     id: request.id,
-    extensionId: request.extensionId!,
+    extensionId: request.extensionId,
     extensionName: request.extensionName || "Unknown",
     timestamp: request.timestamp,
     url: request.url,
@@ -63,19 +69,19 @@ export function queryNetworkRequests(
     );
   }
 
-  filtered.sort((a, b) => b.timestamp - a.timestamp);
+  const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
 
-  const total = filtered.length;
+  const total = sorted.length;
   const offset = options?.offset || 0;
   const limit = options?.limit || 500;
-  const requests = filtered.slice(offset, offset + limit);
+  const requests = sorted.slice(offset, offset + limit);
   return { requests, total };
 }
 
-export function getExtensionInitiatedRequests(
+export function filterRequestsWithExtensionId(
   requests: NetworkRequestRecord[]
 ): NetworkRequestRecord[] {
-  return requests.filter((request) => request.initiatorType === "extension" && !!request.extensionId);
+  return requests.filter((request) => !!request.extensionId);
 }
 
 export function summarizeExtensionStats(
