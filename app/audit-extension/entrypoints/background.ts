@@ -48,17 +48,13 @@ import {
   setStorage,
   clearAIPrompts,
   clearAllStorage,
-  createExtensionMonitor,
   registerExtensionMonitorListener,
   createLogger,
-  analyzeInstalledExtension,
   DEFAULT_NETWORK_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
   DEFAULT_DETECTION_CONFIG,
   DEFAULT_BLOCKING_CONFIG,
   DEFAULT_NOTIFICATION_CONFIG,
-  createCooldownManager,
-  createPersistentCooldownStorage,
   createDoHMonitor,
   registerDoHMonitorListener,
   DEFAULT_DOH_MONITOR_CONFIG,
@@ -67,15 +63,10 @@ import {
   type BlockingConfig,
   type ConnectionMode,
   type SyncManager,
-  type ExtensionMonitor,
-  type ExtensionMonitorConfig,
   type NetworkMonitorConfig,
-  type NetworkRequestRecord,
   type DataRetentionConfig,
   type DetectionConfig,
-  type ExtensionRiskAnalysis,
   type NotificationConfig,
-  type CooldownManager,
   type DoHMonitor,
   type DoHMonitorConfig,
   type DoHRequestRecord,
@@ -91,8 +82,6 @@ import {
   ParquetStore,
   nrdResultToParquetRecord,
   typosquatResultToParquetRecord,
-  networkRequestRecordToParquetRecord,
-  parquetRecordToNetworkRequestRecord,
 } from "@pleno-audit/parquet-storage";
 import {
   createAlertManager,
@@ -113,6 +102,10 @@ import {
 } from "../lib/background/runtime-handlers";
 import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
 import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
+import {
+  createExtensionNetworkService,
+  type ExtensionStats,
+} from "../lib/background/extension-network-service";
 import {
   createSecurityEventHandlers,
   type ClipboardHijackData,
@@ -338,10 +331,6 @@ const typosquatCacheAdapter: TyposquatCache = {
   clear: () => typosquatCache.clear(),
 };
 
-// Extension Monitor / Network Monitor
-let extensionMonitor: ExtensionMonitor | null = null;
-const networkRequestBuffer: NetworkRequestRecord[] = [];
-
 function queueStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     storageQueue = storageQueue
@@ -533,6 +522,16 @@ async function addEvent(event: NewEvent): Promise<EventLog> {
   await store.addEvents([parquetEvent]);
   return newEvent;
 }
+
+const extensionNetworkService = createExtensionNetworkService({
+  logger,
+  getStorage,
+  setStorage,
+  getOrInitParquetStore,
+  addEvent: (event) => addEvent(event as NewEvent),
+  getAlertManager,
+  getRuntimeId: () => chrome.runtime.id,
+});
 
 // ============================================================================
 // NRD Detection
@@ -733,80 +732,19 @@ async function setTyposquatConfig(newConfig: TyposquatConfig): Promise<{ success
 // ============================================================================
 
 async function getNetworkMonitorConfig(): Promise<NetworkMonitorConfig> {
-  const storage = await getStorage();
-  return storage.networkMonitorConfig || DEFAULT_NETWORK_MONITOR_CONFIG;
+  return extensionNetworkService.getNetworkMonitorConfig();
 }
 
 async function setNetworkMonitorConfig(newConfig: NetworkMonitorConfig): Promise<{ success: boolean }> {
-  try {
-    await setStorage({ networkMonitorConfig: newConfig });
-    // Restart monitor with new config
-    if (extensionMonitor) {
-      extensionMonitor.stop();
-      extensionMonitor = null;
-    }
-    if (newConfig.enabled) {
-      await initExtensionMonitor();
-    }
-    return { success: true };
-  } catch (error) {
-    logger.error("Error setting network monitor config:", error);
-    return { success: false };
-  }
+  return extensionNetworkService.setNetworkMonitorConfig(newConfig);
 }
 
 async function initExtensionMonitor() {
-  const networkConfig = await getNetworkMonitorConfig();
-  if (!networkConfig.enabled) return;
-
-  // NetworkMonitorConfig → ExtensionMonitorConfig に変換
-  const config: ExtensionMonitorConfig = {
-    enabled: networkConfig.enabled,
-    excludeOwnExtension: networkConfig.excludeOwnExtension,
-    excludedExtensions: networkConfig.excludedExtensions,
-    maxStoredRequests: 10000, // Parquetに保存するため固定値
-  };
-
-  const ownId = chrome.runtime.id;
-  extensionMonitor = createExtensionMonitor(config, ownId);
-
-  extensionMonitor.onRequest(async (record) => {
-    // Parquetに保存（Network Monitor統合）
-    networkRequestBuffer.push(record as NetworkRequestRecord);
-
-    // Add to event log
-    await addEvent({
-      type: "extension_request",
-      domain: record.domain,
-      timestamp: record.timestamp,
-      details: {
-        extensionId: record.extensionId,
-        extensionName: record.extensionName,
-        url: record.url,
-        method: record.method,
-        resourceType: record.resourceType,
-        initiatorType: (record as NetworkRequestRecord).initiatorType,
-      },
-    });
-  });
-
-  await extensionMonitor.start();
-  logger.info("Extension monitor started");
+  await extensionNetworkService.initExtensionMonitor();
 }
 
 async function flushNetworkRequestBuffer() {
-  if (networkRequestBuffer.length === 0) return;
-
-  const toFlush = networkRequestBuffer.splice(0, networkRequestBuffer.length);
-  try {
-    const store = await getOrInitParquetStore();
-    const records = toFlush.map(r => networkRequestRecordToParquetRecord(r));
-    await store.appendRows("network-requests", records);
-  } catch (error) {
-    // 失敗時は次回フラッシュに回すために再キューイング
-    networkRequestBuffer.unshift(...toFlush);
-    logger.error("Failed to flush network requests to Parquet:", error);
-  }
+  await extensionNetworkService.flushNetworkRequestBuffer();
 }
 
 /**
@@ -818,245 +756,39 @@ async function flushNetworkRequestBuffer() {
  * onRequestコールバック経由でバッファ追加とイベント追加が自動的に行われる
  */
 async function checkDNRMatchesHandler() {
-  if (!extensionMonitor) return;
-  try {
-    await extensionMonitor.checkDNRMatches();
-  } catch (err) {
-    logger.debug("DNR match check failed:", err);
-  }
+  await extensionNetworkService.checkDNRMatchesHandler();
 }
-
-// クールダウン定数
-const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60; // 1時間
-
-/**
- * クールダウンマネージャー（永続ストレージ使用）
- * Service Worker再起動後もクールダウン状態を維持
- */
-let cooldownManager: CooldownManager | null = null;
-
-function getCooldownManager(): CooldownManager {
-  if (!cooldownManager) {
-    const storage = createPersistentCooldownStorage(
-      async () => {
-        const data = await getStorage();
-        return { alertCooldown: data.alertCooldown };
-      },
-      async (data) => {
-        await setStorage({ alertCooldown: data.alertCooldown });
-      }
-    );
-    cooldownManager = createCooldownManager(storage, {
-      defaultCooldownMs: EXTENSION_ALERT_COOLDOWN_MS,
-    });
-  }
-  return cooldownManager;
-}
-
-type ExtensionAnalysisRequest = Parameters<typeof analyzeInstalledExtension>[1][number];
-
-function mapToExtensionAnalysisRequest(request: NetworkRequestRecord): ExtensionAnalysisRequest {
-  return {
-    id: request.id,
-    extensionId: request.extensionId!,
-    extensionName: request.extensionName || "Unknown",
-    timestamp: request.timestamp,
-    url: request.url,
-    method: request.method,
-    resourceType: request.resourceType,
-    domain: request.domain,
-    detectedBy: request.detectedBy,
-  };
-}
-
-function groupRequestsByExtensionId(requests: NetworkRequestRecord[]): Map<string, NetworkRequestRecord[]> {
-  const grouped = new Map<string, NetworkRequestRecord[]>();
-  for (const request of requests) {
-    if (!request.extensionId) continue;
-    const existing = grouped.get(request.extensionId) || [];
-    existing.push(request);
-    grouped.set(request.extensionId, existing);
-  }
-  return grouped;
-}
-
-async function getExtensionInitiatedRequests(limit = 10000): Promise<NetworkRequestRecord[]> {
-  const result = await getNetworkRequests({ limit, initiatorType: "extension" });
-  return result.requests.filter((request) => request.extensionId);
-}
-
-/**
- * インストールされている拡張機能のリスク分析を実行
- */
 async function analyzeExtensionRisks(): Promise<void> {
-  try {
-    const storage = await getStorage();
-    const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
-
-    if (!detectionConfig.enableExtension) {
-      return;
-    }
-
-    const requests = await getExtensionInitiatedRequests();
-    if (requests.length === 0) return;
-
-    const manager = getCooldownManager();
-
-    // 各拡張機能のリスク分析
-    for (const [extensionId, extRequests] of groupRequestsByExtensionId(requests)) {
-      // クールダウンチェック（永続ストレージから取得）
-      const cooldownKey = `extension:${extensionId}`;
-      if (await manager.isOnCooldown(cooldownKey)) {
-        continue;
-      }
-
-      const compatRequests = extRequests.map(mapToExtensionAnalysisRequest);
-
-      const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
-      if (!analysis) continue;
-
-      // 危険な拡張機能を検出したらアラート
-      if (analysis.riskLevel === "critical" || analysis.riskLevel === "high") {
-        const uniqueDomains = [...new Set(extRequests.map(r => r.domain))];
-        await getAlertManager().alertExtension({
-          extensionId: analysis.extensionId,
-          extensionName: analysis.extensionName,
-          riskLevel: analysis.riskLevel,
-          riskScore: analysis.riskScore,
-          flags: analysis.flags.map(f => f.flag),
-          requestCount: extRequests.length,
-          targetDomains: uniqueDomains.slice(0, 10),
-        });
-
-        // クールダウンを永続ストレージに保存
-        await manager.setCooldown(cooldownKey);
-        logger.info(`Extension risk alert fired: ${analysis.extensionName} (score: ${analysis.riskScore})`);
-      }
-    }
-  } catch (error) {
-    logger.error("Extension risk analysis failed:", error);
-  }
+  await extensionNetworkService.analyzeExtensionRisks();
 }
 
-/**
- * 拡張機能リスク分析結果を取得
- */
-async function getExtensionRiskAnalysis(extensionId: string): Promise<ExtensionRiskAnalysis | null> {
-  const requests = await getExtensionInitiatedRequests();
-  const compatRequests = requests
-    .filter((request) => request.extensionId === extensionId)
-    .map(mapToExtensionAnalysisRequest);
-
-  return analyzeInstalledExtension(extensionId, compatRequests);
+async function getExtensionRiskAnalysis(extensionId: string) {
+  return extensionNetworkService.getExtensionRiskAnalysis(extensionId);
 }
 
-/**
- * すべての拡張機能のリスク分析結果を取得
- */
-async function getAllExtensionRisks(): Promise<ExtensionRiskAnalysis[]> {
-  const requests = await getExtensionInitiatedRequests();
-  const requestsByExtension = groupRequestsByExtensionId(requests);
-
-  const results: ExtensionRiskAnalysis[] = [];
-  for (const [extensionId, extRequests] of requestsByExtension) {
-    const compatRequests = extRequests.map(mapToExtensionAnalysisRequest);
-
-    const analysis = await analyzeInstalledExtension(extensionId, compatRequests);
-    if (analysis) {
-      results.push(analysis);
-    }
-  }
-
-  // リスクスコア降順でソート
-  return results.sort((a, b) => b.riskScore - a.riskScore);
+async function getAllExtensionRisks() {
+  return extensionNetworkService.getAllExtensionRisks();
 }
 
-async function getNetworkRequests(options?: { limit?: number; offset?: number; since?: number; initiatorType?: "extension" | "page" | "browser" | "unknown" }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
-  try {
-    const store = await getOrInitParquetStore();
-    const allRecords = await store.queryRows("network-requests");
-
-    let filtered = allRecords.map(r => parquetRecordToNetworkRequestRecord(r));
-
-    // フィルタリング（ページネーション前に適用）
-    if (options?.since) {
-      filtered = filtered.filter(r => r.timestamp >= options.since!);
-    }
-    if (options?.initiatorType) {
-      filtered = filtered.filter(r => r.initiatorType === options.initiatorType);
-    }
-
-    // 新しいものから順に並び替え
-    filtered.sort((a, b) => b.timestamp - a.timestamp);
-
-    const total = filtered.length;
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 500;
-    const sliced = filtered.slice(offset, offset + limit);
-
-    return { requests: sliced, total };
-  } catch (error) {
-    logger.error("Failed to query network requests:", error);
-    return { requests: [], total: 0 };
-  }
+async function getNetworkRequests(options?: {
+  limit?: number;
+  offset?: number;
+  since?: number;
+  initiatorType?: "extension" | "page" | "browser" | "unknown";
+}) {
+  return extensionNetworkService.getNetworkRequests(options);
 }
 
-async function getExtensionRequests(options?: { limit?: number; offset?: number }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
-  // initiatorTypeフィルタを使用してページネーション前にフィルタリング
-  return getNetworkRequests({
-    limit: options?.limit || 500,
-    offset: options?.offset || 0,
-    initiatorType: "extension",
-  });
+async function getExtensionRequests(options?: { limit?: number; offset?: number }) {
+  return extensionNetworkService.getExtensionRequests(options);
 }
 
-function getKnownExtensions(): Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }> {
-  if (!extensionMonitor) return {};
-  const map = extensionMonitor.getKnownExtensions();
-  return Object.fromEntries(map);
-}
-
-interface ExtensionStats {
-  byExtension: Record<string, { name: string; count: number; domains: string[] }>;
-  byDomain: Record<string, { count: number; extensions: string[] }>;
-  total: number;
+function getKnownExtensions() {
+  return extensionNetworkService.getKnownExtensions();
 }
 
 async function getExtensionStats(): Promise<ExtensionStats> {
-  const requests = await getExtensionInitiatedRequests();
-
-  const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
-  const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
-
-  for (const req of requests) {
-    if (!req.extensionId) continue;
-    // By extension
-    if (!byExtension[req.extensionId]) {
-      byExtension[req.extensionId] = { name: req.extensionName || "Unknown", count: 0, domains: new Set() };
-    }
-    byExtension[req.extensionId].count++;
-    byExtension[req.extensionId].domains.add(req.domain);
-
-    // By domain
-    if (!byDomain[req.domain]) {
-      byDomain[req.domain] = { count: 0, extensions: new Set() };
-    }
-    byDomain[req.domain].count++;
-    byDomain[req.domain].extensions.add(req.extensionId);
-  }
-
-  // Convert Sets to arrays for serialization
-  const byExtensionResult: ExtensionStats["byExtension"] = {};
-  for (const [id, data] of Object.entries(byExtension)) {
-    byExtensionResult[id] = { name: data.name, count: data.count, domains: Array.from(data.domains) };
-  }
-
-  const byDomainResult: ExtensionStats["byDomain"] = {};
-  for (const [domain, data] of Object.entries(byDomain)) {
-    byDomainResult[domain] = { count: data.count, extensions: Array.from(data.extensions) };
-  }
-
-  return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
+  return extensionNetworkService.getExtensionStats();
 }
 
 // ============================================================================
