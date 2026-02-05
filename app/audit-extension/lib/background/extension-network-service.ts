@@ -319,10 +319,10 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
 
     extensionMonitor = createExtensionMonitor(config, deps.getRuntimeId());
 
-    extensionMonitor.onRequest(async (record) => {
+    extensionMonitor.onRequest((record) => {
       networkRequestBuffer.push(record as NetworkRequestRecord);
 
-      await deps.addEvent({
+      void deps.addEvent({
         type: "extension_request",
         domain: record.domain,
         timestamp: record.timestamp,
@@ -334,6 +334,8 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
           resourceType: record.resourceType,
           initiatorType: (record as NetworkRequestRecord).initiatorType,
         },
+      }).catch((error) => {
+        deps.logger.error("Failed to add extension request event:", error);
       });
     });
 
@@ -346,7 +348,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
       await deps.setStorage({ networkMonitorConfig: newConfig });
 
       if (extensionMonitor) {
-        extensionMonitor.stop();
+        await extensionMonitor.stop();
         extensionMonitor = null;
       }
 
