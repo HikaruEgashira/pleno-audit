@@ -19,6 +19,16 @@ import {
   parquetRecordToNetworkRequestRecord,
   type ParquetStore,
 } from "@pleno-audit/parquet-storage";
+import {
+  filterRequestsWithExtensionId,
+  getUniqueDomains,
+  groupRequestsByExtensionId,
+  mapToExtensionAnalysisRequest,
+  queryNetworkRequests,
+  summarizeExtensionStats,
+  type ExtensionStats,
+  type NetworkRequestQueryOptions,
+} from "./extension-network-service-helpers.js";
 
 interface LoggerLike {
   debug: (...args: unknown[]) => void;
@@ -55,24 +65,15 @@ interface ExtensionNetworkServiceDeps {
   getRuntimeId: () => string;
 }
 
-export interface ExtensionStats {
-  byExtension: Record<string, { name: string; count: number; domains: string[] }>;
-  byDomain: Record<string, { count: number; extensions: string[] }>;
-  total: number;
-}
-
 export interface ExtensionNetworkService {
   getNetworkMonitorConfig: () => Promise<NetworkMonitorConfig>;
   setNetworkMonitorConfig: (config: NetworkMonitorConfig) => Promise<{ success: boolean }>;
   initExtensionMonitor: () => Promise<void>;
   flushNetworkRequestBuffer: () => Promise<void>;
   checkDNRMatchesHandler: () => Promise<void>;
-  getNetworkRequests: (options?: {
-    limit?: number;
-    offset?: number;
-    since?: number;
-    initiatorType?: "extension" | "page" | "browser" | "unknown";
-  }) => Promise<{ requests: NetworkRequestRecord[]; total: number }>;
+  getNetworkRequests: (
+    options?: NetworkRequestQueryOptions
+  ) => Promise<{ requests: NetworkRequestRecord[]; total: number }>;
   getExtensionRequests: (options?: { limit?: number; offset?: number }) => Promise<{ requests: NetworkRequestRecord[]; total: number }>;
   getKnownExtensions: () => Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }>;
   getExtensionStats: () => Promise<ExtensionStats>;
@@ -83,32 +84,7 @@ export interface ExtensionNetworkService {
 
 const EXTENSION_ALERT_COOLDOWN_MS = 1000 * 60 * 60;
 
-type ExtensionAnalysisRequest = Parameters<typeof analyzeInstalledExtension>[1][number];
-
-function mapToExtensionAnalysisRequest(request: NetworkRequestRecord): ExtensionAnalysisRequest {
-  return {
-    id: request.id,
-    extensionId: request.extensionId!,
-    extensionName: request.extensionName || "Unknown",
-    timestamp: request.timestamp,
-    url: request.url,
-    method: request.method,
-    resourceType: request.resourceType,
-    domain: request.domain,
-    detectedBy: request.detectedBy,
-  };
-}
-
-function groupRequestsByExtensionId(requests: NetworkRequestRecord[]): Map<string, NetworkRequestRecord[]> {
-  const grouped = new Map<string, NetworkRequestRecord[]>();
-  for (const request of requests) {
-    if (!request.extensionId) continue;
-    const existing = grouped.get(request.extensionId) || [];
-    existing.push(request);
-    grouped.set(request.extensionId, existing);
-  }
-  return grouped;
-}
+export type { ExtensionStats };
 
 export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps): ExtensionNetworkService {
   let extensionMonitor: ExtensionMonitor | null = null;
@@ -138,33 +114,16 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
     return storage.networkMonitorConfig || DEFAULT_NETWORK_MONITOR_CONFIG;
   }
 
-  async function getNetworkRequests(options?: {
-    limit?: number;
-    offset?: number;
-    since?: number;
-    initiatorType?: "extension" | "page" | "browser" | "unknown";
-  }): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
+  async function getNetworkRequests(
+    options?: NetworkRequestQueryOptions
+  ): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
     try {
       const store = await deps.getOrInitParquetStore();
       const allRecords = await store.queryRows("network-requests");
-
-      let filtered = allRecords.map((record) => parquetRecordToNetworkRequestRecord(record));
-
-      if (options?.since != null) {
-        filtered = filtered.filter((record) => record.timestamp >= options.since!);
-      }
-      if (options?.initiatorType) {
-        filtered = filtered.filter((record) => record.initiatorType === options.initiatorType);
-      }
-
-      filtered.sort((a, b) => b.timestamp - a.timestamp);
-
-      const total = filtered.length;
-      const offset = options?.offset || 0;
-      const limit = options?.limit || 500;
-      const sliced = filtered.slice(offset, offset + limit);
-
-      return { requests: sliced, total };
+      const parsedRecords = allRecords.map((record) =>
+        parquetRecordToNetworkRequestRecord(record)
+      );
+      return queryNetworkRequests(parsedRecords, options);
     } catch (error) {
       deps.logger.error("Failed to query network requests:", error);
       return { requests: [], total: 0 };
@@ -181,7 +140,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
 
   async function getExtensionInitiatedRequests(limit = 10000): Promise<NetworkRequestRecord[]> {
     const result = await getNetworkRequests({ limit, initiatorType: "extension" });
-    return result.requests.filter((request) => request.extensionId);
+    return filterRequestsWithExtensionId(result.requests);
   }
 
   async function analyzeExtensionRisks(): Promise<void> {
@@ -209,7 +168,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
         if (!analysis) continue;
 
         if (analysis.riskLevel === "critical" || analysis.riskLevel === "high") {
-          const uniqueDomains = [...new Set(extRequests.map((request) => request.domain))];
+          const uniqueDomains = getUniqueDomains(extRequests);
           await deps.getAlertManager().alertExtension({
             extensionId: analysis.extensionId,
             extensionName: analysis.extensionName,
@@ -262,48 +221,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
 
   async function getExtensionStats(): Promise<ExtensionStats> {
     const requests = await getExtensionInitiatedRequests();
-
-    const byExtension: Record<string, { name: string; count: number; domains: Set<string> }> = {};
-    const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
-
-    for (const request of requests) {
-      if (!request.extensionId) continue;
-
-      if (!byExtension[request.extensionId]) {
-        byExtension[request.extensionId] = {
-          name: request.extensionName || "Unknown",
-          count: 0,
-          domains: new Set(),
-        };
-      }
-      byExtension[request.extensionId].count++;
-      byExtension[request.extensionId].domains.add(request.domain);
-
-      if (!byDomain[request.domain]) {
-        byDomain[request.domain] = { count: 0, extensions: new Set() };
-      }
-      byDomain[request.domain].count++;
-      byDomain[request.domain].extensions.add(request.extensionId);
-    }
-
-    const byExtensionResult: ExtensionStats["byExtension"] = {};
-    for (const [id, data] of Object.entries(byExtension)) {
-      byExtensionResult[id] = {
-        name: data.name,
-        count: data.count,
-        domains: Array.from(data.domains),
-      };
-    }
-
-    const byDomainResult: ExtensionStats["byDomain"] = {};
-    for (const [domain, data] of Object.entries(byDomain)) {
-      byDomainResult[domain] = {
-        count: data.count,
-        extensions: Array.from(data.extensions),
-      };
-    }
-
-    return { byExtension: byExtensionResult, byDomain: byDomainResult, total: requests.length };
+    return summarizeExtensionStats(requests);
   }
 
   async function initExtensionMonitor(): Promise<void> {
