@@ -8,6 +8,12 @@ import {
 } from "@pleno-audit/detectors";
 
 const MAX_AI_PROMPTS = 500;
+const AI_RISK_LEVEL_PRIORITY: Record<string, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
 
 interface AIServiceStorage {
   detectionConfig?: DetectionConfig;
@@ -70,6 +76,22 @@ function getPromptPreview(prompt: CapturedAIPrompt["prompt"]): string {
     return lastUserMsg?.content.substring(0, 100) || "";
   }
   return prompt.text?.substring(0, 100) || prompt.rawBody?.substring(0, 100) || "";
+}
+
+function getHigherRiskLevel(
+  current?: string,
+  incoming?: string
+): string | undefined {
+  if (!incoming) {
+    return current;
+  }
+  if (!current) {
+    return incoming;
+  }
+
+  const currentPriority = AI_RISK_LEVEL_PRIORITY[current] ?? 0;
+  const incomingPriority = AI_RISK_LEVEL_PRIORITY[incoming] ?? 0;
+  return incomingPriority >= currentPriority ? incoming : current;
 }
 
 export function createAIPromptMonitorService(params: CreateAIPromptMonitorServiceParams) {
@@ -223,9 +245,10 @@ export function createAIPromptMonitorService(params: CreateAIPromptMonitorServic
           sensitiveDataTypes: analysis.pii.hasSensitiveData
             ? [...new Set([...(existingService?.aiDetected?.sensitiveDataTypes || []), ...analysis.pii.classifications])]
             : existingService?.aiDetected?.sensitiveDataTypes,
-          riskLevel: analysis.risk.riskLevel === "critical" || analysis.risk.riskLevel === "high"
-            ? analysis.risk.riskLevel
-            : existingService?.aiDetected?.riskLevel,
+          riskLevel: getHigherRiskLevel(
+            existingService?.aiDetected?.riskLevel,
+            analysis.risk.riskLevel
+          ),
           hasShadowAI: isShadowAIDetected || existingService?.aiDetected?.hasShadowAI,
           shadowAIProviders: shadowAIProviders.length > 0 ? shadowAIProviders : undefined,
         },
