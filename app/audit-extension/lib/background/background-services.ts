@@ -48,6 +48,7 @@ interface StorageData {
   cspReports: CSPReport[];
   cspConfig: CSPConfig;
   detectionConfig: DetectionConfig;
+  notificationConfig: NotificationConfig;
   policyConfig: PolicyConfig;
 }
 
@@ -84,6 +85,18 @@ export type NewEvent =
       domain: string;
       timestamp: number;
       details: CookieSetDetails;
+    }
+  | {
+      type: "cookie_policy_found";
+      domain: string;
+      timestamp: number;
+      details: CookiePolicyFoundDetails;
+    }
+  | {
+      type: "cookie_banner_detected";
+      domain: string;
+      timestamp: number;
+      details: CookieBannerDetectedDetails;
     }
   | {
       type: "csp_violation";
@@ -199,6 +212,19 @@ interface CookieBannerResult {
   isGDPRCompliant: boolean;
 }
 
+interface CookiePolicyFoundDetails {
+  url: string;
+  method?: string;
+}
+
+interface CookieBannerDetectedDetails {
+  selector: string | null;
+  hasAcceptButton: boolean;
+  hasRejectButton: boolean;
+  hasSettingsButton: boolean;
+  isGDPRCompliant: boolean;
+}
+
 export interface PageAnalysis {
   url: string;
   domain: string;
@@ -251,7 +277,7 @@ async function addEvent(event: NewEvent): Promise<EventLog> {
     id: eventId,
     type: event.type,
     domain: event.domain,
-    timestamp: Date.now(),
+    timestamp: event.timestamp || Date.now(),
     details: JSON.stringify(event.details || {}),
   };
 
@@ -384,12 +410,16 @@ async function initStorage(): Promise<StorageData> {
     "cspReports",
     "cspConfig",
     "detectionConfig",
+    "notificationConfig",
+    "policyConfig",
   ]);
   return {
     services: result.services || {},
     cspReports: result.cspReports || [],
     cspConfig: result.cspConfig || DEFAULT_CSP_CONFIG,
     detectionConfig: result.detectionConfig || DEFAULT_DETECTION_CONFIG,
+    notificationConfig: result.notificationConfig || DEFAULT_NOTIFICATION_CONFIG,
+    policyConfig: result.policyConfig || DEFAULT_POLICY_CONFIG,
   };
 }
 
@@ -450,8 +480,8 @@ async function updateService(domain: string, update: Partial<DetectedService>) {
     await saveStorage({ services: storage.services });
 
     if (isNewDomain) {
-      checkDomainPolicy(domain).catch(() => {
-        return;
+      checkDomainPolicy(domain).catch((error) => {
+        logger?.warn("Failed to check domain policy:", domain, error);
       });
     }
   });
