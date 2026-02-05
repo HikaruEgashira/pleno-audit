@@ -80,13 +80,21 @@ export function createNetworkMonitor(
     if (info.id === ownExtensionId) return;
     if (state.excludedExtensions.has(info.id)) return;
 
-    refreshExtensionList().catch(() => {});
-    addDNRRuleForExtension(info.id).catch(() => {});
+    refreshExtensionList().catch((error) => {
+      logger.debug("Failed to refresh extension list on install", error);
+    });
+    addDNRRuleForExtension(info.id).catch((error) => {
+      logger.debug(`Failed to add DNR rule for ${info.id}`, error);
+    });
   }
 
   function handleUninstalled(extensionId: string): void {
-    refreshExtensionList().catch(() => {});
-    removeDNRRuleForExtension(extensionId).catch(() => {});
+    refreshExtensionList().catch((error) => {
+      logger.debug("Failed to refresh extension list on uninstall", error);
+    });
+    removeDNRRuleForExtension(extensionId).catch((error) => {
+      logger.debug(`Failed to remove DNR rule for ${extensionId}`, error);
+    });
   }
 
   return {
@@ -112,8 +120,11 @@ export function createNetworkMonitor(
           state.dnrRuleToExtensionMap.size > 0 && !needsReconciliation;
       }
 
-      chrome.management.onInstalled.addListener(handleInstalled);
-      chrome.management.onUninstalled.addListener(handleUninstalled);
+      if (!state.managementListenersRegistered) {
+        chrome.management.onInstalled.addListener(handleInstalled);
+        chrome.management.onUninstalled.addListener(handleUninstalled);
+        state.managementListenersRegistered = true;
+      }
 
       if (!mappingRestored) {
         const otherExtensionIds = Array.from(getKnownExtensions().keys()).filter(
@@ -126,8 +137,11 @@ export function createNetworkMonitor(
     },
 
     async stop() {
-      chrome.management.onInstalled.removeListener(handleInstalled);
-      chrome.management.onUninstalled.removeListener(handleUninstalled);
+      if (state.managementListenersRegistered) {
+        chrome.management.onInstalled.removeListener(handleInstalled);
+        chrome.management.onUninstalled.removeListener(handleUninstalled);
+        state.managementListenersRegistered = false;
+      }
       applyConfig({ ...state.config, enabled: false });
       clearGlobalCallbacks();
       await clearDNRRules();

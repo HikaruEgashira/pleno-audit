@@ -42,7 +42,7 @@ export interface AIPromptRiskAssessment {
   /** リスクスコア (0-100) */
   riskScore: number;
   /** リスクレベル */
-  riskLevel: "critical" | "high" | "medium" | "low" | "info";
+  riskLevel: RiskLevel5;
   /** リスク要因 */
   factors: {
     sensitiveDataPresent: boolean;

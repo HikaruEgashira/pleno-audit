@@ -10,9 +10,13 @@ import type { NetworkMonitorState, ExtensionInfo } from "./types.js";
 
 /**
  * 設定からキャッシュキーを生成
+ *
+ * 配列をソートしてから結合することで、順序非依存のキーを生成
  */
 export function createConfigCacheKey(config: NetworkMonitorConfig): string {
-  return `${config.excludedDomains.join("\u0000")}::${config.excludedExtensions.join("\u0000")}`;
+  const domains = [...config.excludedDomains].sort().join("\u0000");
+  const extensions = [...config.excludedExtensions].sort().join("\u0000");
+  return `${domains}::${extensions}`;
 }
 
 /**
@@ -25,6 +29,7 @@ export const state: NetworkMonitorState = {
   knownExtensions: new Map<string, ExtensionInfo>(),
   callbacks: [],
   listenerRegistered: false,
+  managementListenersRegistered: false,
   dnrRulesRegistered: false,
   lastMatchedRulesCheck: 0,
   lastDNRCallTime: 0,

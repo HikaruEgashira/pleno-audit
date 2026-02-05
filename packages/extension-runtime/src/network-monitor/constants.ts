@@ -24,9 +24,9 @@ export const EXTENSION_ID_PATTERN = /^[a-z]{32}$/;
 export const DNR_RULE_ID_BASE = 10000;
 
 /**
- * DNRルールID範囲の最大値
+ * DNRルールID範囲の最大値（排他的上限）
  *
- * 100個のルールスロットを確保（10000〜10099）
+ * 100個のルールスロットを確保（10000〜10099）。DNR_RULE_ID_MAX は排他的上限。
  * これにより最大100個の拡張機能を同時監視可能
  */
 export const DNR_RULE_ID_MAX = 10100;

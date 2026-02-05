@@ -42,6 +42,7 @@ export interface NetworkMonitorState {
   knownExtensions: Map<string, ExtensionInfo>;
   callbacks: Array<(request: NetworkRequestRecord) => void>;
   listenerRegistered: boolean;
+  managementListenersRegistered: boolean;
   dnrRulesRegistered: boolean;
   lastMatchedRulesCheck: number;
   lastDNRCallTime: number;
