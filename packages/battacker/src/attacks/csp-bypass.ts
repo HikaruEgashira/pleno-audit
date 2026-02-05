@@ -9,63 +9,81 @@ import type { AttackResult, AttackTest } from "../types";
  */
 async function simulateMetaCspOverride(): Promise<AttackResult> {
   const startTime = performance.now();
+  let inlineExecuted = false;
+  let errorMessage: string | null = null;
+
+  // 既存の meta CSP を記録（復元用）
+  const existingMeta = document.querySelector(
+    'meta[http-equiv="Content-Security-Policy"]'
+  );
+  const existingMetaClone = existingMeta
+    ? (existingMeta.cloneNode(true) as HTMLMetaElement)
+    : null;
+
+  const meta = document.createElement("meta");
+  const testScript = document.createElement("script");
 
   try {
-    // 既存の meta CSP を記録（復元用）
-    const existingMeta = document.querySelector(
-      'meta[http-equiv="Content-Security-Policy"]'
-    );
+    if (existingMeta) {
+      existingMeta.remove();
+    }
 
     // 緩和的な CSP meta を注入
-    const meta = document.createElement("meta");
     meta.httpEquiv = "Content-Security-Policy";
     meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:";
     document.head.appendChild(meta);
 
     // インラインスクリプトが実行できるかテスト
-    let inlineExecuted = false;
-    const testScript = document.createElement("script");
     testScript.textContent =
       "window.__battacker_csp_bypass_test__ = true;";
     document.head.appendChild(testScript);
 
     inlineExecuted =
       (window as any).__battacker_csp_bypass_test__ === true;
-
-    // クリーンアップ
+  } catch (error) {
+    errorMessage =
+      error instanceof Error ? error.message : String(error);
+  } finally {
     delete (window as any).__battacker_csp_bypass_test__;
-    document.head.removeChild(testScript);
-    document.head.removeChild(meta);
-
-    const executionTime = performance.now() - startTime;
-
-    if (inlineExecuted) {
-      return {
-        blocked: false,
-        executionTime,
-        details:
-          "Meta CSP override successful - inline script executed despite CSP (policy weakened via <meta>)",
-      };
+    if (testScript.parentNode) {
+      testScript.remove();
     }
+    if (meta.parentNode) {
+      meta.remove();
+    }
+    if (existingMetaClone) {
+      document.head.appendChild(existingMetaClone);
+    }
+  }
 
-    // meta 注入自体は成功したが、インラインスクリプトはブロックされた
-    // → サーバーCSPが meta より優先された（正しい挙動）
+  const executionTime = performance.now() - startTime;
+
+  if (errorMessage) {
     return {
       blocked: true,
       executionTime,
-      details:
-        "Meta CSP injection attempted but inline script was blocked (server CSP takes precedence)",
-    };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-    return {
-      blocked: true,
-      executionTime: performance.now() - startTime,
       details: `Meta CSP override blocked: ${errorMessage}`,
       error: errorMessage,
     };
   }
+
+  if (inlineExecuted) {
+    return {
+      blocked: false,
+      executionTime,
+      details:
+        "Meta CSP override successful - inline script executed despite CSP (policy weakened via <meta>)",
+    };
+  }
+
+  // meta 注入自体は成功したが、インラインスクリプトはブロックされた
+  // → サーバーCSPが meta より優先された（正しい挙動）
+  return {
+    blocked: true,
+    executionTime,
+    details:
+      "Meta CSP injection attempted but inline script was blocked (server CSP takes precedence)",
+  };
 }
 
 /**
@@ -75,14 +93,19 @@ async function simulateMetaCspOverride(): Promise<AttackResult> {
  */
 async function simulateBaseTagHijack(): Promise<AttackResult> {
   const startTime = performance.now();
+  let resolvedUrl = "";
+  let errorMessage: string | null = null;
+  let existingBase: HTMLBaseElement | null = null;
+  let originalHref: string | undefined;
+  let maliciousBase: HTMLBaseElement | null = null;
 
   try {
     // 既存の base タグを保存
-    const existingBase = document.querySelector("base");
-    const originalHref = existingBase?.href;
+    existingBase = document.querySelector("base");
+    originalHref = existingBase?.href;
 
     // 攻撃者の base タグを注入
-    const maliciousBase = document.createElement("base");
+    maliciousBase = document.createElement("base");
     maliciousBase.href = "https://evil.attacker.example.com/";
     document.head.insertBefore(
       maliciousBase,
@@ -92,46 +115,60 @@ async function simulateBaseTagHijack(): Promise<AttackResult> {
     // 相対 URL を持つアンカーを作成して解決先を確認
     const testAnchor = document.createElement("a");
     testAnchor.href = "login"; // 相対 URL
-    const resolvedUrl = testAnchor.href;
-
-    // クリーンアップ
-    document.head.removeChild(maliciousBase);
-
-    const executionTime = performance.now() - startTime;
-
-    if (resolvedUrl.includes("evil.attacker.example.com")) {
-      return {
-        blocked: false,
-        executionTime,
-        details: `Base tag hijack successful - relative URLs redirected to attacker domain (resolved: ${resolvedUrl})`,
-      };
+    resolvedUrl = testAnchor.href;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error ? error.message : String(error);
+  } finally {
+    if (maliciousBase?.parentNode) {
+      document.head.removeChild(maliciousBase);
     }
-
-    // base-uri CSP が機能している場合
-    if (originalHref && resolvedUrl.startsWith(originalHref)) {
-      return {
-        blocked: true,
-        executionTime,
-        details:
-          "Base tag hijack blocked - original base URL preserved (base-uri CSP enforced)",
-      };
+    if (existingBase && originalHref && existingBase.href !== originalHref) {
+      existingBase.href = originalHref;
     }
+  }
 
+  const executionTime = performance.now() - startTime;
+
+  if (errorMessage) {
     return {
       blocked: true,
       executionTime,
-      details: `Base tag injection did not redirect URLs (resolved: ${resolvedUrl})`,
-    };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-    return {
-      blocked: true,
-      executionTime: performance.now() - startTime,
-      details: `Base tag hijack blocked: ${errorMessage}`,
-      error: errorMessage,
+      details: `Base tag hijack blocked: ${errorMessage || "unknown error"}`,
+      error: errorMessage || "unknown error",
     };
   }
+
+  let resolvedHost = "";
+  try {
+    resolvedHost = new URL(resolvedUrl).hostname;
+  } catch {
+    resolvedHost = "";
+  }
+
+  if (resolvedHost === "evil.attacker.example.com") {
+    return {
+      blocked: false,
+      executionTime,
+      details: `Base tag hijack successful - relative URLs redirected to attacker domain (resolved: ${resolvedUrl})`,
+    };
+  }
+
+  // base-uri CSP が機能している場合
+  if (originalHref && resolvedUrl.startsWith(originalHref)) {
+    return {
+      blocked: true,
+      executionTime,
+      details:
+        "Base tag hijack blocked - original base URL preserved (base-uri CSP enforced)",
+    };
+  }
+
+  return {
+    blocked: true,
+    executionTime,
+    details: `Base tag injection did not redirect URLs (resolved: ${resolvedUrl})`,
+  };
 }
 
 /**
@@ -142,6 +179,7 @@ async function simulateBaseTagHijack(): Promise<AttackResult> {
  */
 async function simulateCssDataExfil(): Promise<AttackResult> {
   const startTime = performance.now();
+  let errorMessage: string | null = null;
 
   try {
     // テスト用 input を作成
@@ -178,8 +216,16 @@ async function simulateCssDataExfil(): Promise<AttackResult> {
     // スタイルが適用されたか確認
     const computedStyle = window.getComputedStyle(input);
     const bgImage = computedStyle.backgroundImage;
-    const hasExfilUrl =
-      bgImage !== "none" && bgImage.includes("httpbin.org");
+    let hasExfilUrl = false;
+    if (bgImage !== "none") {
+      const match = /url\(["']?([^"')]+)["']?\)/.exec(bgImage);
+      const extractedUrl = match?.[1] ?? "";
+      try {
+        hasExfilUrl = new URL(extractedUrl).hostname === "httpbin.org";
+      } catch {
+        hasExfilUrl = false;
+      }
+    }
 
     // クリーンアップ
     document.body.removeChild(input);
@@ -209,13 +255,15 @@ async function simulateCssDataExfil(): Promise<AttackResult> {
 
     // スタイルは注入できたがリクエストは送信されなかった
     return {
-      blocked: false,
+      blocked: true,
+      partial: true,
+      leakConfirmed: false,
       executionTime,
       details:
-        "CSS style injection succeeded - attribute selector applied but external URL may be blocked by CSP img-src/default-src",
+        "CSS style injection succeeded but data exfiltration blocked - external URL request prevented by CSP img-src/default-src",
     };
   } catch (error) {
-    const errorMessage =
+    errorMessage =
       error instanceof Error ? error.message : String(error);
     return {
       blocked: true,
@@ -321,6 +369,8 @@ async function simulateSvgScriptInjection(): Promise<AttackResult> {
     document.body.appendChild(container);
 
     const svgPayload = `<svg xmlns="http://www.w3.org/2000/svg" onload="window.__battacker_svg_test__=true"><rect width="1" height="1"/></svg>`;
+    // 意図的な XSS テスト: innerHTML 経由での SVG スクリプト注入を検証
+    // eslint-disable-next-line no-unsanitized/property
     container.innerHTML = svgPayload;
 
     // onload が実行されたか確認
