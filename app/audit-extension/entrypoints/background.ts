@@ -115,6 +115,18 @@ import {
 } from "../lib/background/runtime-handlers";
 import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
 import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
+import {
+  createSecurityEventHandlers,
+  type ClipboardHijackData,
+  type CookieAccessData,
+  type DOMScrapingData,
+  type DataExfiltrationData,
+  type CredentialTheftData,
+  type SupplyChainRiskData,
+  type SuspiciousDownloadData,
+  type TrackingBeaconData,
+  type XSSDetectedData,
+} from "../lib/background/security-event-handlers";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
@@ -1415,436 +1427,13 @@ async function handleNetworkRequest(
   return { success: true };
 }
 
-interface DataExfiltrationData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  targetUrl: string;
-  targetDomain: string;
-  method: string;
-  bodySize: number;
-  initiator: string;
-}
-
-async function handleDataExfiltration(
-  data: DataExfiltrationData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  // Log the data exfiltration event
-  await addEvent({
-    type: "data_exfiltration_detected",
-    domain: data.targetDomain,
-    timestamp: Date.now(),
-    details: {
-      targetUrl: data.targetUrl,
-      targetDomain: data.targetDomain,
-      method: data.method,
-      bodySize: data.bodySize,
-      initiator: data.initiator,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  // Fire alert for data exfiltration
-  await getAlertManager().alertDataExfiltration({
-    sourceDomain: pageDomain,
-    targetDomain: data.targetDomain,
-    bodySize: data.bodySize,
-    method: data.method,
-    initiator: data.initiator,
-  });
-
-  logger.warn(`Data exfiltration detected (via ${data.source || "unknown"}):`, {
-    from: pageDomain,
-    to: data.targetDomain,
-    size: `${Math.round(data.bodySize / 1024)}KB`,
-    method: data.method,
-  });
-
-  // Check data transfer policy
-  checkDataTransferPolicy({
-    destination: data.targetDomain,
-    sizeKB: Math.round(data.bodySize / 1024),
-  }).catch(() => {
-    // Ignore policy check errors
-  });
-
-  return { success: true };
-}
-
-interface CredentialTheftData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  formAction: string;
-  targetDomain: string;
-  method: string;
-  isSecure: boolean;
-  isCrossOrigin: boolean;
-  fieldType: string;
-  risks: string[];
-}
-
-async function handleCredentialTheft(
-  data: CredentialTheftData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  // Log the credential theft risk event
-  await addEvent({
-    type: "credential_theft_risk",
-    domain: data.targetDomain,
-    timestamp: Date.now(),
-    details: {
-      formAction: data.formAction,
-      targetDomain: data.targetDomain,
-      method: data.method,
-      isSecure: data.isSecure,
-      isCrossOrigin: data.isCrossOrigin,
-      fieldType: data.fieldType,
-      risks: data.risks,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  // Only fire alert if there are actual risks
-  if (data.risks.length > 0) {
-    await getAlertManager().alertCredentialTheft({
-      sourceDomain: pageDomain,
-      targetDomain: data.targetDomain,
-      formAction: data.formAction,
-      isSecure: data.isSecure,
-      isCrossOrigin: data.isCrossOrigin,
-      fieldType: data.fieldType,
-      risks: data.risks,
-    });
-
-    logger.warn(`Credential theft risk detected (via ${data.source || "unknown"}):`, {
-      from: pageDomain,
-      to: data.targetDomain,
-      fieldType: data.fieldType,
-      risks: data.risks.join(", "),
-    });
-  }
-
-  return { success: true };
-}
-
-interface SupplyChainRiskData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  url: string;
-  resourceType: string;
-  hasIntegrity: boolean;
-  hasCrossorigin: boolean;
-  isCDN: boolean;
-  risks: string[];
-}
-
-async function handleSupplyChainRisk(
-  data: SupplyChainRiskData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const resourceDomain = extractDomainFromUrl(data.url);
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  // Log the supply chain risk event
-  await addEvent({
-    type: "supply_chain_risk",
-    domain: resourceDomain,
-    timestamp: Date.now(),
-    details: {
-      url: data.url,
-      resourceType: data.resourceType,
-      hasIntegrity: data.hasIntegrity,
-      hasCrossorigin: data.hasCrossorigin,
-      isCDN: data.isCDN,
-      risks: data.risks,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  // Fire alert for supply chain risk
-  await getAlertManager().alertSupplyChainRisk({
-    pageDomain: pageDomain,
-    resourceUrl: data.url,
-    resourceDomain: resourceDomain,
-    resourceType: data.resourceType,
-    hasIntegrity: data.hasIntegrity,
-    hasCrossorigin: data.hasCrossorigin,
-    isCDN: data.isCDN,
-    risks: data.risks,
-  });
-
-  logger.warn(`Supply chain risk detected (via ${data.source || "unknown"}):`, {
-    page: pageDomain,
-    resource: resourceDomain,
-    type: data.resourceType,
-    risks: data.risks.join(", "),
-  });
-
-  return { success: true };
-}
-
-// Tracking beacon data interface
-interface TrackingBeaconData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  url: string;
-  targetDomain: string;
-  bodySize: number;
-  initiator: string;
-}
-
-async function handleTrackingBeacon(
-  data: TrackingBeaconData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "tracking_beacon_detected",
-    domain: data.targetDomain,
-    timestamp: Date.now(),
-    details: {
-      url: data.url,
-      targetDomain: data.targetDomain,
-      bodySize: data.bodySize,
-      initiator: data.initiator,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertTrackingBeacon({
-    sourceDomain: pageDomain,
-    targetDomain: data.targetDomain,
-    url: data.url,
-    bodySize: data.bodySize,
-    initiator: data.initiator,
-  });
-
-  logger.debug(`Tracking beacon detected (via ${data.source || "unknown"}):`, {
-    from: pageDomain,
-    to: data.targetDomain,
-  });
-
-  return { success: true };
-}
-
-// Clipboard hijack data interface
-interface ClipboardHijackData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  text: string;
-  cryptoType: string;
-  fullLength: number;
-}
-
-async function handleClipboardHijack(
-  data: ClipboardHijackData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "clipboard_hijack_detected",
-    domain: pageDomain,
-    timestamp: Date.now(),
-    details: {
-      text: data.text,
-      cryptoType: data.cryptoType,
-      fullLength: data.fullLength,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertClipboardHijack({
-    domain: pageDomain,
-    cryptoType: data.cryptoType,
-    textPreview: data.text,
-  });
-
-  logger.warn(`Clipboard hijack detected (via ${data.source || "unknown"}):`, {
-    domain: pageDomain,
-    cryptoType: data.cryptoType,
-  });
-
-  return { success: true };
-}
-
-// Cookie access data interface
-interface CookieAccessData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  readCount: number;
-}
-
-async function handleCookieAccess(
-  data: CookieAccessData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "cookie_access_detected",
-    domain: pageDomain,
-    timestamp: Date.now(),
-    details: {
-      readCount: data.readCount,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertCookieAccess({
-    domain: pageDomain,
-    readCount: data.readCount,
-  });
-
-  logger.debug(`Cookie access detected (via ${data.source || "unknown"}):`, {
-    domain: pageDomain,
-  });
-
-  return { success: true };
-}
-
-// XSS detection data interface
-interface XSSDetectedData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  type: string;
-  payloadPreview: string;
-}
-
-async function handleXSSDetected(
-  data: XSSDetectedData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "xss_detected",
-    domain: pageDomain,
-    timestamp: Date.now(),
-    details: {
-      type: data.type,
-      payloadPreview: data.payloadPreview,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertXSSInjection({
-    domain: pageDomain,
-    injectionType: data.type,
-    payloadPreview: data.payloadPreview,
-  });
-
-  logger.warn(`XSS detected (via ${data.source || "unknown"}):`, {
-    domain: pageDomain,
-    type: data.type,
-  });
-
-  return { success: true };
-}
-
-// DOM scraping data interface
-interface DOMScrapingData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  selector: string;
-  callCount: number;
-}
-
-async function handleDOMScraping(
-  data: DOMScrapingData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "dom_scraping_detected",
-    domain: pageDomain,
-    timestamp: Date.now(),
-    details: {
-      selector: data.selector,
-      callCount: data.callCount,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertDOMScraping({
-    domain: pageDomain,
-    selector: data.selector,
-    callCount: data.callCount,
-  });
-
-  logger.debug(`DOM scraping detected (via ${data.source || "unknown"}):`, {
-    domain: pageDomain,
-    callCount: data.callCount,
-  });
-
-  return { success: true };
-}
-
-// Suspicious download data interface
-interface SuspiciousDownloadData {
-  source?: string;
-  timestamp: string;
-  pageUrl: string;
-  type: string;
-  filename: string;
-  extension: string;
-  url: string;
-  size: number;
-  mimeType: string;
-}
-
-async function handleSuspiciousDownload(
-  data: SuspiciousDownloadData,
-  sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean }> {
-  const pageDomain = extractDomainFromUrl(sender.tab?.url || data.pageUrl);
-
-  await addEvent({
-    type: "suspicious_download_detected",
-    domain: pageDomain,
-    timestamp: Date.now(),
-    details: {
-      type: data.type,
-      filename: data.filename,
-      extension: data.extension,
-      url: data.url,
-      size: data.size,
-      mimeType: data.mimeType,
-      pageUrl: data.pageUrl,
-    },
-  });
-
-  await getAlertManager().alertSuspiciousDownload({
-    domain: pageDomain,
-    downloadType: data.type,
-    filename: data.filename,
-    extension: data.extension,
-    size: data.size,
-    mimeType: data.mimeType,
-  });
-
-  logger.warn(`Suspicious download detected (via ${data.source || "unknown"}):`, {
-    domain: pageDomain,
-    type: data.type,
-    filename: data.filename,
-  });
-
-  return { success: true };
-}
+const securityEventHandlers = createSecurityEventHandlers({
+  addEvent: (event) => addEvent(event as NewEvent),
+  getAlertManager,
+  extractDomainFromUrl,
+  checkDataTransferPolicy,
+  logger,
+});
 
 function extractDomainFromUrl(url: string): string {
   try {
@@ -2362,15 +1951,15 @@ export default defineBackground(() => {
     handlePageAnalysis: async (payload) => handlePageAnalysis(payload as PageAnalysis),
     handleCSPViolation,
     handleNetworkRequest,
-    handleDataExfiltration: (data, sender) => handleDataExfiltration(data as DataExfiltrationData, sender),
-    handleCredentialTheft: (data, sender) => handleCredentialTheft(data as CredentialTheftData, sender),
-    handleSupplyChainRisk: (data, sender) => handleSupplyChainRisk(data as SupplyChainRiskData, sender),
-    handleTrackingBeacon: (data, sender) => handleTrackingBeacon(data as TrackingBeaconData, sender),
-    handleClipboardHijack: (data, sender) => handleClipboardHijack(data as ClipboardHijackData, sender),
-    handleCookieAccess: (data, sender) => handleCookieAccess(data as CookieAccessData, sender),
-    handleXSSDetected: (data, sender) => handleXSSDetected(data as XSSDetectedData, sender),
-    handleDOMScraping: (data, sender) => handleDOMScraping(data as DOMScrapingData, sender),
-    handleSuspiciousDownload: (data, sender) => handleSuspiciousDownload(data as SuspiciousDownloadData, sender),
+    handleDataExfiltration: (data, sender) => securityEventHandlers.handleDataExfiltration(data as DataExfiltrationData, sender),
+    handleCredentialTheft: (data, sender) => securityEventHandlers.handleCredentialTheft(data as CredentialTheftData, sender),
+    handleSupplyChainRisk: (data, sender) => securityEventHandlers.handleSupplyChainRisk(data as SupplyChainRiskData, sender),
+    handleTrackingBeacon: (data, sender) => securityEventHandlers.handleTrackingBeacon(data as TrackingBeaconData, sender),
+    handleClipboardHijack: (data, sender) => securityEventHandlers.handleClipboardHijack(data as ClipboardHijackData, sender),
+    handleCookieAccess: (data, sender) => securityEventHandlers.handleCookieAccess(data as CookieAccessData, sender),
+    handleXSSDetected: (data, sender) => securityEventHandlers.handleXSSDetected(data as XSSDetectedData, sender),
+    handleDOMScraping: (data, sender) => securityEventHandlers.handleDOMScraping(data as DOMScrapingData, sender),
+    handleSuspiciousDownload: (data, sender) => securityEventHandlers.handleSuspiciousDownload(data as SuspiciousDownloadData, sender),
     getCSPReports,
     generateCSPPolicy,
     generateCSPPolicyByDomain,
