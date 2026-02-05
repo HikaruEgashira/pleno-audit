@@ -87,9 +87,9 @@ import {
   createRuntimeMessageHandlers as createRuntimeMessageHandlersModule,
   runAsyncMessageHandler as runAsyncMessageHandlerModule,
   type RuntimeMessage,
+  type RuntimeHandlerDependencies,
 } from "../lib/background/runtime-handlers";
 import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
-import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
 import {
   createExtensionNetworkService,
   type ExtensionStats,
@@ -1114,34 +1114,8 @@ function registerRecurringAlarms(): void {
   chrome.alarms.create("dataCleanup", { periodInMinutes: 60 * 24 });
 }
 
-export default defineBackground(() => {
-  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
-  registerExtensionMonitorListener();
-  registerDoHMonitorListener();
-  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
-
-  initializeBackgroundServices();
-  registerRecurringAlarms();
-
-  const alarmHandlers = createAlarmHandlersModule({
-    logger,
-    flushReportQueue: () => cspReportingService.flushReportQueue(),
-    flushNetworkRequestBuffer,
-    checkDNRMatchesHandler,
-    analyzeExtensionRisks,
-    cleanupOldData,
-  });
-  chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === "keepAlive") {
-      return;
-    }
-    const handler = alarmHandlers.get(alarm.name);
-    if (handler) {
-      handler();
-    }
-  });
-
-  const runtimeHandlers = createRuntimeMessageHandlersModule({
+function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
+  return {
     logger,
     fallbacks: {
       cspConfig: DEFAULT_CSP_CONFIG,
@@ -1221,7 +1195,39 @@ export default defineBackground(() => {
     getDoHMonitorConfig,
     setDoHMonitorConfig,
     getDoHRequests,
+  };
+}
+
+export default defineBackground(() => {
+  // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
+  registerExtensionMonitorListener();
+  registerDoHMonitorListener();
+  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
+
+  initializeBackgroundServices();
+  registerRecurringAlarms();
+
+  const alarmHandlers = createAlarmHandlersModule({
+    logger,
+    flushReportQueue: () => cspReportingService.flushReportQueue(),
+    flushNetworkRequestBuffer,
+    checkDNRMatchesHandler,
+    analyzeExtensionRisks,
+    cleanupOldData,
   });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "keepAlive") {
+      return;
+    }
+    const handler = alarmHandlers.get(alarm.name);
+    if (handler) {
+      handler();
+    }
+  });
+
+  const runtimeHandlers = createRuntimeMessageHandlersModule(
+    createRuntimeHandlerDependencies(),
+  );
   chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
     const message = rawMessage as RuntimeMessage;
     const type = typeof message.type === "string" ? message.type : "";
