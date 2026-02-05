@@ -21,6 +21,77 @@ export interface CreateAlertInput {
   actions?: AlertAction[];
 }
 
+// ============================================================================
+// Severity Resolution Utilities
+// ============================================================================
+
+/**
+ * 条件に基づいてseverityを決定するユーティリティ
+ *
+ * @param conditions - [condition, severityIfTrue] のペア配列（優先度順）
+ * @param defaultSeverity - どの条件も満たさない場合のデフォルト
+ */
+export function resolveSeverity(
+  conditions: [boolean, AlertSeverity][],
+  defaultSeverity: AlertSeverity
+): AlertSeverity {
+  for (const [condition, severity] of conditions) {
+    if (condition) return severity;
+  }
+  return defaultSeverity;
+}
+
+/**
+ * confidence レベルから severity を決定
+ *
+ * high -> criticalOrHigh, それ以外 -> defaultSeverity
+ */
+export function severityFromConfidence(
+  confidence: "high" | "medium" | "low" | "unknown",
+  criticalOrHigh: AlertSeverity,
+  defaultSeverity: AlertSeverity
+): AlertSeverity {
+  return confidence === "high" ? criticalOrHigh : defaultSeverity;
+}
+
+// ============================================================================
+// Description Building Utilities
+// ============================================================================
+
+/**
+ * 条件付きでリスク説明を収集し結合
+ *
+ * @param items - [condition, description] のペア配列
+ * @param separator - 結合文字（デフォルト: ", "）
+ * @param fallback - 空の場合のフォールバック
+ */
+export function buildRiskDescription(
+  items: [boolean, string][],
+  separator = ", ",
+  fallback = ""
+): string {
+  const descriptions = items.filter(([cond]) => cond).map(([, desc]) => desc);
+  return descriptions.length > 0 ? descriptions.join(separator) : fallback;
+}
+
+/**
+ * 違反コードを日本語の説明に変換
+ */
+export const VIOLATION_DESCRIPTIONS: Record<string, string> = {
+  missing_privacy_policy: "プライバシーポリシーなし",
+  missing_terms_of_service: "利用規約なし",
+  missing_cookie_policy: "クッキーポリシーなし",
+  missing_cookie_banner: "クッキーバナーなし",
+  non_compliant_cookie_banner: "GDPR非準拠バナー",
+};
+
+/**
+ * 違反コードリストを日本語説明に変換
+ */
+export function translateViolations(violations: string[]): string[] {
+  return violations.map((v) => VIOLATION_DESCRIPTIONS[v] || v);
+}
+
 export interface NRDAlertParams {
   domain: string;
   domainAge: number | null;
@@ -29,8 +100,7 @@ export interface NRDAlertParams {
 }
 
 export function buildNRDAlert(params: NRDAlertParams): CreateAlertInput {
-  const severity: AlertSeverity =
-    params.confidence === "high" ? "high" : "medium";
+  const severity = severityFromConfidence(params.confidence, "high", "medium");
 
   return {
     category: "nrd",
@@ -61,8 +131,7 @@ export function buildTyposquatAlert(
     return null;
   }
 
-  const severity: AlertSeverity =
-    params.confidence === "high" ? "critical" : "high";
+  const severity = severityFromConfidence(params.confidence, "critical", "high");
 
   return {
     category: "typosquat",
@@ -92,7 +161,7 @@ export function buildAISensitiveAlert(
   params: AISensitiveAlertParams
 ): CreateAlertInput {
   const hasCredentials = params.dataTypes.includes("credentials");
-  const severity: AlertSeverity = hasCredentials ? "critical" : "high";
+  const severity = resolveSeverity([[hasCredentials, "critical"]], "high");
   const displayedDataTypes =
     params.dataTypes.length > 0 ? params.dataTypes : ["不明なデータ"];
 
@@ -122,13 +191,13 @@ export interface ShadowAIAlertParams {
 }
 
 export function buildShadowAIAlert(params: ShadowAIAlertParams): CreateAlertInput {
-  let severity: AlertSeverity;
-
-  if (params.provider === "unknown") {
-    severity = "high";
-  } else {
-    severity = params.riskLevel === "high" ? "high" : "medium";
-  }
+  const severity = resolveSeverity(
+    [
+      [params.provider === "unknown", "high"],
+      [params.riskLevel === "high", "high"],
+    ],
+    "medium"
+  );
 
   const isUnknown = params.provider === "unknown";
   const title = isUnknown
@@ -202,7 +271,7 @@ export function buildDataExfiltrationAlert(
   params: DataExfiltrationAlertParams
 ): CreateAlertInput {
   const sizeKB = Math.round(params.bodySize / 1024);
-  const severity: AlertSeverity = sizeKB > 500 ? "critical" : "high";
+  const severity = resolveSeverity([[sizeKB > 500, "critical"]], "high");
 
   return {
     category: "data_exfiltration",
@@ -236,18 +305,16 @@ export function buildCredentialTheftAlert(
   params: CredentialTheftAlertParams
 ): CreateAlertInput {
   const hasInsecureProtocol = params.risks.includes("insecure_protocol");
-  const severity: AlertSeverity = hasInsecureProtocol ? "critical" : "high";
+  const severity = resolveSeverity([[hasInsecureProtocol, "critical"]], "high");
 
-  const riskDescriptions: string[] = [];
-  if (hasInsecureProtocol) {
-    riskDescriptions.push("非HTTPS通信");
-  }
-  if (params.isCrossOrigin) {
-    riskDescriptions.push("クロスオリジン送信");
-  }
-
-  const transportDescription =
-    riskDescriptions.length > 0 ? riskDescriptions.join(", ") : "不明な経路";
+  const transportDescription = buildRiskDescription(
+    [
+      [hasInsecureProtocol, "非HTTPS通信"],
+      [params.isCrossOrigin, "クロスオリジン送信"],
+    ],
+    ", ",
+    "不明な経路"
+  );
 
   return {
     category: "credential_theft",
@@ -283,21 +350,16 @@ export function buildSupplyChainRiskAlert(
   params: SupplyChainRiskAlertParams
 ): CreateAlertInput {
   const isCDNWithoutSRI = params.isCDN && !params.hasIntegrity;
-  const severity: AlertSeverity = isCDNWithoutSRI ? "high" : "medium";
+  const severity = resolveSeverity([[isCDNWithoutSRI, "high"]], "medium");
 
-  const riskDescriptions: string[] = [];
-  if (!params.hasIntegrity) {
-    riskDescriptions.push("SRIなし");
-  }
-  if (params.isCDN) {
-    riskDescriptions.push("CDN");
-  }
-  if (!params.hasCrossorigin) {
-    riskDescriptions.push("crossorigin属性なし");
-  }
+  const riskPart = buildRiskDescription([
+    [!params.hasIntegrity, "SRIなし"],
+    [params.isCDN, "CDN"],
+    [!params.hasCrossorigin, "crossorigin属性なし"],
+  ]);
 
-  const description = riskDescriptions.length > 0
-    ? `${params.resourceType}が${riskDescriptions.join(", ")}で読み込まれています`
+  const description = riskPart
+    ? `${params.resourceType}が${riskPart}で読み込まれています`
     : `${params.resourceType}が読み込まれています`;
 
   return {
@@ -363,24 +425,9 @@ export function buildComplianceAlert(
   const hasLoginViolations =
     params.hasLoginForm &&
     (!params.hasPrivacyPolicy || !params.hasTermsOfService);
-  const severity: AlertSeverity = hasLoginViolations ? "high" : "medium";
+  const severity = resolveSeverity([[hasLoginViolations, "high"]], "medium");
 
-  const violationDescriptions: string[] = [];
-  if (violations.includes("missing_privacy_policy")) {
-    violationDescriptions.push("プライバシーポリシーなし");
-  }
-  if (violations.includes("missing_terms_of_service")) {
-    violationDescriptions.push("利用規約なし");
-  }
-  if (violations.includes("missing_cookie_policy")) {
-    violationDescriptions.push("クッキーポリシーなし");
-  }
-  if (violations.includes("missing_cookie_banner")) {
-    violationDescriptions.push("クッキーバナーなし");
-  }
-  if (violations.includes("non_compliant_cookie_banner")) {
-    violationDescriptions.push("GDPR非準拠バナー");
-  }
+  const violationDescriptions = translateViolations(violations);
 
   return {
     category: "compliance",
@@ -426,7 +473,7 @@ export function buildPolicyViolationAlert(
     return null;
   }
 
-  const severity: AlertSeverity = params.action === "block" ? "high" : "medium";
+  const severity = resolveSeverity([[params.action === "block", "high"]], "medium");
   const actionLabel = params.action === "block" ? "ブロック" : "警告";
   const ruleTypeLabel = RULE_TYPE_LABELS[params.ruleType] || params.ruleType;
 
@@ -579,12 +626,15 @@ export interface SuspiciousDownloadAlertParams {
   mimeType: string;
 }
 
+/** 実行可能ファイルの拡張子リスト */
+const EXECUTABLE_EXTENSIONS = [".exe", ".msi", ".bat", ".ps1"];
+
 export function buildSuspiciousDownloadAlert(
   params: SuspiciousDownloadAlertParams
 ): CreateAlertInput {
   const normalizedExtension = (params.extension || "").toLowerCase();
-  const severity: AlertSeverity =
-    [".exe", ".msi", ".bat", ".ps1"].includes(normalizedExtension) ? "critical" : "high";
+  const isExecutable = EXECUTABLE_EXTENSIONS.includes(normalizedExtension);
+  const severity = resolveSeverity([[isExecutable, "critical"]], "high");
 
   return {
     category: "suspicious_download",

@@ -69,3 +69,12 @@ export {
   type PolicyManager,
   type PolicyCheckResult,
 } from "./policy-manager.js";
+
+// Scoring Utilities
+export {
+  scoreToRiskLevel5,
+  scoreToExtensionRiskLevel,
+  RISK_SCORE_THRESHOLDS,
+  type RiskLevel5,
+  type ExtensionRiskLevel,
+} from "./scoring-utils.js";

@@ -9,6 +9,7 @@
     "./offscreen": "./src/offscreen/index.ts"
   },
   "dependencies": {
+    "@pleno-audit/alerts": "workspace:*",
     "@pleno-audit/detectors": "workspace:*",
     "@pleno-audit/csp": "workspace:*"
   }
