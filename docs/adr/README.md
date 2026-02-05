@@ -42,3 +42,4 @@
 | [040](./040-background-csp-ai-service-modularization.md) | BackgroundのCSP/AI監視責務をサービスへ分離する | Accepted |
 | [041](./041-domain-risk-service-modularization.md) | ドメインリスク検知（NRD/Typosquat）をサービスへ分離する | Accepted |
 | [042](./042-runtime-handler-sectioning.md) | Runtime Handler定義の機能別セクション化 | Accepted |
+| [043](./043-extension-monitor-compatibility-facade.md) | Extension Monitor互換レイヤでNetwork Monitor実装へ一本化する | Accepted |
