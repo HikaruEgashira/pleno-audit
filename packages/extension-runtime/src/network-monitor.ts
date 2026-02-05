@@ -57,13 +57,29 @@ const DNR_RULE_ID_BASE = 10000;
 const DNR_RULE_ID_MAX = 10100;
 const DNR_RULE_CAPACITY = DNR_RULE_ID_MAX - DNR_RULE_ID_BASE;
 
-const DNR_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
-  chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
-  chrome.declarativeNetRequest.ResourceType.OTHER,
-  chrome.declarativeNetRequest.ResourceType.SCRIPT,
-  chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-  chrome.declarativeNetRequest.ResourceType.IMAGE,
-];
+function resolveDNRResourceTypes(): chrome.declarativeNetRequest.ResourceType[] {
+  const resourceType = chrome.declarativeNetRequest?.ResourceType;
+  if (!resourceType) {
+    return [
+      "xmlhttprequest",
+      "other",
+      "script",
+      "sub_frame",
+      "image",
+    ] as chrome.declarativeNetRequest.ResourceType[];
+  }
+
+  return [
+    resourceType.XMLHTTPREQUEST,
+    resourceType.OTHER,
+    resourceType.SCRIPT,
+    resourceType.SUB_FRAME,
+    resourceType.IMAGE,
+  ];
+}
+
+const DNR_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] =
+  resolveDNRResourceTypes();
 
 // DNR API レート制限対策
 const DNR_QUOTA_INTERVAL_MS = 10 * 60 * 1000;
