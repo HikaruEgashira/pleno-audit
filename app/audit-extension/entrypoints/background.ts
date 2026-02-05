@@ -111,6 +111,8 @@ import {
   runAsyncMessageHandler as runAsyncMessageHandlerModule,
   type RuntimeMessage,
 } from "../lib/background/runtime-handlers";
+import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
+import { createAIPromptMonitorHandler } from "../lib/background/ai-prompt-monitor";
 import {
   createSecurityEventHandlers,
   type ClipboardHijackData,
@@ -1475,83 +1477,12 @@ async function triggerSync(): Promise<{ success: boolean; sent: number; received
 // Main world script is now registered statically via manifest.json content_scripts
 // Dynamic registration removed to avoid caching issues
 
-type DebugForwardResult = { success: boolean; data?: unknown; error?: string };
-type DebugForwardHandler = (data: unknown) => Promise<DebugForwardResult>;
-
-function createDebugForwardHandlers(): Map<string, DebugForwardHandler> {
-  return new Map<string, DebugForwardHandler>([
-    ["DEBUG_EVENTS_LIST", async (rawData) => {
-      const params = rawData as { limit?: number; type?: string } | undefined;
-      const store = await getOrInitParquetStore();
-      const result = await store.getEvents({
-        limit: params?.limit || 100,
-      });
-      const events = result.data.map((e) => ({
-        id: e.id,
-        type: e.type,
-        domain: e.domain,
-        timestamp: e.timestamp,
-        details: typeof e.details === "string" ? JSON.parse(e.details) : e.details,
-      }));
-      const filteredEvents = params?.type
-        ? events.filter((event) => event.type === params.type)
-        : events;
-      return { success: true, data: filteredEvents };
-    }],
-    ["DEBUG_EVENTS_COUNT", async () => {
-      const store = await getOrInitParquetStore();
-      const result = await store.getEvents({ limit: 0 });
-      return { success: true, data: result.total };
-    }],
-    ["DEBUG_EVENTS_CLEAR", async () => {
-      const store = await getOrInitParquetStore();
-      await store.clearAll();
-      return { success: true };
-    }],
-    ["DEBUG_TAB_OPEN", async (rawData) => {
-      const params = rawData as { url: string };
-      let url = params.url;
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        url = `https://${url}`;
-      }
-      const tab = await chrome.tabs.create({ url, active: true });
-      return { success: true, data: { tabId: tab.id, url: tab.url || url } };
-    }],
-    ["DEBUG_DOH_CONFIG_GET", async () => {
-      const config = await getDoHMonitorConfig();
-      return { success: true, data: config };
-    }],
-    ["DEBUG_DOH_CONFIG_SET", async (rawData) => {
-      const params = rawData as Partial<DoHMonitorConfig>;
-      await setDoHMonitorConfig(params);
-      return { success: true };
-    }],
-    ["DEBUG_DOH_REQUESTS", async (rawData) => {
-      const params = rawData as { limit?: number; offset?: number } | undefined;
-      const result = await getDoHRequests(params);
-      return { success: true, data: result };
-    }],
-  ]);
-}
-const debugForwardHandlers = createDebugForwardHandlers();
-
-async function handleDebugBridgeForward(
-  type: string,
-  data: unknown
-): Promise<DebugForwardResult> {
-  try {
-    const handler = debugForwardHandlers.get(type);
-    if (!handler) {
-      return { success: false, error: `Unknown debug message type: ${type}` };
-    }
-    return handler(data);
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
+const handleDebugBridgeForward = createDebugBridgeHandler({
+  getOrInitParquetStore,
+  getDoHMonitorConfig,
+  setDoHMonitorConfig,
+  getDoHRequests,
+});
 
 function initializeDebugBridge(): void {
   if (!import.meta.env.DEV) {
