@@ -39,3 +39,4 @@
 | [037](./037-background-handler-module-split.md) | Backgroundハンドラ定義のモジュール分割 | Accepted |
 | [038](./038-background-bootstrap-modularization.md) | Background初期化とメッセージ定義の責務分離 | Accepted |
 | [039](./039-security-event-handler-modularization.md) | Security Event Handlerのモジュール分離 | Accepted |
+| [040](./040-background-csp-ai-service-modularization.md) | BackgroundのCSP/AI監視責務をサービスへ分離する | Accepted |
