@@ -150,7 +150,7 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
 
       let filtered = allRecords.map((record) => parquetRecordToNetworkRequestRecord(record));
 
-      if (options?.since) {
+      if (options?.since != null) {
         filtered = filtered.filter((record) => record.timestamp >= options.since!);
       }
       if (options?.initiatorType) {
@@ -307,6 +307,11 @@ export function createExtensionNetworkService(deps: ExtensionNetworkServiceDeps)
   }
 
   async function initExtensionMonitor(): Promise<void> {
+    if (extensionMonitor) {
+      deps.logger.debug("Extension monitor already started");
+      return;
+    }
+
     const networkConfig = await getNetworkMonitorConfig();
     if (!networkConfig.enabled) return;
 
