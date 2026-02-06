@@ -8,6 +8,14 @@ import {
   validateSamlTimestamps,
 } from "./sso-utils.js";
 
+const xmlEscape = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+
 export function buildSamlRequest(
   config: SAMLConfig,
   assertionConsumerServiceURL: string,
@@ -16,15 +24,15 @@ export function buildSamlRequest(
   const id = `_${randomString(32)}`;
   const issueInstant = new Date().toISOString();
   const issuer = config.entityId;
+  const destination = config.entryPoint ? `\n    Destination="${xmlEscape(config.entryPoint)}"` : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-    ID="${id}"
+    ID="${xmlEscape(id)}"
     Version="2.0"
-    IssueInstant="${issueInstant}"
-    AssertionConsumerServiceURL="${assertionConsumerServiceURL}"
-    Destination="${config.entryPoint}">
-  <saml:Issuer xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">${issuer}</saml:Issuer>
+    IssueInstant="${xmlEscape(issueInstant)}"
+    AssertionConsumerServiceURL="${xmlEscape(assertionConsumerServiceURL)}"${destination}>
+  <saml:Issuer xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">${xmlEscape(issuer)}</saml:Issuer>
 </samlp:AuthnRequest>`;
 }
 

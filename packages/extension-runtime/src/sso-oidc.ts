@@ -6,7 +6,8 @@ export function buildOidcAuthorizeUrl(
   redirectUri: string,
   options: { state: string; nonce: string; codeChallenge: string }
 ): URL {
-  const authUrl = new URL(`${config.authority}/authorize`);
+  const baseAuthority = config.authority.replace(/\/$/, "");
+  const authUrl = new URL(`${baseAuthority}/authorize`);
   authUrl.searchParams.set("client_id", config.clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
@@ -24,7 +25,9 @@ export async function exchangeCodeForTokens(
   redirectUri: string,
   codeVerifier: string
 ): Promise<TokenResponse> {
-  const tokenUrl = `${config.authority}/token`;
+  const baseAuthority = config.authority.replace(/\/$/, "");
+  const tokenUrl = `${baseAuthority}/token`;
+  const timeoutMs = 10000;
 
   const params = new URLSearchParams();
   params.set("grant_type", "authorization_code");
@@ -33,13 +36,27 @@ export async function exchangeCodeForTokens(
   params.set("client_id", config.clientId);
   params.set("code_verifier", codeVerifier);
 
-  const response = await fetch(tokenUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Token exchange timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

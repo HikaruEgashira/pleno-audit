@@ -189,7 +189,9 @@ class SSOManager {
     }
 
     const config = this.config;
-    const tokenUrl = `${config.authority}/token`;
+    const baseAuthority = config.authority.replace(/\/$/, "");
+    const tokenUrl = `${baseAuthority}/token`;
+    const timeoutMs = 10000;
 
     const params = new URLSearchParams();
     params.set("grant_type", "refresh_token");
@@ -197,12 +199,18 @@ class SSOManager {
     params.set("client_id", config.clientId);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
       const response = await fetch(tokenUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: params.toString(),
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
 
       if (!response.ok) {
@@ -222,6 +230,11 @@ class SSOManager {
       logger.info("Token refreshed successfully");
       return session;
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        logger.warn("Token refresh timed out, clearing session");
+        await this.clearSession();
+        return null;
+      }
       logger.error("Token refresh failed:", error);
       await this.clearSession();
       return null;
@@ -291,7 +304,7 @@ class SSOManager {
       isAuthenticated: Boolean(isValid),
       userEmail: this.session?.userEmail,
       expiresAt: this.session?.expiresAt,
-      lastRefreshed: this.session?.expiresAt ?
+      expiresInSeconds: this.session?.expiresAt ?
         Math.floor((this.session.expiresAt - Date.now()) / 1000) : undefined,
     };
   }

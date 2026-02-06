@@ -9,7 +9,11 @@ export function generateRandomString(length: number): string {
 }
 
 export function base64UrlEncode(array: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...array));
+  let binary = "";
+  for (let i = 0; i < array.length; i += 1) {
+    binary += String.fromCharCode(array[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -64,8 +68,12 @@ export function validateJwtClaims(
     return "Nonce mismatch";
   }
 
-  if (options.expectedIssuer && claims.iss && !claims.iss.startsWith(options.expectedIssuer)) {
-    return "Invalid issuer";
+  if (options.expectedIssuer && claims.iss) {
+    const normalizedExpected = options.expectedIssuer.replace(/\/$/, "");
+    const normalizedActual = claims.iss.replace(/\/$/, "");
+    if (normalizedActual !== normalizedExpected) {
+      return "Invalid issuer";
+    }
   }
 
   if (options.expectedAudience && claims.aud) {

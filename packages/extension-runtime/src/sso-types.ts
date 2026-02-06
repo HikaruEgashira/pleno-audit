@@ -53,7 +53,7 @@ export interface SSOStatus {
   isAuthenticated: boolean;
   userEmail?: string;
   expiresAt?: number;
-  lastRefreshed?: number;
+  expiresInSeconds?: number;
 }
 
 export interface SSOLogger {
