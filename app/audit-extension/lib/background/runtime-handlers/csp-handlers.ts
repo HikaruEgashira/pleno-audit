@@ -29,6 +29,10 @@ export function createCspHandlers(
           const options = (message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options
             || { strictMode: false, includeReportUri: true };
           const result = await deps.generateCSPPolicyByDomain(options);
+          if (result == null) {
+            deps.logger.warn("REGENERATE_CSP_POLICY returned null", { options });
+            return null;
+          }
           await deps.saveGeneratedCSPPolicy(result);
           return result;
         } catch (error) {
