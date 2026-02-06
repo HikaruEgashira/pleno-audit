@@ -25,11 +25,16 @@ export function createCspHandlers(
     }],
     ["REGENERATE_CSP_POLICY", {
       execute: async (message) => {
-        const options = (message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options
-          || { strictMode: false, includeReportUri: true };
-        const result = await deps.generateCSPPolicyByDomain(options);
-        await deps.saveGeneratedCSPPolicy(result);
-        return result;
+        try {
+          const options = (message.data as { options?: Partial<CSPGenerationOptions> } | undefined)?.options
+            || { strictMode: false, includeReportUri: true };
+          const result = await deps.generateCSPPolicyByDomain(options);
+          await deps.saveGeneratedCSPPolicy(result);
+          return result;
+        } catch (error) {
+          deps.logger.error("REGENERATE_CSP_POLICY failed", error);
+          return null;
+        }
       },
       fallback: () => null,
     }],

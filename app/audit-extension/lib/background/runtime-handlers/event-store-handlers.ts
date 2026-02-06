@@ -19,7 +19,16 @@ function normalizeEventQueryOptions(data: unknown): Record<string, unknown> {
 }
 
 function parseEventDetails(details: unknown): unknown {
-  return typeof details === "string" ? JSON.parse(details) : details;
+  if (typeof details !== "string") {
+    return details;
+  }
+
+  try {
+    return JSON.parse(details);
+  } catch (error) {
+    console.warn("Failed to parse event details.", error);
+    return details;
+  }
 }
 
 export function createEventStoreHandlers(
