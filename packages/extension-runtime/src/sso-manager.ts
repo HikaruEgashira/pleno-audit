@@ -6,66 +6,12 @@ import {
   setSessionStorage,
   removeSessionStorage,
 } from "./browser-adapter.js";
+import type { SSOConfig, SSOSession, SSOStatus, SSOProvider } from "./sso-types.js";
+import { buildOidcAuthorizeUrl, createSessionFromTokens, exchangeCodeForTokens } from "./sso-oidc.js";
+import { buildSamlRequest, parseSamlResponse } from "./sso-saml.js";
+import { generateCodeChallenge, generateCodeVerifier, generateRandomString } from "./sso-utils.js";
 
 const logger = createLogger("sso-manager");
-
-export type SSOProvider = "oidc" | "saml";
-
-export interface OIDCConfig {
-  provider: "oidc";
-  clientId: string;
-  authority: string;
-  redirectUri?: string;
-  scope?: string;
-}
-
-export interface SAMLConfig {
-  provider: "saml";
-  entityId: string;
-  certificateX509?: string;
-  entryPoint?: string;
-  issuer?: string;
-}
-
-export type SSOConfig = OIDCConfig | SAMLConfig;
-
-export interface SSOSession {
-  provider: SSOProvider;
-  accessToken?: string;
-  refreshToken?: string;
-  idToken?: string;
-  expiresAt?: number;
-  userId?: string;
-  userEmail?: string;
-}
-
-interface TokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  id_token?: string;
-  expires_in?: number;
-  token_type?: string;
-}
-
-interface JWTClaims {
-  sub?: string;
-  email?: string;
-  name?: string;
-  exp?: number;
-  iss?: string;
-  aud?: string | string[];
-  nonce?: string;
-  iat?: number;
-}
-
-export interface SSOStatus {
-  enabled: boolean;
-  provider?: SSOProvider;
-  isAuthenticated: boolean;
-  userEmail?: string;
-  expiresAt?: number;
-  lastRefreshed?: number;
-}
 
 class SSOManager {
   private config: SSOConfig | null = null;
@@ -104,22 +50,18 @@ class SSOManager {
     const config = this.config;
     const redirectUri = api.identity.getRedirectURL();
 
-    const authUrl = new URL(`${config.authority}/authorize`);
-    authUrl.searchParams.set("client_id", config.clientId);
-    authUrl.searchParams.set("redirect_uri", redirectUri);
-    authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("scope", config.scope || "openid profile email");
-
-    const state = this.generateRandomString(32);
-    const nonce = this.generateRandomString(32);
-    authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("nonce", nonce);
+    const state = generateRandomString(32);
+    const nonce = generateRandomString(32);
 
     // PKCE
-    const codeVerifier = this.generateCodeVerifier();
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-    authUrl.searchParams.set("code_challenge", codeChallenge);
-    authUrl.searchParams.set("code_challenge_method", "S256");
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    const authUrl = buildOidcAuthorizeUrl(config, redirectUri, {
+      state,
+      nonce,
+      codeChallenge,
+    });
 
     await setSessionStorage("oidcAuthState", { state, nonce, codeVerifier, timestamp: Date.now() });
 
@@ -167,8 +109,13 @@ class SSOManager {
         throw new Error(`Authorization failed: ${error} - ${errorDesc}`);
       }
 
-      const tokens = await this.exchangeCodeForTokens(code, redirectUri, authState.codeVerifier);
-      const session = await this.createSessionFromTokens(tokens, "oidc", authState.nonce);
+      const tokens = await exchangeCodeForTokens(config, code, redirectUri, authState.codeVerifier);
+      const session = createSessionFromTokens(tokens, "oidc", {
+        expectedNonce: authState.nonce,
+        expectedIssuer: config.authority,
+        expectedAudience: config.clientId,
+        logger,
+      });
       await this.setSession(session);
 
       logger.info("OIDC auth completed successfully");
@@ -198,7 +145,7 @@ class SSOManager {
       throw new Error("SAML entry point not configured");
     }
 
-    const samlRequest = this.buildSAMLRequest(config, redirectUri);
+    const samlRequest = buildSamlRequest(config, redirectUri);
     const idpUrl = new URL(config.entryPoint);
     idpUrl.searchParams.set("SAMLRequest", btoa(samlRequest));
     idpUrl.searchParams.set("RelayState", redirectUri);
@@ -222,7 +169,10 @@ class SSOManager {
         throw new Error("No SAML Response in redirect URL");
       }
 
-      const session = await this.parseSAMLResponse(samlResponse);
+      const session = parseSamlResponse(samlResponse, {
+        config,
+        logger,
+      });
       await this.setSession(session);
 
       logger.info("SAML auth completed successfully");
@@ -231,240 +181,6 @@ class SSOManager {
       logger.error("SAML auth failed:", error);
       throw error;
     }
-  }
-
-  private async exchangeCodeForTokens(code: string, redirectUri: string, codeVerifier: string): Promise<TokenResponse> {
-    if (!this.config || this.config.provider !== "oidc") {
-      throw new Error("OIDC config not set");
-    }
-
-    const config = this.config;
-    const tokenUrl = `${config.authority}/token`;
-
-    const params = new URLSearchParams();
-    params.set("grant_type", "authorization_code");
-    params.set("code", code);
-    params.set("redirect_uri", redirectUri);
-    params.set("client_id", config.clientId);
-    params.set("code_verifier", codeVerifier);
-
-    const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
-    }
-
-    return response.json();
-  }
-
-  private async createSessionFromTokens(tokens: TokenResponse, provider: SSOProvider, expectedNonce?: string): Promise<SSOSession> {
-    const session: SSOSession = {
-      provider,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      idToken: tokens.id_token,
-      expiresAt: tokens.expires_in
-        ? Date.now() + tokens.expires_in * 1000
-        : undefined,
-    };
-
-    if (tokens.id_token) {
-      try {
-        const claims = this.decodeAndValidateJWT(tokens.id_token, expectedNonce);
-        session.userId = claims.sub;
-        session.userEmail = claims.email;
-        if (claims.exp) {
-          session.expiresAt = claims.exp * 1000;
-        }
-      } catch (error) {
-        logger.warn("Failed to decode/validate ID token:", error);
-        if (provider === "oidc" && expectedNonce) {
-          throw new Error(`ID token validation failed: ${error instanceof Error ? error.message : "unknown error"}`);
-        }
-      }
-    }
-
-    return session;
-  }
-
-  private buildSAMLRequest(config: SAMLConfig, assertionConsumerServiceURL: string): string {
-    const id = `_${this.generateRandomString(32)}`;
-    const issueInstant = new Date().toISOString();
-    const issuer = config.entityId;
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-    ID="${id}"
-    Version="2.0"
-    IssueInstant="${issueInstant}"
-    AssertionConsumerServiceURL="${assertionConsumerServiceURL}"
-    Destination="${config.entryPoint}">
-  <saml:Issuer xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">${issuer}</saml:Issuer>
-</samlp:AuthnRequest>`;
-  }
-
-  private async parseSAMLResponse(samlResponse: string): Promise<SSOSession> {
-    let decoded: string;
-    try {
-      const base64 = samlResponse.replace(/-/g, "+").replace(/_/g, "/");
-      decoded = atob(base64);
-    } catch {
-      throw new Error("Failed to decode SAML response - invalid base64");
-    }
-
-    if (!decoded.includes("samlp:Response") && !decoded.includes("Response")) {
-      throw new Error("Invalid SAML response");
-    }
-
-    const statusMatch = decoded.match(/<samlp?:StatusCode[^>]*Value="([^"]+)"/i);
-    if (statusMatch) {
-      const statusValue = statusMatch[1];
-      if (!statusValue.includes("Success")) {
-        const messageMatch = decoded.match(/<samlp?:StatusMessage[^>]*>([^<]+)<\/samlp?:StatusMessage>/i);
-        const message = messageMatch?.[1] || "Unknown error";
-        throw new Error(`SAML authentication failed: ${message} (status: ${statusValue})`);
-      }
-    }
-
-    const notBeforeMatch = decoded.match(/NotBefore="([^"]+)"/);
-    const notOnOrAfterMatch = decoded.match(/NotOnOrAfter="([^"]+)"/);
-    const now = Date.now();
-
-    if (notBeforeMatch) {
-      const notBefore = new Date(notBeforeMatch[1]).getTime();
-      if (notBefore > now + 5 * 60 * 1000) {
-        throw new Error("SAML assertion not yet valid");
-      }
-    }
-
-    if (notOnOrAfterMatch) {
-      const notOnOrAfter = new Date(notOnOrAfterMatch[1]).getTime();
-      if (notOnOrAfter < now - 5 * 60 * 1000) {
-        throw new Error("SAML assertion has expired");
-      }
-    }
-
-    if (this.config?.provider === "saml") {
-      const issuerMatch = decoded.match(/<saml:Issuer[^>]*>([^<]+)<\/saml:Issuer>/i);
-      if (issuerMatch && this.config.issuer && issuerMatch[1] !== this.config.issuer) {
-        logger.warn(`SAML issuer mismatch: expected ${this.config.issuer}, got ${issuerMatch[1]}`);
-      }
-    }
-
-    const emailMatch = decoded.match(/<saml:Attribute Name="email"[^>]*>[\s\S]*?<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/i);
-    const nameIdMatch = decoded.match(/<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/i);
-
-    if (!nameIdMatch && !emailMatch) {
-      throw new Error("SAML response missing user identifier");
-    }
-
-    let expiresAt = now + 8 * 60 * 60 * 1000;
-    if (notOnOrAfterMatch) {
-      expiresAt = new Date(notOnOrAfterMatch[1]).getTime();
-    }
-
-    const session: SSOSession = {
-      provider: "saml",
-      userId: nameIdMatch?.[1],
-      userEmail: emailMatch?.[1],
-      expiresAt,
-    };
-
-    session.accessToken = this.generateRandomString(64);
-
-    logger.debug("SAML response validated", {
-      userId: session.userId,
-      email: session.userEmail,
-      expiresAt: new Date(expiresAt).toISOString(),
-    });
-
-    return session;
-  }
-
-  private decodeAndValidateJWT(token: string, expectedNonce?: string): JWTClaims {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      throw new Error("Invalid JWT format");
-    }
-
-    let payload: JWTClaims;
-    try {
-      const base64Payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      payload = JSON.parse(atob(base64Payload));
-    } catch {
-      throw new Error("Failed to decode JWT payload");
-    }
-
-    if (this.config?.provider === "oidc") {
-      const config = this.config;
-      if (payload.iss && !payload.iss.startsWith(config.authority)) {
-        throw new Error(`Invalid issuer: expected ${config.authority}, got ${payload.iss}`);
-      }
-
-      if (payload.aud) {
-        const audList = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-        if (!audList.includes(config.clientId)) {
-          throw new Error(`Invalid audience: ${config.clientId} not in ${audList.join(", ")}`);
-        }
-      }
-    }
-
-    if (expectedNonce && payload.nonce !== expectedNonce) {
-      throw new Error("Nonce mismatch");
-    }
-
-    if (payload.exp) {
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now - 300) {
-        throw new Error("Token has expired");
-      }
-    }
-
-    if (payload.iat) {
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.iat > now + 300) {
-        throw new Error("Token issued in the future");
-      }
-    }
-
-    logger.debug("JWT validation passed", {
-      iss: payload.iss,
-      sub: payload.sub,
-      email: payload.email,
-    });
-
-    return payload;
-  }
-
-  private generateRandomString(length: number): string {
-    const array = new Uint8Array(length);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, "0")).join("");
-  }
-
-  private generateCodeVerifier(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return this.base64UrlEncode(array);
-  }
-
-  private async generateCodeChallenge(codeVerifier: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(codeVerifier);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    return this.base64UrlEncode(new Uint8Array(hashBuffer));
-  }
-
-  private base64UrlEncode(array: Uint8Array): string {
-    const base64 = btoa(String.fromCharCode(...array));
-    return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
   async refreshToken(): Promise<SSOSession | null> {
@@ -495,8 +211,12 @@ class SSOManager {
         return null;
       }
 
-      const tokens: TokenResponse = await response.json();
-      const session = await this.createSessionFromTokens(tokens, "oidc");
+      const tokens = await response.json();
+      const session = createSessionFromTokens(tokens, "oidc", {
+        expectedIssuer: config.authority,
+        expectedAudience: config.clientId,
+        logger,
+      });
       await this.setSession(session);
 
       logger.info("Token refreshed successfully");
@@ -626,3 +346,5 @@ export async function getSSOManager(): Promise<SSOManager> {
   }
   return ssoManagerInstance;
 }
+
+export type { SSOProvider, OIDCConfig, SAMLConfig, SSOConfig, SSOSession, SSOStatus } from "./sso-types.js";

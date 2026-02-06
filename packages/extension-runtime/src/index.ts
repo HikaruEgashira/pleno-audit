@@ -167,13 +167,15 @@ export {
 export {
   getSSOManager,
   createSSOManager,
-  type SSOProvider,
-  type OIDCConfig,
-  type SAMLConfig,
-  type SSOConfig,
-  type SSOSession,
-  type SSOStatus,
 } from "./sso-manager.js";
+export type {
+  SSOProvider,
+  OIDCConfig,
+  SAMLConfig,
+  SSOConfig,
+  SSOSession,
+  SSOStatus,
+} from "./sso-types.js";
 
 // Cooldown Manager
 export {

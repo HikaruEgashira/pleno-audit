@@ -49,6 +49,14 @@ vi.stubGlobal("chrome", mockChrome);
 vi.stubGlobal("fetch", vi.fn());
 
 import { createSSOManager, type SSOSession } from "./sso-manager.js";
+import {
+  decodeJwtPayload,
+  decodeSamlResponse,
+  extractSamlNameId,
+  generateCodeVerifier,
+  validateJwtClaims,
+  validateSamlTimestamps,
+} from "./sso-utils.js";
 
 describe("SSOManager", () => {
   beforeEach(() => {
@@ -374,17 +382,6 @@ describe("SSO Security Logic (standalone)", () => {
    * RFC 7636: 43-128文字、[A-Za-z0-9-._~]のみ
    */
   describe("PKCE code_verifier format", () => {
-    function generateCodeVerifier(): string {
-      const array = new Uint8Array(32);
-      crypto.getRandomValues(array);
-      return base64UrlEncode(array);
-    }
-
-    function base64UrlEncode(array: Uint8Array): string {
-      const base64 = btoa(String.fromCharCode(...array));
-      return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    }
-
     it("generates valid length (43 characters for 32 bytes)", () => {
       const verifier = generateCodeVerifier();
       expect(verifier.length).toBe(43);
@@ -400,40 +397,6 @@ describe("SSO Security Logic (standalone)", () => {
    * JWT claims検証ロジック
    */
   describe("JWT validation logic", () => {
-    function decodeJWT(token: string): { sub?: string; email?: string; exp?: number; iat?: number; nonce?: string; iss?: string; aud?: string | string[] } {
-      const parts = token.split(".");
-      if (parts.length !== 3) throw new Error("Invalid JWT format");
-      const base64Payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      return JSON.parse(atob(base64Payload));
-    }
-
-    function validateJWTClaims(
-      claims: { exp?: number; iat?: number; nonce?: string; iss?: string; aud?: string | string[] },
-      options: { expectedNonce?: string; expectedIssuer?: string; expectedAudience?: string }
-    ): string | null {
-      const now = Math.floor(Date.now() / 1000);
-
-      if (claims.exp && claims.exp < now - 300) {
-        return "Token has expired";
-      }
-      if (claims.iat && claims.iat > now + 300) {
-        return "Token issued in the future";
-      }
-      if (options.expectedNonce && claims.nonce !== options.expectedNonce) {
-        return "Nonce mismatch";
-      }
-      if (options.expectedIssuer && claims.iss && !claims.iss.startsWith(options.expectedIssuer)) {
-        return "Invalid issuer";
-      }
-      if (options.expectedAudience && claims.aud) {
-        const audList = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-        if (!audList.includes(options.expectedAudience)) {
-          return "Invalid audience";
-        }
-      }
-      return null;
-    }
-
     function createTestJWT(claims: Record<string, unknown>): string {
       const header = { alg: "RS256", typ: "JWT" };
       const payload = {
@@ -450,56 +413,56 @@ describe("SSO Security Logic (standalone)", () => {
 
     it("decodes valid JWT payload", () => {
       const jwt = createTestJWT({ sub: "user123", email: "user@example.com" });
-      const claims = decodeJWT(jwt);
+      const claims = decodeJwtPayload(jwt);
 
       expect(claims.sub).toBe("user123");
       expect(claims.email).toBe("user@example.com");
     });
 
     it("throws on invalid JWT format", () => {
-      expect(() => decodeJWT("not-a-jwt")).toThrow("Invalid JWT format");
-      expect(() => decodeJWT("only.two")).toThrow("Invalid JWT format");
+      expect(() => decodeJwtPayload("not-a-jwt")).toThrow("Invalid JWT format");
+      expect(() => decodeJwtPayload("only.two")).toThrow("Invalid JWT format");
     });
 
     it("detects expired token", () => {
       const expiredClaims = { exp: Math.floor(Date.now() / 1000) - 600 }; // 10分前
-      const error = validateJWTClaims(expiredClaims, {});
+      const error = validateJwtClaims(expiredClaims, {});
       expect(error).toBe("Token has expired");
     });
 
     it("allows token within clock skew (5 min)", () => {
       const recentlyExpired = { exp: Math.floor(Date.now() / 1000) - 200 }; // 3分20秒前
-      const error = validateJWTClaims(recentlyExpired, {});
+      const error = validateJwtClaims(recentlyExpired, {});
       expect(error).toBeNull();
     });
 
     it("detects token issued in future", () => {
       const futureClaims = { iat: Math.floor(Date.now() / 1000) + 600 }; // 10分後
-      const error = validateJWTClaims(futureClaims, {});
+      const error = validateJwtClaims(futureClaims, {});
       expect(error).toBe("Token issued in the future");
     });
 
     it("detects nonce mismatch", () => {
       const claims = { nonce: "wrong-nonce" };
-      const error = validateJWTClaims(claims, { expectedNonce: "correct-nonce" });
+      const error = validateJwtClaims(claims, { expectedNonce: "correct-nonce" });
       expect(error).toBe("Nonce mismatch");
     });
 
     it("detects invalid issuer", () => {
       const claims = { iss: "https://evil.com" };
-      const error = validateJWTClaims(claims, { expectedIssuer: "https://auth.example.com" });
+      const error = validateJwtClaims(claims, { expectedIssuer: "https://auth.example.com" });
       expect(error).toBe("Invalid issuer");
     });
 
     it("detects invalid audience", () => {
       const claims = { aud: "other-client" };
-      const error = validateJWTClaims(claims, { expectedAudience: "my-client" });
+      const error = validateJwtClaims(claims, { expectedAudience: "my-client" });
       expect(error).toBe("Invalid audience");
     });
 
     it("handles array audience", () => {
       const claims = { aud: ["client-a", "client-b"] };
-      const error = validateJWTClaims(claims, { expectedAudience: "client-b" });
+      const error = validateJwtClaims(claims, { expectedAudience: "client-b" });
       expect(error).toBeNull();
     });
   });
@@ -508,69 +471,41 @@ describe("SSO Security Logic (standalone)", () => {
    * SAML Response検証ロジック
    */
   describe("SAML response validation logic", () => {
-    function validateSAMLTimestamps(
-      notBefore: string | undefined,
-      notOnOrAfter: string | undefined
-    ): string | null {
-      const now = Date.now();
-      const clockSkew = 5 * 60 * 1000; // 5分
-
-      if (notBefore) {
-        const notBeforeTime = new Date(notBefore).getTime();
-        if (notBeforeTime > now + clockSkew) {
-          return "SAML assertion not yet valid";
-        }
-      }
-
-      if (notOnOrAfter) {
-        const notOnOrAfterTime = new Date(notOnOrAfter).getTime();
-        if (notOnOrAfterTime < now - clockSkew) {
-          return "SAML assertion has expired";
-        }
-      }
-
-      return null;
-    }
-
-    function extractSAMLNameID(samlResponse: string): string | null {
-      const decoded = atob(samlResponse);
-      const match = decoded.match(/<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/i);
-      return match?.[1] ?? null;
-    }
-
     it("validates NotBefore timestamp", () => {
       const futureTime = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10分後
-      const error = validateSAMLTimestamps(futureTime, undefined);
+      const error = validateSamlTimestamps(futureTime, undefined);
       expect(error).toBe("SAML assertion not yet valid");
     });
 
     it("allows NotBefore within clock skew", () => {
       const slightlyFuture = new Date(Date.now() + 3 * 60 * 1000).toISOString(); // 3分後
-      const error = validateSAMLTimestamps(slightlyFuture, undefined);
+      const error = validateSamlTimestamps(slightlyFuture, undefined);
       expect(error).toBeNull();
     });
 
     it("validates NotOnOrAfter timestamp", () => {
       const pastTime = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10分前
-      const error = validateSAMLTimestamps(undefined, pastTime);
+      const error = validateSamlTimestamps(undefined, pastTime);
       expect(error).toBe("SAML assertion has expired");
     });
 
     it("allows NotOnOrAfter within clock skew", () => {
       const recentlyExpired = new Date(Date.now() - 3 * 60 * 1000).toISOString(); // 3分前
-      const error = validateSAMLTimestamps(undefined, recentlyExpired);
+      const error = validateSamlTimestamps(undefined, recentlyExpired);
       expect(error).toBeNull();
     });
 
     it("extracts NameID from SAML response", () => {
       const samlResponse = btoa(`<samlp:Response><saml:NameID>user@example.com</saml:NameID></samlp:Response>`);
-      const nameId = extractSAMLNameID(samlResponse);
+      const decoded = decodeSamlResponse(samlResponse);
+      const nameId = extractSamlNameId(decoded);
       expect(nameId).toBe("user@example.com");
     });
 
     it("returns null when NameID not found", () => {
       const samlResponse = btoa(`<samlp:Response><Other>data</Other></samlp:Response>`);
-      const nameId = extractSAMLNameID(samlResponse);
+      const decoded = decodeSamlResponse(samlResponse);
+      const nameId = extractSamlNameId(decoded);
       expect(nameId).toBeNull();
     });
   });

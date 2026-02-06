@@ -6,7 +6,7 @@ import type {
   BlockingConfig,
   NotificationConfig,
 } from "./storage-types.js";
-import type { SSOConfig } from "./sso-manager.js";
+import type { SSOConfig } from "./sso-types.js";
 import { getSSOManager } from "./sso-manager.js";
 import { getBrowserAPI, hasManagedStorage, isFirefox } from "./browser-adapter.js";
 

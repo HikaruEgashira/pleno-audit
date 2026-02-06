@@ -43,3 +43,4 @@
 | [041](./041-domain-risk-service-modularization.md) | ドメインリスク検知（NRD/Typosquat）をサービスへ分離する | Accepted |
 | [042](./042-runtime-handler-sectioning.md) | Runtime Handler定義の機能別セクション化 | Accepted |
 | [043](./043-extension-monitor-compatibility-facade.md) | Extension Monitor互換レイヤでNetwork Monitor実装へ一本化する | Accepted |
+| [047](./047-sso-utilities-modularization.md) | SSOユーティリティを分割して責務を明確化する | Accepted |
