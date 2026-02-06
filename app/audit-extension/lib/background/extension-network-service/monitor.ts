@@ -12,7 +12,14 @@ export async function getNetworkMonitorConfig(
   context: ExtensionNetworkContext
 ): Promise<NetworkMonitorConfig> {
   const storage = await context.deps.getStorage();
-  return storage.networkMonitorConfig || DEFAULT_NETWORK_MONITOR_CONFIG;
+  const storedConfig = storage.networkMonitorConfig ?? {};
+  const sanitizedStored = Object.fromEntries(
+    Object.entries(storedConfig).filter(([, value]) => value !== undefined)
+  );
+  return {
+    ...DEFAULT_NETWORK_MONITOR_CONFIG,
+    ...sanitizedStored,
+  };
 }
 
 export async function initExtensionMonitor(context: ExtensionNetworkContext): Promise<void> {

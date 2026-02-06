@@ -29,8 +29,8 @@ export async function getExtensionRequests(
   options?: { limit?: number; offset?: number }
 ): Promise<{ requests: NetworkRequestRecord[]; total: number }> {
   return getNetworkRequests(context, {
-    limit: options?.limit || 500,
-    offset: options?.offset || 0,
+    limit: options?.limit ?? 500,
+    offset: options?.offset ?? 0,
     initiatorType: "extension",
   });
 }
