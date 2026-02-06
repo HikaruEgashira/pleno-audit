@@ -1,0 +1,60 @@
+import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { AsyncHandlerEntry, RuntimeHandlerDependencies } from "./types";
+
+export function createSecurityEventHandlers(
+  deps: RuntimeHandlerDependencies,
+): AsyncHandlerEntry[] {
+  return [
+    ["PAGE_ANALYZED", {
+      execute: async (message) => {
+        await deps.handlePageAnalysis(message.payload);
+        return { success: true };
+      },
+      fallback: () => ({ success: false }),
+    }],
+    ["CSP_VIOLATION", {
+      execute: (message, sender) => deps.handleCSPViolation(message.data as Omit<CSPViolation, "type">, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["NETWORK_REQUEST", {
+      execute: (message, sender) => deps.handleNetworkRequest(message.data as Omit<NetworkRequest, "type">, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["DATA_EXFILTRATION_DETECTED", {
+      execute: (message, sender) => deps.handleDataExfiltration(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["CREDENTIAL_THEFT_DETECTED", {
+      execute: (message, sender) => deps.handleCredentialTheft(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["SUPPLY_CHAIN_RISK_DETECTED", {
+      execute: (message, sender) => deps.handleSupplyChainRisk(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["TRACKING_BEACON_DETECTED", {
+      execute: (message, sender) => deps.handleTrackingBeacon(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["CLIPBOARD_HIJACK_DETECTED", {
+      execute: (message, sender) => deps.handleClipboardHijack(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["COOKIE_ACCESS_DETECTED", {
+      execute: (message, sender) => deps.handleCookieAccess(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["XSS_DETECTED", {
+      execute: (message, sender) => deps.handleXSSDetected(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["DOM_SCRAPING_DETECTED", {
+      execute: (message, sender) => deps.handleDOMScraping(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+    ["SUSPICIOUS_DOWNLOAD_DETECTED", {
+      execute: (message, sender) => deps.handleSuspiciousDownload(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
+  ];
+}
