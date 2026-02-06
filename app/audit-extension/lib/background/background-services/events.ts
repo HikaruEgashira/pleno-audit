@@ -3,14 +3,22 @@ import type { EventLog } from "./types";
 import type { BackgroundServiceState } from "./state";
 import type { NewEvent } from "./types";
 
+let parquetStorePromise: Promise<ParquetStore> | null = null;
+
 function generateEventId(): string {
   return crypto.randomUUID();
 }
 
 export async function getOrInitParquetStore(state: BackgroundServiceState): Promise<ParquetStore> {
   if (!state.parquetStore) {
-    state.parquetStore = new ParquetStore();
-    await state.parquetStore.init();
+    if (!parquetStorePromise) {
+      parquetStorePromise = (async () => {
+        const store = new ParquetStore();
+        await store.init();
+        return store;
+      })();
+    }
+    state.parquetStore = await parquetStorePromise;
   }
   return state.parquetStore;
 }

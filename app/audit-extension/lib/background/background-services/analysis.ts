@@ -9,13 +9,14 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
   const storage = await initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+  const onNewDomain = (newDomain: string) => checkDomainPolicy(state, newDomain);
 
   if (faviconUrl) {
-    await updateService(state, domain, { faviconUrl }, (newDomain) => checkDomainPolicy(state, newDomain));
+    await updateService(state, domain, { faviconUrl }, onNewDomain);
   }
 
   if (detectionConfig.enableLogin && (login.hasPasswordInput || login.isLoginUrl)) {
-    await updateService(state, domain, { hasLoginPage: true }, (newDomain) => checkDomainPolicy(state, newDomain));
+    await updateService(state, domain, { hasLoginPage: true }, onNewDomain);
     await addEvent(state, {
       type: "login_detected",
       domain,
@@ -25,7 +26,7 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
-    await updateService(state, domain, { privacyPolicyUrl: privacy.url }, (newDomain) => checkDomainPolicy(state, newDomain));
+    await updateService(state, domain, { privacyPolicyUrl: privacy.url }, onNewDomain);
     await addEvent(state, {
       type: "privacy_policy_found",
       domain,
@@ -35,7 +36,7 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (detectionConfig.enableTos && tos.found && tos.url) {
-    await updateService(state, domain, { termsOfServiceUrl: tos.url }, (newDomain) => checkDomainPolicy(state, newDomain));
+    await updateService(state, domain, { termsOfServiceUrl: tos.url }, onNewDomain);
     await addEvent(state, {
       type: "terms_of_service_found",
       domain,

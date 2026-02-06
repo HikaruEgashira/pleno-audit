@@ -12,7 +12,7 @@ import {
   type NotificationConfig,
 } from "@pleno-audit/extension-runtime";
 import type { BackgroundServiceState } from "./state";
-import { ensureApiClient, ensureSyncManager, setConnectionConfig as setConnectionConfigInternal } from "./client";
+import { ensureApiClient, ensureSyncManager, setConnectionConfigInternal } from "./client";
 import { getOrInitParquetStore } from "./events";
 
 export async function getDetectionConfig(): Promise<DetectionConfig> {
@@ -23,10 +23,15 @@ export async function getDetectionConfig(): Promise<DetectionConfig> {
 export async function setDetectionConfig(
   newConfig: Partial<DetectionConfig>
 ): Promise<{ success: boolean }> {
-  const current = await getDetectionConfig();
-  const updated = { ...current, ...newConfig };
-  await chrome.storage.local.set({ detectionConfig: updated });
-  return { success: true };
+  try {
+    const current = await getDetectionConfig();
+    const updated = { ...current, ...newConfig };
+    await chrome.storage.local.set({ detectionConfig: updated });
+    return { success: true };
+  } catch (error) {
+    console.error("Error setting detection config:", error);
+    return { success: false };
+  }
 }
 
 export async function getNotificationConfig(): Promise<NotificationConfig> {
@@ -37,10 +42,15 @@ export async function getNotificationConfig(): Promise<NotificationConfig> {
 export async function setNotificationConfig(
   newConfig: Partial<NotificationConfig>
 ): Promise<{ success: boolean }> {
-  const current = await getNotificationConfig();
-  const updated = { ...current, ...newConfig };
-  await chrome.storage.local.set({ notificationConfig: updated });
-  return { success: true };
+  try {
+    const current = await getNotificationConfig();
+    const updated = { ...current, ...newConfig };
+    await chrome.storage.local.set({ notificationConfig: updated });
+    return { success: true };
+  } catch (error) {
+    console.error("Error setting notification config:", error);
+    return { success: false };
+  }
 }
 
 export async function getDataRetentionConfig(): Promise<DataRetentionConfig> {

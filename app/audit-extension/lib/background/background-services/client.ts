@@ -2,16 +2,25 @@ import type { ApiClient, ConnectionMode, SyncManager } from "@pleno-audit/extens
 import { getApiClient, getSyncManager, updateApiClientConfig } from "@pleno-audit/extension-runtime";
 import type { BackgroundServiceState } from "./state";
 
+let apiClientPromise: Promise<ApiClient> | null = null;
+let syncManagerPromise: Promise<SyncManager> | null = null;
+
 export async function ensureApiClient(state: BackgroundServiceState): Promise<ApiClient> {
   if (!state.apiClient) {
-    state.apiClient = await getApiClient();
+    if (!apiClientPromise) {
+      apiClientPromise = getApiClient();
+    }
+    state.apiClient = await apiClientPromise;
   }
   return state.apiClient;
 }
 
 export async function ensureSyncManager(state: BackgroundServiceState): Promise<SyncManager> {
   if (!state.syncManager) {
-    state.syncManager = await getSyncManager();
+    if (!syncManagerPromise) {
+      syncManagerPromise = getSyncManager();
+    }
+    state.syncManager = await syncManagerPromise;
   }
   return state.syncManager;
 }
@@ -38,7 +47,7 @@ export async function initializeSyncManagerWithAutoStart(state: BackgroundServic
   }
 }
 
-export async function setConnectionConfig(
+export async function setConnectionConfigInternal(
   state: BackgroundServiceState,
   mode: ConnectionMode,
   endpoint?: string
