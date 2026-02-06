@@ -265,6 +265,7 @@ export function useDashboardData({ period, setActiveTab }: DashboardDataOptions)
     events,
     isRefreshing,
     notifications,
+    addNotification,
     dismissNotification,
     nrdServices,
     loginServices,
@@ -281,6 +282,7 @@ interface FilterOptions {
   events: EventLog[];
   searchQuery: string;
   directiveFilter: string;
+  typeFilter: string;
 }
 
 export function useDashboardFilters({
@@ -291,6 +293,7 @@ export function useDashboardFilters({
   events,
   searchQuery,
   directiveFilter,
+  typeFilter,
 }: FilterOptions) {
   const filteredViolations = useMemo(() => {
     return violations.filter((v) => {
@@ -298,9 +301,9 @@ export function useDashboardFilters({
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
-          v.pageUrl.toLowerCase().includes(q) ||
-          v.blockedURL.toLowerCase().includes(q) ||
-          v.directive.toLowerCase().includes(q)
+          (v.pageUrl ?? "").toLowerCase().includes(q) ||
+          (v.blockedURL ?? "").toLowerCase().includes(q) ||
+          (v.directive ?? "").toLowerCase().includes(q)
         );
       }
       return true;
@@ -335,12 +338,19 @@ export function useDashboardFilters({
   }, [services, searchQuery]);
 
   const filteredEvents = useMemo(() => {
-    if (!searchQuery) return events;
+    const normalizedTypeFilter = typeFilter ? typeFilter.toLowerCase() : "";
     const q = searchQuery.toLowerCase();
-    return events.filter(
-      (e) => e.type.toLowerCase().includes(q) || e.domain.toLowerCase().includes(q)
-    );
-  }, [events, searchQuery]);
+    return events.filter((e) => {
+      if (normalizedTypeFilter && e.type?.toLowerCase() !== normalizedTypeFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        (e.type ?? "").toLowerCase().includes(q) ||
+        (e.domain ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [events, searchQuery, typeFilter]);
 
   return {
     filteredViolations,

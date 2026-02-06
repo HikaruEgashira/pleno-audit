@@ -52,6 +52,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>(getInitialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [directiveFilter, setDirectiveFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
   useEffect(() => {
     window.location.hash = activeTab;
@@ -86,6 +87,7 @@ function DashboardContent() {
     events,
     isRefreshing,
     notifications,
+    addNotification,
     dismissNotification,
     nrdServices,
     loginServices,
@@ -107,6 +109,7 @@ function DashboardContent() {
     events,
     searchQuery,
     directiveFilter,
+    typeFilter,
   });
 
   useEffect(() => {
@@ -137,8 +140,8 @@ function DashboardContent() {
     try {
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
       await loadData();
-    } catch {
-      // Failed to clear data
+    } catch (err) {
+      console.error("Failed to clear data:", err);
     }
   };
 
@@ -161,7 +164,7 @@ function DashboardContent() {
         <Sidebar
           tabs={overviewTabs}
           activeTab="overview"
-          onTabChange={() => {}}
+          onChange={() => {}}
         />
         <div style={styles.container}>
           <SkeletonDashboard />
@@ -301,6 +304,7 @@ function DashboardContent() {
             domainStats={domainStats}
             violations={violations}
             networkRequests={networkRequests}
+            onNotify={addNotification}
           />
         )}
 
@@ -329,6 +333,8 @@ function DashboardContent() {
             styles={styles}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            typeFilter={typeFilter}
+            onTypeFilterChange={setTypeFilter}
             filteredEvents={filteredEvents}
           />
         )}

@@ -1,4 +1,5 @@
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { Notification } from "../../../components";
 import { Badge, Button, DataTable } from "../../../components";
 
 interface DomainStat {
@@ -11,6 +12,7 @@ interface DomainsTabProps {
   domainStats: DomainStat[];
   violations: CSPViolation[];
   networkRequests: NetworkRequest[];
+  onNotify: (notification: Omit<Notification, "id" | "timestamp">) => void;
 }
 
 export function DomainsTab({
@@ -18,6 +20,7 @@ export function DomainsTab({
   domainStats,
   violations,
   networkRequests,
+  onNotify,
 }: DomainsTabProps) {
   return (
     <div style={styles.section}>
@@ -39,8 +42,14 @@ export function DomainsTab({
                 a.click();
                 URL.revokeObjectURL(url);
               }
-            } catch {
-              // CSP generation error
+            } catch (err) {
+              console.error("CSP generation failed:", err);
+              onNotify({
+                severity: "warning",
+                title: "CSP生成失敗",
+                message: "CSPの生成に失敗しました。時間をおいて再試行してください。",
+                autoDismiss: 6000,
+              });
             }
           }}
         >

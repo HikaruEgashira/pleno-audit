@@ -6,6 +6,8 @@ interface EventsTabProps {
   styles: Record<string, any>;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  typeFilter: string;
+  onTypeFilterChange: (value: string) => void;
   filteredEvents: EventLog[];
 }
 
@@ -13,6 +15,8 @@ export function EventsTab({
   styles,
   searchQuery,
   onSearchChange,
+  typeFilter,
+  onTypeFilterChange,
   filteredEvents,
 }: EventsTabProps) {
   return (
@@ -24,8 +28,8 @@ export function EventsTab({
           placeholder="イベントタイプ、ドメインで検索..."
         />
         <Select
-          value={searchQuery}
-          onChange={onSearchChange}
+          value={typeFilter}
+          onChange={onTypeFilterChange}
           options={[
             { value: "csp_violation", label: "CSP違反" },
             { value: "login_detected", label: "ログイン検出" },
@@ -82,7 +86,7 @@ export function EventsTab({
               if (e.type === "ai_prompt_sent") {
                 return `${d.provider}/${d.model}`;
               }
-              return JSON.stringify(d).substring(0, 50);
+              return truncate(JSON.stringify(d), 50);
             },
           },
         ]}

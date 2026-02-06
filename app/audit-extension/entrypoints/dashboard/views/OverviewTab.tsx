@@ -165,6 +165,7 @@ export function OverviewTab({
           {(() => {
             const days = 7;
             const dayData: number[] = [];
+            const dayRanges: { start: number; end: number }[] = [];
             const now = Date.now();
             for (let i = days - 1; i >= 0; i -= 1) {
               const dayStart = now - (i + 1) * 24 * 60 * 60 * 1000;
@@ -173,20 +174,20 @@ export function OverviewTab({
                 (e) => e.timestamp >= dayStart && e.timestamp < dayEnd
               ).length;
               dayData.push(count);
+              dayRanges.push({ start: dayStart, end: dayEnd });
             }
             const maxCount = Math.max(...dayData, 1);
-            const dayLabels = ["月", "火", "水", "木", "金", "土", "日"];
+            const dayLabels = ["日", "月", "火", "水", "木", "金", "土"];
             const todayIndex = new Date().getDay();
             return dayData.map((count, i) => {
               const dayOfWeek = (todayIndex - (days - 1 - i) + 7) % 7;
               const height = Math.max(4, (count / maxCount) * 60);
+              const range = dayRanges[i];
               const hasRisk =
                 events.filter((e) => {
-                  const dayStart = now - (days - i) * 24 * 60 * 60 * 1000;
-                  const dayEnd = now - (days - 1 - i) * 24 * 60 * 60 * 1000;
                   return (
-                    e.timestamp >= dayStart &&
-                    e.timestamp < dayEnd &&
+                    e.timestamp >= range.start &&
+                    e.timestamp < range.end &&
                     (e.type.includes("nrd") || e.type.includes("typosquat"))
                   );
                 }).length > 0;
