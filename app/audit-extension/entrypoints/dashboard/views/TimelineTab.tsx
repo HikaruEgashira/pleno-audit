@@ -325,7 +325,7 @@ export function TimelineTab() {
             </span>
           </div>
           <div style={{ fontSize: "24px", fontWeight: 600 }}>
-            {peakHour}:00 - {peakHour + 1}:00
+            {peakHour}:00 - {(peakHour + 1) % 24}:00
           </div>
         </Card>
 
