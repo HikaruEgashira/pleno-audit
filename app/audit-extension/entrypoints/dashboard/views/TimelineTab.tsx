@@ -178,6 +178,7 @@ export function TimelineTab() {
 
   const peakHour = useMemo(() => {
     const max = Math.max(...hourlyDistribution);
+    if (max === 0) return null;
     return hourlyDistribution.indexOf(max);
   }, [hourlyDistribution]);
 
@@ -318,7 +319,9 @@ export function TimelineTab() {
             </span>
           </div>
           <div style={{ fontSize: "24px", fontWeight: 600 }}>
-            {peakHour}:00 - {(peakHour + 1) % 24}:00
+            {peakHour !== null
+              ? `${peakHour}:00 - ${(peakHour + 1) % 24}:00`
+              : "—"}
           </div>
         </Card>
 
