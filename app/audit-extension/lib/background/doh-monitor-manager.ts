@@ -62,8 +62,10 @@ export function createDoHMonitorManager(deps: DoHMonitorManagerDeps) {
     return { requests, total };
   }
 
-  function startDoHMonitor(): void {
-    doHMonitor = deps.createDoHMonitor(deps.defaultConfig);
+  async function startDoHMonitor(): Promise<void> {
+    const storage = await deps.getStorage();
+    const config = storage.doHMonitorConfig ?? deps.defaultConfig;
+    doHMonitor = deps.createDoHMonitor(config);
     doHMonitor.start().catch((err) =>
       deps.logger.error("Failed to start DoH monitor:", err)
     );

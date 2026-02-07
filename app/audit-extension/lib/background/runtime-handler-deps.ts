@@ -3,7 +3,7 @@ import type {
   RuntimeHandlerFallbacks,
 } from "./runtime-handlers/types";
 
-interface RuntimeHandlerServiceGroups {
+export interface RuntimeHandlerServiceGroups {
   logger: RuntimeHandlerDependencies["logger"];
   fallbacks: RuntimeHandlerFallbacks;
   debugBridge: {
