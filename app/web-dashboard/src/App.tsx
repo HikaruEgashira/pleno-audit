@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import type { CSPViolation, NetworkRequest, CSPReport } from "@pleno-audit/csp";
 import { Shield, AlertTriangle, Globe, Activity, RefreshCw, Trash2, Download } from "lucide-preact";
-import { ThemeContext, type ThemeColors, spacing } from "./lib/theme";
+import { ThemeContext, type ThemeColors } from "./lib/theme";
 import { useWebThemeState } from "./useWebTheme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Sidebar, StatsGrid } from "./components";
 import { SkeletonDashboard } from "./components/Skeleton";
@@ -23,7 +23,7 @@ function getPeriodMs(period: Period): number {
   }
 }
 
-function createStyles(colors: ThemeColors, isDark: boolean) {
+function createStyles(colors: ThemeColors, _isDark: boolean) {
   return {
     wrapper: {
       display: "flex",
