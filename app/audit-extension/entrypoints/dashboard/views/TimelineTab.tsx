@@ -105,6 +105,8 @@ export function TimelineTab() {
             })
           );
           setEvents(normalizedEvents);
+        } else {
+          setEvents([]);
         }
       } catch {
         if (!cancelled) setEvents([]);
