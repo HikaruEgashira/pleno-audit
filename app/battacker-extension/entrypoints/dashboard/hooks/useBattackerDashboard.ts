@@ -58,7 +58,9 @@ export function useBattackerDashboard() {
 
     try {
       const result = await chrome.runtime.sendMessage({ type: "RUN_TESTS" });
-      if (!("error" in result)) {
+      if ("error" in result) {
+        logger.error("Test execution failed:", result.error);
+      } else {
         setScore(result);
         setHistory((prev) => [...prev, result]);
       }

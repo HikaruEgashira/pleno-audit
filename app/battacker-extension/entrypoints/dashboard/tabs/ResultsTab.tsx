@@ -5,7 +5,7 @@ export function ResultsTab({ score }: { score: DefenseScore }) {
 
   return (
     <div class="test-results">
-      <h3>Security Audit Results // {allResults.length} Tests Executed</h3>
+      <h3>Security Audit Results {"// "}{allResults.length} Tests Executed</h3>
       <div class="test-list">
         {allResults.map((result) => (
           <TestResultItem key={result.test.id} result={result} />
