@@ -3,7 +3,7 @@ import {
   filterRequestsWithExtensionId,
   queryNetworkRequests,
   type NetworkRequestQueryOptions,
-} from "../extension-network-service-helpers.js";
+} from "./helpers.js";
 import { parquetRecordToNetworkRequestRecord } from "@pleno-audit/parquet-storage";
 import type { ExtensionNetworkContext } from "./types";
 

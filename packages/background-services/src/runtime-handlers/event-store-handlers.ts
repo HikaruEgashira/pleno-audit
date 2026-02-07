@@ -18,7 +18,7 @@ function normalizeEventQueryOptions(data: unknown): Record<string, unknown> {
   return options;
 }
 
-function parseEventDetails(details: unknown): unknown {
+function parseEventDetails(details: unknown, logger?: { warn: (...args: unknown[]) => void }): unknown {
   if (typeof details !== "string") {
     return details;
   }
@@ -26,7 +26,7 @@ function parseEventDetails(details: unknown): unknown {
   try {
     return JSON.parse(details);
   } catch (error) {
-    console.warn("Failed to parse event details.", error);
+    logger?.warn("Failed to parse event details.", error);
     return details;
   }
 }
@@ -42,7 +42,7 @@ export function createEventStoreHandlers(
         const result = await store.getEvents(options);
         const events = result.data.map((event: ParquetEvent) => ({
           ...event,
-          details: parseEventDetails(event.details),
+          details: parseEventDetails(event.details, deps.logger),
           timestamp: new Date(event.timestamp).toISOString(),
         }));
         return { events, total: result.total, hasMore: result.hasMore };

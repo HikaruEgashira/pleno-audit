@@ -44,15 +44,24 @@ importers:
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@pleno-audit/background-services':
+        specifier: workspace:*
+        version: link:../../packages/background-services
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
       '@pleno-audit/data-export':
         specifier: workspace:*
         version: link:../../packages/data-export
+      '@pleno-audit/debug-bridge':
+        specifier: workspace:*
+        version: link:../../packages/debug-bridge
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
+      '@pleno-audit/extension-network-service':
+        specifier: workspace:*
+        version: link:../../packages/extension-network-service
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
@@ -285,6 +294,27 @@ importers:
         specifier: ^4.11.7
         version: 4.11.7
 
+  packages/background-services:
+    dependencies:
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../alerts
+      '@pleno-audit/csp':
+        specifier: workspace:*
+        version: link:../csp
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../detectors
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
+      '@pleno-audit/storage':
+        specifier: workspace:*
+        version: link:../storage
+
   packages/battacker:
     devDependencies:
       typescript:
@@ -294,6 +324,15 @@ importers:
   packages/csp: {}
 
   packages/data-export: {}
+
+  packages/debug-bridge:
+    dependencies:
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
 
   packages/detectors:
     dependencies:
@@ -312,6 +351,18 @@ importers:
       '@pleno-audit/typosquat':
         specifier: workspace:*
         version: link:../typosquat
+
+  packages/extension-network-service:
+    dependencies:
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../alerts
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
 
   packages/extension-runtime:
     dependencies:

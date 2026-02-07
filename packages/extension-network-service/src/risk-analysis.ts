@@ -7,7 +7,7 @@ import {
   getUniqueDomains,
   groupRequestsByExtensionId,
   mapToExtensionAnalysisRequest,
-} from "../extension-network-service-helpers.js";
+} from "./helpers.js";
 import type { ExtensionNetworkContext } from "./types";
 import { getCooldownManager } from "./cooldown";
 import { getExtensionInitiatedRequests } from "./requests";

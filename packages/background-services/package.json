@@ -1,0 +1,18 @@
+{
+  "name": "@pleno-audit/background-services",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pleno-audit/extension-runtime": "workspace:*",
+    "@pleno-audit/alerts": "workspace:*",
+    "@pleno-audit/csp": "workspace:*",
+    "@pleno-audit/detectors": "workspace:*",
+    "@pleno-audit/parquet-storage": "workspace:*",
+    "@pleno-audit/storage": "workspace:*"
+  }
+}

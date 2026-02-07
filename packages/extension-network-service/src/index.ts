@@ -16,7 +16,7 @@ import {
 } from "./risk-analysis";
 import { getExtensionStats } from "./stats";
 
-export type { ExtensionStats } from "../extension-network-service-helpers.js";
+export type { ExtensionStats } from "./helpers.js";
 export type { ExtensionNetworkService, ExtensionNetworkServiceDeps } from "./types";
 
 export function createExtensionNetworkService(
