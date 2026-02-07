@@ -53,6 +53,9 @@ importers:
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
+      '@pleno-audit/extension-network-service':
+        specifier: workspace:*
+        version: link:../../packages/extension-network-service
       '@pleno-audit/extension-runtime':
         specifier: workspace:*
         version: link:../../packages/extension-runtime
@@ -312,6 +315,18 @@ importers:
       '@pleno-audit/typosquat':
         specifier: workspace:*
         version: link:../typosquat
+
+  packages/extension-network-service:
+    dependencies:
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../alerts
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
 
   packages/extension-runtime:
     dependencies:

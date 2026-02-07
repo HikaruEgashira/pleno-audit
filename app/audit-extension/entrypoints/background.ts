@@ -57,7 +57,7 @@ import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler
 import {
   createExtensionNetworkService,
   type ExtensionStats,
-} from "../lib/background/extension-network-service";
+} from "@pleno-audit/extension-network-service";
 import { createDomainRiskService } from "../lib/background/domain-risk-service";
 import {
   createSecurityEventHandlers,

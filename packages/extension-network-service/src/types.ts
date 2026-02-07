@@ -8,7 +8,7 @@ import type {
   NetworkRequestRecord,
 } from "@pleno-audit/extension-runtime";
 import type { ParquetStore } from "@pleno-audit/parquet-storage";
-import type { ExtensionStats, NetworkRequestQueryOptions } from "../extension-network-service-helpers.js";
+import type { ExtensionStats, NetworkRequestQueryOptions } from "./helpers.js";
 
 export interface ExtensionNetworkServiceDeps {
   logger: LoggerLike;

@@ -1,4 +1,4 @@
-import { summarizeExtensionStats, type ExtensionStats } from "../extension-network-service-helpers.js";
+import { summarizeExtensionStats, type ExtensionStats } from "./helpers.js";
 import type { ExtensionNetworkContext } from "./types";
 import { getExtensionInitiatedRequests } from "./requests";
 

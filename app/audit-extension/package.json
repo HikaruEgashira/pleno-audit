@@ -15,6 +15,7 @@
     "@pleno-audit/csp": "workspace:*",
     "@pleno-audit/data-export": "workspace:*",
     "@pleno-audit/detectors": "workspace:*",
+    "@pleno-audit/extension-network-service": "workspace:*",
     "@pleno-audit/extension-runtime": "workspace:*",
     "@pleno-audit/parquet-storage": "workspace:*",
     "@pleno-audit/storage": "workspace:*",
