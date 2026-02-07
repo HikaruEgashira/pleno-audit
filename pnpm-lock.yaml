@@ -44,6 +44,9 @@ importers:
       '@pleno-audit/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@pleno-audit/background-services':
+        specifier: workspace:*
+        version: link:../../packages/background-services
       '@pleno-audit/csp':
         specifier: workspace:*
         version: link:../../packages/csp
@@ -290,6 +293,27 @@ importers:
       hono:
         specifier: ^4.11.7
         version: 4.11.7
+
+  packages/background-services:
+    dependencies:
+      '@pleno-audit/alerts':
+        specifier: workspace:*
+        version: link:../alerts
+      '@pleno-audit/csp':
+        specifier: workspace:*
+        version: link:../csp
+      '@pleno-audit/detectors':
+        specifier: workspace:*
+        version: link:../detectors
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
+      '@pleno-audit/storage':
+        specifier: workspace:*
+        version: link:../storage
 
   packages/battacker:
     devDependencies:

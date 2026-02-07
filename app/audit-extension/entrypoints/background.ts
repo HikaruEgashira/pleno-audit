@@ -39,27 +39,19 @@ import {
   checkEventsMigrationNeeded,
   migrateEventsToIndexedDB,
 } from "@pleno-audit/storage";
-import { createAlarmHandlers as createAlarmHandlersModule } from "../lib/background/alarm-handlers";
-import { createAIPromptMonitorService } from "../lib/background/ai-prompt-monitor-service";
-import { createCSPReportingService } from "../lib/background/csp-reporting-service";
 import {
+  createAlarmHandlers as createAlarmHandlersModule,
+  createAIPromptMonitorService,
+  createCSPReportingService,
   createBackgroundServices,
   type NewEvent,
   type PageAnalysis,
-} from "../lib/background/background-services";
-import {
   createRuntimeMessageHandlers as createRuntimeMessageHandlersModule,
   runAsyncMessageHandler as runAsyncMessageHandlerModule,
   type RuntimeMessage,
   type RuntimeHandlerDependencies,
-} from "../lib/background/runtime-handlers";
-import { createDebugBridgeHandler } from "../lib/background/debug-bridge-handler";
-import {
-  createExtensionNetworkService,
-  type ExtensionStats,
-} from "@pleno-audit/extension-network-service";
-import { createDomainRiskService } from "../lib/background/domain-risk-service";
-import {
+  createDebugBridgeHandler,
+  createDomainRiskService,
   createSecurityEventHandlers,
   type ClipboardHijackData,
   type CookieAccessData,
@@ -70,7 +62,11 @@ import {
   type SuspiciousDownloadData,
   type TrackingBeaconData,
   type XSSDetectedData,
-} from "../lib/background/security-event-handlers";
+} from "@pleno-audit/background-services";
+import {
+  createExtensionNetworkService,
+  type ExtensionStats,
+} from "@pleno-audit/extension-network-service";
 
 const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
