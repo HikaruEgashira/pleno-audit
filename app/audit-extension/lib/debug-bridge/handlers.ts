@@ -1,0 +1,58 @@
+import type { Logger } from "@pleno-audit/extension-runtime";
+import type { DebugHandler, DebugHandlerResult } from "./types.js";
+import { getSnapshot } from "./snapshot.js";
+import { getStorageKeys, getStorageValue, setStorageValue, clearStorage } from "./storage.js";
+import { getServices, getService, clearServices } from "./services.js";
+import { getEvents, getEventsCount, clearEvents } from "./events.js";
+import { getDoHConfig, setDoHConfig, getDoHRequests } from "./doh.js";
+import { getNetworkConfig, setNetworkConfig, getNetworkRequests } from "./network.js";
+import { openTab } from "./tabs.js";
+
+export type DebugHandlerRegistry = Record<string, DebugHandler>;
+
+export function createDebugHandlers(logger: Logger): DebugHandlerRegistry {
+  return {
+    DEBUG_PING: async () => ({
+      success: true,
+      data: {
+        extensionId: chrome.runtime.id,
+        version: chrome.runtime.getManifest().version,
+        devMode: true,
+        timestamp: Date.now(),
+      },
+    }),
+    DEBUG_SNAPSHOT: async () => getSnapshot(logger),
+    DEBUG_STORAGE_LIST: async () => getStorageKeys(),
+    DEBUG_STORAGE_GET: async (data) => getStorageValue(data as { key: string }),
+    DEBUG_STORAGE_SET: async (data) => setStorageValue(data as { key: string; value: unknown }),
+    DEBUG_STORAGE_CLEAR: async () => clearStorage(),
+    DEBUG_SERVICES_LIST: async () => getServices(),
+    DEBUG_SERVICES_GET: async (data) => getService(data as { domain: string }),
+    DEBUG_SERVICES_CLEAR: async () => clearServices(),
+    DEBUG_EVENTS_LIST: async (data) => getEvents(logger, data as { limit?: number; type?: string }),
+    DEBUG_EVENTS_COUNT: async () => getEventsCount(logger),
+    DEBUG_EVENTS_CLEAR: async () => clearEvents(logger),
+    DEBUG_TAB_OPEN: async (data) => openTab(data as { url: string }),
+    DEBUG_DOH_CONFIG_GET: async () => getDoHConfig(),
+    DEBUG_DOH_CONFIG_SET: async (data) =>
+      setDoHConfig(data as { action?: string; maxStoredRequests?: number }),
+    DEBUG_DOH_REQUESTS: async (data) => getDoHRequests(data as { limit?: number; offset?: number }),
+    DEBUG_NETWORK_CONFIG_GET: async () => getNetworkConfig(),
+    DEBUG_NETWORK_CONFIG_SET: async (data) =>
+      setNetworkConfig(
+        data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean }
+      ),
+    DEBUG_NETWORK_REQUESTS_GET: async (data) =>
+      getNetworkRequests(data as { limit?: number; initiatorType?: string }),
+  };
+}
+
+export async function dispatchDebugHandler(
+  handlers: DebugHandlerRegistry,
+  type: string,
+  data: unknown,
+  fallback: DebugHandler
+): Promise<DebugHandlerResult> {
+  const handler = Object.hasOwn(handlers, type) ? handlers[type] : fallback;
+  return handler(data);
+}
