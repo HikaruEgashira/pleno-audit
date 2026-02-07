@@ -11,7 +11,7 @@ import { createDashboardStyles } from "./styles";
 import type { Period, TabType } from "./types";
 import { getInitialTab } from "./utils";
 import { ExtensionsTab } from "./views/ExtensionsTab";
-import { AITab, DomainsTab, EventsTab, NetworkTab, OverviewTab, ServicesTab, ViolationsTab } from "./views";
+import { AITab, DomainsTab, EventsTab, NetworkTab, OverviewTab, ServicesTab, TimelineTab, ViolationsTab } from "./views";
 
 function DashboardContent() {
   const { colors, isDark } = useTheme();
@@ -96,6 +96,12 @@ function DashboardContent() {
             directiveStats={dashboard.directiveStats}
             domainStats={dashboard.domainStats}
           />
+        )}
+
+        {activeTab === "timeline" && (
+          <div style={styles.section}>
+            <TimelineTab />
+          </div>
         )}
 
         {activeTab === "violations" && (

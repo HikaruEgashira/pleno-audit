@@ -10,6 +10,7 @@ export const periodOptions: { value: Period; label: string }[] = [
 
 export const tabs: { id: TabType; label: string }[] = [
   { id: "overview", label: "概要" },
+  { id: "timeline", label: "タイムライン" },
   { id: "violations", label: "CSP違反" },
   { id: "domains", label: "ドメイン" },
   { id: "ai", label: "AI監視" },
@@ -30,6 +31,7 @@ export const validTabs: TabType[] = tabs.map((tab) => tab.id);
 
 export const shortcutTabs: TabType[] = [
   "overview",
+  "timeline",
   "violations",
   "domains",
   "ai",
