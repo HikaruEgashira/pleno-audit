@@ -17,7 +17,7 @@ export function HistoryTab({ history }: { history: DefenseScore[] }) {
       <h3>Archived Scan Results</h3>
       <div className="test-list">
         {sortedHistory.map((entry, index) => (
-          <div className="test-item" key={index}>
+          <div className="test-item" key={entry.testedAt}>
             <div className={`score-badge grade-${entry.grade}`}>{entry.totalScore}</div>
             <div className="test-info">
               <div className="test-name">Classification: Grade {entry.grade}</div>

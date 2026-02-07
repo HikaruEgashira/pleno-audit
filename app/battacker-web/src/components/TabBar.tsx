@@ -12,6 +12,7 @@ export function TabBar({ activeTab, onChange }: { activeTab: TabType; onChange: 
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          type="button"
           className={`tab ${activeTab === tab.id ? "active" : ""}`}
           onClick={() => onChange(tab.id)}
         >

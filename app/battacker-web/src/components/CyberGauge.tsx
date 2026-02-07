@@ -16,7 +16,7 @@ export function CyberGauge({
   phase: string;
   onClick?: () => void;
 }) {
-  const isInteractive = onClick && !isScanning && !isLoading;
+  const isInteractive = !!onClick && !isScanning && !isLoading;
   const size = 200;
   const cx = size / 2;
   const cy = size / 2;
@@ -36,9 +36,10 @@ export function CyberGauge({
   const color = gradeColors[grade] || gradeColors.F;
 
   const handleClick = () => {
-    if (onClick) {
-      onClick();
+    if (!isInteractive) {
+      return;
     }
+    onClick();
   };
 
   return (

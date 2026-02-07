@@ -3,7 +3,7 @@ export function Header() {
     <div className="header">
       <div>
         <h1 className="title">Battacker</h1>
-        <p className="subtitle">// Browser Defense Resistance Testing System</p>
+        <p className="subtitle">{"// Browser Defense Resistance Testing System"}</p>
       </div>
     </div>
   );
