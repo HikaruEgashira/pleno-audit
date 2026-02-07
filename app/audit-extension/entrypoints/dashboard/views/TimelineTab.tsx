@@ -76,6 +76,7 @@ export function TimelineTab() {
 
   // イベントデータを取得
   useEffect(() => {
+    let cancelled = false;
     async function loadEvents() {
       setLoading(true);
       try {
@@ -91,8 +92,9 @@ export function TimelineTab() {
           data: { limit: 5000, since },
         });
 
+        if (cancelled) return;
+
         if (result?.events) {
-          // timestampを数値に変換
           const normalizedEvents = result.events.map(
             (e: EventLog & { timestamp: string | number }) => ({
               ...e,
@@ -105,12 +107,13 @@ export function TimelineTab() {
           setEvents(normalizedEvents);
         }
       } catch {
-        setEvents([]);
+        if (!cancelled) setEvents([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     loadEvents();
+    return () => { cancelled = true; };
   }, [period]);
 
   // カテゴリでフィルタリング
