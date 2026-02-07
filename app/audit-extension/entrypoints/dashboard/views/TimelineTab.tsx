@@ -155,16 +155,15 @@ export function TimelineTab() {
       .sort((a, b) => b.count - a.count);
   }, [filteredEvents, colors.textMuted, period]);
 
-  // ドメイン別統計
   const domainStats = useMemo(() => {
     const stats: Record<string, number> = {};
     for (const event of filteredEvents) {
       stats[event.domain] = (stats[event.domain] || 0) + 1;
     }
-    return Object.entries(stats)
+    const sorted = Object.entries(stats)
       .map(([domain, count]) => ({ domain, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+      .sort((a, b) => b.count - a.count);
+    return { total: sorted.length, top10: sorted.slice(0, 10) };
   }, [filteredEvents]);
 
   // 時間帯別イベント数
@@ -357,7 +356,7 @@ export function TimelineTab() {
             </span>
           </div>
           <div style={{ fontSize: "24px", fontWeight: 600 }}>
-            {domainStats.length}
+            {domainStats.total}
           </div>
         </Card>
       </div>
@@ -416,7 +415,7 @@ export function TimelineTab() {
         }}
       >
         {/* アクティビティヒートマップ */}
-        <Card title="活動ヒートマップ（時間帯×曜日）">
+        <Card title="活動ヒートマップ（直近7日間／時間帯×曜日）">
           <div style={{ marginTop: "8px" }}>
             <ActivityHeatmap
               data={filteredEvents.map((e) => ({ timestamp: e.timestamp }))}
@@ -478,8 +477,8 @@ export function TimelineTab() {
       {/* ドメイン別アクティビティ */}
       <Card title="ドメイン別アクティビティ（Top 10）">
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {domainStats.map((stat, index) => {
-            const maxCount = domainStats[0]?.count || 1;
+          {domainStats.top10.map((stat, index) => {
+            const maxCount = domainStats.top10[0]?.count || 1;
             const width = (stat.count / maxCount) * 100;
             return (
               <div
