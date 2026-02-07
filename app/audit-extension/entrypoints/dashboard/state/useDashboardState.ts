@@ -71,7 +71,7 @@ export function useDashboardState({
         ),
         safeMessage({ type: "GET_CONNECTION_CONFIG" }, { mode: "local" }),
         safeMessage({ type: "GET_AI_PROMPTS" }, []),
-        chrome.storage.local.get(["services"]),
+        chrome.storage.local.get(["services"]).catch(() => ({ services: {} })),
         safeMessage({ type: "GET_EVENTS", data: { since: sinceTs, limit: 500 } }, { events: [], total: 0 }),
         safeMessage({ type: "GET_EVENTS_COUNT", data: { since: sinceTs } }, { count: 0 }),
         safeMessage({ type: "GET_AI_PROMPTS_COUNT" }, { count: 0 }),
