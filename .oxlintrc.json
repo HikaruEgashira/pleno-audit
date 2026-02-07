@@ -41,7 +41,7 @@
     },
     // Debug bridge - needs console before logger is connected, and WebSocket for debug
     {
-      "files": ["app/audit-extension/lib/debug-bridge.ts"],
+      "files": ["app/audit-extension/lib/debug-bridge.ts", "app/audit-extension/lib/debug-bridge/**/*"],
       "rules": { "no-console": "off", "no-restricted-globals": "off" }
     },
     // RDAP API query for NRD detection (default: OFF)

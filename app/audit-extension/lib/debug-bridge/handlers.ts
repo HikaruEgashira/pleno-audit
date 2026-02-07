@@ -53,6 +53,6 @@ export async function dispatchDebugHandler(
   data: unknown,
   fallback: DebugHandler
 ): Promise<DebugHandlerResult> {
-  const handler = handlers[type] ?? fallback;
+  const handler = Object.hasOwn(handlers, type) ? handlers[type] : fallback;
   return handler(data);
 }
