@@ -71,7 +71,7 @@ export function TimelineChart({
   maxBars = 24,
 }: TimelineChartProps) {
   const { colors } = useTheme();
-  const barColor = color || colors.primary;
+  const barColor = color || colors.interactive;
 
   const aggregatedData = useMemo(() => {
     const grouped = new Map<number, number>();
