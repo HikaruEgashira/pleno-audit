@@ -36,17 +36,22 @@ export function useDashboardNavigation({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditableTarget =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        !!target?.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
         const idx = parseInt(e.key, 10) - 1;
         if (shortcutTabs[idx]) setActiveTab(shortcutTabs[idx]);
       }
-      if (e.key === "r" && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement)) {
+      if (e.key === "r" && !e.ctrlKey && !e.metaKey && !isEditableTarget) {
         loadData();
       }
-      if (e.key === "/" && !(e.target instanceof HTMLInputElement)) {
+      if (e.key === "/" && !isEditableTarget) {
         e.preventDefault();
-        (document.querySelector('input[type="text"]') as HTMLInputElement | null)?.focus();
+        (document.querySelector("[data-dashboard-search]") as HTMLInputElement | null)?.focus();
       }
       if (e.key === "Escape") {
         setSearchQuery("");

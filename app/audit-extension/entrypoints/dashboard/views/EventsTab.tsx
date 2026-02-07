@@ -1,4 +1,5 @@
 import type { EventLog } from "@pleno-audit/detectors";
+import { useMemo, useState } from "preact/hooks";
 import { Badge, DataTable, SearchInput, Select } from "../../../components";
 import type { DashboardStyles } from "../styles";
 import { truncate } from "../utils";
@@ -11,13 +12,20 @@ interface EventsTabProps {
 }
 
 export function EventsTab({ styles, events, searchQuery, setSearchQuery }: EventsTabProps) {
+  const [selectedType, setSelectedType] = useState("");
+
+  const filteredEvents = useMemo(() => {
+    if (!selectedType) return events;
+    return events.filter((e) => e.type === selectedType);
+  }, [events, selectedType]);
+
   return (
     <div style={styles.section}>
       <div style={styles.filterBar}>
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="イベントタイプ、ドメインで検索..." />
         <Select
-          value={searchQuery}
-          onChange={setSearchQuery}
+          value={selectedType}
+          onChange={setSelectedType}
           options={[
             { value: "csp_violation", label: "CSP違反" },
             { value: "login_detected", label: "ログイン検出" },
@@ -28,7 +36,7 @@ export function EventsTab({ styles, events, searchQuery, setSearchQuery }: Event
         />
       </div>
       <DataTable
-        data={events}
+        data={filteredEvents}
         rowKey={(e) => e.id}
         emptyMessage="イベントは記録されていません"
         columns={[
@@ -70,7 +78,7 @@ export function EventsTab({ styles, events, searchQuery, setSearchQuery }: Event
               if (!d) return "-";
               if (e.type === "csp_violation") return `${d.directive}: ${truncate(String(d.blockedURL || ""), 30)}`;
               if (e.type === "ai_prompt_sent") return `${d.provider}/${d.model}`;
-              return JSON.stringify(d).substring(0, 50);
+              return truncate(JSON.stringify(d) ?? "", 50);
             },
           },
         ]}

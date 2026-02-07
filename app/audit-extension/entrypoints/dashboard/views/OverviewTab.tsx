@@ -37,6 +37,7 @@ export function OverviewTab({
       Math.floor(violations.length / 10) * 5 -
       typosquatServices.length * 30
   );
+  const privacyPolicyMissingCount = services.filter((s) => !s.privacyPolicyUrl).length;
 
   return (
     <>
@@ -128,30 +129,27 @@ export function OverviewTab({
         <div style={{ display: "flex", alignItems: "flex-end", gap: "4px", height: "80px" }}>
           {(() => {
             const days = 7;
-            const dayData: number[] = [];
+            const dayMs = 24 * 60 * 60 * 1000;
             const now = Date.now();
-            for (let i = days - 1; i >= 0; i--) {
-              const dayStart = now - (i + 1) * 24 * 60 * 60 * 1000;
-              const dayEnd = now - i * 24 * 60 * 60 * 1000;
+            const dayData = Array.from({ length: days }, (_, index) => {
+              const offset = days - 1 - index;
+              const dayStart = now - (offset + 1) * dayMs;
+              const dayEnd = now - offset * dayMs;
               const count = events.filter((e) => e.timestamp >= dayStart && e.timestamp < dayEnd).length;
-              dayData.push(count);
-            }
-            const maxCount = Math.max(...dayData, 1);
+              const hasRisk = events.some(
+                (e) =>
+                  e.timestamp >= dayStart &&
+                  e.timestamp < dayEnd &&
+                  (e.type.includes("nrd") || e.type.includes("typosquat"))
+              );
+              return { offset, dayStart, dayEnd, count, hasRisk };
+            });
+            const maxCount = Math.max(...dayData.map((d) => d.count), 1);
             const dayLabels = ["月", "火", "水", "木", "金", "土", "日"];
             const todayIndex = new Date().getDay();
-            return dayData.map((count, i) => {
-              const dayOfWeek = (todayIndex - (days - 1 - i) + 7) % 7;
+            return dayData.map(({ offset, count, hasRisk }, i) => {
+              const dayOfWeek = (todayIndex - offset + 7) % 7;
               const height = Math.max(4, (count / maxCount) * 60);
-              const hasRisk =
-                events.filter((e) => {
-                  const dayStart = now - (days - i) * 24 * 60 * 60 * 1000;
-                  const dayEnd = now - (days - 1 - i) * 24 * 60 * 60 * 1000;
-                  return (
-                    e.timestamp >= dayStart &&
-                    e.timestamp < dayEnd &&
-                    (e.type.includes("nrd") || e.type.includes("typosquat"))
-                  );
-                }).length > 0;
               return (
                 <div
                   key={i}
@@ -202,31 +200,35 @@ export function OverviewTab({
       </div>
 
       <Card title="最近のイベント">
-        {events.slice(0, 10).length === 0 ? (
-          <p style={styles.emptyText}>イベントなし</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {events.slice(0, 10).map((e) => (
-              <div key={e.id} style={styles.eventItem}>
-                <span style={styles.eventTime}>
-                  {new Date(e.timestamp).toLocaleTimeString("ja-JP")}
-                </span>
-                <Badge
-                  variant={
-                    e.type.includes("violation") || e.type.includes("nrd")
-                      ? "danger"
-                      : e.type.includes("ai") || e.type.includes("login")
-                        ? "warning"
-                        : "default"
-                  }
-                >
-                  {e.type}
-                </Badge>
-                <code style={styles.code}>{e.domain}</code>
-              </div>
-            ))}
-          </div>
-        )}
+        {(() => {
+          const recentEvents = events.slice(0, 10);
+          if (recentEvents.length === 0) {
+            return <p style={styles.emptyText}>イベントなし</p>;
+          }
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {recentEvents.map((e) => (
+                <div key={e.id} style={styles.eventItem}>
+                  <span style={styles.eventTime}>
+                    {new Date(e.timestamp).toLocaleTimeString("ja-JP")}
+                  </span>
+                  <Badge
+                    variant={
+                      e.type.includes("violation") || e.type.includes("nrd")
+                        ? "danger"
+                        : e.type.includes("ai") || e.type.includes("login")
+                          ? "warning"
+                          : "default"
+                    }
+                  >
+                    {e.type}
+                  </Badge>
+                  <code style={styles.code}>{e.domain}</code>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </Card>
 
       <Card title="セキュリティ推奨事項" style={{ marginTop: "24px" }}>
@@ -275,7 +277,7 @@ export function OverviewTab({
               </div>
             </div>
           )}
-          {services.filter((s) => !s.privacyPolicyUrl).length > 5 && (
+          {privacyPolicyMissingCount > 5 && (
             <div
               style={{
                 display: "flex",
@@ -291,7 +293,7 @@ export function OverviewTab({
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500, marginBottom: "4px" }}>プライバシーポリシー未確認のサイト</div>
                 <div style={{ fontSize: "12px", color: colors.textSecondary }}>
-                  {services.filter((s) => !s.privacyPolicyUrl).length}件のサイトでプライバシーポリシーが確認できません。
+                  {privacyPolicyMissingCount}件のサイトでプライバシーポリシーが確認できません。
                   個人情報の取り扱いに注意してください。
                 </div>
               </div>

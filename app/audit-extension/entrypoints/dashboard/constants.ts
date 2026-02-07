@@ -26,16 +26,7 @@ export const loadingTabs: { id: TabType; label: string }[] = [
   { id: "ai", label: "AI監視" },
 ];
 
-export const validTabs: TabType[] = [
-  "overview",
-  "violations",
-  "network",
-  "domains",
-  "ai",
-  "services",
-  "events",
-  "extensions",
-];
+export const validTabs: TabType[] = tabs.map((tab) => tab.id);
 
 export const shortcutTabs: TabType[] = [
   "overview",
