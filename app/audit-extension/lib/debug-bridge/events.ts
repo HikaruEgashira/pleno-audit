@@ -17,7 +17,7 @@ export async function getEvents(
   try {
     const store = await getParquetStore();
     const result = await store.getEvents({
-      limit: params.limit || 100,
+      limit: params.limit ?? 100,
     });
 
     const events = result.data.map((event) => ({
