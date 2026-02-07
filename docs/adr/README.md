@@ -43,3 +43,6 @@
 | [041](./041-domain-risk-service-modularization.md) | ドメインリスク検知（NRD/Typosquat）をサービスへ分離する | Accepted |
 | [042](./042-runtime-handler-sectioning.md) | Runtime Handler定義の機能別セクション化 | Accepted |
 | [043](./043-extension-monitor-compatibility-facade.md) | Extension Monitor互換レイヤでNetwork Monitor実装へ一本化する | Accepted |
+| [044](./044-background-services-modularization.md) | Background Servicesの責務分離 | Accepted |
+| [045](./045-runtime-handler-file-modularization.md) | Runtime Handler定義のファイル分割 | Accepted |
+| [046](./046-background-services-facade.md) | Background Servicesのファサード構造化 | Accepted |

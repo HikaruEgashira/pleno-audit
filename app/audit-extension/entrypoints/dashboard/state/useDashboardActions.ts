@@ -1,0 +1,46 @@
+import { useCallback } from "preact/hooks";
+import type { CSPReport } from "@pleno-audit/csp";
+import type { CapturedAIPrompt, DetectedService, EventLog } from "@pleno-audit/detectors";
+
+interface UseDashboardActionsOptions {
+  reports: CSPReport[];
+  services: DetectedService[];
+  events: EventLog[];
+  aiPrompts: CapturedAIPrompt[];
+  loadData: () => Promise<void> | void;
+}
+
+export function useDashboardActions({
+  reports,
+  services,
+  events,
+  aiPrompts,
+  loadData,
+}: UseDashboardActionsOptions) {
+  const handleClearData = useCallback(async () => {
+    if (!confirm("すべてのデータを削除しますか？")) return;
+    try {
+      await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
+      await loadData();
+    } catch {
+      // Failed to clear data
+    }
+  }, [loadData]);
+
+  const handleExportJSON = useCallback(() => {
+    const blob = new Blob([
+      JSON.stringify({ reports, services, events, aiPrompts }, null, 2),
+    ], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `casb-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [aiPrompts, events, reports, services]);
+
+  return {
+    handleClearData,
+    handleExportJSON,
+  };
+}
