@@ -5,6 +5,7 @@ import {
   DEFAULT_NOTIFICATION_CONFIG,
   getStorage,
   setStorage,
+  createLogger,
   type BlockingConfig,
   type ConnectionMode,
   type DataRetentionConfig,
@@ -12,6 +13,8 @@ import {
   type NotificationConfig,
 } from "@pleno-audit/extension-runtime";
 import type { BackgroundServiceState } from "./state";
+
+const logger = createLogger("background-config");
 import { ensureApiClient, ensureSyncManager, setConnectionConfigInternal } from "./client";
 import { getOrInitParquetStore } from "./events";
 
@@ -29,7 +32,7 @@ export async function setDetectionConfig(
     await chrome.storage.local.set({ detectionConfig: updated });
     return { success: true };
   } catch (error) {
-    console.error("Error setting detection config:", error);
+    logger.error("Error setting detection config:", error);
     return { success: false };
   }
 }
@@ -48,7 +51,7 @@ export async function setNotificationConfig(
     await chrome.storage.local.set({ notificationConfig: updated });
     return { success: true };
   } catch (error) {
-    console.error("Error setting notification config:", error);
+    logger.error("Error setting notification config:", error);
     return { success: false };
   }
 }
