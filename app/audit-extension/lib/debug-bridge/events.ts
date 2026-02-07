@@ -18,6 +18,7 @@ export async function getEvents(
     const store = await getParquetStore();
     const result = await store.getEvents({
       limit: params.limit ?? 100,
+      type: params.type,
     });
 
     const events = result.data.map((event) => ({
@@ -28,11 +29,9 @@ export async function getEvents(
       details: typeof event.details === "string" ? safeJsonParse(event.details) : event.details,
     }));
 
-    const filteredEvents = params.type ? events.filter((event) => event.type === params.type) : events;
-
     return {
       success: true,
-      data: filteredEvents,
+      data: events,
     };
   } catch (error) {
     logger.error("getEvents error:", error);
