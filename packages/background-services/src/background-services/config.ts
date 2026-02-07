@@ -13,9 +13,25 @@ import {
   type NotificationConfig,
 } from "@pleno-audit/extension-runtime";
 import type { BackgroundServiceState } from "./state";
+import {
+  DEFAULT_BLOCKING_CONFIG,
+  DEFAULT_DATA_RETENTION_CONFIG,
+  DEFAULT_DETECTION_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
+  getStorage,
+  setStorage,
+  createLogger,
+  type BlockingConfig,
+  type ConnectionMode,
+  type DataRetentionConfig,
+  type DetectionConfig,
+  type NotificationConfig,
+} from "@pleno-audit/extension-runtime";
+import type { BackgroundServiceState } from "./state";
+import { ensureApiClient, ensureSyncManager, setConnectionConfigInternal } from "./client";
+import { getOrInitParquetStore } from "./events";
 
 const logger = createLogger("background-config");
-import { ensureApiClient, ensureSyncManager, setConnectionConfigInternal } from "./client";
 import { getOrInitParquetStore } from "./events";
 
 export async function getDetectionConfig(): Promise<DetectionConfig> {
