@@ -2,6 +2,14 @@ import type { Logger } from "@pleno-audit/extension-runtime";
 import { getParquetStore } from "./parquet.js";
 import type { DebugHandlerResult } from "./types.js";
 
+function safeJsonParse(str: string): unknown {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return str;
+  }
+}
+
 export async function getEvents(
   logger: Logger,
   params: { limit?: number; type?: string }
@@ -17,7 +25,7 @@ export async function getEvents(
       type: event.type,
       domain: event.domain,
       timestamp: event.timestamp,
-      details: typeof event.details === "string" ? JSON.parse(event.details) : event.details,
+      details: typeof event.details === "string" ? safeJsonParse(event.details) : event.details,
     }));
 
     const filteredEvents = params.type ? events.filter((event) => event.type === params.type) : events;

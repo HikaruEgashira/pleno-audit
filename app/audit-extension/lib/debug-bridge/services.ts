@@ -1,17 +1,29 @@
 import type { DebugHandlerResult } from "./types.js";
 
 export async function getServices(): Promise<DebugHandlerResult> {
-  const storage = await chrome.storage.local.get("services");
-  return { success: true, data: storage.services || {} };
+  try {
+    const storage = await chrome.storage.local.get("services");
+    return { success: true, data: storage.services || {} };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to load services" };
+  }
 }
 
 export async function getService(params: { domain: string }): Promise<DebugHandlerResult> {
-  const storage = await chrome.storage.local.get("services");
-  const services = storage.services || {};
-  return { success: true, data: services[params.domain] || null };
+  try {
+    const storage = await chrome.storage.local.get("services");
+    const services = storage.services || {};
+    return { success: true, data: services[params.domain] || null };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to load service" };
+  }
 }
 
 export async function clearServices(): Promise<DebugHandlerResult> {
-  await chrome.storage.local.remove("services");
-  return { success: true };
+  try {
+    await chrome.storage.local.remove("services");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to clear services" };
+  }
 }
