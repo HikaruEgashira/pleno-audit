@@ -158,7 +158,8 @@ export function TimelineTab() {
   const domainStats = useMemo(() => {
     const stats: Record<string, number> = {};
     for (const event of filteredEvents) {
-      stats[event.domain] = (stats[event.domain] || 0) + 1;
+      const key = event.domain || "(unknown)";
+      stats[key] = (stats[key] || 0) + 1;
     }
     const sorted = Object.entries(stats)
       .map(([domain, count]) => ({ domain, count }))
@@ -374,7 +375,13 @@ export function TimelineTab() {
           granularity={granularity}
           typeColors={EVENT_TYPE_COLORS}
           height={160}
-          maxBars={granularity === "hour" ? 48 : granularity === "day" ? 30 : 12}
+          maxBars={
+            granularity === "hour"
+              ? { "7d": 48, "30d": 72, "90d": 96 }[period]
+              : granularity === "day"
+                ? { "7d": 7, "30d": 30, "90d": 90 }[period]
+                : { "7d": 1, "30d": 5, "90d": 13 }[period]
+          }
         />
 
         {/* 凡例 */}
