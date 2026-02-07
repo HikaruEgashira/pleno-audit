@@ -285,7 +285,7 @@ function initializeDebugBridge(): void {
   if (!import.meta.env.DEV) {
     return;
   }
-  void import("../lib/debug-bridge.js").then(({ initDebugBridge }) => {
+  void import("@pleno-audit/debug-bridge").then(({ initDebugBridge }) => {
     initDebugBridge();
   });
 }

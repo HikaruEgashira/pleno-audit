@@ -50,6 +50,9 @@ importers:
       '@pleno-audit/data-export':
         specifier: workspace:*
         version: link:../../packages/data-export
+      '@pleno-audit/debug-bridge':
+        specifier: workspace:*
+        version: link:../../packages/debug-bridge
       '@pleno-audit/detectors':
         specifier: workspace:*
         version: link:../../packages/detectors
@@ -297,6 +300,15 @@ importers:
   packages/csp: {}
 
   packages/data-export: {}
+
+  packages/debug-bridge:
+    dependencies:
+      '@pleno-audit/extension-runtime':
+        specifier: workspace:*
+        version: link:../extension-runtime
+      '@pleno-audit/parquet-storage':
+        specifier: workspace:*
+        version: link:../parquet-storage
 
   packages/detectors:
     dependencies:
