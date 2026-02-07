@@ -76,43 +76,19 @@ const DEV_REPORT_ENDPOINT = "http://localhost:3001/api/v1/reports";
 
 const backgroundServices = createBackgroundServices(logger);
 const {
-  ensureApiClient,
-  ensureSyncManager,
-  initializeApiClientWithMigration,
-  initializeSyncManagerWithAutoStart,
-  getOrInitParquetStore,
-  addEvent,
-  getAlertManager,
-  checkAIServicePolicy,
-  checkDataTransferPolicy,
-  registerNotificationClickHandler,
-  queueStorageOperation,
-  initStorage,
-  saveStorage,
-  getDetectionConfig,
-  setDetectionConfig,
-  getNotificationConfig,
-  setNotificationConfig,
-  updateService,
-  addCookieToService,
-  handlePageAnalysis,
-  extractDomainFromUrl,
-  getDataRetentionConfig,
-  setDataRetentionConfig,
-  cleanupOldData,
-  getBlockingConfig,
-  setBlockingConfig,
-  getConnectionConfig,
-  setConnectionConfig,
-  getSyncConfig,
-  setSyncConfig,
-  triggerSync,
-  clearApiClientReportsIfInitialized,
+  api: backgroundApi,
+  sync: backgroundSync,
+  events: backgroundEvents,
+  alerts: backgroundAlerts,
+  storage: backgroundStorage,
+  analysis: backgroundAnalysis,
+  config: backgroundConfig,
+  utils: backgroundUtils,
 } = backgroundServices;
 
 let doHMonitor: DoHMonitor | null = null;
 
-registerNotificationClickHandler();
+backgroundAlerts.registerNotificationClickHandler();
 
 // ============================================================================
 // DoH Monitor Config
@@ -153,9 +129,9 @@ const extensionNetworkService = createExtensionNetworkService({
   logger,
   getStorage,
   setStorage,
-  getOrInitParquetStore,
-  addEvent: (event) => addEvent(event as NewEvent),
-  getAlertManager,
+  getOrInitParquetStore: backgroundEvents.getOrInitParquetStore,
+  addEvent: (event) => backgroundEvents.addEvent(event as NewEvent),
+  getAlertManager: backgroundAlerts.getAlertManager,
   getRuntimeId: () => chrome.runtime.id,
 });
 
@@ -224,19 +200,19 @@ async function getExtensionStats(): Promise<ExtensionStats> {
 }
 
 const securityEventHandlers = createSecurityEventHandlers({
-  addEvent: (event) => addEvent(event as NewEvent),
-  getAlertManager,
-  extractDomainFromUrl,
-  checkDataTransferPolicy,
+  addEvent: (event) => backgroundEvents.addEvent(event as NewEvent),
+  getAlertManager: backgroundAlerts.getAlertManager,
+  extractDomainFromUrl: backgroundUtils.extractDomainFromUrl,
+  checkDataTransferPolicy: backgroundAlerts.checkDataTransferPolicy,
   logger,
 });
 
 const cspReportingService = createCSPReportingService({
   logger,
-  ensureApiClient,
-  initStorage,
-  saveStorage: async (data) => saveStorage(data),
-  addEvent: async (event) => addEvent(event as NewEvent),
+  ensureApiClient: backgroundApi.ensureApiClient,
+  initStorage: backgroundStorage.initStorage,
+  saveStorage: async (data) => backgroundStorage.saveStorage(data),
+  addEvent: async (event) => backgroundEvents.addEvent(event as NewEvent),
   devReportEndpoint: DEV_REPORT_ENDPOINT,
 });
 
@@ -245,21 +221,21 @@ const aiPromptMonitorService = createAIPromptMonitorService({
   getStorage,
   setStorage,
   clearAIPrompts,
-  queueStorageOperation,
-  addEvent: async (event) => addEvent(event as NewEvent),
-  updateService,
-  checkAIServicePolicy,
-  getAlertManager,
+  queueStorageOperation: backgroundStorage.queueStorageOperation,
+  addEvent: async (event) => backgroundEvents.addEvent(event as NewEvent),
+  updateService: backgroundStorage.updateService,
+  checkAIServicePolicy: backgroundAlerts.checkAIServicePolicy,
+  getAlertManager: backgroundAlerts.getAlertManager,
 });
 
 const domainRiskService = createDomainRiskService({
   logger,
   getStorage,
   setStorage: async (data) => setStorage(data),
-  updateService,
-  addEvent: async (event) => addEvent(event as NewEvent),
-  getOrInitParquetStore,
-  getAlertManager,
+  updateService: backgroundStorage.updateService,
+  addEvent: async (event) => backgroundEvents.addEvent(event as NewEvent),
+  getOrInitParquetStore: backgroundEvents.getOrInitParquetStore,
+  getAlertManager: backgroundAlerts.getAlertManager,
 });
 
 async function clearAllData(): Promise<{ success: boolean }> {
@@ -270,7 +246,7 @@ async function clearAllData(): Promise<{ success: boolean }> {
     cspReportingService.clearReportQueue();
 
     // 2. Clear API client reports
-    await clearApiClientReportsIfInitialized();
+    await backgroundApi.clearReportsIfInitialized();
 
     // 3. Clear all IndexedDB databases via offscreen document
     try {
@@ -299,7 +275,7 @@ async function clearAllData(): Promise<{ success: boolean }> {
 // Dynamic registration removed to avoid caching issues
 
 const handleDebugBridgeForward = createDebugBridgeHandler({
-  getOrInitParquetStore,
+  getOrInitParquetStore: backgroundEvents.getOrInitParquetStore,
   getDoHMonitorConfig,
   setDoHMonitorConfig,
   getDoHRequests,
@@ -315,7 +291,7 @@ function initializeDebugBridge(): void {
 }
 
 async function initializeEventStore(): Promise<void> {
-  await getOrInitParquetStore();
+  await backgroundEvents.getOrInitParquetStore();
   logger.info("EventStore initialized");
 }
 
@@ -368,7 +344,7 @@ async function migrateLegacyEventsIfNeeded(): Promise<void> {
     return;
   }
 
-  const store = await getOrInitParquetStore();
+  const store = await backgroundEvents.getOrInitParquetStore();
   const result = await migrateEventsToIndexedDB(store);
   logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
 }
@@ -377,9 +353,11 @@ function initializeBackgroundServices(): void {
   initializeDebugBridge();
 
   void initializeEventStore().catch((error) => logger.error("EventStore init failed:", error));
-  void initializeApiClientWithMigration(checkMigrationNeeded, migrateToDatabase)
+  void backgroundApi.initializeApiClientWithMigration(checkMigrationNeeded, migrateToDatabase)
     .catch((error) => logger.debug("API client init failed:", error));
-  void initializeSyncManagerWithAutoStart().catch((error) => logger.debug("Sync manager init failed:", error));
+  void backgroundSync.initializeSyncManagerWithAutoStart().catch((error) =>
+    logger.debug("Sync manager init failed:", error)
+  );
   void initializeEnterpriseManagedFlow().catch((error) => logger.error("Enterprise manager init failed:", error));
   void initializeCSPReporter().catch((error) => logger.error("CSP reporter init failed:", error));
   void migrateLegacyEventsIfNeeded().catch((error) => logger.error("Event migration error:", error));
@@ -418,7 +396,8 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     },
     handleDebugBridgeForward,
     getKnownExtensions,
-    handlePageAnalysis: async (payload) => handlePageAnalysis(payload as PageAnalysis),
+    handlePageAnalysis: async (payload) =>
+      backgroundAnalysis.handlePageAnalysis(payload as PageAnalysis),
     handleCSPViolation: (data, sender) => cspReportingService.handleCSPViolation(data as Omit<CSPViolation, "type">, sender),
     handleNetworkRequest: (data, sender) => cspReportingService.handleNetworkRequest(data as Omit<NetworkRequest, "type">, sender),
     handleDataExfiltration: (data, sender) => securityEventHandlers.handleDataExfiltration(data as DataExfiltrationData, sender),
@@ -439,18 +418,18 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     clearCSPData: cspReportingService.clearCSPData,
     clearAllData,
     getStats: async () => {
-      const client = await ensureApiClient();
+      const client = await backgroundApi.ensureApiClient();
       return client.getStats();
     },
-    getConnectionConfig,
-    setConnectionConfig,
-    getSyncConfig,
-    setSyncConfig,
-    triggerSync,
+    getConnectionConfig: backgroundConfig.getConnectionConfig,
+    setConnectionConfig: backgroundConfig.setConnectionConfig,
+    getSyncConfig: backgroundSync.getSyncConfig,
+    setSyncConfig: backgroundSync.setSyncConfig,
+    triggerSync: backgroundSync.triggerSync,
     getSSOManager,
     getEnterpriseManager,
-    getDetectionConfig,
-    setDetectionConfig,
+    getDetectionConfig: backgroundConfig.getDetectionConfig,
+    setDetectionConfig: backgroundConfig.setDetectionConfig,
     handleAIPromptCaptured: (payload) => aiPromptMonitorService.handleAIPromptCaptured(payload as CapturedAIPrompt),
     getAIPrompts: aiPromptMonitorService.getAIPrompts,
     getAIPromptsCount: aiPromptMonitorService.getAIPromptsCount,
@@ -463,7 +442,7 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     handleTyposquatCheck: domainRiskService.handleTyposquatCheck,
     getTyposquatConfig: domainRiskService.getTyposquatConfig,
     setTyposquatConfig: domainRiskService.setTyposquatConfig,
-    getOrInitParquetStore,
+    getOrInitParquetStore: backgroundEvents.getOrInitParquetStore,
     getNetworkRequests,
     getExtensionRequests,
     getExtensionStats,
@@ -472,13 +451,13 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     getAllExtensionRisks,
     getExtensionRiskAnalysis,
     analyzeExtensionRisks,
-    getDataRetentionConfig,
-    setDataRetentionConfig,
-    cleanupOldData,
-    getBlockingConfig,
-    setBlockingConfig,
-    getNotificationConfig,
-    setNotificationConfig,
+    getDataRetentionConfig: backgroundConfig.getDataRetentionConfig,
+    setDataRetentionConfig: backgroundConfig.setDataRetentionConfig,
+    cleanupOldData: backgroundConfig.cleanupOldData,
+    getBlockingConfig: backgroundConfig.getBlockingConfig,
+    setBlockingConfig: backgroundConfig.setBlockingConfig,
+    getNotificationConfig: backgroundConfig.getNotificationConfig,
+    setNotificationConfig: backgroundConfig.setNotificationConfig,
     getDoHMonitorConfig,
     setDoHMonitorConfig,
     getDoHRequests,
@@ -500,7 +479,7 @@ export default defineBackground(() => {
     flushNetworkRequestBuffer,
     checkDNRMatchesHandler,
     analyzeExtensionRisks,
-    cleanupOldData,
+    cleanupOldData: backgroundConfig.cleanupOldData,
   });
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "keepAlive") {
@@ -580,8 +559,10 @@ export default defineBackground(() => {
     if (removed) return;
 
     const domain = cookie.domain.replace(/^\./, "");
-    addCookieToService(domain, cookie).catch((err) => logger.debug("Add cookie to service failed:", err));
-    addEvent({
+    backgroundStorage
+      .addCookieToService(domain, cookie)
+      .catch((err) => logger.debug("Add cookie to service failed:", err));
+    backgroundEvents.addEvent({
       type: "cookie_set",
       domain,
       timestamp: cookie.detectedAt,

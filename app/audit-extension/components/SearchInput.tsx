@@ -25,6 +25,7 @@ export function SearchInput({ value, onChange, placeholder = "検索..." }: Sear
   return (
     <input
       type="text"
+      data-dashboard-search="true"
       style={style}
       placeholder={placeholder}
       value={value}

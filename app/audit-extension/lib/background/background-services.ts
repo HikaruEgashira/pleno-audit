@@ -43,60 +43,83 @@ import { extractDomainFromUrl } from "./background-services/utils";
 
 export type { NewEvent, PageAnalysis } from "./background-services/types";
 
+type Tail<T extends unknown[]> = T extends [unknown, ...infer Rest] ? Rest : never;
+
+function bindState<
+  Args extends unknown[],
+  Result,
+  Fn extends (state: ReturnType<typeof createBackgroundServiceState>, ...args: Args) => Result
+>(state: ReturnType<typeof createBackgroundServiceState>, fn: Fn) {
+  return (...args: Tail<Parameters<Fn>>): ReturnType<Fn> => fn(state, ...args);
+}
+
 export function createBackgroundServices(serviceLogger: Logger) {
   const state = createBackgroundServiceState(serviceLogger);
 
   return {
-    ensureApiClient: () => ensureApiClient(state),
-    ensureSyncManager: () => ensureSyncManager(state),
-    getOrInitParquetStore: () => getOrInitParquetStore(state),
-    addEvent: (event: Parameters<typeof addEvent>[1]) => addEvent(state, event),
-    getAlertManager: () => getAlertManager(state),
-    getPolicyManager: () => getPolicyManager(state),
-    checkDomainPolicy: (domain: string) => checkDomainPolicy(state, domain),
-    checkAIServicePolicy: (params: Parameters<typeof checkAIServicePolicy>[1]) =>
-      checkAIServicePolicy(state, params),
-    checkDataTransferPolicy: (params: Parameters<typeof checkDataTransferPolicy>[1]) =>
-      checkDataTransferPolicy(state, params),
-    registerNotificationClickHandler,
-    queueStorageOperation: <T>(operation: () => Promise<T>) => queueStorageOperation(state, operation),
-    initStorage,
-    saveStorage,
-    getDetectionConfig,
-    setDetectionConfig,
-    getNotificationConfig,
-    setNotificationConfig,
-    updateService: (domain: string, update: Parameters<typeof updateService>[2]) =>
-      updateService(state, domain, update, (newDomain) => checkDomainPolicy(state, newDomain)),
-    addCookieToService: (domain: string, cookie: Parameters<typeof addCookieToService>[2]) =>
-      addCookieToService(state, domain, cookie),
-    handlePageAnalysis: (analysis: Parameters<typeof handlePageAnalysis>[1]) =>
-      handlePageAnalysis(state, analysis),
-    extractDomainFromUrl,
-    getDataRetentionConfig,
-    setDataRetentionConfig: (newConfig: Parameters<typeof setDataRetentionConfig>[1]) =>
-      setDataRetentionConfig(state, newConfig),
-    cleanupOldData: () => cleanupOldData(state),
-    getBlockingConfig,
-    setBlockingConfig: (newConfig: Parameters<typeof setBlockingConfig>[1]) =>
-      setBlockingConfig(state, newConfig),
-    getConnectionConfig: () => getConnectionConfig(state),
-    setConnectionConfig: (mode: Parameters<typeof setConnectionConfig>[1], endpoint?: string) =>
-      setConnectionConfig(state, mode, endpoint),
-    getSyncConfig: () => getSyncConfig(state),
-    setSyncConfig: (enabled: Parameters<typeof setSyncConfig>[1], endpoint?: string) =>
-      setSyncConfig(state, enabled, endpoint),
-    triggerSync: () => triggerSync(state),
-    clearApiClientReportsIfInitialized: async () => {
-      if (!state.apiClient) {
-        return;
-      }
-      await state.apiClient.clearReports();
+    api: {
+      ensureApiClient: bindState(state, ensureApiClient),
+      initializeApiClientWithMigration: (
+        checkMigrationNeeded: Parameters<typeof initializeApiClientWithMigration>[1],
+        migrateToDatabase: Parameters<typeof initializeApiClientWithMigration>[2]
+      ) => initializeApiClientWithMigration(state, checkMigrationNeeded, migrateToDatabase),
+      clearReportsIfInitialized: async () => {
+        if (!state.apiClient) {
+          return;
+        }
+        await state.apiClient.clearReports();
+      },
     },
-    initializeApiClientWithMigration: (
-      checkMigrationNeeded: Parameters<typeof initializeApiClientWithMigration>[1],
-      migrateToDatabase: Parameters<typeof initializeApiClientWithMigration>[2]
-    ) => initializeApiClientWithMigration(state, checkMigrationNeeded, migrateToDatabase),
-    initializeSyncManagerWithAutoStart: () => initializeSyncManagerWithAutoStart(state),
+    sync: {
+      ensureSyncManager: bindState(state, ensureSyncManager),
+      initializeSyncManagerWithAutoStart: () => initializeSyncManagerWithAutoStart(state),
+      getSyncConfig: bindState(state, getSyncConfig),
+      setSyncConfig: bindState(state, setSyncConfig),
+      triggerSync: bindState(state, triggerSync),
+    },
+    events: {
+      getOrInitParquetStore: bindState(state, getOrInitParquetStore),
+      addEvent: bindState(state, addEvent),
+    },
+    alerts: {
+      getAlertManager: bindState(state, getAlertManager),
+      getPolicyManager: bindState(state, getPolicyManager),
+      checkDomainPolicy: bindState(state, checkDomainPolicy),
+      checkAIServicePolicy: bindState(state, checkAIServicePolicy),
+      checkDataTransferPolicy: bindState(state, checkDataTransferPolicy),
+      registerNotificationClickHandler,
+    },
+    storage: {
+      queueStorageOperation: bindState(state, queueStorageOperation),
+      initStorage,
+      saveStorage,
+      updateService: (
+        domain: string,
+        update: Parameters<typeof updateService>[2]
+      ) =>
+        updateService(state, domain, update, (newDomain) =>
+          checkDomainPolicy(state, newDomain)
+        ),
+      addCookieToService: bindState(state, addCookieToService),
+    },
+    analysis: {
+      handlePageAnalysis: bindState(state, handlePageAnalysis),
+    },
+    config: {
+      getDetectionConfig,
+      setDetectionConfig,
+      getNotificationConfig,
+      setNotificationConfig,
+      getDataRetentionConfig,
+      setDataRetentionConfig: bindState(state, setDataRetentionConfig),
+      cleanupOldData: bindState(state, cleanupOldData),
+      getBlockingConfig,
+      setBlockingConfig: bindState(state, setBlockingConfig),
+      getConnectionConfig: bindState(state, getConnectionConfig),
+      setConnectionConfig: bindState(state, setConnectionConfig),
+    },
+    utils: {
+      extractDomainFromUrl,
+    },
   };
 }
