@@ -1,0 +1,25 @@
+import type { Logger } from "@pleno-audit/extension-runtime";
+import type { DebugHandlerResult } from "./types.js";
+
+export async function getSnapshot(logger: Logger): Promise<DebugHandlerResult> {
+  try {
+    const storage = await chrome.storage.local.get(null);
+    const services = storage.services || {};
+
+    return {
+      success: true,
+      data: {
+        storage,
+        services,
+        extensionId: chrome.runtime.id,
+        timestamp: Date.now(),
+      },
+    };
+  } catch (error) {
+    logger.error("getSnapshot error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
