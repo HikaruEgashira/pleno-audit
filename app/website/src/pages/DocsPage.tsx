@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { type JSX, useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import Footer from '../components/Footer';
