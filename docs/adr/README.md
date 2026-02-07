@@ -47,3 +47,4 @@
 | [045](./045-runtime-handler-file-modularization.md) | Runtime Handler定義のファイル分割 | Accepted |
 | [046](./046-background-services-facade.md) | Background Servicesのファサード構造化 | Accepted |
 | [047](./047-docs-page-structure-refactor.md) | DocsPageをデータ駆動・セクション分割で再構成する | Accepted |
+| [048](./048-background-entrypoint-orchestration.md) | Backgroundエントリーポイントの責務をオーケストレーションに集約する | Accepted |
