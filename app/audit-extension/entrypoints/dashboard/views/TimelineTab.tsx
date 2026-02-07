@@ -1,9 +1,3 @@
-/**
- * @fileoverview Timeline Tab
- *
- * イベントログの時系列分析とトレンド表示
- */
-
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { useTheme } from "../../../lib/theme";
 import { Card, Select } from "../../../components";
@@ -300,7 +294,7 @@ export function TimelineTab() {
               marginBottom: "8px",
             }}
           >
-            <Activity size={16} color={colors.primary} />
+            <Activity size={16} color={colors.interactive} />
             <span style={{ fontSize: "13px", color: colors.textSecondary }}>
               総イベント数
             </span>
@@ -319,7 +313,7 @@ export function TimelineTab() {
               marginBottom: "8px",
             }}
           >
-            <Clock size={16} color={colors.primary} />
+            <Clock size={16} color={colors.interactive} />
             <span style={{ fontSize: "13px", color: colors.textSecondary }}>
               ピーク時間帯
             </span>
@@ -338,7 +332,7 @@ export function TimelineTab() {
               marginBottom: "8px",
             }}
           >
-            <TrendingUp size={16} color={colors.primary} />
+            <TrendingUp size={16} color={colors.interactive} />
             <span style={{ fontSize: "13px", color: colors.textSecondary }}>
               イベントタイプ数
             </span>
@@ -357,7 +351,7 @@ export function TimelineTab() {
               marginBottom: "8px",
             }}
           >
-            <BarChart3 size={16} color={colors.primary} />
+            <BarChart3 size={16} color={colors.interactive} />
             <span style={{ fontSize: "13px", color: colors.textSecondary }}>
               ドメイン数
             </span>
@@ -529,7 +523,7 @@ export function TimelineTab() {
                       style={{
                         width: `${width}%`,
                         height: "100%",
-                        background: colors.primary,
+                        background: colors.interactive,
                         borderRadius: "2px",
                       }}
                     />

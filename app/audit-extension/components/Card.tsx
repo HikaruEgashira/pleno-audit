@@ -5,6 +5,7 @@ interface CardProps {
   children: preact.ComponentChildren;
   title?: string;
   padding?: "sm" | "md" | "lg";
+  style?: CSSProperties;
 }
 
 const paddingSizes = {
@@ -13,7 +14,7 @@ const paddingSizes = {
   lg: "24px",
 };
 
-export function Card({ children, title, padding = "md" }: CardProps) {
+export function Card({ children, title, padding = "md", style: externalStyle }: CardProps) {
   const { colors } = useTheme();
 
   const style: CSSProperties = {
@@ -21,6 +22,7 @@ export function Card({ children, title, padding = "md" }: CardProps) {
     border: `1px solid ${colors.border}`,
     borderRadius: "8px",
     padding: paddingSizes[padding],
+    ...externalStyle,
   };
 
   const titleStyle: CSSProperties = {
