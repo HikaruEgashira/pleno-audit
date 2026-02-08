@@ -382,7 +382,7 @@ async function simulateWebAuthnBypass(): Promise<AttackResult> {
           pubKeyCredParams: [{ alg: -7, type: "public-key" } as PublicKeyCredentialParameters],
           timeout: 60000,
           attestation: "none" as AttestationConveyancePreference,
-        } as CredentialCreationOptions,
+        },
       });
 
       if (credential) {

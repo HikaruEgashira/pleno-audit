@@ -107,7 +107,7 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
       new (url: string): unknown;
     };
 
-    const WebTransport = (globalThis as unknown).WebTransport as
+    const WebTransport = (globalThis as unknown as Record<string, unknown>).WebTransport as
       | WebTransportType
       | undefined;
 
@@ -180,12 +180,12 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
-    const RTCPeerConnection: typeof RTCPeerConnection | undefined =
+    const PeerConnectionCtor: typeof RTCPeerConnection | undefined =
       (window as unknown as Record<string, unknown>).RTCPeerConnection as typeof RTCPeerConnection | undefined ||
       (window as unknown as Record<string, unknown>).webkitRTCPeerConnection as typeof RTCPeerConnection | undefined ||
       (window as unknown as Record<string, unknown>).mozRTCPeerConnection as typeof RTCPeerConnection | undefined;
 
-    if (!RTCPeerConnection) {
+    if (!PeerConnectionCtor) {
       return {
         blocked: true,
         executionTime: performance.now() - startTime,
@@ -193,7 +193,7 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
       };
     }
 
-    const peerConnection = new RTCPeerConnection({
+    const peerConnection = new PeerConnectionCtor({
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
     });
 

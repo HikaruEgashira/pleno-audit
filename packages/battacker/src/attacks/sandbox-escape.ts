@@ -180,10 +180,7 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
       const proto = Object.getPrototypeOf(obj);
 
       // __proto__ アクセス
-      (obj as Record<string, unknown>).__proto__ = {
-        ...((proto as Record<string, unknown>) ?? {}),
-        isAdmin: true,
-      };
+      Object.setPrototypeOf(obj, { ...proto, isAdmin: true });
 
       const checkObj: Record<string, unknown> = {};
       if (checkObj.isAdmin === true) {

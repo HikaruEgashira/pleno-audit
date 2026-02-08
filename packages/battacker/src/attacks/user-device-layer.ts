@@ -556,7 +556,7 @@ async function simulateBrowserHistoryHijacking(): Promise<AttackResult> {
       // ユーザーの戻る操作を防止
       history.forward();
     };
-    window.addEventListener("popstate", popstateHandler as EventListener);
+    window.addEventListener("popstate", popstateHandler);
 
     historyHijackVectors.push({
       vector: "popstate event hijacking",
