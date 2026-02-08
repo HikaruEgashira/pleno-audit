@@ -19,8 +19,8 @@ describe("RISK_SCORE_THRESHOLDS", () => {
     expect(RISK_SCORE_THRESHOLDS.LOW).toBe(20);
   });
 
-  it("maintains consistent thresholds across conversions", () => {
-    // Ensure thresholds are constant
+  it("exposes a stable thresholds object", () => {
+    // Ensure thresholds reference is stable
     const thresholds1 = RISK_SCORE_THRESHOLDS;
     const thresholds2 = RISK_SCORE_THRESHOLDS;
 

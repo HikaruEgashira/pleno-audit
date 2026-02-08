@@ -31,6 +31,7 @@ function matchDomain(
   pattern: string,
   matchType: PolicyMatchType
 ): boolean {
+  if (domain == null || pattern == null) return false;
   const normalizedDomain = domain.toLowerCase();
   const normalizedPattern = pattern.toLowerCase();
 

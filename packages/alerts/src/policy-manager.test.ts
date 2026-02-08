@@ -534,8 +534,10 @@ describe("createPolicyManager", () => {
         action: "block",
       };
       const pm = createPolicyManager(createTestConfig({ toolRules: [rule] }));
-      const result = pm.checkTool("");
-      expect(result).toBeDefined();
+      const resultNull = pm.checkTool(null as unknown as string);
+      const resultUndef = pm.checkTool(undefined as unknown as string);
+      expect(resultNull).toBeDefined();
+      expect(resultUndef).toBeDefined();
     });
 
     it("handles AI check with partial provider match", () => {
