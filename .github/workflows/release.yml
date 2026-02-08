@@ -39,8 +39,18 @@ jobs:
           pnpm -C app/battacker-extension build
           pnpm -C app/battacker-extension build:firefox
 
+      - name: Check for untracked files
+        run: |
+          UNTRACKED=$(git status --porcelain | grep '^??' || true)
+          if [ -n "$UNTRACKED" ]; then
+            echo "ERROR: Untracked files detected:"
+            echo "$UNTRACKED"
+            exit 1
+          fi
+
       - name: Create zip artifacts
         run: |
+          set -e
           # Chrome MV3
           cd app/audit-extension/dist/chrome-mv3
           zip -r ../../../../pleno-audit-chrome.zip .
@@ -56,6 +66,7 @@ jobs:
 
       - name: Generate checksums
         run: |
+          set -e
           sha256sum pleno-audit-chrome.zip pleno-audit-firefox.zip pleno-battacker-chrome.zip pleno-battacker-firefox.zip > checksums.txt
 
       - name: Generate attestations
@@ -80,6 +91,7 @@ jobs:
       - name: Get version
         id: version
         run: |
+          set -e
           VERSION=$(node -p "require('./app/audit-extension/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -107,11 +119,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
           KEEP_COUNT=10
 
           gh release list --limit 1000 --json tagName,createdAt \
             --jq "[.[] | select(.tagName | test(\"^v${VERSION}-[a-f0-9]+$\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
             | while read -r tag; do
-              [ -n "$tag" ] && gh release delete "$tag" --yes --cleanup-tag && echo "Deleted: $tag"
+              if [ -n "$tag" ]; then
+                gh release delete "$tag" --yes --cleanup-tag || echo "Failed to delete: $tag"
+              fi
             done
