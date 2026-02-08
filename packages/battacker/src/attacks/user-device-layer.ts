@@ -551,12 +551,12 @@ async function simulateBrowserHistoryHijacking(): Promise<AttackResult> {
     }
 
     // ジャッキング3: popstate イベントのハイジャック
-    const popstateHandler = (event: any) => {
+    const popstateHandler = (event: PopStateEvent) => {
       event.preventDefault();
       // ユーザーの戻る操作を防止
       history.forward();
     };
-    window.addEventListener("popstate", popstateHandler);
+    window.addEventListener("popstate", popstateHandler as EventListener);
 
     historyHijackVectors.push({
       vector: "popstate event hijacking",

@@ -104,10 +104,10 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
 
   try {
     type WebTransportType = {
-      new (url: string): any;
+      new (url: string): unknown;
     };
 
-    const WebTransport = (globalThis as any).WebTransport as
+    const WebTransport = (globalThis as unknown).WebTransport as
       | WebTransportType
       | undefined;
 
@@ -180,10 +180,10 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
   const startTime = performance.now();
 
   try {
-    const RTCPeerConnection =
-      (window as any).RTCPeerConnection ||
-      (window as any).webkitRTCPeerConnection ||
-      (window as any).mozRTCPeerConnection;
+    const RTCPeerConnection: typeof RTCPeerConnection | undefined =
+      (window as unknown as Record<string, unknown>).RTCPeerConnection as typeof RTCPeerConnection | undefined ||
+      (window as unknown as Record<string, unknown>).webkitRTCPeerConnection as typeof RTCPeerConnection | undefined ||
+      (window as unknown as Record<string, unknown>).mozRTCPeerConnection as typeof RTCPeerConnection | undefined;
 
     if (!RTCPeerConnection) {
       return {
@@ -231,30 +231,30 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
         });
       };
 
-      dataChannel.onerror = (error: any) => {
+      dataChannel.onerror = (error: RTCErrorEvent) => {
         clearTimeout(timeout);
         peerConnection.close();
 
         resolve({
           blocked: true,
           executionTime: performance.now() - startTime,
-          details: `WebRTC DataChannel error: ${error.message}`,
+          details: `WebRTC DataChannel error: ${error.error?.message ?? "Unknown error"}`,
         });
       };
 
-      peerConnection.onerror = (error: any) => {
+      peerConnection.onerror = (error: RTCErrorEvent) => {
         clearTimeout(timeout);
         peerConnection.close();
 
         resolve({
           blocked: true,
           executionTime: performance.now() - startTime,
-          details: `WebRTC connection error: ${error.message}`,
+          details: `WebRTC connection error: ${error.error?.message ?? "Unknown error"}`,
         });
       };
 
       // ICE candidates collection
-      peerConnection.onicecandidate = (event: any) => {
+      peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         if (!event.candidate) {
           // ICE gathering complete
         }
