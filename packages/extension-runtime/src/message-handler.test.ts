@@ -154,7 +154,7 @@ describe("createMessageRouter", () => {
       });
     });
 
-    it("returns true for unregistered message types", () => {
+    it("returns false for unregistered message types", () => {
       router.listen();
 
       const listener = mockAddListener.mock.calls[0][0];
@@ -164,7 +164,7 @@ describe("createMessageRouter", () => {
         vi.fn()
       );
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("does not call handler for unregistered message types", () => {

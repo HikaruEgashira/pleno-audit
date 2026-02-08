@@ -44,13 +44,13 @@ export function createMessageRouter() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const config = handlers.get(message.type);
       if (!config) {
-        return true;
+        return false;
       }
 
       const data = message.data ?? message.payload;
 
-      config
-        .handler(data, sender)
+      Promise.resolve()
+        .then(() => config.handler(data, sender))
         .then(sendResponse)
         .catch((error) => {
           logger.error(`Error handling ${config.logPrefix}:`, error);
