@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import { ThemeContext, useTheme, useThemeState } from "../../lib/theme";
-import { NotificationBanner, Sidebar, useNotifications } from "../../components";
+import { ErrorBoundary, NotificationBanner, Sidebar, useNotifications } from "../../components";
 import { SkeletonDashboard } from "../../components/Skeleton";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { loadingTabs, tabs } from "./constants";
@@ -178,7 +178,9 @@ export function DashboardApp() {
 
   return (
     <ThemeContext.Provider value={themeState}>
-      <DashboardContent />
+      <ErrorBoundary>
+        <DashboardContent />
+      </ErrorBoundary>
     </ThemeContext.Provider>
   );
 }

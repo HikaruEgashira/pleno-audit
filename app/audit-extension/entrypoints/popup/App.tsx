@@ -8,7 +8,7 @@ import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { StorageData, DoHRequestRecord } from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
-import { Badge, Button, PopupSettingsMenu } from "../../components";
+import { Badge, Button, ErrorBoundary, PopupSettingsMenu } from "../../components";
 import {
   ServiceTab,
   EventTab,
@@ -250,7 +250,9 @@ export function App() {
 
   return (
     <ThemeContext.Provider value={themeState}>
-      <PopupContent />
+      <ErrorBoundary>
+        <PopupContent />
+      </ErrorBoundary>
     </ThemeContext.Provider>
   );
 }
