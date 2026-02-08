@@ -41,7 +41,7 @@ jobs:
 
       - name: Check for untracked files
         run: |
-          UNTRACKED=$(git status --porcelain | grep '^??')
+          UNTRACKED=$(git status --porcelain | grep '^??' || true)
           if [ -n "$UNTRACKED" ]; then
             echo "ERROR: Untracked files detected:"
             echo "$UNTRACKED"
@@ -119,7 +119,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
           KEEP_COUNT=10
 
@@ -127,6 +127,6 @@ jobs:
             --jq "[.[] | select(.tagName | test(\"^v${VERSION}-[a-f0-9]+$\"))] | sort_by(.createdAt) | reverse | .[${KEEP_COUNT}:] | .[].tagName" \
             | while read -r tag; do
               if [ -n "$tag" ]; then
-                gh release delete "$tag" --yes --cleanup-tag && echo "Deleted: $tag"
+                gh release delete "$tag" --yes --cleanup-tag || echo "Failed to delete: $tag"
               fi
             done
