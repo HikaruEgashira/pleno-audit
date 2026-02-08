@@ -28,12 +28,12 @@ async function simulateSharedWorker(): Promise<AttackResult> {
         });
       };
 
-      worker.port.addEventListener("error", (err: any) => {
+      worker.port.addEventListener("error", (err: Event) => {
         clearTimeout(timeout);
         resolve({
           blocked: true,
           executionTime: performance.now() - startTime,
-          details: `SharedWorker blocked: ${err.message}`,
+          details: `SharedWorker blocked: ${err instanceof ErrorEvent ? err.message : "Unknown error"}`,
         });
       });
 

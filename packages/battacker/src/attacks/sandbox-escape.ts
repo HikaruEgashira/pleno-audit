@@ -117,7 +117,7 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
 
     // ステップ1: Object.prototype の基本的な改変
     try {
-      const obj: any = {};
+      const obj: Record<string, unknown> = {};
 
       // プロトタイプ改変（通常はできない）
       Object.defineProperty(Object.prototype, "polluted", {
@@ -127,21 +127,21 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
       });
 
       // 別のオブジェクトで確認
-      const testObj: any = {};
+      const testObj: Record<string, unknown> = {};
       if (testObj.polluted === true) {
         pollutionSuccess = true;
         pollutedProperties.push("polluted");
       }
 
       // クリーンアップ
-      delete (Object.prototype as any).polluted;
+      delete (Object.prototype as Record<string, unknown>).polluted;
     } catch (e) {
       // Prototype改変ブロック
     }
 
     // ステップ2: Constructor プロトタイプ汚染
     try {
-      const target: any = {};
+      const target: Record<string, unknown> = {};
       const payload = {
         constructor: {
           prototype: {
@@ -151,21 +151,21 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
       };
 
       // Deep merge シミュレーション
-      function merge(dst: any, src: any) {
+      function merge(dst: Record<string, unknown>, src: Record<string, unknown>) {
         for (const key in src) {
           if (typeof src[key] === "object" && src[key] !== null) {
             dst[key] = dst[key] || {};
-            merge(dst[key], src[key]);
+            merge(dst[key] as Record<string, unknown>, src[key] as Record<string, unknown>);
           } else {
             dst[key] = src[key];
           }
         }
       }
 
-      merge(target, payload);
+      merge(target, payload as Record<string, unknown>);
 
       // 汚染の確認
-      const newObj: any = {};
+      const newObj: Record<string, unknown> = {};
       if (newObj.malicious === "payload") {
         pollutionSuccess = true;
         pollutedProperties.push("constructor");
@@ -176,20 +176,20 @@ async function simulatePrototypePollutionChain(): Promise<AttackResult> {
 
     // ステップ3: __proto__ を通じた汚染
     try {
-      const obj: any = JSON.parse('{}');
+      const obj = JSON.parse('{}') as Record<string, unknown>;
       const proto = Object.getPrototypeOf(obj);
 
       // __proto__ アクセス
-      (obj as any).__proto__.isAdmin = true;
+      Object.setPrototypeOf(obj, { ...proto, isAdmin: true });
 
-      const checkObj: any = {};
+      const checkObj: Record<string, unknown> = {};
       if (checkObj.isAdmin === true) {
         pollutionSuccess = true;
         pollutedProperties.push("__proto__");
       }
 
       // クリーンアップ
-      delete (Object.prototype as any).isAdmin;
+      delete (Object.prototype as Record<string, unknown>).isAdmin;
     } catch (e) {
       // __proto__ アクセスブロック
     }
