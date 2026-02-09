@@ -82,6 +82,7 @@ export interface RuntimeHandlerDependencies {
     data: unknown,
   ) => Promise<{ success: boolean; data?: unknown; error?: string }>;
   getKnownExtensions: () => Record<string, { id: string; name: string; version: string; enabled: boolean; icons?: { size: number; url: string }[] }>;
+  markOffscreenReady: () => void;
 
   handlePageAnalysis: (payload: unknown) => Promise<void>;
   handleCSPViolation: (

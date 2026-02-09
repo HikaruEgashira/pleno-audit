@@ -9,7 +9,10 @@ export function createDirectHandlers(
       return false;
     }],
     ["LOCAL_API_REQUEST", () => false],
-    ["OFFSCREEN_READY", () => false],
+    ["OFFSCREEN_READY", () => {
+      deps.markOffscreenReady();
+      return false;
+    }],
     ["DEBUG_BRIDGE_CONNECTED", () => {
       deps.logger.debug("Debug bridge: connected");
       return false;
