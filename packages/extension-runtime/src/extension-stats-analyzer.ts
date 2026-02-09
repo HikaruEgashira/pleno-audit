@@ -371,11 +371,16 @@ export function generateDashboardStats(
     .sort((a, b) => b.count - a.count)
     .slice(0, 20); // TOP 20
 
-  // 日付範囲
-  const timestamps = records.map((r) => r.timestamp);
+  // 日付範囲（Math.min/max(...array)はV8引数上限で溢れるためループで算出）
+  let minTimestamp = records[0].timestamp;
+  let maxTimestamp = records[0].timestamp;
+  for (const record of records) {
+    if (record.timestamp < minTimestamp) minTimestamp = record.timestamp;
+    if (record.timestamp > maxTimestamp) maxTimestamp = record.timestamp;
+  }
   const dateRange = {
-    start: Math.min(...timestamps),
-    end: Math.max(...timestamps),
+    start: minTimestamp,
+    end: maxTimestamp,
   };
 
   return {

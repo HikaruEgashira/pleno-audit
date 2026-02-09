@@ -132,22 +132,22 @@ export function createPolicyGenerator() {
 
     // AI利用ポリシー生成
     if (input.aiUsage) {
-      rules.push(...generateAIPolicies(input.aiUsage));
+      for (const r of generateAIPolicies(input.aiUsage)) rules.push(r);
     }
 
     // データ保護ポリシー生成
     if (input.dlpDetections) {
-      rules.push(...generateDLPPolicies(input.dlpDetections));
+      for (const r of generateDLPPolicies(input.dlpDetections)) rules.push(r);
     }
 
     // 拡張機能ポリシー生成
     if (input.extensionRisks) {
-      rules.push(...generateExtensionPolicies(input.extensionRisks));
+      for (const r of generateExtensionPolicies(input.extensionRisks)) rules.push(r);
     }
 
     // ドメインポリシー生成
     if (input.domainVisits) {
-      rules.push(...generateDomainPolicies(input.domainVisits));
+      for (const r of generateDomainPolicies(input.domainVisits)) rules.push(r);
     }
 
     // サマリー作成

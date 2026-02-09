@@ -144,7 +144,8 @@ export function OverviewTab({
               );
               return { offset, dayStart, dayEnd, count, hasRisk };
             });
-            const maxCount = Math.max(...dayData.map((d) => d.count), 1);
+            let maxCount = 1;
+            for (const d of dayData) { if (d.count > maxCount) maxCount = d.count; }
             const dayLabels = ["月", "火", "水", "木", "金", "土", "日"];
             const todayIndex = new Date().getDay();
             return dayData.map(({ offset, count, hasRisk }, i) => {

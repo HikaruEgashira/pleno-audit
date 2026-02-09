@@ -181,8 +181,12 @@ async function simulateArrayBufferAllocationChainExploit(): Promise<
     }
 
     // アロケーション時間パターンから内部メモリマップを推測
-    const minAllocationTime = Math.min(...allocationPatterns);
-    const maxAllocationTime = Math.max(...allocationPatterns);
+    let minAllocationTime = allocationPatterns[0];
+    let maxAllocationTime = allocationPatterns[0];
+    for (const t of allocationPatterns) {
+      if (t < minAllocationTime) minAllocationTime = t;
+      if (t > maxAllocationTime) maxAllocationTime = t;
+    }
     const allocationVariance = maxAllocationTime - minAllocationTime;
 
     const executionTime = performance.now() - startTime;

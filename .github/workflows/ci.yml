@@ -56,6 +56,9 @@ jobs:
       - name: Run oxlint
         run: pnpm lint
 
+      - name: Check unsafe spread patterns
+        run: bash scripts/check-unsafe-spread.sh
+
   build:
     name: Build
     runs-on: ubuntu-latest

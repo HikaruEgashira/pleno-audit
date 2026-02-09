@@ -129,7 +129,8 @@ const periodOptions = [
 
 function HorizontalBarChart({ data, title, colors, isDark }: { data: { label: string; value: number }[]; title: string; colors: ThemeColors; isDark: boolean }) {
   const styles = createStyles(colors, isDark);
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  let maxValue = 1;
+  for (const d of data) { if (d.value > maxValue) maxValue = d.value; }
   const displayData = data.slice(0, 8);
 
   return (

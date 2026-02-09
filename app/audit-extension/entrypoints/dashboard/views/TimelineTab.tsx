@@ -183,7 +183,8 @@ export function TimelineTab() {
   }, [filteredEvents]);
 
   const peakHour = useMemo(() => {
-    const max = Math.max(...hourlyDistribution);
+    let max = 0;
+    for (const v of hourlyDistribution) { if (v > max) max = v; }
     if (max === 0) return null;
     return hourlyDistribution.indexOf(max);
   }, [hourlyDistribution]);
