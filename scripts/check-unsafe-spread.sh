@@ -6,20 +6,32 @@
 #   .push(...expr)       - use for-of loop instead
 #   Math.min(...expr)    - use loop to find min instead
 #   Math.max(...expr)    - use loop to find max instead
-#   Function.apply(ctx, largeArray) - same risk as spread
 
 set -euo pipefail
+
+# Ensure grep -rP (PCRE) is available as fallback
+search_pattern() {
+  local pattern="$1"
+  if command -v rg &>/dev/null; then
+    rg "$pattern" \
+      --glob '**/*.ts' --glob '**/*.tsx' --glob '**/*.js' \
+      --glob '!**/node_modules/**' --glob '!**/*.test.*' --glob '!**/*.spec.*' \
+      --glob '!**/dist/**' --glob '!**/.output/**' --glob '!**/.wxt-dev/**' \
+      -n 2>/dev/null || true
+  else
+    grep -rPn "$pattern" \
+      --include='*.ts' --include='*.tsx' --include='*.js' \
+      --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.output --exclude-dir=.wxt-dev \
+      . 2>/dev/null | grep -v '\.test\.\|\.spec\.' || true
+  fi
+}
 
 ERRORS=0
 
 echo "Checking for unsafe spread patterns that cause stack overflow..."
 
 # .push(...anything) in source files (not tests, not node_modules)
-PUSH_HITS=$(rg '\.push\(\.\.\.' \
-  --glob '**/*.ts' --glob '**/*.tsx' --glob '**/*.js' \
-  --glob '!**/node_modules/**' --glob '!**/*.test.*' --glob '!**/*.spec.*' \
-  --glob '!**/dist/**' --glob '!**/.output/**' --glob '!**/.wxt-dev/**' \
-  -n 2>/dev/null || true)
+PUSH_HITS=$(search_pattern '\.push\(\.\.\.')
 
 if [ -n "$PUSH_HITS" ]; then
   echo ""
@@ -29,11 +41,7 @@ if [ -n "$PUSH_HITS" ]; then
 fi
 
 # Math.min(...anything) or Math.max(...anything)
-MATH_HITS=$(rg 'Math\.(min|max)\(\.\.\.' \
-  --glob '**/*.ts' --glob '**/*.tsx' --glob '**/*.js' \
-  --glob '!**/node_modules/**' --glob '!**/*.test.*' --glob '!**/*.spec.*' \
-  --glob '!**/dist/**' --glob '!**/.output/**' --glob '!**/.wxt-dev/**' \
-  -n 2>/dev/null || true)
+MATH_HITS=$(search_pattern 'Math\.(min|max)\(\.\.\.')
 
 if [ -n "$MATH_HITS" ]; then
   echo ""
