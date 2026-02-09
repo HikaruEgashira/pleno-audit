@@ -100,7 +100,10 @@ export class ParquetStore {
 
     const rows: Record<string, unknown>[] = [];
     for (const file of files) {
-      rows.push(...this.deserializeParquetData(file.data));
+      const data = this.deserializeParquetData(file.data);
+      for (const row of data) {
+        rows.push(row);
+      }
     }
     return rows;
   }
@@ -303,7 +306,9 @@ export class ParquetStore {
 
     for (const record of records) {
       const data = this.deserializeParquetData(record.data);
-      allData.push(...data);
+      for (const item of data) {
+        allData.push(item);
+      }
     }
 
     return allData;
