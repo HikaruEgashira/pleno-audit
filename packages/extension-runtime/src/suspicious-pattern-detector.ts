@@ -371,10 +371,10 @@ export function detectAllSuspiciousPatterns(
 ): SuspiciousPattern[] {
   const allPatterns: SuspiciousPattern[] = [];
 
-  allPatterns.push(...detectBulkRequests(records, config));
-  allPatterns.push(...detectLateNightActivity(records, config));
-  allPatterns.push(...detectEncodedParameters(records, config));
-  allPatterns.push(...detectDomainDiversity(records, config));
+  for (const p of detectBulkRequests(records, config)) allPatterns.push(p);
+  for (const p of detectLateNightActivity(records, config)) allPatterns.push(p);
+  for (const p of detectEncodedParameters(records, config)) allPatterns.push(p);
+  for (const p of detectDomainDiversity(records, config)) allPatterns.push(p);
 
   // タイムスタンプでソート
   allPatterns.sort((a, b) => b.timestamp - a.timestamp);

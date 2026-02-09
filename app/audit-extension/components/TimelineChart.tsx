@@ -92,7 +92,8 @@ export function TimelineChart({
     }));
   }, [data, granularity, maxBars]);
 
-  const maxValue = Math.max(...aggregatedData.map((d) => d.value), 1);
+  let maxValue = 1;
+  for (const d of aggregatedData) { if (d.value > maxValue) maxValue = d.value; }
 
   if (aggregatedData.length === 0) {
     return (
@@ -219,7 +220,8 @@ export function StackedTimelineChart({
     }));
   }, [data, granularity, maxBars, typeColors, colors.textMuted]);
 
-  const maxValue = Math.max(...aggregatedData.map((d) => d.total), 1);
+  let maxValue = 1;
+  for (const d of aggregatedData) { if (d.total > maxValue) maxValue = d.total; }
 
   if (aggregatedData.length === 0) {
     return (
@@ -351,7 +353,8 @@ export function ActivityHeatmap({
     return grid;
   }, [data, days]);
 
-  const maxValue = Math.max(...heatmapData.flat(), 1);
+  let maxValue = 1;
+  for (const row of heatmapData) { for (const v of row) { if (v > maxValue) maxValue = v; } }
 
   // 曜日ラベル
   const dayLabels = useMemo(() => {

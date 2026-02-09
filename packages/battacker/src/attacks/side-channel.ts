@@ -209,7 +209,7 @@ async function simulateSpectreTimingMitigation(): Promise<AttackResult> {
     const nonZeroMeasurements = measurements.filter((m) => m > 0);
     const minResolution =
       nonZeroMeasurements.length > 0
-        ? Math.min(...nonZeroMeasurements)
+        ? nonZeroMeasurements.reduce((a, b) => a < b ? a : b)
         : 0;
 
     const executionTime = performance.now() - startTime;

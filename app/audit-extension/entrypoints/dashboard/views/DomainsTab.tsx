@@ -45,7 +45,8 @@ export function DomainsTab({ styles, domainStats, violations, networkRequests }:
             }
           });
           const timestamps = domainViolations.map((v) => new Date(v.timestamp).getTime());
-          const lastSeenMs = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+          let lastSeenMs = 0;
+          for (const t of timestamps) { if (t > lastSeenMs) lastSeenMs = t; }
           return {
             ...d,
             requests: networkRequests.filter((r) => r.domain === d.label).length,

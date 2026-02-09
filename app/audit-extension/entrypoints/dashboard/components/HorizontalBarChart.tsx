@@ -9,7 +9,8 @@ interface HorizontalBarChartProps {
 }
 
 export function HorizontalBarChart({ data, title, styles }: HorizontalBarChartProps) {
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  let maxValue = 1;
+  for (const d of data) { if (d.value > maxValue) maxValue = d.value; }
   const displayData = data.slice(0, 8);
 
   return (

@@ -20,7 +20,9 @@ export class WriteBuffer<T> {
 
   async add(type: ParquetLogType, records: T[]): Promise<void> {
     const buffer = this.getOrCreateBuffer(type);
-    buffer.records.push(...records);
+    for (const record of records) {
+      buffer.records.push(record);
+    }
     buffer.lastFlush = Date.now();
 
     // バッファサイズチェック

@@ -74,7 +74,9 @@ class AIPatternAnalyzer {
    * Add multiple events
    */
   addEvents(events: AIUsageEvent[]): void {
-    this.events.push(...events);
+    for (const event of events) {
+      this.events.push(event);
+    }
   }
 
   /**

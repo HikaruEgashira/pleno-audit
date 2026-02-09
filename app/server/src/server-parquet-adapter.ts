@@ -109,7 +109,9 @@ export class ServerParquetAdapter {
   private async bufferWrite(type: ParquetLogType, records: unknown[]): Promise<void> {
     const key = `${type}-${getDateString(new Date())}`;
     const existing = this.writeBuffer.get(key) || [];
-    existing.push(...records);
+    for (const record of records) {
+      existing.push(record);
+    }
     this.writeBuffer.set(key, existing);
 
     if (existing.length >= this.BUFFER_SIZE) {
