@@ -29,15 +29,10 @@ let offscreenReady = false;
 let offscreenCreating: Promise<void> | null = null;
 let offscreenReadyResolvers: (() => void)[] = [];
 
-if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === "OFFSCREEN_READY") {
-      offscreenReady = true;
-      offscreenReadyResolvers.forEach(resolve => resolve());
-      offscreenReadyResolvers = [];
-    }
-    return false;
-  });
+export function markOffscreenReady(): void {
+  offscreenReady = true;
+  offscreenReadyResolvers.forEach(resolve => resolve());
+  offscreenReadyResolvers = [];
 }
 
 async function waitForOffscreenReady(timeout = 15000): Promise<void> {

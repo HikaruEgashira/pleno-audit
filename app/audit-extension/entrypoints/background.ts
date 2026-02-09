@@ -13,6 +13,7 @@ import {
   migrateToDatabase,
   getSSOManager,
   ensureOffscreenDocument,
+  markOffscreenReady,
   getStorage,
   setStorage,
   clearAIPrompts,
@@ -392,6 +393,7 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     },
     handleDebugBridgeForward,
     getKnownExtensions,
+    markOffscreenReady,
     handlePageAnalysis: async (payload) =>
       backgroundAnalysis.handlePageAnalysis(payload as PageAnalysis),
     handleCSPViolation: (data, sender) => cspReportingService.handleCSPViolation(data as Omit<CSPViolation, "type">, sender),
