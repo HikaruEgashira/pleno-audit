@@ -79,7 +79,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build battacker package
+        run: pnpm --filter @pleno-audit/battacker build
+
+      - name: Build extension
         run: pnpm build
 
   fuzz:
