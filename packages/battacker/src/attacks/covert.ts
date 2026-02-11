@@ -104,7 +104,7 @@ async function simulateWebTransportAttempt(): Promise<AttackResult> {
 
   try {
     type WebTransportType = {
-      new (url: string): unknown;
+      new (url: string): { ready: Promise<void> };
     };
 
     const WebTransport = (globalThis as unknown as Record<string, unknown>).WebTransport as
@@ -242,16 +242,18 @@ async function simulateWebRTCDataChannel(): Promise<AttackResult> {
         });
       };
 
-      peerConnection.onerror = (error: RTCErrorEvent) => {
-        clearTimeout(timeout);
-        peerConnection.close();
+      peerConnection.addEventListener("connectionstatechange", () => {
+        if (peerConnection.connectionState === "failed") {
+          clearTimeout(timeout);
+          peerConnection.close();
 
-        resolve({
-          blocked: true,
-          executionTime: performance.now() - startTime,
-          details: `WebRTC connection error: ${error.error?.message ?? "Unknown error"}`,
-        });
-      };
+          resolve({
+            blocked: true,
+            executionTime: performance.now() - startTime,
+            details: "WebRTC connection failed",
+          });
+        }
+      });
 
       // ICE candidates collection
       peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
