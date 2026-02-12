@@ -13,8 +13,8 @@
     "comparison": "npx tsx src/comparison-report.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1",
-    "playwright": "^1.58.1",
+    "@playwright/test": "^1.58.2",
+    "playwright": "^1.58.2",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3"
   }
