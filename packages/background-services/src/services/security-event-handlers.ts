@@ -1,4 +1,5 @@
 import type { AlertManager } from "@pleno-audit/alerts";
+import { resolveEventTimestamp } from "./event-timestamp";
 
 interface LoggerLike {
   debug: (...args: unknown[]) => void;
@@ -125,14 +126,6 @@ function sourceLabel(source?: string): string {
   return source || "unknown";
 }
 
-function resolveEventTimestamp(timestamp: string | undefined): number {
-  if (!timestamp) {
-    return Date.now();
-  }
-  const parsed = Date.parse(timestamp);
-  return Number.isNaN(parsed) ? Date.now() : parsed;
-}
-
 export function createSecurityEventHandlers(
   deps: SecurityEventHandlerDependencies,
 ) {
@@ -188,11 +181,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "credential_theft_risk",
+      });
 
       await deps.addEvent({
         type: "credential_theft_risk",
         domain: data.targetDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           formAction: data.formAction,
           targetDomain: data.targetDomain,
@@ -233,11 +230,15 @@ export function createSecurityEventHandlers(
     ): Promise<{ success: boolean }> {
       const resourceDomain = deps.extractDomainFromUrl(data.url);
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "supply_chain_risk",
+      });
 
       await deps.addEvent({
         type: "supply_chain_risk",
         domain: resourceDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           url: data.url,
           resourceType: data.resourceType,
@@ -275,11 +276,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "tracking_beacon_detected",
+      });
 
       await deps.addEvent({
         type: "tracking_beacon_detected",
         domain: data.targetDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           url: data.url,
           targetDomain: data.targetDomain,
@@ -310,11 +315,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "clipboard_hijack_detected",
+      });
 
       await deps.addEvent({
         type: "clipboard_hijack_detected",
         domain: pageDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           text: data.text,
           cryptoType: data.cryptoType,
@@ -342,11 +351,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "cookie_access_detected",
+      });
 
       await deps.addEvent({
         type: "cookie_access_detected",
         domain: pageDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           readCount: data.readCount,
           pageUrl: data.pageUrl,
@@ -370,11 +383,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "xss_detected",
+      });
 
       await deps.addEvent({
         type: "xss_detected",
         domain: pageDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           type: data.type,
           payloadPreview: data.payloadPreview,
@@ -401,11 +418,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "dom_scraping_detected",
+      });
 
       await deps.addEvent({
         type: "dom_scraping_detected",
         domain: pageDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           selector: data.selector,
           callCount: data.callCount,
@@ -432,11 +453,15 @@ export function createSecurityEventHandlers(
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
+      const eventTimestamp = resolveEventTimestamp(data.timestamp, {
+        logger: deps.logger,
+        context: "suspicious_download_detected",
+      });
 
       await deps.addEvent({
         type: "suspicious_download_detected",
         domain: pageDomain,
-        timestamp: Date.now(),
+        timestamp: eventTimestamp,
         details: {
           type: data.type,
           filename: data.filename,
