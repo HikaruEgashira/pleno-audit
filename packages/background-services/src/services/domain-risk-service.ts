@@ -23,6 +23,7 @@ import {
   typosquatResultToParquetRecord,
   type ParquetStore,
 } from "@pleno-audit/parquet-storage";
+import { resolveEventTimestamp } from "./event-timestamp";
 
 interface LoggerLike {
   error: (...args: unknown[]) => void;
@@ -128,7 +129,9 @@ export function createDomainRiskService(deps: DomainRiskServiceDeps): DomainRisk
         await deps.addEvent({
           type: "nrd_detected",
           domain: result.domain,
-          timestamp: Date.now(),
+          timestamp: resolveEventTimestamp(result.checkedAt, {
+            context: "nrd_detected",
+          }),
           details: {
             isNRD: result.isNRD,
             confidence: result.confidence,
@@ -222,7 +225,9 @@ export function createDomainRiskService(deps: DomainRiskServiceDeps): DomainRisk
         await deps.addEvent({
           type: "typosquat_detected",
           domain: result.domain,
-          timestamp: Date.now(),
+          timestamp: resolveEventTimestamp(result.checkedAt, {
+            context: "typosquat_detected",
+          }),
           details: {
             isTyposquat: result.isTyposquat,
             confidence: result.confidence,

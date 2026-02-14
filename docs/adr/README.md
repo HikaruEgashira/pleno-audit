@@ -21,3 +21,4 @@
 | [033](./033-unlimited-storage-for-zta.md) | ZTA監査証跡のためのunlimitedStorage採用 | Accepted |
 | [034](./034-network-monitor.md) | Network Monitor - 全ネットワークリクエスト監視 | Accepted |
 | [048](./048-lib-to-packages-migration.md) | lib/原則禁止とpackages/移行方針 | Accepted |
+| [049](./049-event-timestamp-source-of-truth.md) | イベント時刻の単一責務化 | Accepted |
