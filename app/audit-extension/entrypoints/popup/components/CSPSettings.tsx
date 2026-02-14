@@ -46,7 +46,12 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
-      setViewState({ kind: "ready", config: previousConfig });
+      setViewState((current) => {
+        if (current.kind !== "ready") return current;
+        return current.config[key] === newConfig[key]
+          ? { kind: "ready", config: previousConfig }
+          : current;
+      });
     });
   }
 
@@ -60,7 +65,12 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
-      setViewState({ kind: "ready", config: previousConfig });
+      setViewState((current) => {
+        if (current.kind !== "ready") return current;
+        return current.config.reportEndpoint === newConfig.reportEndpoint
+          ? { kind: "ready", config: previousConfig }
+          : current;
+      });
     });
   }
 
@@ -216,7 +226,7 @@ export function CSPSettings() {
             <input
               type="url"
               style={styles.endpointInput}
-              value={endpoint}
+              value={config.reportEndpoint ?? ""}
               onChange={(e) => handleEndpointChange((e.target as HTMLInputElement).value)}
               placeholder="https://example.com/csp-report"
             />
