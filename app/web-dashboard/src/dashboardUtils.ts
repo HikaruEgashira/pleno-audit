@@ -14,7 +14,11 @@ export function getPeriodMs(period: Period): number {
       return 7 * 24 * 60 * 60 * 1000;
     case "30d":
       return 30 * 24 * 60 * 60 * 1000;
-    default:
+    case "all":
       return Number.MAX_SAFE_INTEGER;
+    default: {
+      const exhaustiveCheck: never = period;
+      return exhaustiveCheck;
+    }
   }
 }

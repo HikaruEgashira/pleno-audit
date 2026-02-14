@@ -35,6 +35,7 @@ export function DoHSettings() {
 
   function handleActionChange(action: DoHAction) {
     if (!config) return;
+    const previousConfig = config;
     const newConfig = { ...config, action };
     setConfig(newConfig);
     sendMessage({
@@ -43,8 +44,21 @@ export function DoHSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
       setErrorMessage("DoH設定の保存に失敗しました");
+      setConfig(previousConfig);
     });
   }
+
+  const errorContainerStyle = {
+    marginTop: "12px",
+    borderTop: `1px solid ${colors.border}`,
+    paddingTop: "12px",
+  };
+
+  const errorTextStyle = {
+    marginTop: "8px",
+    fontSize: "11px",
+    color: colors.status.danger.text,
+  };
 
   const styles = {
     container: {
@@ -115,7 +129,13 @@ export function DoHSettings() {
     },
   };
 
-  if (!config) return null;
+  if (!config) {
+    return errorMessage ? (
+      <div style={errorContainerStyle}>
+        <p style={errorTextStyle}>{errorMessage}</p>
+      </div>
+    ) : null;
+  }
 
   return (
     <div style={styles.container}>

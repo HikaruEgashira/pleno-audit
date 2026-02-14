@@ -37,6 +37,7 @@ export function CSPSettings() {
 
   function handleToggle(key: CSPOption["key"]) {
     if (!config) return;
+    const previousConfig = config;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     sendMessage({
@@ -45,20 +46,37 @@ export function CSPSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
       setErrorMessage("CSP設定の保存に失敗しました");
+      setConfig(previousConfig);
     });
   }
 
   function handleEndpointChange(value: string) {
-    setEndpoint(value);
     if (!config) return;
+    const previousConfig = config;
+    const previousEndpoint = endpoint;
+    setEndpoint(value);
     sendMessage({
       type: "SET_CSP_CONFIG",
       data: { ...config, reportEndpoint: value || null },
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
       setErrorMessage("レポートURLの保存に失敗しました");
+      setConfig(previousConfig);
+      setEndpoint(previousEndpoint);
     });
   }
+
+  const errorContainerStyle = {
+    marginTop: "12px",
+    borderTop: `1px solid ${colors.border}`,
+    paddingTop: "12px",
+  };
+
+  const errorTextStyle = {
+    marginTop: "8px",
+    fontSize: "11px",
+    color: colors.status.danger.text,
+  };
 
   const styles = {
     container: {
@@ -146,7 +164,13 @@ export function CSPSettings() {
     },
   };
 
-  if (!config) return null;
+  if (!config) {
+    return errorMessage ? (
+      <div style={errorContainerStyle}>
+        <p style={errorTextStyle}>{errorMessage}</p>
+      </div>
+    ) : null;
+  }
 
   const enabledCount = CSP_OPTIONS.filter(opt => config[opt.key]).length;
 

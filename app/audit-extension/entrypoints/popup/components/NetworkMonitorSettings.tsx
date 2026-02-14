@@ -35,6 +35,7 @@ export function NetworkMonitorSettings() {
 
   function handleToggle(key: NetworkMonitorOption["key"]) {
     if (!config) return;
+    const previousConfig = config;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     sendMessage({
@@ -43,8 +44,21 @@ export function NetworkMonitorSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
       setErrorMessage("ネットワーク監視設定の保存に失敗しました");
+      setConfig(previousConfig);
     });
   }
+
+  const errorContainerStyle = {
+    marginTop: "12px",
+    borderTop: `1px solid ${colors.border}`,
+    paddingTop: "12px",
+  };
+
+  const errorTextStyle = {
+    marginTop: "8px",
+    fontSize: "11px",
+    color: colors.status.danger.text,
+  };
 
   const styles = {
     container: {
@@ -112,7 +126,13 @@ export function NetworkMonitorSettings() {
     },
   };
 
-  if (!config) return null;
+  if (!config) {
+    return errorMessage ? (
+      <div style={errorContainerStyle}>
+        <p style={errorTextStyle}>{errorMessage}</p>
+      </div>
+    ) : null;
+  }
 
   const enabledCount = NETWORK_MONITOR_OPTIONS.filter(opt => config[opt.key]).length;
 
