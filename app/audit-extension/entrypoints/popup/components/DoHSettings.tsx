@@ -50,6 +50,8 @@ export function DoHSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
       setViewState({ kind: "ready", config: previousConfig });
+
+
     });
   }
 

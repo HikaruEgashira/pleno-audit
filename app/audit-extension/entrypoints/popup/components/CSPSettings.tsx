@@ -36,7 +36,8 @@ export function CSPSettings() {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
         setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
         setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
-  
+
+
       });
   }, []);
 
@@ -51,6 +52,7 @@ export function CSPSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
       setViewState({ kind: "ready", config: previousConfig });
+
 
     });
   }
@@ -67,6 +69,7 @@ export function CSPSettings() {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
       setViewState({ kind: "ready", config: previousConfig });
       setEndpointDraft(previousConfig.reportEndpoint ?? "");
+
 
     });
   }
