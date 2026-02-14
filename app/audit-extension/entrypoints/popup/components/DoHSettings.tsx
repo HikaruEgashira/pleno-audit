@@ -15,36 +15,38 @@ const ACTION_OPTIONS: ActionOption[] = [
   { value: "block", label: "ブロック", description: "DoH通信をブロック" },
 ];
 
+type ViewState =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; config: DoHMonitorConfig };
+
 export function DoHSettings() {
   const { colors } = useTheme();
-  const [config, setConfig] = useState<DoHMonitorConfig | null>(null);
+  const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<DoHMonitorConfig>({ type: "GET_DOH_MONITOR_CONFIG" })
       .then((nextConfig) => {
-        setConfig(nextConfig);
-        setErrorMessage("");
+        setViewState({ kind: "ready", config: nextConfig });
       })
       .catch((error) => {
         console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
-        setErrorMessage("DoH設定の取得に失敗しました");
+        setViewState({ kind: "error", message: "DoH設定の取得に失敗しました" });
       });
   }, []);
 
   function handleActionChange(action: DoHAction) {
-    if (!config) return;
-    const previousConfig = config;
-    const newConfig = { ...config, action };
-    setConfig(newConfig);
+    if (viewState.kind !== "ready") return;
+    const previousConfig = viewState.config;
+    const newConfig = { ...previousConfig, action };
+    setViewState({ kind: "ready", config: newConfig });
     sendMessage({
       type: "SET_DOH_MONITOR_CONFIG",
       data: { action },
     }).catch((error) => {
       console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
-      setErrorMessage("DoH設定の保存に失敗しました");
-      setConfig(previousConfig);
+      setViewState({ kind: "ready", config: previousConfig });
     });
   }
 
@@ -129,13 +131,16 @@ export function DoHSettings() {
     },
   };
 
-  if (!config) {
-    return errorMessage ? (
+  if (viewState.kind === "loading") return null;
+
+  if (viewState.kind === "error") {
+    return (
       <div style={errorContainerStyle}>
-        <p style={errorTextStyle}>{errorMessage}</p>
+        <p style={errorTextStyle}>{viewState.message}</p>
       </div>
-    ) : null;
+    );
   }
+  const config = viewState.config;
 
   return (
     <div style={styles.container}>
@@ -181,7 +186,6 @@ export function DoHSettings() {
           ))}
         </div>
       )}
-      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }

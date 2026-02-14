@@ -15,36 +15,38 @@ const NETWORK_MONITOR_OPTIONS: NetworkMonitorOption[] = [
   { key: "excludeOwnExtension", label: "自身を除外", description: "Pleno Auditを除外" },
 ];
 
+type ViewState =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; config: NetworkMonitorConfig };
+
 export function NetworkMonitorSettings() {
   const { colors } = useTheme();
-  const [config, setConfig] = useState<NetworkMonitorConfig | null>(null);
+  const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<NetworkMonitorConfig>({ type: "GET_NETWORK_MONITOR_CONFIG" })
       .then((nextConfig) => {
-        setConfig(nextConfig);
-        setErrorMessage("");
+        setViewState({ kind: "ready", config: nextConfig });
       })
       .catch((error) => {
         console.warn("[popup] GET_NETWORK_MONITOR_CONFIG failed", error);
-        setErrorMessage("ネットワーク監視設定の取得に失敗しました");
+        setViewState({ kind: "error", message: "ネットワーク監視設定の取得に失敗しました" });
       });
   }, []);
 
   function handleToggle(key: NetworkMonitorOption["key"]) {
-    if (!config) return;
-    const previousConfig = config;
-    const newConfig = { ...config, [key]: !config[key] };
-    setConfig(newConfig);
+    if (viewState.kind !== "ready") return;
+    const previousConfig = viewState.config;
+    const newConfig = { ...previousConfig, [key]: !previousConfig[key] };
+    setViewState({ kind: "ready", config: newConfig });
     sendMessage({
       type: "SET_NETWORK_MONITOR_CONFIG",
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
-      setErrorMessage("ネットワーク監視設定の保存に失敗しました");
-      setConfig(previousConfig);
+      setViewState({ kind: "ready", config: previousConfig });
     });
   }
 
@@ -126,13 +128,16 @@ export function NetworkMonitorSettings() {
     },
   };
 
-  if (!config) {
-    return errorMessage ? (
+  if (viewState.kind === "loading") return null;
+
+  if (viewState.kind === "error") {
+    return (
       <div style={errorContainerStyle}>
-        <p style={errorTextStyle}>{errorMessage}</p>
+        <p style={errorTextStyle}>{viewState.message}</p>
       </div>
-    ) : null;
+    );
   }
+  const config = viewState.config;
 
   const enabledCount = NETWORK_MONITOR_OPTIONS.filter(opt => config[opt.key]).length;
 
@@ -172,7 +177,6 @@ export function NetworkMonitorSettings() {
           ))}
         </div>
       )}
-      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }
