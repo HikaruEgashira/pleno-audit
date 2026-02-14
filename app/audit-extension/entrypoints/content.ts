@@ -70,8 +70,8 @@ async function sendToBackground(analysis: PageAnalysis) {
       type: "PAGE_ANALYZED",
       payload: analysis,
     });
-  } catch {
-    // Failed to send analysis
+  } catch (error) {
+    console.warn("[content] PAGE_ANALYZED send failed", error);
   }
 }
 
@@ -81,8 +81,8 @@ async function checkNRD(domain: string) {
       type: "CHECK_NRD",
       data: { domain },
     });
-  } catch {
-    // NRD check failed
+  } catch (error) {
+    console.warn("[content] CHECK_NRD failed", error);
   }
 }
 
@@ -92,8 +92,8 @@ async function checkTyposquat(domain: string) {
       type: "CHECK_TYPOSQUAT",
       data: { domain },
     });
-  } catch {
-    // Typosquat check failed
+  } catch (error) {
+    console.warn("[content] CHECK_TYPOSQUAT failed", error);
   }
 }
 
@@ -126,10 +126,14 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     if (document.readyState === "complete") {
-      runAnalysis().catch(() => {});
+      runAnalysis().catch((error) => {
+        console.warn("[content] initial runAnalysis failed", error);
+      });
     } else {
       window.addEventListener("load", () => {
-        runAnalysis().catch(() => {});
+        runAnalysis().catch((error) => {
+          console.warn("[content] load runAnalysis failed", error);
+        });
       });
     }
   },

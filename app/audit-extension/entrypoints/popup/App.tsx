@@ -103,7 +103,8 @@ function PopupContent() {
         services: servicesResult.services || {},
         events: [],
       });
-    } catch {
+    } catch (error) {
+      console.warn("[popup] storage load failed", error);
       setData({
         services: {},
         events: [],
@@ -127,8 +128,8 @@ function PopupContent() {
       ]);
       if (Array.isArray(vData)) setViolations(vData);
       if (Array.isArray(nData)) setNetworkRequests(nData);
-    } catch {
-      // Failed to load CSP data
+    } catch (error) {
+      console.warn("[popup] CSP data load failed", error);
     }
   }
 
@@ -136,8 +137,8 @@ function PopupContent() {
     try {
       const data = await sendMessage<CapturedAIPrompt[]>({ type: "GET_AI_PROMPTS" });
       if (Array.isArray(data)) setAIPrompts(data);
-    } catch {
-      // Failed to load AI data
+    } catch (error) {
+      console.warn("[popup] AI data load failed", error);
     }
   }
 
@@ -145,8 +146,8 @@ function PopupContent() {
     try {
       const result = await sendMessage<{ requests: DoHRequestRecord[] }>({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
       if (result?.requests) setDoHRequests(result.requests);
-    } catch {
-      // Failed to load DoH data
+    } catch (error) {
+      console.warn("[popup] DoH data load failed", error);
     }
   }
 
@@ -155,7 +156,9 @@ function PopupContent() {
     const services = Object.values(data.services) as DetectedService[];
     aggregateServices(services, networkRequests, violations)
       .then(setUnifiedServices)
-      .catch(() => {});
+      .catch((error) => {
+        console.warn("[popup] aggregateServices failed", error);
+      });
   }, [data.services, networkRequests, violations]);
 
   function openDashboard() {

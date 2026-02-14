@@ -19,11 +19,18 @@ export function NetworkMonitorSettings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<NetworkMonitorConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<NetworkMonitorConfig>({ type: "GET_NETWORK_MONITOR_CONFIG" })
-      .then(setConfig)
-      .catch(() => {});
+      .then((nextConfig) => {
+        setConfig(nextConfig);
+        setErrorMessage("");
+      })
+      .catch((error) => {
+        console.warn("[popup] GET_NETWORK_MONITOR_CONFIG failed", error);
+        setErrorMessage("ネットワーク監視設定の取得に失敗しました");
+      });
   }, []);
 
   function handleToggle(key: NetworkMonitorOption["key"]) {
@@ -33,7 +40,10 @@ export function NetworkMonitorSettings() {
     sendMessage({
       type: "SET_NETWORK_MONITOR_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
+      setErrorMessage("ネットワーク監視設定の保存に失敗しました");
+    });
   }
 
   const styles = {
@@ -95,6 +105,11 @@ export function NetworkMonitorSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (!config) return null;
@@ -137,9 +152,7 @@ export function NetworkMonitorSettings() {
           ))}
         </div>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }
-
-// 後方互換性のためのエイリアス
-export { NetworkMonitorSettings as DNRSettings };

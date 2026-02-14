@@ -20,14 +20,19 @@ export function CSPSettings() {
   const [config, setConfig] = useState<CSPConfig | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
         setConfig(cfg);
         setEndpoint(cfg?.reportEndpoint ?? "");
+        setErrorMessage("");
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.warn("[popup] GET_CSP_CONFIG failed", error);
+        setErrorMessage("CSP設定の取得に失敗しました");
+      });
   }, []);
 
   function handleToggle(key: CSPOption["key"]) {
@@ -37,7 +42,10 @@ export function CSPSettings() {
     sendMessage({
       type: "SET_CSP_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
+      setErrorMessage("CSP設定の保存に失敗しました");
+    });
   }
 
   function handleEndpointChange(value: string) {
@@ -46,7 +54,10 @@ export function CSPSettings() {
     sendMessage({
       type: "SET_CSP_CONFIG",
       data: { ...config, reportEndpoint: value || null },
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
+      setErrorMessage("レポートURLの保存に失敗しました");
+    });
   }
 
   const styles = {
@@ -128,6 +139,11 @@ export function CSPSettings() {
       color: colors.textPrimary,
       outline: "none",
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (!config) return null;
@@ -182,6 +198,7 @@ export function CSPSettings() {
           </div>
         </>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }

@@ -19,11 +19,18 @@ export function DoHSettings() {
   const { colors } = useTheme();
   const [config, setConfig] = useState<DoHMonitorConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<DoHMonitorConfig>({ type: "GET_DOH_MONITOR_CONFIG" })
-      .then(setConfig)
-      .catch(() => {});
+      .then((nextConfig) => {
+        setConfig(nextConfig);
+        setErrorMessage("");
+      })
+      .catch((error) => {
+        console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
+        setErrorMessage("DoH設定の取得に失敗しました");
+      });
   }, []);
 
   function handleActionChange(action: DoHAction) {
@@ -33,7 +40,10 @@ export function DoHSettings() {
     sendMessage({
       type: "SET_DOH_MONITOR_CONFIG",
       data: { action },
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
+      setErrorMessage("DoH設定の保存に失敗しました");
+    });
   }
 
   const styles = {
@@ -98,6 +108,11 @@ export function DoHSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (!config) return null;
@@ -146,6 +161,7 @@ export function DoHSettings() {
           ))}
         </div>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }

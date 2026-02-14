@@ -5,7 +5,7 @@ export function createDashboardStyles(colors: ThemeColors, isDark: boolean) {
     wrapper: {
       display: "flex",
       minHeight: "100vh",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       color: colors.textPrimary,
       background: colors.bgSecondary,
     },
