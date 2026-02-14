@@ -9,11 +9,30 @@ interface ResolveTimestampOptions {
 }
 
 function parseTimestamp(value: unknown): number | null {
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    if (Number.isFinite(timestamp)) {
+      return timestamp;
+    }
+    return null;
+  }
+
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === "string" && value.length > 0) {
-    const parsed = Date.parse(value);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+
+    const parsed = Date.parse(trimmed);
     if (!Number.isNaN(parsed)) {
       return parsed;
     }
