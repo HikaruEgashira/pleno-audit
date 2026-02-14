@@ -32,7 +32,9 @@ const LOCAL_REQUEST_MAX_RETRIES = 1;
 
 export function markOffscreenReady(): void {
   offscreenReady = true;
-  offscreenReadyResolvers.forEach(resolve => resolve());
+  offscreenReadyResolvers.forEach(resolve => {
+    resolve();
+  });
   offscreenReadyResolvers = [];
 }
 
