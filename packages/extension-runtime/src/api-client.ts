@@ -28,11 +28,30 @@ export interface ApiClientConfig {
 let offscreenReady = false;
 let offscreenCreating: Promise<void> | null = null;
 let offscreenReadyResolvers: (() => void)[] = [];
+const LOCAL_REQUEST_MAX_RETRIES = 1;
 
 export function markOffscreenReady(): void {
   offscreenReady = true;
-  offscreenReadyResolvers.forEach(resolve => resolve());
+  offscreenReadyResolvers.forEach(resolve => {
+    resolve();
+  });
   offscreenReadyResolvers = [];
+}
+
+function resetOffscreenState(): void {
+  offscreenReady = false;
+  offscreenCreating = null;
+  offscreenReadyResolvers = [];
+}
+
+function isRetryableMessageChannelError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("A listener indicated an asynchronous response by returning true")
+    || message.includes("message channel closed before a response was received")
+    || message.includes("The message port closed before a response was received")
+    || message.includes("Could not establish connection. Receiving end does not exist")
+  );
 }
 
 async function waitForOffscreenReady(timeout = 15000): Promise<void> {
@@ -93,6 +112,37 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function sendLocalApiMessage<T>(
+  request: { method: string; path: string; body?: unknown },
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = generateId();
+
+    chrome.runtime.sendMessage(
+      {
+        type: "LOCAL_API_REQUEST",
+        id,
+        request,
+      },
+      (response: LocalApiResponse | undefined) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (!response) {
+          reject(new Error("No response from LOCAL_API_REQUEST"));
+          return;
+        }
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+        resolve(response.data as T);
+      }
+    );
+  });
+}
+
 export class ApiClient {
   private mode: ConnectionMode;
   private endpoint: string | null;
@@ -139,33 +189,28 @@ export class ApiClient {
 
   private async localRequest<T>(path: string, options: { method?: string; body?: unknown }): Promise<T> {
     await ensureOffscreenDocument();
+    const request = {
+      method: options.method || "GET",
+      path,
+      body: options.body,
+    };
 
-    return new Promise((resolve, reject) => {
-      const id = generateId();
-
-      chrome.runtime.sendMessage(
-        {
-          type: "LOCAL_API_REQUEST",
-          id,
-          request: {
-            method: options.method || "GET",
-            path,
-            body: options.body,
-          },
-        },
-        (response: LocalApiResponse) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          if (response.error) {
-            reject(new Error(response.error));
-            return;
-          }
-          resolve(response.data as T);
+    let attempt = 0;
+    while (true) {
+      try {
+        return await sendLocalApiMessage<T>(request);
+      } catch (error) {
+        const canRetry = attempt < LOCAL_REQUEST_MAX_RETRIES && isRetryableMessageChannelError(error);
+        if (!canRetry) {
+          throw error;
         }
-      );
-    });
+
+        logger.warn("LOCAL_API_REQUEST failed with message channel error, retrying once");
+        attempt += 1;
+        resetOffscreenState();
+        await ensureOffscreenDocument();
+      }
+    }
   }
 
   setMode(mode: ConnectionMode, endpoint?: string): void {
