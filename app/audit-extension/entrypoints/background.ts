@@ -268,8 +268,7 @@ async function clearAllData(): Promise<{ success: boolean }> {
   }
 }
 
-// Main world script is now registered statically via manifest.json content_scripts
-// Dynamic registration removed to avoid caching issues
+// Main world hooks are enabled for detection, while heavy processing is shifted to async handlers.
 
 const handleDebugBridgeForward = createDebugBridgeHandler({
   getOrInitParquetStore: backgroundEvents.getOrInitParquetStore,
@@ -466,7 +465,6 @@ export default defineBackground(() => {
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
   registerDoHMonitorListener();
-  // Main world script (ai-hooks.js) is registered statically via manifest.json content_scripts
 
   initializeBackgroundServices();
   registerRecurringAlarms();
@@ -499,6 +497,51 @@ export default defineBackground(() => {
     if (!type) {
       logger.warn("Unknown message type:", message.type);
       return false;
+    }
+
+    if (type === "BATCH_RUNTIME_EVENTS") {
+      const events = Array.isArray((message.data as { events?: unknown[] } | undefined)?.events)
+        ? ((message.data as { events: RuntimeMessage[] }).events)
+        : [];
+
+      if (events.length === 0) {
+        sendResponse({ success: true, processed: 0, failed: 0 });
+        return false;
+      }
+
+      void (async () => {
+        let processed = 0;
+        let failed = 0;
+
+        for (const batched of events) {
+          const eventType = typeof batched?.type === "string" ? batched.type : "";
+          if (!eventType) {
+            failed++;
+            continue;
+          }
+
+          const asyncHandler = runtimeHandlers.async.get(eventType);
+          if (!asyncHandler) {
+            failed++;
+            continue;
+          }
+
+          try {
+            await asyncHandler.execute(batched, sender);
+            processed++;
+          } catch (error) {
+            failed++;
+            logger.debug("Batched event failed", {
+              type: eventType,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        sendResponse({ success: true, processed, failed });
+      })();
+
+      return true;
     }
 
     const directHandler = runtimeHandlers.direct.get(type);
