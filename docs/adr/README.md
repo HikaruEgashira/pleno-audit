@@ -22,3 +22,4 @@
 | [034](./034-network-monitor.md) | Network Monitor - 全ネットワークリクエスト監視 | Accepted |
 | [048](./048-lib-to-packages-migration.md) | lib/原則禁止とpackages/移行方針 | Accepted |
 | [049](./049-disable-main-world-hooks.md) | Main Worldを最小化し非同期キュー制御で負荷を抑える | Accepted |
+| [050](./050-event-timestamp-source-of-truth.md) | イベント時刻の単一責務化 | Accepted |

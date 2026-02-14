@@ -8,6 +8,7 @@ import type {
 } from "@pleno-audit/csp";
 import { CSPAnalyzer, CSPReporter, DEFAULT_CSP_CONFIG, type GeneratedCSPByDomain } from "@pleno-audit/csp";
 import type { QueryOptions } from "@pleno-audit/extension-runtime";
+import { resolveEventTimestamp } from "./event-timestamp";
 
 interface MessageSenderLike {
   tab?: {
@@ -19,6 +20,7 @@ interface CSPServiceLogger {
   debug: (message: string, ...args: unknown[]) => void;
   error: (message: string, ...args: unknown[]) => void;
   info?: (message: string, ...args: unknown[]) => void;
+  warn?: (message: string, ...args: unknown[]) => void;
 }
 
 interface ReportsClient {
@@ -225,7 +227,10 @@ export function createCSPReportingService(params: CreateCSPReportingServiceParam
     await params.addEvent({
       type: "csp_violation",
       domain: violation.domain,
-      timestamp: Date.now(),
+      timestamp: resolveEventTimestamp(violation.timestamp, {
+        logger: params.logger,
+        context: "csp_violation",
+      }),
       details: {
         directive: violation.directive,
         blockedURL: violation.blockedURL,

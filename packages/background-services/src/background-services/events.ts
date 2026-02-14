@@ -2,6 +2,7 @@ import { ParquetStore } from "@pleno-audit/parquet-storage";
 import type { EventLog } from "./types";
 import type { BackgroundServiceState } from "./state";
 import type { NewEvent } from "./types";
+import { resolveEventTimestamp } from "../services/event-timestamp";
 
 let parquetStorePromise: Promise<ParquetStore> | null = null;
 
@@ -26,16 +27,21 @@ export async function getOrInitParquetStore(state: BackgroundServiceState): Prom
 export async function addEvent(state: BackgroundServiceState, event: NewEvent): Promise<EventLog> {
   const store = await getOrInitParquetStore(state);
   const eventId = generateEventId();
+  const timestamp = resolveEventTimestamp(event.timestamp, {
+    logger: state.logger,
+    context: `${event.type}:${event.domain}`,
+  });
   const newEvent = {
     ...event,
     id: eventId,
+    timestamp,
   } as EventLog;
 
   const parquetEvent = {
     id: eventId,
     type: event.type,
     domain: event.domain,
-    timestamp: event.timestamp ?? Date.now(),
+    timestamp,
     details: JSON.stringify(event.details || {}),
   };
 
