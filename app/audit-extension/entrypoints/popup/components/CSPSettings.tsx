@@ -15,39 +15,76 @@ const CSP_OPTIONS: CSPOption[] = [
   { key: "collectNetworkRequests", label: "リクエスト", description: "ネットワークリクエストを収集" },
 ];
 
+type ViewState =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; config: CSPConfig };
+
 export function CSPSettings() {
   const { colors } = useTheme();
-  const [config, setConfig] = useState<CSPConfig | null>(null);
-  const [endpoint, setEndpoint] = useState("");
+  const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
-        setConfig(cfg);
-        setEndpoint(cfg?.reportEndpoint ?? "");
+        setViewState({ kind: "ready", config: cfg });
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.warn("[popup] GET_CSP_CONFIG failed", error);
+        setViewState({ kind: "error", message: "CSP設定の取得に失敗しました" });
+      });
   }, []);
 
   function handleToggle(key: CSPOption["key"]) {
-    if (!config) return;
-    const newConfig = { ...config, [key]: !config[key] };
-    setConfig(newConfig);
+    if (viewState.kind !== "ready") return;
+    const previousConfig = viewState.config;
+    const newConfig = { ...previousConfig, [key]: !previousConfig[key] };
+    setViewState({ kind: "ready", config: newConfig });
     sendMessage({
       type: "SET_CSP_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
+      setViewState((current) => {
+        if (current.kind !== "ready") return current;
+        return current.config[key] === newConfig[key]
+          ? { kind: "ready", config: previousConfig }
+          : current;
+      });
+    });
   }
 
   function handleEndpointChange(value: string) {
-    setEndpoint(value);
-    if (!config) return;
+    if (viewState.kind !== "ready") return;
+    const previousConfig = viewState.config;
+    const newConfig = { ...previousConfig, reportEndpoint: value || null };
+    setViewState({ kind: "ready", config: newConfig });
     sendMessage({
       type: "SET_CSP_CONFIG",
-      data: { ...config, reportEndpoint: value || null },
-    }).catch(() => {});
+      data: newConfig,
+    }).catch((error) => {
+      console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
+      setViewState((current) => {
+        if (current.kind !== "ready") return current;
+        return current.config.reportEndpoint === newConfig.reportEndpoint
+          ? { kind: "ready", config: previousConfig }
+          : current;
+      });
+    });
   }
+
+  const errorContainerStyle = {
+    marginTop: "12px",
+    borderTop: `1px solid ${colors.border}`,
+    paddingTop: "12px",
+  };
+
+  const errorTextStyle = {
+    marginTop: "8px",
+    fontSize: "11px",
+    color: colors.status.danger.text,
+  };
 
   const styles = {
     container: {
@@ -128,9 +165,23 @@ export function CSPSettings() {
       color: colors.textPrimary,
       outline: "none",
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
-  if (!config) return null;
+  if (viewState.kind === "loading") return null;
+
+  if (viewState.kind === "error") {
+    return (
+      <div style={errorContainerStyle}>
+        <p style={errorTextStyle}>{viewState.message}</p>
+      </div>
+    );
+  }
+  const config = viewState.config;
 
   const enabledCount = CSP_OPTIONS.filter(opt => config[opt.key]).length;
 
@@ -175,7 +226,7 @@ export function CSPSettings() {
             <input
               type="url"
               style={styles.endpointInput}
-              value={endpoint}
+              value={config.reportEndpoint ?? ""}
               onChange={(e) => handleEndpointChange((e.target as HTMLInputElement).value)}
               placeholder="https://example.com/csp-report"
             />

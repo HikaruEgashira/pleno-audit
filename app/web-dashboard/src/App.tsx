@@ -5,30 +5,16 @@ import { ThemeContext, type ThemeColors, spacing } from "./lib/theme";
 import { useWebThemeState } from "./useWebTheme";
 import { Badge, Button, Card, DataTable, SearchInput, Select, StatCard, Sidebar, StatsGrid } from "./components";
 import { SkeletonDashboard } from "./components/Skeleton";
+import { getPeriodMs, truncate, type Period } from "./dashboardUtils";
 
-type Period = "1h" | "24h" | "7d" | "30d" | "all";
 type TabType = "overview" | "violations" | "network" | "domains";
-
-function truncate(str: string, len: number): string {
-  return str && str.length > len ? str.substring(0, len) + "..." : str || "";
-}
-
-function getPeriodMs(period: Period): number {
-  switch (period) {
-    case "1h": return 60 * 60 * 1000;
-    case "24h": return 24 * 60 * 60 * 1000;
-    case "7d": return 7 * 24 * 60 * 60 * 1000;
-    case "30d": return 30 * 24 * 60 * 60 * 1000;
-    default: return Number.MAX_SAFE_INTEGER;
-  }
-}
 
 function createStyles(colors: ThemeColors, isDark: boolean) {
   return {
     wrapper: {
       display: "flex",
       minHeight: "100vh",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       color: colors.textPrimary,
       background: colors.bgSecondary,
     },
@@ -190,8 +176,8 @@ function DashboardContent() {
         networkRequests: statsRes.requests ?? 0,
       });
       setLastUpdated(new Date().toISOString());
-    } catch {
-      // Failed to load data
+    } catch (error) {
+      console.warn("[web-dashboard] report load failed", error);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

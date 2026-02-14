@@ -14,7 +14,7 @@ export function createStyles(colors: ThemeColors): Record<string, CSSProperties>
       maxHeight: "600px",
       backgroundColor: colors.bgSecondary,
       color: colors.textPrimary,
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       fontSize: "13px",
       lineHeight: 1.5,
       overflow: "hidden",

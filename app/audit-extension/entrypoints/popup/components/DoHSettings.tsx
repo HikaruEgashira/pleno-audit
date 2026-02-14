@@ -15,26 +15,57 @@ const ACTION_OPTIONS: ActionOption[] = [
   { value: "block", label: "ブロック", description: "DoH通信をブロック" },
 ];
 
+type ViewState =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; config: DoHMonitorConfig };
+
 export function DoHSettings() {
   const { colors } = useTheme();
-  const [config, setConfig] = useState<DoHMonitorConfig | null>(null);
+  const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     sendMessage<DoHMonitorConfig>({ type: "GET_DOH_MONITOR_CONFIG" })
-      .then(setConfig)
-      .catch(() => {});
+      .then((nextConfig) => {
+        setViewState({ kind: "ready", config: nextConfig });
+      })
+      .catch((error) => {
+        console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
+        setViewState({ kind: "error", message: "DoH設定の取得に失敗しました" });
+      });
   }, []);
 
   function handleActionChange(action: DoHAction) {
-    if (!config) return;
-    const newConfig = { ...config, action };
-    setConfig(newConfig);
+    if (viewState.kind !== "ready") return;
+    const previousConfig = viewState.config;
+    const newConfig = { ...previousConfig, action };
+    setViewState({ kind: "ready", config: newConfig });
     sendMessage({
       type: "SET_DOH_MONITOR_CONFIG",
       data: { action },
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
+      setViewState((current) => {
+        if (current.kind !== "ready") return current;
+        return current.config.action === newConfig.action
+          ? { kind: "ready", config: previousConfig }
+          : current;
+      });
+    });
   }
+
+  const errorContainerStyle = {
+    marginTop: "12px",
+    borderTop: `1px solid ${colors.border}`,
+    paddingTop: "12px",
+  };
+
+  const errorTextStyle = {
+    marginTop: "8px",
+    fontSize: "11px",
+    color: colors.status.danger.text,
+  };
 
   const styles = {
     container: {
@@ -98,9 +129,23 @@ export function DoHSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
-  if (!config) return null;
+  if (viewState.kind === "loading") return null;
+
+  if (viewState.kind === "error") {
+    return (
+      <div style={errorContainerStyle}>
+        <p style={errorTextStyle}>{viewState.message}</p>
+      </div>
+    );
+  }
+  const config = viewState.config;
 
   return (
     <div style={styles.container}>
