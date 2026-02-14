@@ -462,6 +462,9 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
 }
 
 export default defineBackground(() => {
+  const MAX_INCOMING_BATCH = 100;
+  const PROCESS_CHUNK_SIZE = 20;
+
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
   registerExtensionMonitorListener();
   registerDoHMonitorListener();
@@ -500,20 +503,26 @@ export default defineBackground(() => {
     }
 
     if (type === "BATCH_RUNTIME_EVENTS") {
-      const events = Array.isArray((message.data as { events?: unknown[] } | undefined)?.events)
+      const incomingEvents = Array.isArray((message.data as { events?: unknown[] } | undefined)?.events)
         ? ((message.data as { events: RuntimeMessage[] }).events)
         : [];
+      const dropped = Math.max(0, incomingEvents.length - MAX_INCOMING_BATCH);
+      const events = dropped > 0
+        ? incomingEvents.slice(0, MAX_INCOMING_BATCH)
+        : incomingEvents;
 
       if (events.length === 0) {
-        sendResponse({ success: true, processed: 0, failed: 0 });
+        sendResponse({ success: true, processed: 0, failed: 0, dropped });
         return false;
       }
 
       void (async () => {
         let processed = 0;
         let failed = 0;
+        let chunkCount = 0;
 
         for (const batched of events) {
+          chunkCount++;
           const eventType = typeof batched?.type === "string" ? batched.type : "";
           if (!eventType) {
             failed++;
@@ -536,9 +545,24 @@ export default defineBackground(() => {
               error: error instanceof Error ? error.message : String(error),
             });
           }
+
+          if (chunkCount >= PROCESS_CHUNK_SIZE) {
+            chunkCount = 0;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
 
-        sendResponse({ success: true, processed, failed });
+        if (dropped > 0) {
+          logger.warn("Dropped excessive batched runtime events", {
+            incoming: incomingEvents.length,
+            processedTarget: events.length,
+            dropped,
+            senderTabId: sender.tab?.id,
+            senderUrl: sender.tab?.url,
+          });
+        }
+
+        sendResponse({ success: true, processed, failed, dropped });
       })();
 
       return true;

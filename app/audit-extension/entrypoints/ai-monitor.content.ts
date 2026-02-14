@@ -35,6 +35,8 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   runAt: "document_start",
   main() {
+    const MAX_QUEUE = 200;
+    const MAX_UNLOAD_BATCH = 50;
     const queue: RuntimeEvent[] = [];
     let flushScheduled = false;
     let longTaskDetectedAt = 0;
@@ -76,7 +78,7 @@ export default defineContentScript({
         ? (detail as Record<string, unknown>)
         : {}) as Record<string, unknown>;
 
-      if (queue.length >= 200) {
+      if (queue.length >= MAX_QUEUE) {
         const hasHighPriority = HIGH_PRIORITY_TYPES.has(type);
         if (!hasHighPriority) return;
         queue.shift();
@@ -191,7 +193,7 @@ export default defineContentScript({
         fallbackTimer = null;
       }
       if (queue.length > 0) {
-        const batch = queue.splice(0, queue.length);
+        const batch = queue.splice(0, MAX_UNLOAD_BATCH);
         void safeSendMessage({
           type: "BATCH_RUNTIME_EVENTS",
           data: { events: batch },
