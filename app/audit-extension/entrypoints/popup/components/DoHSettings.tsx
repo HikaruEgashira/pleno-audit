@@ -27,15 +27,18 @@ export function DoHSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<DoHMonitorConfig>({ type: "GET_DOH_MONITOR_CONFIG" })
       .then((nextConfig) => {
         setViewState({ kind: "ready", config: nextConfig });
+        setErrorMessage("");
       })
       .catch((error) => {
         console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
         setViewState({ kind: "ready", config: DEFAULT_DOH_MONITOR_CONFIG });
+        setErrorMessage("DoH設定の取得に失敗しました");
       });
   }, []);
 
@@ -49,12 +52,8 @@ export function DoHSettings() {
       data: { action },
     }).catch((error) => {
       console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config.action === newConfig.action
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
+      setErrorMessage("DoH設定の保存に失敗しました");
     });
   }
 
@@ -120,6 +119,11 @@ export function DoHSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (viewState.kind === "loading") return null;
@@ -169,6 +173,7 @@ export function DoHSettings() {
           ))}
         </div>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }

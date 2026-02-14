@@ -25,17 +25,20 @@ export function CSPSettings() {
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
   const [endpointDraft, setEndpointDraft] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
         setViewState({ kind: "ready", config: cfg });
         setEndpointDraft(cfg.reportEndpoint ?? "");
+        setErrorMessage("");
       })
       .catch((error) => {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
         setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
         setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
+        setErrorMessage("CSP設定の取得に失敗しました");
       });
   }, []);
 
@@ -49,12 +52,8 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config[key] === newConfig[key]
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
+      setErrorMessage("CSP設定の保存に失敗しました");
     });
   }
 
@@ -68,17 +67,9 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
-      let rolledBack = false;
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        rolledBack = current.config.reportEndpoint === newConfig.reportEndpoint;
-        return rolledBack
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
-      if (rolledBack) {
-        setEndpointDraft(previousConfig.reportEndpoint ?? "");
-      }
+      setViewState({ kind: "ready", config: previousConfig });
+      setEndpointDraft(previousConfig.reportEndpoint ?? "");
+      setErrorMessage("レポートURLの保存に失敗しました");
     });
   }
 
@@ -161,6 +152,11 @@ export function CSPSettings() {
       color: colors.textPrimary,
       outline: "none",
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (viewState.kind === "loading") return null;
@@ -217,6 +213,7 @@ export function CSPSettings() {
           </div>
         </>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }

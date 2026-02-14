@@ -23,15 +23,18 @@ export function NetworkMonitorSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     sendMessage<NetworkMonitorConfig>({ type: "GET_NETWORK_MONITOR_CONFIG" })
       .then((nextConfig) => {
         setViewState({ kind: "ready", config: nextConfig });
+        setErrorMessage("");
       })
       .catch((error) => {
         console.warn("[popup] GET_NETWORK_MONITOR_CONFIG failed", error);
         setViewState({ kind: "ready", config: DEFAULT_NETWORK_MONITOR_CONFIG });
+        setErrorMessage("ネットワーク監視設定の取得に失敗しました");
       });
   }, []);
 
@@ -45,12 +48,8 @@ export function NetworkMonitorSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config[key] === newConfig[key]
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
+      setErrorMessage("ネットワーク監視設定の保存に失敗しました");
     });
   }
 
@@ -113,6 +112,11 @@ export function NetworkMonitorSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
+    error: {
+      marginTop: "8px",
+      fontSize: "11px",
+      color: colors.status.danger.text,
+    },
   };
 
   if (viewState.kind === "loading") return null;
@@ -156,8 +160,7 @@ export function NetworkMonitorSettings() {
           ))}
         </div>
       )}
+      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
     </div>
   );
 }
-
-export { NetworkMonitorSettings as DNRSettings };

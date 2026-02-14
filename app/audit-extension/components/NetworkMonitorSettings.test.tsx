@@ -162,9 +162,4 @@ describe("NetworkMonitorSettings", () => {
       expect(container.innerHTML).toBe("");
     });
   });
-
-  it("exports DNRSettings as alias", async () => {
-    const { DNRSettings } = await import("../entrypoints/popup/components/NetworkMonitorSettings");
-    expect(DNRSettings).toBe(NetworkMonitorSettings);
-  });
 });
