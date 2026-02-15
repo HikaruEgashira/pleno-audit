@@ -159,3 +159,5 @@ export function NetworkMonitorSettings() {
     </div>
   );
 }
+
+export { NetworkMonitorSettings as DNRSettings };

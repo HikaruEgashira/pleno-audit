@@ -39,25 +39,32 @@ export function Settings() {
   }, []);
 
   async function loadConfig() {
-    try {
-      const cfg = await sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" });
-      setConfig(cfg);
-      setEndpoint(cfg?.reportEndpoint ?? "");
+    const [cspResult, nrdResult, retentionResult] = await Promise.allSettled([
+      sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" }),
+      sendMessage<NRDConfig>({ type: "GET_NRD_CONFIG" }),
+      sendMessage<{ retentionDays: number }>({ type: "GET_DATA_RETENTION_CONFIG" }),
+    ]);
 
-      const nrdCfg = await sendMessage<NRDConfig>({
-        type: "GET_NRD_CONFIG",
-      });
-      setNRDConfig(nrdCfg);
-
-      const retCfg = await sendMessage<{ retentionDays: number }>({
-        type: "GET_DATA_RETENTION_CONFIG",
-      });
-      setRetentionDays(retCfg?.retentionDays ?? 180);
-    } catch (error) {
-      console.warn("[popup] Failed to load settings.", error);
+    if (cspResult.status === "fulfilled") {
+      setConfig(cspResult.value);
+      setEndpoint(cspResult.value?.reportEndpoint ?? "");
+    } else {
+      console.warn("[popup] Failed to load CSP config.", cspResult.reason);
       setConfig(DEFAULT_CSP_CONFIG);
       setEndpoint(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
+    }
+
+    if (nrdResult.status === "fulfilled") {
+      setNRDConfig(nrdResult.value);
+    } else {
+      console.warn("[popup] Failed to load NRD config.", nrdResult.reason);
       setNRDConfig(DEFAULT_NRD_CONFIG);
+    }
+
+    if (retentionResult.status === "fulfilled") {
+      setRetentionDays(retentionResult.value?.retentionDays ?? 180);
+    } else {
+      console.warn("[popup] Failed to load retention config.", retentionResult.reason);
       setRetentionDays(180);
     }
   }

@@ -1,4 +1,5 @@
 export type Period = "1h" | "24h" | "7d" | "30d" | "all";
+const MAX_VALID_DATE_MS = 8.64e15;
 
 export function truncate(str: string, len: number): string {
   return str && str.length > len ? `${str.substring(0, len)}...` : str || "";
@@ -15,10 +16,10 @@ export function getPeriodMs(period: Period): number {
     case "30d":
       return 30 * 24 * 60 * 60 * 1000;
     case "all":
-      return Number.MAX_SAFE_INTEGER;
+      return MAX_VALID_DATE_MS;
     default: {
       const exhaustiveCheck: never = period;
-      return exhaustiveCheck;
+      throw new Error(`Unexpected period: ${exhaustiveCheck}`);
     }
   }
 }

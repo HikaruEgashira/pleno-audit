@@ -68,7 +68,12 @@ export function DetectionSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] Failed to save detection config.", error);
-      setConfig(previousConfig);
+      setConfig((current) => {
+        if (!current) return current;
+        return current[key] === newConfig[key]
+          ? previousConfig
+          : current;
+      });
     });
   }
 

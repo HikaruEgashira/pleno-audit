@@ -24,15 +24,18 @@ export function CSPSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState("");
 
   useEffect(() => {
     sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
         setViewState({ kind: "ready", config: cfg });
+        setEndpointDraft(cfg.reportEndpoint ?? "");
       })
       .catch((error) => {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
-        setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG as CSPConfig });
+        setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
+        setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
       });
   }, []);
 
@@ -55,7 +58,7 @@ export function CSPSettings() {
     });
   }
 
-  function handleEndpointChange(value: string) {
+  function handleEndpointCommit(value: string) {
     if (viewState.kind !== "ready") return;
     const previousConfig = viewState.config;
     const newConfig = { ...previousConfig, reportEndpoint: value || null };
@@ -65,12 +68,17 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
+      let rolledBack = false;
       setViewState((current) => {
         if (current.kind !== "ready") return current;
-        return current.config.reportEndpoint === newConfig.reportEndpoint
+        rolledBack = current.config.reportEndpoint === newConfig.reportEndpoint;
+        return rolledBack
           ? { kind: "ready", config: previousConfig }
           : current;
       });
+      if (rolledBack) {
+        setEndpointDraft(previousConfig.reportEndpoint ?? "");
+      }
     });
   }
 
@@ -201,8 +209,9 @@ export function CSPSettings() {
             <input
               type="url"
               style={styles.endpointInput}
-              value={config.reportEndpoint ?? ""}
-              onChange={(e) => handleEndpointChange((e.target as HTMLInputElement).value)}
+              value={endpointDraft}
+              onChange={(e) => setEndpointDraft((e.target as HTMLInputElement).value)}
+              onBlur={() => handleEndpointCommit(endpointDraft)}
               placeholder="https://example.com/csp-report"
             />
           </div>
