@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CSPReport, CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { CapturedAIPrompt, DetectedService, EventLog } from "@pleno-audit/detectors";
 import type { Notification } from "../../../components/NotificationBanner";
@@ -35,7 +35,6 @@ export function useDashboardState({
   const [events, setEvents] = useState<EventLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastNotifiedEventId, setLastNotifiedEventId] = useState<string | null>(null);
-  const hasLoadErrorNotified = useRef(false);
 
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
@@ -114,23 +113,13 @@ export function useDashboardState({
         setTotalCounts((prev) => ({ ...prev, aiPrompts: aiPromptsCountResult.count ?? 0 }));
       }
       setLastUpdated(new Date().toISOString());
-      hasLoadErrorNotified.current = false;
     } catch (error) {
       console.warn("[dashboard] Failed to load dashboard data.", error);
-      if (!hasLoadErrorNotified.current) {
-        addNotification({
-          severity: "warning",
-          title: "データ取得エラー",
-          message: "ダッシュボードデータの取得に失敗しました。再試行します。",
-          autoDismiss: 5000,
-        });
-        hasLoadErrorNotified.current = true;
-      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [addNotification, period]);
+  }, [period]);
 
   useEffect(() => {
     loadData();

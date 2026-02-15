@@ -41,10 +41,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleHelp = () => {
     logger.info("User requested help for error");
-    const message =
-      "エラーが発生しました。以下の情報をサポートまでお問い合わせください:\n" +
-      (this.state.error?.message || "不明なエラー");
-    alert(message);
+    logger.info(
+      "Support details:",
+      this.state.error?.message || "不明なエラー",
+    );
   };
 
   render() {

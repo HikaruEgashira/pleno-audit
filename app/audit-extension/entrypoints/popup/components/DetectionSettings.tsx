@@ -35,18 +35,15 @@ export function DetectionSettings() {
   const [config, setConfig] = useState<DetectionConfig | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseStatus>(DEFAULT_ENTERPRISE_STATUS);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     sendMessage<DetectionConfig>({ type: "GET_DETECTION_CONFIG" })
       .then((result) => {
         setConfig(result);
-        setLoadError(null);
       })
       .catch((error) => {
         console.warn("[popup] Failed to load detection config.", error);
         setConfig(DEFAULT_DETECTION_CONFIG);
-        setLoadError("検出設定の読み込みに失敗したため、既定値を表示しています。");
       });
 
     sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
@@ -72,7 +69,6 @@ export function DetectionSettings() {
     }).catch((error) => {
       console.warn("[popup] Failed to save detection config.", error);
       setConfig(previousConfig);
-      setLoadError("検出設定の保存に失敗しました。");
     });
   }
 
@@ -156,22 +152,6 @@ export function DetectionSettings() {
         </span>
         <span style={styles.chevron}>▶</span>
       </div>
-      {loadError && (
-        <div
-          role="alert"
-          style={{
-            marginTop: "8px",
-            padding: "8px",
-            borderRadius: "6px",
-            border: `1px solid ${colors.status.warning.border}`,
-            background: colors.status.warning.bg,
-            color: colors.status.warning.text,
-            fontSize: "11px",
-          }}
-        >
-          {loadError}
-        </div>
-      )}
 
       {expanded && (
         isLocked ? (

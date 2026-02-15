@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig } from "@pleno-audit/detectors";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
@@ -17,7 +18,6 @@ const CSP_OPTIONS: CSPOption[] = [
 
 type ViewState =
   | { kind: "loading" }
-  | { kind: "error"; message: string }
   | { kind: "ready"; config: CSPConfig };
 
 export function CSPSettings() {
@@ -32,7 +32,7 @@ export function CSPSettings() {
       })
       .catch((error) => {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
-        setViewState({ kind: "error", message: "CSP設定の取得に失敗しました" });
+        setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG as CSPConfig });
       });
   }, []);
 
@@ -73,18 +73,6 @@ export function CSPSettings() {
       });
     });
   }
-
-  const errorContainerStyle = {
-    marginTop: "12px",
-    borderTop: `1px solid ${colors.border}`,
-    paddingTop: "12px",
-  };
-
-  const errorTextStyle = {
-    marginTop: "8px",
-    fontSize: "11px",
-    color: colors.status.danger.text,
-  };
 
   const styles = {
     container: {
@@ -165,22 +153,9 @@ export function CSPSettings() {
       color: colors.textPrimary,
       outline: "none",
     },
-    error: {
-      marginTop: "8px",
-      fontSize: "11px",
-      color: colors.status.danger.text,
-    },
   };
 
   if (viewState.kind === "loading") return null;
-
-  if (viewState.kind === "error") {
-    return (
-      <div style={errorContainerStyle}>
-        <p style={errorTextStyle}>{viewState.message}</p>
-      </div>
-    );
-  }
   const config = viewState.config;
 
   const enabledCount = CSP_OPTIONS.filter(opt => config[opt.key]).length;

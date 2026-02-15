@@ -1,5 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
+import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
@@ -53,7 +55,10 @@ export function Settings() {
       setRetentionDays(retCfg?.retentionDays ?? 180);
     } catch (error) {
       console.warn("[popup] Failed to load settings.", error);
-      setMessage("Failed to load settings");
+      setConfig(DEFAULT_CSP_CONFIG);
+      setEndpoint(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
+      setNRDConfig(DEFAULT_NRD_CONFIG);
+      setRetentionDays(180);
     }
   }
 
@@ -71,7 +76,6 @@ export function Settings() {
     }).catch((error) => {
       console.warn("[popup] Failed to save retention setting.", error);
       setRetentionDays(previous);
-      setMessage("Failed to save retention setting");
     });
   }
 
@@ -101,22 +105,21 @@ export function Settings() {
 
       setMessage("Settings saved!");
       setTimeout(() => setMessage(""), 2000);
-    } catch {
-      setMessage("Failed to save");
+    } catch (error) {
+      console.warn("[popup] Failed to save settings.", error);
     }
     setSaving(false);
   }
 
   async function handleResetAllData() {
-    if (!confirm("すべてのデータを削除し、設定をリセットします。続行しますか？")) return;
     try {
       await sendMessage({ type: "CLEAR_ALL_DATA" });
       setMessage("All data reset!");
       setTimeout(() => setMessage(""), 2000);
       // Reload config after reset
       loadConfig();
-    } catch {
-      setMessage("Failed to reset data");
+    } catch (error) {
+      console.warn("[popup] Failed to reset data.", error);
     }
   }
 
