@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig } from "@pleno-audit/detectors";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
@@ -17,22 +18,24 @@ const CSP_OPTIONS: CSPOption[] = [
 
 type ViewState =
   | { kind: "loading" }
-  | { kind: "error"; message: string }
   | { kind: "ready"; config: CSPConfig };
 
 export function CSPSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [expanded, setExpanded] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState("");
 
   useEffect(() => {
     sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" })
       .then((cfg) => {
         setViewState({ kind: "ready", config: cfg });
+        setEndpointDraft(cfg.reportEndpoint ?? "");
       })
       .catch((error) => {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
-        setViewState({ kind: "error", message: "CSP設定の取得に失敗しました" });
+        setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
+        setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
       });
   }, []);
 
@@ -55,7 +58,7 @@ export function CSPSettings() {
     });
   }
 
-  function handleEndpointChange(value: string) {
+  function handleEndpointCommit(value: string) {
     if (viewState.kind !== "ready") return;
     const previousConfig = viewState.config;
     const newConfig = { ...previousConfig, reportEndpoint: value || null };
@@ -65,26 +68,19 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
+      let rolledBack = false;
       setViewState((current) => {
         if (current.kind !== "ready") return current;
-        return current.config.reportEndpoint === newConfig.reportEndpoint
+        rolledBack = current.config.reportEndpoint === newConfig.reportEndpoint;
+        return rolledBack
           ? { kind: "ready", config: previousConfig }
           : current;
       });
+      if (rolledBack) {
+        setEndpointDraft(previousConfig.reportEndpoint ?? "");
+      }
     });
   }
-
-  const errorContainerStyle = {
-    marginTop: "12px",
-    borderTop: `1px solid ${colors.border}`,
-    paddingTop: "12px",
-  };
-
-  const errorTextStyle = {
-    marginTop: "8px",
-    fontSize: "11px",
-    color: colors.status.danger.text,
-  };
 
   const styles = {
     container: {
@@ -165,22 +161,9 @@ export function CSPSettings() {
       color: colors.textPrimary,
       outline: "none",
     },
-    error: {
-      marginTop: "8px",
-      fontSize: "11px",
-      color: colors.status.danger.text,
-    },
   };
 
   if (viewState.kind === "loading") return null;
-
-  if (viewState.kind === "error") {
-    return (
-      <div style={errorContainerStyle}>
-        <p style={errorTextStyle}>{viewState.message}</p>
-      </div>
-    );
-  }
   const config = viewState.config;
 
   const enabledCount = CSP_OPTIONS.filter(opt => config[opt.key]).length;
@@ -226,8 +209,9 @@ export function CSPSettings() {
             <input
               type="url"
               style={styles.endpointInput}
-              value={config.reportEndpoint ?? ""}
-              onChange={(e) => handleEndpointChange((e.target as HTMLInputElement).value)}
+              value={endpointDraft}
+              onChange={(e) => setEndpointDraft((e.target as HTMLInputElement).value)}
+              onBlur={() => handleEndpointCommit(endpointDraft)}
               placeholder="https://example.com/csp-report"
             />
           </div>

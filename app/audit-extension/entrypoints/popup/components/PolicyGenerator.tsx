@@ -59,8 +59,8 @@ export function PolicyGenerator() {
           setExpandedDomain(data.policies[0].domain);
         }
       }
-    } catch {
-      // Failed to regenerate policy
+    } catch (error) {
+      console.warn("[popup] Failed to regenerate CSP policy.", error);
     } finally {
       setLoading(false);
     }
@@ -69,9 +69,8 @@ export function PolicyGenerator() {
   async function handleCopy(policyString: string) {
     try {
       await navigator.clipboard.writeText(policyString);
-      alert("クリップボードにコピーしました");
-    } catch {
-      // Failed to copy
+    } catch (error) {
+      console.warn("[popup] Failed to copy CSP policy.", error);
     }
   }
 

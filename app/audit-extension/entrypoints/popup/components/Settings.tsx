@@ -1,5 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
+import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
+import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
@@ -30,31 +32,46 @@ export function Settings() {
     loadConfig();
     sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
-      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
+      .catch((error) => {
+        console.warn("[popup] Failed to load enterprise status.", error);
+        setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS);
+      });
   }, []);
 
   async function loadConfig() {
-    try {
-      const cfg = await sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" });
-      setConfig(cfg);
-      setEndpoint(cfg?.reportEndpoint ?? "");
+    const [cspResult, nrdResult, retentionResult] = await Promise.allSettled([
+      sendMessage<CSPConfig>({ type: "GET_CSP_CONFIG" }),
+      sendMessage<NRDConfig>({ type: "GET_NRD_CONFIG" }),
+      sendMessage<{ retentionDays: number }>({ type: "GET_DATA_RETENTION_CONFIG" }),
+    ]);
 
-      const nrdCfg = await sendMessage<NRDConfig>({
-        type: "GET_NRD_CONFIG",
-      });
-      setNRDConfig(nrdCfg);
+    if (cspResult.status === "fulfilled") {
+      setConfig(cspResult.value);
+      setEndpoint(cspResult.value?.reportEndpoint ?? "");
+    } else {
+      console.warn("[popup] Failed to load CSP config.", cspResult.reason);
+      setConfig(DEFAULT_CSP_CONFIG);
+      setEndpoint(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
+    }
 
-      const retCfg = await sendMessage<{ retentionDays: number }>({
-        type: "GET_DATA_RETENTION_CONFIG",
-      });
-      setRetentionDays(retCfg?.retentionDays ?? 180);
-    } catch {
-      // Failed to load config
+    if (nrdResult.status === "fulfilled") {
+      setNRDConfig(nrdResult.value);
+    } else {
+      console.warn("[popup] Failed to load NRD config.", nrdResult.reason);
+      setNRDConfig(DEFAULT_NRD_CONFIG);
+    }
+
+    if (retentionResult.status === "fulfilled") {
+      setRetentionDays(retentionResult.value?.retentionDays ?? 180);
+    } else {
+      console.warn("[popup] Failed to load retention config.", retentionResult.reason);
+      setRetentionDays(180);
     }
   }
 
   function handleRetentionChange(days: number) {
-    if (isLocked) return;
+    if (isLocked || retentionDays === null) return;
+    const previous = retentionDays;
     setRetentionDays(days);
     sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
@@ -63,7 +80,10 @@ export function Settings() {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] Failed to save retention setting.", error);
+      setRetentionDays(previous);
+    });
   }
 
   function formatRetentionDays(days: number): string {
@@ -92,22 +112,21 @@ export function Settings() {
 
       setMessage("Settings saved!");
       setTimeout(() => setMessage(""), 2000);
-    } catch {
-      setMessage("Failed to save");
+    } catch (error) {
+      console.warn("[popup] Failed to save settings.", error);
     }
     setSaving(false);
   }
 
   async function handleResetAllData() {
-    if (!confirm("すべてのデータを削除し、設定をリセットします。続行しますか？")) return;
     try {
       await sendMessage({ type: "CLEAR_ALL_DATA" });
       setMessage("All data reset!");
       setTimeout(() => setMessage(""), 2000);
       // Reload config after reset
       loadConfig();
-    } catch {
-      setMessage("Failed to reset data");
+    } catch (error) {
+      console.warn("[popup] Failed to reset data.", error);
     }
   }
 

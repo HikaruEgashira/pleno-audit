@@ -18,12 +18,11 @@ export function useDashboardActions({
   loadData,
 }: UseDashboardActionsOptions) {
   const handleClearData = useCallback(async () => {
-    if (!confirm("すべてのデータを削除しますか？")) return;
     try {
       await chrome.runtime.sendMessage({ type: "CLEAR_CSP_DATA" });
       await loadData();
-    } catch {
-      // Failed to clear data
+    } catch (error) {
+      console.warn("[dashboard] Failed to clear data.", error);
     }
   }, [loadData]);
 

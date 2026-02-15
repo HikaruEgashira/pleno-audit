@@ -168,8 +168,8 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
       try {
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
-      } catch {
-        // ignore
+      } catch (error) {
+        console.warn("[popup] Failed to aggregate services.", error);
       } finally {
         setLoading(false);
       }

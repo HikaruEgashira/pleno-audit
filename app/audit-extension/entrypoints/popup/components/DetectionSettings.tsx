@@ -1,5 +1,9 @@
 import { useState, useEffect } from "preact/hooks";
-import type { DetectionConfig, EnterpriseStatus } from "@pleno-audit/extension-runtime";
+import {
+  DEFAULT_DETECTION_CONFIG,
+  type DetectionConfig,
+  type EnterpriseStatus,
+} from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { LockedBanner } from "./LockedBanner";
 import { sendMessage } from "../utils/messaging";
@@ -34,24 +38,43 @@ export function DetectionSettings() {
 
   useEffect(() => {
     sendMessage<DetectionConfig>({ type: "GET_DETECTION_CONFIG" })
-      .then(setConfig)
-      .catch(() => {});
+      .then((result) => {
+        setConfig(result);
+      })
+      .catch((error) => {
+        console.warn("[popup] Failed to load detection config.", error);
+        setConfig(DEFAULT_DETECTION_CONFIG);
+      });
 
     sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
-      .then(setEnterpriseStatus)
-      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
+      .then((status) => {
+        setEnterpriseStatus(status);
+      })
+      .catch((error) => {
+        console.warn("[popup] Failed to load enterprise status.", error);
+        setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS);
+      });
   }, []);
 
   const isLocked = enterpriseStatus.settingsLocked;
 
   function handleToggle(key: keyof DetectionConfig) {
     if (!config || isLocked) return;
+    const previousConfig = config;
     const newConfig = { ...config, [key]: !config[key] };
     setConfig(newConfig);
     sendMessage({
       type: "SET_DETECTION_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] Failed to save detection config.", error);
+      setConfig((current) => {
+        if (!current) return current;
+        return current[key] === newConfig[key]
+          ? previousConfig
+          : current;
+      });
+    });
   }
 
   const styles = {
@@ -115,7 +138,14 @@ export function DetectionSettings() {
     },
   };
 
-  if (!config) return null;
+  if (!config) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.title}>検出設定</div>
+        <div style={styles.description}>読み込み中...</div>
+      </div>
+    );
+  }
 
   const enabledCount = Object.values(config).filter(Boolean).length;
 

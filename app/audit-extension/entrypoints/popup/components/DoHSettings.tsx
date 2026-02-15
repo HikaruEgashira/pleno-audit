@@ -1,5 +1,9 @@
 import { useState, useEffect } from "preact/hooks";
-import type { DoHMonitorConfig, DoHAction } from "@pleno-audit/extension-runtime";
+import {
+  DEFAULT_DOH_MONITOR_CONFIG,
+  type DoHMonitorConfig,
+  type DoHAction,
+} from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
@@ -17,7 +21,6 @@ const ACTION_OPTIONS: ActionOption[] = [
 
 type ViewState =
   | { kind: "loading" }
-  | { kind: "error"; message: string }
   | { kind: "ready"; config: DoHMonitorConfig };
 
 export function DoHSettings() {
@@ -32,7 +35,7 @@ export function DoHSettings() {
       })
       .catch((error) => {
         console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
-        setViewState({ kind: "error", message: "DoH設定の取得に失敗しました" });
+        setViewState({ kind: "ready", config: DEFAULT_DOH_MONITOR_CONFIG });
       });
   }, []);
 
@@ -54,18 +57,6 @@ export function DoHSettings() {
       });
     });
   }
-
-  const errorContainerStyle = {
-    marginTop: "12px",
-    borderTop: `1px solid ${colors.border}`,
-    paddingTop: "12px",
-  };
-
-  const errorTextStyle = {
-    marginTop: "8px",
-    fontSize: "11px",
-    color: colors.status.danger.text,
-  };
 
   const styles = {
     container: {
@@ -129,22 +120,9 @@ export function DoHSettings() {
       fontSize: "9px",
       color: colors.textMuted,
     },
-    error: {
-      marginTop: "8px",
-      fontSize: "11px",
-      color: colors.status.danger.text,
-    },
   };
 
   if (viewState.kind === "loading") return null;
-
-  if (viewState.kind === "error") {
-    return (
-      <div style={errorContainerStyle}>
-        <p style={errorTextStyle}>{viewState.message}</p>
-      </div>
-    );
-  }
   const config = viewState.config;
 
   return (

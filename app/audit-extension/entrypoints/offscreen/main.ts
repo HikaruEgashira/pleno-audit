@@ -228,10 +228,18 @@ chrome.runtime.onMessage.addListener(
 
 initLocalServer()
   .then(() => {
-    chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch((error) => {
+      console.warn("[offscreen] Failed to notify OFFSCREEN_READY.", error);
+    });
   })
-  .catch(() => {
-    chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" }).catch(() => {});
+  .catch((error) => {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("[offscreen] Local server initialization failed.", error);
+    chrome.runtime
+      .sendMessage({ type: "OFFSCREEN_INIT_FAILED", error: reason })
+      .catch((notifyError) => {
+        console.warn("[offscreen] Failed to notify OFFSCREEN_INIT_FAILED.", notifyError);
+      });
   });
 
 if (import.meta.env.DEV) {

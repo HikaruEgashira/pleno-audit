@@ -25,9 +25,12 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const [blockingConfig, setBlockingConfig] = useState<BlockingConfig | null>(null);
-  const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [notificationConfig, setNotificationConfig] = useState<NotificationConfig | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function reportOperationError(message: string, error: unknown): void {
+    console.warn(`[settings-menu] ${message}`, error);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -45,8 +48,9 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         .then((config) => {
           setRetentionDays(config?.retentionDays ?? 180);
         })
-        .catch(() => {
+        .catch((error) => {
           setRetentionDays(180);
+          reportOperationError("データ保持設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, retentionDays]);
@@ -57,8 +61,9 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         .then((config) => {
           setBlockingConfig(config ?? DEFAULT_BLOCKING_CONFIG);
         })
-        .catch(() => {
+        .catch((error) => {
           setBlockingConfig(DEFAULT_BLOCKING_CONFIG);
+          reportOperationError("保護機能設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, blockingConfig]);
@@ -69,26 +74,16 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         .then((config) => {
           setNotificationConfig(config ?? DEFAULT_NOTIFICATION_CONFIG);
         })
-        .catch(() => {
+        .catch((error) => {
           setNotificationConfig(DEFAULT_NOTIFICATION_CONFIG);
+          reportOperationError("通知設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, notificationConfig]);
 
-  // Escキーでダイアログを閉じる
-  useEffect(() => {
-    if (!showConsentDialog) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setShowConsentDialog(false);
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showConsentDialog]);
-
   function handleRetentionChange(days: number) {
+    if (retentionDays === null) return;
+    const previous = retentionDays;
     setRetentionDays(days);
     chrome.runtime.sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
@@ -97,50 +92,44 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(() => {});
+    }).catch((error) => {
+      setRetentionDays(previous);
+      reportOperationError("データ保持設定の保存に失敗しました。", error);
+    });
   }
 
   function handleBlockingToggle() {
     if (!blockingConfig) return;
-
-    if (!blockingConfig.userConsentGiven && !blockingConfig.enabled) {
-      setShowConsentDialog(true);
-      return;
-    }
-
-    const newConfig = { ...blockingConfig, enabled: !blockingConfig.enabled };
-    setBlockingConfig(newConfig);
-    chrome.runtime.sendMessage({
-      type: "SET_BLOCKING_CONFIG",
-      data: newConfig,
-    }).catch(() => {});
-  }
-
-  function handleConsentAccept() {
-    if (!blockingConfig) return;
-
+    const previous = blockingConfig;
+    const nextEnabled = !blockingConfig.enabled;
     const newConfig = {
       ...blockingConfig,
-      enabled: true,
-      userConsentGiven: true,
+      enabled: nextEnabled,
+      userConsentGiven: nextEnabled ? true : blockingConfig.userConsentGiven,
     };
     setBlockingConfig(newConfig);
-    setShowConsentDialog(false);
     chrome.runtime.sendMessage({
       type: "SET_BLOCKING_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      setBlockingConfig(previous);
+      reportOperationError("保護機能設定の保存に失敗しました。", error);
+    });
   }
 
   function handleNotificationToggle() {
     if (!notificationConfig) return;
 
+    const previous = notificationConfig;
     const newConfig = { ...notificationConfig, enabled: !notificationConfig.enabled };
     setNotificationConfig(newConfig);
     chrome.runtime.sendMessage({
       type: "SET_NOTIFICATION_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      setNotificationConfig(previous);
+      reportOperationError("通知設定の保存に失敗しました。", error);
+    });
   }
 
   return (
@@ -398,87 +387,6 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
               </span>
               データを削除
             </button>
-          </div>
-        </div>
-      )}
-
-      {showConsentDialog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="consent-dialog-title"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2000,
-          }}
-          onClick={() => setShowConsentDialog(false)}
-        >
-          <div
-            role="document"
-            style={{
-              backgroundColor: colors.bgPrimary,
-              borderRadius: "12px",
-              padding: "20px",
-              maxWidth: "320px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div id="consent-dialog-title" style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary, marginBottom: "12px" }}>
-              保護機能を有効化
-            </div>
-            <div style={{ fontSize: "12px", color: colors.textSecondary, lineHeight: 1.6, marginBottom: "16px" }}>
-              この機能を有効にすると、以下のリスクを検出時にブロックまたは警告します：
-            </div>
-            <ul style={{ fontSize: "11px", color: colors.textSecondary, margin: "0 0 16px 16px", padding: 0, lineHeight: 1.8 }}>
-              <li>タイポスクワットドメインへのアクセス</li>
-              <li>新規登録ドメイン(NRD)でのログイン</li>
-              <li>AIサービスへの機密データ送信</li>
-            </ul>
-            <div style={{ fontSize: "10px", color: colors.textMuted, marginBottom: "16px", lineHeight: 1.5 }}>
-              ※ すべての処理は端末内で完結し、外部へのデータ送信は行いません。
-            </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={() => setShowConsentDialog(false)}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background: "transparent",
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  color: colors.textSecondary,
-                }}
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleConsentAccept}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background: colors.status.success.bg,
-                  border: `1px solid ${colors.status.success.text}`,
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  color: colors.status.success.text,
-                  fontWeight: 500,
-                }}
-              >
-                有効化する
-              </button>
-            </div>
           </div>
         </div>
       )}
