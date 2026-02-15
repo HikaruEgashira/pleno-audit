@@ -27,6 +27,18 @@
     console.debug('[ai-hooks] Chaining with api-hooks.js')
   }
 
+  const sharedHookUtils = window.__PLENO_HOOKS_SHARED__
+  if (!sharedHookUtils) {
+    console.warn('[ai-hooks] Shared hook utils are unavailable; using limited fallback.')
+  }
+  const DATA_EXFILTRATION_THRESHOLD = sharedHookUtils?.DATA_EXFILTRATION_THRESHOLD ?? 10 * 1024
+  const containsSensitiveData = sharedHookUtils?.containsSensitiveData
+    ?? (() => ({ hasSensitive: false, types: [] }))
+  const getBodySize = sharedHookUtils?.getBodySize ?? (() => 0)
+  const isTrackingBeacon = sharedHookUtils?.isTrackingBeacon ?? (() => false)
+  const emitSecurityEvent = sharedHookUtils?.emitSecurityEvent
+    ?? ((eventName, data) => window.dispatchEvent(new CustomEvent(eventName, { detail: data })))
+
   function isAIRequestBody(body) {
     if (!body) return false
 
@@ -298,76 +310,6 @@
     return crypto.randomUUID()
   }
 
-  function sendAICapture(data) {
-    window.dispatchEvent(
-      new CustomEvent('__AI_PROMPT_CAPTURED__', { detail: data })
-    )
-  }
-
-  // ===== SENSITIVE DATA DETECTION (integrated from api-hooks.js) =====
-  const DATA_EXFILTRATION_THRESHOLD = 10 * 1024  // 10KB threshold
-
-  const SENSITIVE_PATTERNS = [
-    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,  // email
-    /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // Visa
-    /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // Mastercard
-    /\d{3}-\d{2}-\d{4}/,  // SSN
-    /["']password["']\s*:\s*["'][^"']+["']/i,  // password in JSON
-    /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,  // API key
-    /["']secret["']\s*:\s*["'][^"']+["']/i,  // secret
-    /["']token["']\s*:\s*["'][^"']+["']/i,  // token
-    /[A-Za-z0-9]{32,}/,  // Long alphanumeric
-  ]
-
-  function containsSensitiveData(body) {
-    if (!body) return { hasSensitive: false, types: [] }
-    let text = ''
-    if (typeof body === 'string') {
-      text = body
-    } else if (body instanceof FormData) {
-      for (const [key, value] of body.entries()) {
-        if (typeof value === 'string') text += key + '=' + value + '&'
-      }
-    } else if (typeof body === 'object') {
-      try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
-    }
-
-    const types = []
-    if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
-    if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
-    if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
-    if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
-    if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
-    if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
-    if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
-
-    return { hasSensitive: types.length > 0, types }
-  }
-
-  function getBodySize(body) {
-    if (!body) return 0
-    if (typeof body === 'string') return new Blob([body]).size
-    if (body instanceof Blob) return body.size
-    if (body instanceof ArrayBuffer) return body.byteLength
-    if (body instanceof FormData) {
-      let size = 0
-      for (const [key, value] of body.entries()) {
-        size += key.length
-        if (typeof value === 'string') size += value.length
-        else if (value instanceof Blob) size += value.size
-      }
-      return size
-    }
-    if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
-    return 0
-  }
-
-  function sendDataExfiltrationEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__DATA_EXFILTRATION_DETECTED__', { detail: data })
-    )
-  }
-
   function checkDataExfiltration(url, method, body) {
     if (method === 'GET') return
     try {
@@ -376,7 +318,7 @@
       const sensitiveCheck = containsSensitiveData(body)
 
       if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-        sendDataExfiltrationEvent({
+        emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
           url: fullUrl,
           method: method.toUpperCase(),
           bodySize: bodySize,
@@ -386,8 +328,8 @@
           sensitiveDataTypes: sensitiveCheck.types
         })
       }
-    } catch {
-      // Skip on error
+    } catch (error) {
+      console.debug('[ai-hooks] Failed to inspect possible data exfiltration.', error)
     }
   }
 
@@ -404,14 +346,16 @@
       const bodySize = getBodySize(body)
       if (isTrackingBeacon(url, bodySize, body)) {
         try {
-          sendTrackingBeaconEvent({
+          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
             url: new URL(url, window.location.origin).href,
             bodySize: bodySize,
             initiator: 'fetch',
             timestamp: Date.now(),
             targetDomain: new URL(url, window.location.origin).hostname
           })
-        } catch { /* Skip on URL parse error */ }
+        } catch (error) {
+          console.debug('[ai-hooks] Failed to inspect fetch tracking beacon URL.', error)
+        }
       }
     }
 
@@ -453,7 +397,7 @@
       clonedResponse.text().then(text => {
         if (text.length > MAX_CONTENT_SIZE) {
           // Still send capture but without response
-          sendAICapture(captureData)
+          emitSecurityEvent('__AI_PROMPT_CAPTURED__', captureData)
           return
         }
 
@@ -461,16 +405,16 @@
         captureData.responseTimestamp = Date.now()
         captureData.response.latencyMs = Date.now() - startTime
 
-        sendAICapture(captureData)
+        emitSecurityEvent('__AI_PROMPT_CAPTURED__', captureData)
       }).catch(() => {
         // Send without response on error
-        sendAICapture(captureData)
+        emitSecurityEvent('__AI_PROMPT_CAPTURED__', captureData)
       })
 
       return response
     } catch (error) {
       // Send capture even on error
-      sendAICapture(captureData)
+      emitSecurityEvent('__AI_PROMPT_CAPTURED__', captureData)
       throw error
     }
   }
@@ -492,14 +436,16 @@
       const bodySize = getBodySize(body)
       if (isTrackingBeacon(url, bodySize, body)) {
         try {
-          sendTrackingBeaconEvent({
+          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
             url: new URL(url, window.location.origin).href,
             bodySize: bodySize,
             initiator: 'xhr',
             timestamp: Date.now(),
             targetDomain: new URL(url, window.location.origin).hostname
           })
-        } catch { /* Skip on URL parse error */ }
+        } catch (error) {
+          console.debug('[ai-hooks] Failed to inspect XHR tracking beacon URL.', error)
+        }
       }
     }
 
@@ -539,11 +485,11 @@
             captureData.responseTimestamp = Date.now()
             captureData.response.latencyMs = Date.now() - startTime
           }
-        } catch {
-          // ignore
+        } catch (error) {
+          console.debug('[ai-hooks] Failed to parse XHR response for AI capture.', error)
         }
 
-        sendAICapture(captureData)
+        emitSecurityEvent('__AI_PROMPT_CAPTURED__', captureData)
       }
 
       if (originalOnReadyStateChange) {
@@ -552,24 +498,6 @@
     }
 
     return originalXHRSend.call(this, body)
-  }
-
-  // ===== TRACKING BEACON DETECTION =====
-  const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
-
-  function isTrackingBeacon(url, bodySize, body) {
-    const isSmallPayload = bodySize < 2048  // 2KB typical beacon size
-    const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
-    let hasTrackingPayload = false
-    if (body) {
-      let text = typeof body === 'string' ? body : JSON.stringify(body)
-      hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
-    }
-    return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
-  }
-
-  function sendTrackingBeaconEvent(data) {
-    window.dispatchEvent(new CustomEvent('__TRACKING_BEACON_DETECTED__', { detail: data }))
   }
 
   // ===== CLIPBOARD HIJACK DETECTION =====
@@ -586,16 +514,12 @@
     return { detected: false, type: null }
   }
 
-  function sendClipboardHijackEvent(data) {
-    window.dispatchEvent(new CustomEvent('__CLIPBOARD_HIJACK_DETECTED__', { detail: data }))
-  }
-
   if (navigator.clipboard && navigator.clipboard.writeText) {
     const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
     navigator.clipboard.writeText = function(text) {
       const cryptoCheck = detectCryptoAddress(text)
       if (cryptoCheck.detected) {
-        sendClipboardHijackEvent({
+        emitSecurityEvent('__CLIPBOARD_HIJACK_DETECTED__', {
           text: text.substring(0, 20) + '...',
           cryptoType: cryptoCheck.type,
           fullLength: text.length,
@@ -610,10 +534,6 @@
   let lastCookieAccessTime = 0
   const COOKIE_ACCESS_THROTTLE = 1000
 
-  function sendCookieAccessEvent(data) {
-    window.dispatchEvent(new CustomEvent('__COOKIE_ACCESS_DETECTED__', { detail: data }))
-  }
-
   try {
     const originalCookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')
     if (originalCookieDescriptor && originalCookieDescriptor.get) {
@@ -623,7 +543,7 @@
           const now = Date.now()
           if (now - lastCookieAccessTime > COOKIE_ACCESS_THROTTLE) {
             lastCookieAccessTime = now
-            sendCookieAccessEvent({ timestamp: now, readCount: 1, pageUrl: window.location.href })
+            emitSecurityEvent('__COOKIE_ACCESS_DETECTED__', { timestamp: now, readCount: 1, pageUrl: window.location.href })
           }
           return originalCookieGetter.call(document)
         },
@@ -631,21 +551,15 @@
         configurable: true
       })
     }
-  } catch { /* Cookie descriptor modification not supported */ }
+  } catch (error) {
+    console.debug('[ai-hooks] Cookie descriptor hook is unavailable.', error)
+  }
 
   // ===== XSS AND DOM SCRAPING DETECTION =====
   let querySelectorAllCount = 0
   let querySelectorAllResetTime = Date.now()
   const SCRAPING_THRESHOLD = 50
   const SCRAPING_WINDOW = 5000
-
-  function sendDOMScrapingEvent(data) {
-    window.dispatchEvent(new CustomEvent('__DOM_SCRAPING_DETECTED__', { detail: data }))
-  }
-
-  function sendXSSEvent(data) {
-    window.dispatchEvent(new CustomEvent('__XSS_DETECTED__', { detail: data }))
-  }
 
   const originalQuerySelectorAll = document.querySelectorAll.bind(document)
   document.querySelectorAll = function(selector) {
@@ -656,7 +570,7 @@
     }
     querySelectorAllCount++
     if (querySelectorAllCount === SCRAPING_THRESHOLD) {
-      sendDOMScrapingEvent({ selector, callCount: querySelectorAllCount, timestamp: now })
+      emitSecurityEvent('__DOM_SCRAPING_DETECTED__', { selector, callCount: querySelectorAllCount, timestamp: now })
     }
     return originalQuerySelectorAll(selector)
   }
@@ -676,7 +590,7 @@
       get: originalInnerHTMLDescriptor.get,
       set: function(value) {
         if (typeof value === 'string' && detectXSSPayload(value)) {
-          sendXSSEvent({ type: 'innerHTML', payloadPreview: value.substring(0, 100), timestamp: Date.now() })
+          emitSecurityEvent('__XSS_DETECTED__', { type: 'innerHTML', payloadPreview: value.substring(0, 100), timestamp: Date.now() })
         }
         return originalInnerHTMLDescriptor.set.call(this, value)
       },
@@ -685,14 +599,10 @@
   }
 
   // ===== SUSPICIOUS DOWNLOAD DETECTION =====
-  function sendSuspiciousDownloadEvent(data) {
-    window.dispatchEvent(new CustomEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', { detail: data }))
-  }
-
   const originalCreateObjectURL = URL.createObjectURL
   URL.createObjectURL = function(blob) {
     if (blob instanceof Blob) {
-      sendSuspiciousDownloadEvent({ type: 'blob', size: blob.size, mimeType: blob.type, timestamp: Date.now() })
+      emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', { type: 'blob', size: blob.size, mimeType: blob.type, timestamp: Date.now() })
     }
     return originalCreateObjectURL.call(this, blob)
   }
@@ -709,7 +619,7 @@
       const download = target.download || ''
 
       if (href.startsWith('blob:') || href.startsWith('data:')) {
-        sendSuspiciousDownloadEvent({
+        emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', {
           type: href.startsWith('blob:') ? 'blob_link' : 'data_url',
           filename: download,
           timestamp: Date.now()
@@ -720,7 +630,7 @@
       const filename = download || href.split('/').pop() || ''
       const extension = '.' + filename.split('.').pop().toLowerCase()
       if (SUSPICIOUS_EXTENSIONS.includes(extension)) {
-        sendSuspiciousDownloadEvent({
+        emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', {
           type: 'suspicious_extension',
           filename,
           extension,
@@ -728,14 +638,12 @@
           timestamp: Date.now()
         })
       }
-    } catch { /* Skip on error */ }
+    } catch (error) {
+      console.debug('[ai-hooks] Failed to inspect download click.', error)
+    }
   }, true)
 
   // ===== SUPPLY CHAIN RISK DETECTION =====
-  function sendSupplyChainRiskEvent(data) {
-    window.dispatchEvent(new CustomEvent('__SUPPLY_CHAIN_RISK_DETECTED__', { detail: data }))
-  }
-
   function isExternalResource(url) {
     try {
       const resourceUrl = new URL(url, window.location.origin)
@@ -780,7 +688,7 @@
       if (isCDN) risks.push('cdn_without_sri')
       if (!hasCrossorigin) risks.push('missing_crossorigin')
 
-      sendSupplyChainRiskEvent({
+      emitSecurityEvent('__SUPPLY_CHAIN_RISK_DETECTED__', {
         url: url,
         resourceType: resourceType,
         hasIntegrity: false,
@@ -832,10 +740,6 @@
   }
 
   // ===== CREDENTIAL THEFT DETECTION =====
-  function sendCredentialTheftEvent(data) {
-    window.dispatchEvent(new CustomEvent('__CREDENTIAL_THEFT_DETECTED__', { detail: data }))
-  }
-
   function hasSensitiveFields(form) {
     const sensitiveTypes = ['password', 'email', 'tel', 'credit-card']
     const sensitiveNames = ['password', 'passwd', 'pwd', 'pass', 'secret', 'token', 'api_key', 'apikey', 'credit', 'card', 'cvv', 'ssn', 'otp', 'pin', 'auth', 'credential', '2fa', 'mfa']
@@ -882,7 +786,7 @@
         if (!isSecure) risks.push('insecure_protocol')
         if (isCrossOrigin) risks.push('cross_origin')
 
-        sendCredentialTheftEvent({
+        emitSecurityEvent('__CREDENTIAL_THEFT_DETECTED__', {
           formAction: actionUrl.href,
           targetDomain: targetDomain,
           method: (form.method || 'GET').toUpperCase(),
@@ -893,7 +797,9 @@
           timestamp: Date.now()
         })
       }
-    } catch { /* Skip on invalid form action */ }
+    } catch (error) {
+      console.debug('[ai-hooks] Failed to inspect form action.', error)
+    }
   }, true)
 
   // AI Prompt Capture + Security Detection initialized

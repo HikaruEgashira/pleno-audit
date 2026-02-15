@@ -26,9 +26,19 @@ function isExtensionContextValid(): boolean {
   }
 }
 
-function safeSendMessage(message: unknown): Promise<unknown> {
-  if (!isExtensionContextValid()) return Promise.resolve(undefined);
-  return chrome.runtime.sendMessage(message).catch(() => undefined);
+async function sendMessageSafely(message: unknown): Promise<boolean> {
+  if (!isExtensionContextValid()) {
+    console.warn("[ai-monitor] Extension context is unavailable.");
+    return false;
+  }
+
+  try {
+    await chrome.runtime.sendMessage(message);
+    return true;
+  } catch (error) {
+    console.warn("[ai-monitor] Failed to send runtime event batch.", error);
+    return false;
+  }
 }
 
 export default defineContentScript({
@@ -41,6 +51,8 @@ export default defineContentScript({
     let flushScheduled = false;
     let longTaskDetectedAt = 0;
     let fallbackTimer: number | null = null;
+    let consecutiveSendFailures = 0;
+    const MAX_SEND_FAILURES = 3;
 
     const LOW_PRIORITY_TYPES = new Set([
       "COOKIE_ACCESS_DETECTED",
@@ -139,12 +151,28 @@ export default defineContentScript({
       }
 
       if (batch.length > 0) {
-        await safeSendMessage({
+        const sent = await sendMessageSafely({
           type: "BATCH_RUNTIME_EVENTS",
           data: {
             events: batch,
           },
         });
+        if (!sent) {
+          consecutiveSendFailures += 1;
+          if (consecutiveSendFailures >= MAX_SEND_FAILURES) {
+            console.warn(
+              `[ai-monitor] Dropping ${batch.length} queued events after repeated send failures.`
+            );
+            return;
+          }
+          queue.unshift(...batch);
+          window.setTimeout(
+            () => scheduleFlush(),
+            500 * consecutiveSendFailures
+          );
+          return;
+        }
+        consecutiveSendFailures = 0;
       }
 
       if (queue.length > 0) {
@@ -194,7 +222,7 @@ export default defineContentScript({
       }
       if (queue.length > 0) {
         const batch = queue.splice(0, MAX_UNLOAD_BATCH);
-        void safeSendMessage({
+        void sendMessageSafely({
           type: "BATCH_RUNTIME_EVENTS",
           data: { events: batch },
         });

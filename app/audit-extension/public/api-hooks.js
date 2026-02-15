@@ -23,145 +23,103 @@
     console.debug('[api-hooks] Chaining with ai-hooks.js')
   }
 
-  // Configuration for data exfiltration detection
-  const DATA_EXFILTRATION_THRESHOLD = 10 * 1024  // 10KB threshold (lowered for better detection)
+  function createSharedHookUtils() {
+    const DATA_EXFILTRATION_THRESHOLD = 10 * 1024
+    const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
+    const TRACKING_BEACON_SIZE_LIMIT = 2048
+    const SENSITIVE_PATTERNS = [
+      /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
+      /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
+      /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
+      /\d{3}-\d{2}-\d{4}/,
+      /["']password["']\s*:\s*["'][^"']+["']/i,
+      /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,
+      /["']secret["']\s*:\s*["'][^"']+["']/i,
+      /["']token["']\s*:\s*["'][^"']+["']/i,
+      /[A-Za-z0-9]{32,}/,
+    ]
 
-  // Sensitive data patterns for exfiltration detection
-  // Note: Patterns are designed to work with both plain text and JSON strings
-  const SENSITIVE_PATTERNS = [
-    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,  // email (works in JSON too)
-    /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Visa)
-    /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, // credit card (Mastercard)
-    /\d{3}-\d{2}-\d{4}/,  // SSN
-    /["']password["']\s*:\s*["'][^"']+["']/i,  // password in JSON: "password":"value"
-    /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,  // API key in JSON
-    /["']secret["']\s*:\s*["'][^"']+["']/i,  // secret in JSON
-    /["']token["']\s*:\s*["'][^"']+["']/i,  // token in JSON
-    /[A-Za-z0-9]{32,}/,  // Long alphanumeric strings (potential keys/tokens)
-  ]
-
-  // Check if body contains sensitive data
-  function containsSensitiveData(body) {
-    if (!body) return { hasSensitive: false, types: [] }
-    let text = ''
-    if (typeof body === 'string') {
-      text = body
-    } else if (body instanceof FormData) {
-      for (const [key, value] of body.entries()) {
-        if (typeof value === 'string') text += key + '=' + value + '&'
-      }
-    } else if (typeof body === 'object') {
-      try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
+    function emitSecurityEvent(eventName, data) {
+      window.dispatchEvent(new CustomEvent(eventName, { detail: data }))
     }
 
-    const types = []
-    if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
-    if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
-    if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
-    if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
-    if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
-    if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
-    if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
-
-    return { hasSensitive: types.length > 0, types }
-  }
-
-  // Tracking beacon detection patterns
-  const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
-  const TRACKING_BEACON_SIZE_LIMIT = 2048  // 2KB - typical beacon size
-
-  function isTrackingBeacon(url, bodySize, body) {
-    const isSmallPayload = bodySize < TRACKING_BEACON_SIZE_LIMIT
-    const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
-    // Check body for tracking-like data
-    let hasTrackingPayload = false
-    if (body) {
+    function containsSensitiveData(body) {
+      if (!body) return { hasSensitive: false, types: [] }
       let text = ''
-      if (typeof body === 'string') text = body
-      else if (typeof body === 'object') try { text = JSON.stringify(body) } catch {}
-      hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
-    }
-    return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
-  }
-
-  // Helper to dispatch network event to content script
-  function sendNetworkEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__SERVICE_DETECTION_NETWORK__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch data exfiltration event
-  function sendDataExfiltrationEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__DATA_EXFILTRATION_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch tracking beacon event
-  function sendTrackingBeaconEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__TRACKING_BEACON_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch clipboard hijack event
-  function sendClipboardHijackEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__CLIPBOARD_HIJACK_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch cookie access event
-  function sendCookieAccessEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__COOKIE_ACCESS_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch XSS detection event
-  function sendXSSEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__XSS_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch DOM scraping event
-  function sendDOMScrapingEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__DOM_SCRAPING_DETECTED__', { detail: data })
-    )
-  }
-
-  // Helper to dispatch suspicious download event
-  function sendSuspiciousDownloadEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', { detail: data })
-    )
-  }
-
-  // Calculate body size in bytes
-  function getBodySize(body) {
-    if (!body) return 0
-    if (typeof body === 'string') return new Blob([body]).size
-    if (body instanceof Blob) return body.size
-    if (body instanceof ArrayBuffer) return body.byteLength
-    if (body instanceof FormData) {
-      // Estimate FormData size (not exact but reasonable approximation)
-      let size = 0
-      for (const [key, value] of body.entries()) {
-        size += key.length
-        if (typeof value === 'string') {
-          size += value.length
-        } else if (value instanceof Blob) {
-          size += value.size
+      if (typeof body === 'string') {
+        text = body
+      } else if (body instanceof FormData) {
+        for (const [key, value] of body.entries()) {
+          if (typeof value === 'string') text += key + '=' + value + '&'
         }
+      } else if (typeof body === 'object') {
+        try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
       }
-      return size
+
+      const types = []
+      if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
+      if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
+      if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
+      if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
+      if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
+      if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
+      if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
+
+      return { hasSensitive: types.length > 0, types }
     }
-    if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
-    return 0
+
+    function isTrackingBeacon(url, bodySize, body) {
+      const isSmallPayload = bodySize < TRACKING_BEACON_SIZE_LIMIT
+      const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
+      let hasTrackingPayload = false
+      if (body) {
+        let text = ''
+        if (typeof body === 'string') text = body
+        else if (typeof body === 'object') try { text = JSON.stringify(body) } catch {}
+        hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
+      }
+      return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
+    }
+
+    function getBodySize(body) {
+      if (!body) return 0
+      if (typeof body === 'string') return new Blob([body]).size
+      if (body instanceof Blob) return body.size
+      if (body instanceof ArrayBuffer) return body.byteLength
+      if (body instanceof FormData) {
+        let size = 0
+        for (const [key, value] of body.entries()) {
+          size += key.length
+          if (typeof value === 'string') {
+            size += value.length
+          } else if (value instanceof Blob) {
+            size += value.size
+          }
+        }
+        return size
+      }
+      if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
+      return 0
+    }
+
+    return {
+      DATA_EXFILTRATION_THRESHOLD,
+      containsSensitiveData,
+      isTrackingBeacon,
+      getBodySize,
+      emitSecurityEvent,
+    }
   }
+
+  const sharedHookUtils = window.__PLENO_HOOKS_SHARED__ || createSharedHookUtils()
+  window.__PLENO_HOOKS_SHARED__ = sharedHookUtils
+  const {
+    DATA_EXFILTRATION_THRESHOLD,
+    containsSensitiveData,
+    isTrackingBeacon,
+    getBodySize,
+    emitSecurityEvent,
+  } = sharedHookUtils
 
   // ===== FETCH API HOOK =====
   window.fetch = function(input, init) {
@@ -174,7 +132,7 @@
         const fullUrl = new URL(url, window.location.origin).href
         const bodySize = getBodySize(body)
 
-        sendNetworkEvent({
+        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
           url: fullUrl,
           method: method.toUpperCase(),
           initiator: 'fetch',
@@ -185,7 +143,7 @@
 
         // Check for tracking beacon
         if (method.toUpperCase() === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
-          sendTrackingBeaconEvent({
+          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
             url: fullUrl,
             bodySize: bodySize,
             initiator: 'fetch',
@@ -199,7 +157,7 @@
           const sensitiveCheck = containsSensitiveData(body)
           // Alert if large body OR sensitive data detected
           if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-            sendDataExfiltrationEvent({
+            emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
               url: fullUrl,
               method: method.toUpperCase(),
               bodySize: bodySize,
@@ -210,8 +168,8 @@
             })
           }
         }
-      } catch {
-        // Skip detection on invalid URL, but don't block original request
+      } catch (error) {
+        console.debug('[api-hooks] Failed to inspect fetch URL.', error)
       }
     }
 
@@ -232,7 +190,7 @@
         const method = (this.__serviceDetectionMethod || 'GET').toUpperCase()
         const bodySize = getBodySize(body)
 
-        sendNetworkEvent({
+        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
           url: fullUrl,
           method: method,
           initiator: 'xhr',
@@ -243,7 +201,7 @@
 
         // Check for tracking beacon
         if (method === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
-          sendTrackingBeaconEvent({
+          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
             url: fullUrl,
             bodySize: bodySize,
             initiator: 'xhr',
@@ -256,7 +214,7 @@
         if (method !== 'GET') {
           const sensitiveCheck = containsSensitiveData(body)
           if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-            sendDataExfiltrationEvent({
+            emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
               url: fullUrl,
               method: method,
               bodySize: bodySize,
@@ -267,8 +225,8 @@
             })
           }
         }
-      } catch {
-        // Skip detection on invalid URL, but don't block original request
+      } catch (error) {
+        console.debug('[api-hooks] Failed to inspect XHR URL.', error)
       }
     }
     return originalXHRSend.call(this, body)
@@ -276,7 +234,7 @@
 
   // ===== WebSocket HOOK =====
   window.WebSocket = function(url, protocols) {
-    sendNetworkEvent({
+    emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
       url: url,
       method: 'WEBSOCKET',
       initiator: 'websocket',
@@ -304,7 +262,7 @@
         const fullUrl = new URL(url, window.location.origin).href
         const bodySize = getBodySize(data)
 
-        sendNetworkEvent({
+        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
           url: fullUrl,
           method: 'POST',
           initiator: 'beacon',
@@ -315,7 +273,7 @@
 
         // sendBeacon is typically used for tracking - always check
         if (isTrackingBeacon(fullUrl, bodySize, data)) {
-          sendTrackingBeaconEvent({
+          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
             url: fullUrl,
             bodySize: bodySize,
             initiator: 'beacon',
@@ -327,7 +285,7 @@
         // Check for potential data exfiltration
         const sensitiveCheck = containsSensitiveData(data)
         if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-          sendDataExfiltrationEvent({
+          emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
             url: fullUrl,
             method: 'POST',
             bodySize: bodySize,
@@ -337,8 +295,8 @@
             sensitiveDataTypes: sensitiveCheck.types
           })
         }
-      } catch {
-        // Skip detection on invalid URL, but don't block original request
+      } catch (error) {
+        console.debug('[api-hooks] Failed to inspect beacon URL.', error)
       }
 
       return originalSendBeacon(url, data)
@@ -346,12 +304,6 @@
   }
 
   // ===== SUPPLY CHAIN RISK DETECTION =====
-  // Helper to dispatch supply chain risk event
-  function sendSupplyChainRiskEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__SUPPLY_CHAIN_RISK_DETECTED__', { detail: data })
-    )
-  }
 
   // Check if URL is from external domain
   function isExternalResource(url) {
@@ -400,7 +352,7 @@
       const risks = ['cdn_without_sri']
       if (!hasCrossorigin) risks.push('missing_crossorigin')
 
-      sendSupplyChainRiskEvent({
+      emitSecurityEvent('__SUPPLY_CHAIN_RISK_DETECTED__', {
         url: url,
         resourceType: resourceType,
         hasIntegrity: false,
@@ -420,7 +372,7 @@
 
         // Image
         if (node.tagName === 'IMG' && node.src) {
-          sendNetworkEvent({
+          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
             url: node.src,
             method: 'GET',
             initiator: 'img',
@@ -431,7 +383,7 @@
 
         // Script
         if (node.tagName === 'SCRIPT' && node.src) {
-          sendNetworkEvent({
+          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
             url: node.src,
             method: 'GET',
             initiator: 'script',
@@ -445,7 +397,7 @@
         // Link (stylesheet, etc.)
         if (node.tagName === 'LINK' && node.href) {
           const type = node.rel === 'stylesheet' ? 'style' : 'link'
-          sendNetworkEvent({
+          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
             url: node.href,
             method: 'GET',
             initiator: type,
@@ -460,7 +412,7 @@
 
         // Iframe
         if (node.tagName === 'IFRAME' && node.src) {
-          sendNetworkEvent({
+          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
             url: node.src,
             method: 'GET',
             initiator: 'frame',
@@ -482,12 +434,6 @@
   }
 
   // ===== CREDENTIAL THEFT DETECTION =====
-  // Helper to dispatch credential theft event
-  function sendCredentialTheftEvent(data) {
-    window.dispatchEvent(
-      new CustomEvent('__CREDENTIAL_THEFT_DETECTED__', { detail: data })
-    )
-  }
 
   // Check if form contains password or sensitive fields
   function hasSensitiveFields(form) {
@@ -550,7 +496,7 @@
         }
 
         // Always report sensitive form submissions for monitoring
-        sendCredentialTheftEvent({
+        emitSecurityEvent('__CREDENTIAL_THEFT_DETECTED__', {
           formAction: actionUrl.href,
           targetDomain: targetDomain,
           method: (form.method || 'GET').toUpperCase(),
@@ -561,8 +507,8 @@
           timestamp: Date.now()
         })
       }
-    } catch {
-      // Skip detection on invalid form action
+    } catch (error) {
+      console.debug('[api-hooks] Failed to inspect form action.', error)
     }
   }, true)
 
@@ -588,7 +534,7 @@
     navigator.clipboard.writeText = function(text) {
       const cryptoCheck = detectCryptoAddress(text)
       if (cryptoCheck.detected) {
-        sendClipboardHijackEvent({
+        emitSecurityEvent('__CLIPBOARD_HIJACK_DETECTED__', {
           text: text.substring(0, 20) + '...',
           cryptoType: cryptoCheck.type,
           fullLength: text.length,
@@ -615,7 +561,7 @@
           // Only report if enough time has passed
           if (now - lastCookieAccessTime > COOKIE_ACCESS_THROTTLE) {
             lastCookieAccessTime = now
-            sendCookieAccessEvent({
+            emitSecurityEvent('__COOKIE_ACCESS_DETECTED__', {
               timestamp: now,
               readCount: 1,
               pageUrl: window.location.href
@@ -627,8 +573,8 @@
         configurable: true
       })
     }
-  } catch {
-    // Cookie descriptor modification not supported
+  } catch (error) {
+    console.debug('[api-hooks] Cookie descriptor hook is unavailable.', error)
   }
 
   // ===== XSS AND DOM SCRAPING DETECTION =====
@@ -648,7 +594,7 @@
     querySelectorAllCount++
 
     if (querySelectorAllCount === SCRAPING_THRESHOLD) {
-      sendDOMScrapingEvent({
+      emitSecurityEvent('__DOM_SCRAPING_DETECTED__', {
         selector: selector,
         callCount: querySelectorAllCount,
         timestamp: now
@@ -681,7 +627,7 @@
       get: originalInnerHTMLDescriptor.get,
       set: function(value) {
         if (typeof value === 'string' && detectXSSPayload(value)) {
-          sendXSSEvent({
+          emitSecurityEvent('__XSS_DETECTED__', {
             type: 'innerHTML',
             payloadPreview: value.substring(0, 100),
             timestamp: Date.now()
@@ -700,7 +646,7 @@
   const originalCreateObjectURL = URL.createObjectURL
   URL.createObjectURL = function(blob) {
     if (blob instanceof Blob) {
-      sendSuspiciousDownloadEvent({
+      emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', {
         type: 'blob',
         size: blob.size,
         mimeType: blob.type,
@@ -722,7 +668,7 @@
 
       // Check for blob: or data: URLs
       if (href.startsWith('blob:') || href.startsWith('data:')) {
-        sendSuspiciousDownloadEvent({
+        emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', {
           type: href.startsWith('blob:') ? 'blob_link' : 'data_url',
           filename: download,
           timestamp: Date.now()
@@ -734,7 +680,7 @@
       const filename = download || href.split('/').pop() || ''
       const extension = '.' + filename.split('.').pop().toLowerCase()
       if (SUSPICIOUS_EXTENSIONS.includes(extension)) {
-        sendSuspiciousDownloadEvent({
+        emitSecurityEvent('__SUSPICIOUS_DOWNLOAD_DETECTED__', {
           type: 'suspicious_extension',
           filename: filename,
           extension: extension,
@@ -742,8 +688,8 @@
           timestamp: Date.now()
         })
       }
-    } catch {
-      // Skip on error
+    } catch (error) {
+      console.debug('[api-hooks] Failed to inspect download click.', error)
     }
   }, true)
 })()

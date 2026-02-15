@@ -247,8 +247,8 @@ export async function aggregateServices(
         lastActivity,
       });
     }
-  } catch {
-    // Failed to load extension data
+  } catch (error) {
+    console.warn("[service-aggregator] Failed to load extension data.", error);
   }
 
   return result;

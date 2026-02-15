@@ -30,7 +30,10 @@ export function Settings() {
     loadConfig();
     sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
-      .catch(() => setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS));
+      .catch((error) => {
+        console.warn("[popup] Failed to load enterprise status.", error);
+        setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS);
+      });
   }, []);
 
   async function loadConfig() {
@@ -48,13 +51,15 @@ export function Settings() {
         type: "GET_DATA_RETENTION_CONFIG",
       });
       setRetentionDays(retCfg?.retentionDays ?? 180);
-    } catch {
-      // Failed to load config
+    } catch (error) {
+      console.warn("[popup] Failed to load settings.", error);
+      setMessage("Failed to load settings");
     }
   }
 
   function handleRetentionChange(days: number) {
-    if (isLocked) return;
+    if (isLocked || retentionDays === null) return;
+    const previous = retentionDays;
     setRetentionDays(days);
     sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
@@ -63,7 +68,11 @@ export function Settings() {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(() => {});
+    }).catch((error) => {
+      console.warn("[popup] Failed to save retention setting.", error);
+      setRetentionDays(previous);
+      setMessage("Failed to save retention setting");
+    });
   }
 
   function formatRetentionDays(days: number): string {

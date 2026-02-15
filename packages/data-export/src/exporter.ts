@@ -287,40 +287,42 @@ export function exportReportToHTML(report: SecurityReport): string {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0a0a0a;
-      color: #ededed;
-      line-height: 1.6;
-      padding: 24px;
+      font-family: "IBM Plex Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      line-height: 1.55;
+      padding: 24px 20px;
     }
-    .container { max-width: 1200px; margin: 0 auto; }
+    .container { max-width: 1080px; margin: 0 auto; }
     h1, h2, h3 { margin-bottom: 16px; }
-    h1 { font-size: 28px; border-bottom: 1px solid #333; padding-bottom: 16px; }
-    h2 { font-size: 20px; margin-top: 32px; color: #a1a1a1; }
-    .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+    h1 { font-size: 28px; border-bottom: 2px solid #cbd5e1; padding-bottom: 14px; }
+    h2 { font-size: 20px; margin-top: 28px; color: #334155; }
+    .meta { color: #64748b; font-size: 14px; margin-bottom: 24px; }
     .score-card {
-      background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
-      border: 1px solid #333;
+      background: #ffffff;
+      border: 1px solid #dbe4ee;
+      border-left: 6px solid ${scoreColor};
       border-radius: 12px;
-      padding: 24px;
-      text-align: center;
+      padding: 20px 24px;
       margin-bottom: 24px;
     }
-    .score { font-size: 64px; font-weight: bold; color: ${scoreColor}; }
-    .score-label { color: #666; font-size: 14px; }
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .score { font-size: 60px; font-weight: 700; color: ${scoreColor}; letter-spacing: -0.02em; }
+    .score-label { color: #64748b; font-size: 13px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
     .stat-card {
-      background: #1a1a1a;
-      border: 1px solid #333;
+      flex: 1 1 180px;
+      min-width: 180px;
+      background: #ffffff;
+      border: 1px solid #dbe4ee;
       border-radius: 8px;
-      padding: 16px;
+      padding: 14px;
       text-align: center;
     }
-    .stat-value { font-size: 24px; font-weight: bold; color: #ededed; }
-    .stat-label { font-size: 12px; color: #666; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #0f172a; }
+    .stat-label { font-size: 12px; color: #64748b; }
     table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
-    th { background: #1a1a1a; font-weight: 600; font-size: 12px; color: #a1a1a1; text-transform: uppercase; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dbe4ee; }
+    th { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #334155; text-transform: uppercase; }
     td { font-size: 14px; }
     .badge {
       display: inline-block;
@@ -329,11 +331,11 @@ export function exportReportToHTML(report: SecurityReport): string {
       font-size: 11px;
       font-weight: 600;
     }
-    .badge-critical { background: rgba(220,38,38,0.2); color: #dc2626; }
-    .badge-high { background: rgba(249,115,22,0.2); color: #f97316; }
-    .badge-medium { background: rgba(234,179,8,0.2); color: #eab308; }
-    .badge-low { background: rgba(34,197,94,0.2); color: #22c55e; }
-    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #333; color: #666; font-size: 12px; }
+    .badge-critical { background: #fee2e2; color: #991b1b; }
+    .badge-high { background: #ffedd5; color: #9a3412; }
+    .badge-medium { background: #fef9c3; color: #854d0e; }
+    .badge-low { background: #dcfce7; color: #166534; }
+    .footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid #dbe4ee; color: #64748b; font-size: 12px; }
   </style>
 </head>
 <body>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { CSPReport, CSPViolation, NetworkRequest } from "@pleno-audit/csp";
 import type { CapturedAIPrompt, DetectedService, EventLog } from "@pleno-audit/detectors";
 import type { Notification } from "../../../components/NotificationBanner";
@@ -35,6 +35,7 @@ export function useDashboardState({
   const [events, setEvents] = useState<EventLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastNotifiedEventId, setLastNotifiedEventId] = useState<string | null>(null);
+  const hasLoadErrorNotified = useRef(false);
 
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
@@ -46,7 +47,9 @@ export function useDashboardState({
       const safeMessage = async <T,>(msg: object, fallback: T): Promise<T> => {
         try {
           return (await chrome.runtime.sendMessage(msg)) ?? fallback;
-        } catch {
+        } catch (error) {
+          const type = (msg as { type?: string }).type ?? "unknown";
+          console.warn(`[dashboard] Runtime message failed: ${type}`, error);
           return fallback;
         }
       };
@@ -71,7 +74,10 @@ export function useDashboardState({
         ),
         safeMessage({ type: "GET_CONNECTION_CONFIG" }, { mode: "local" }),
         safeMessage({ type: "GET_AI_PROMPTS" }, []),
-        chrome.storage.local.get(["services"]).catch(() => ({ services: {} })),
+        chrome.storage.local.get(["services"]).catch((error) => {
+          console.warn("[dashboard] Failed to load services from chrome.storage.", error);
+          return { services: {} };
+        }),
         safeMessage({ type: "GET_EVENTS", data: { since: sinceTs, limit: 500 } }, { events: [], total: 0 }),
         safeMessage({ type: "GET_EVENTS_COUNT", data: { since: sinceTs } }, { count: 0 }),
         safeMessage({ type: "GET_AI_PROMPTS_COUNT" }, { count: 0 }),
@@ -108,13 +114,23 @@ export function useDashboardState({
         setTotalCounts((prev) => ({ ...prev, aiPrompts: aiPromptsCountResult.count ?? 0 }));
       }
       setLastUpdated(new Date().toISOString());
-    } catch {
-      // Failed to load data
+      hasLoadErrorNotified.current = false;
+    } catch (error) {
+      console.warn("[dashboard] Failed to load dashboard data.", error);
+      if (!hasLoadErrorNotified.current) {
+        addNotification({
+          severity: "warning",
+          title: "データ取得エラー",
+          message: "ダッシュボードデータの取得に失敗しました。再試行します。",
+          autoDismiss: 5000,
+        });
+        hasLoadErrorNotified.current = true;
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [period]);
+  }, [addNotification, period]);
 
   useEffect(() => {
     loadData();

@@ -112,6 +112,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   const [sortType, setSortType] = useState<SortType>("activity");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<Set<FilterCategory>>(new Set());
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const sortedServices = useMemo(
     () => sortServices(unifiedServices, sortType),
@@ -168,8 +169,10 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
       try {
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
-      } catch {
-        // ignore
+        setLoadError(null);
+      } catch (error) {
+        console.warn("[popup] Failed to aggregate services.", error);
+        setLoadError("サービス集約に失敗しました。表示内容が不完全な可能性があります。");
       } finally {
         setLoading(false);
       }
@@ -256,6 +259,22 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   if (sortedServices.length === 0) {
     return (
       <div style={popupStyles.tabContent}>
+        {loadError && (
+          <div
+            role="alert"
+            style={{
+              fontSize: "11px",
+              borderRadius: "6px",
+              border: `1px solid ${colors.status.warning.border}`,
+              background: colors.status.warning.bg,
+              color: colors.status.warning.text,
+              padding: "8px",
+              marginBottom: "10px",
+            }}
+          >
+            {loadError}
+          </div>
+        )}
         <p style={styles.emptyText}>サービスはまだ検出されていません</p>
       </div>
     );
@@ -263,6 +282,21 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      {loadError && (
+        <div
+          role="alert"
+          style={{
+            fontSize: "11px",
+            borderRadius: "6px",
+            border: `1px solid ${colors.status.warning.border}`,
+            background: colors.status.warning.bg,
+            color: colors.status.warning.text,
+            padding: "8px",
+          }}
+        >
+          {loadError}
+        </div>
+      )}
       <div style={styles.filterBar}>
         <input
           type="search"

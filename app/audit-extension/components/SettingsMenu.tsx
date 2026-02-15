@@ -27,7 +27,13 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const [blockingConfig, setBlockingConfig] = useState<BlockingConfig | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [notificationConfig, setNotificationConfig] = useState<NotificationConfig | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function reportOperationError(message: string, error: unknown): void {
+    console.warn(`[settings-menu] ${message}`, error);
+    setOperationError(message);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -44,9 +50,11 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
       chrome.runtime.sendMessage({ type: "GET_DATA_RETENTION_CONFIG" })
         .then((config) => {
           setRetentionDays(config?.retentionDays ?? 180);
+          setOperationError(null);
         })
-        .catch(() => {
+        .catch((error) => {
           setRetentionDays(180);
+          reportOperationError("データ保持設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, retentionDays]);
@@ -56,9 +64,11 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
       chrome.runtime.sendMessage({ type: "GET_BLOCKING_CONFIG" })
         .then((config) => {
           setBlockingConfig(config ?? DEFAULT_BLOCKING_CONFIG);
+          setOperationError(null);
         })
-        .catch(() => {
+        .catch((error) => {
           setBlockingConfig(DEFAULT_BLOCKING_CONFIG);
+          reportOperationError("保護機能設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, blockingConfig]);
@@ -68,9 +78,11 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
       chrome.runtime.sendMessage({ type: "GET_NOTIFICATION_CONFIG" })
         .then((config) => {
           setNotificationConfig(config ?? DEFAULT_NOTIFICATION_CONFIG);
+          setOperationError(null);
         })
-        .catch(() => {
+        .catch((error) => {
           setNotificationConfig(DEFAULT_NOTIFICATION_CONFIG);
+          reportOperationError("通知設定の読み込みに失敗しました。", error);
         });
     }
   }, [isOpen, notificationConfig]);
@@ -89,6 +101,9 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   }, [showConsentDialog]);
 
   function handleRetentionChange(days: number) {
+    if (retentionDays === null) return;
+    const previous = retentionDays;
+    setOperationError(null);
     setRetentionDays(days);
     chrome.runtime.sendMessage({
       type: "SET_DATA_RETENTION_CONFIG",
@@ -97,7 +112,10 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
         autoCleanupEnabled: days !== 0,
         lastCleanupTimestamp: 0,
       },
-    }).catch(() => {});
+    }).catch((error) => {
+      setRetentionDays(previous);
+      reportOperationError("データ保持設定の保存に失敗しました。", error);
+    });
   }
 
   function handleBlockingToggle() {
@@ -108,39 +126,55 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
       return;
     }
 
+    const previous = blockingConfig;
     const newConfig = { ...blockingConfig, enabled: !blockingConfig.enabled };
+    setOperationError(null);
     setBlockingConfig(newConfig);
     chrome.runtime.sendMessage({
       type: "SET_BLOCKING_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      setBlockingConfig(previous);
+      reportOperationError("保護機能設定の保存に失敗しました。", error);
+    });
   }
 
   function handleConsentAccept() {
     if (!blockingConfig) return;
 
+    const previous = blockingConfig;
     const newConfig = {
       ...blockingConfig,
       enabled: true,
       userConsentGiven: true,
     };
+    setOperationError(null);
     setBlockingConfig(newConfig);
     setShowConsentDialog(false);
     chrome.runtime.sendMessage({
       type: "SET_BLOCKING_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      setBlockingConfig(previous);
+      setShowConsentDialog(true);
+      reportOperationError("保護機能の有効化に失敗しました。", error);
+    });
   }
 
   function handleNotificationToggle() {
     if (!notificationConfig) return;
 
+    const previous = notificationConfig;
     const newConfig = { ...notificationConfig, enabled: !notificationConfig.enabled };
+    setOperationError(null);
     setNotificationConfig(newConfig);
     chrome.runtime.sendMessage({
       type: "SET_NOTIFICATION_CONFIG",
       data: newConfig,
-    }).catch(() => {});
+    }).catch((error) => {
+      setNotificationConfig(previous);
+      reportOperationError("通知設定の保存に失敗しました。", error);
+    });
   }
 
   return (
@@ -196,6 +230,21 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
           <div style={{ padding: "4px", borderBottom: `1px solid ${colors.border}` }}>
             <ThemeToggle />
           </div>
+          {operationError && (
+            <div
+              role="alert"
+              style={{
+                padding: "8px 12px",
+                fontSize: "11px",
+                lineHeight: 1.4,
+                color: colors.status.danger.text,
+                background: colors.status.danger.bg,
+                borderBottom: `1px solid ${colors.status.danger.border}`,
+              }}
+            >
+              {operationError}
+            </div>
+          )}
 
           <div style={{ padding: "12px", borderBottom: `1px solid ${colors.border}` }}>
             <div style={{ fontSize: "11px", color: colors.textSecondary, marginBottom: "8px", fontWeight: 500 }}>
