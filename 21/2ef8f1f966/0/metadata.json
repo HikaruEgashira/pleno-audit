@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "212ef8f1f966",
+  "session_id": "0f2632ff-f16c-43e8-bbb6-7dd8d4ed9e30",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T08:10:37.764679Z",
+  "branch": "fix/network-monitor-remove-backward-compat",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "packages/debug-bridge/src/handlers.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 31951,
+    "cache_read_tokens": 156577,
+    "output_tokens": 180,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T08:10:37.742137Z",
+    "agent_lines": 1,
+    "human_added": 64,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 65,
+    "agent_percentage": 1.5384615384615385
+  },
+  "transcript_path": ".claude/projects/-Users-hikae-ghq-github-com-HikaruEgashira-pleno-audit/0f2632ff-f16c-43e8-bbb6-7dd8d4ed9e30.jsonl"
+}
