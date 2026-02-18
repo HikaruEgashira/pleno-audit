@@ -2,7 +2,7 @@ import type { AlertManager } from "@pleno-audit/alerts";
 import type {
   CooldownManager,
   DetectionConfig,
-  ExtensionMonitor,
+  NetworkMonitor,
   ExtensionRiskAnalysis,
   NetworkMonitorConfig,
   NetworkRequestRecord,
@@ -62,7 +62,7 @@ export interface ExtensionNetworkService {
 }
 
 export interface ExtensionNetworkState {
-  extensionMonitor: ExtensionMonitor | null;
+  extensionMonitor: NetworkMonitor | null;
   cooldownManager: CooldownManager | null;
   networkRequestBuffer: NetworkRequestRecord[];
 }

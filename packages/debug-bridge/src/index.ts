@@ -1,7 +1,7 @@
 import { setDebuggerSink, createLogger, type LogEntry } from "@pleno-audit/extension-runtime";
 import { DEBUG_SERVER_URL, LOG_BUFFER_SIZE, RECONNECT_INTERVAL } from "./constants.js";
 import { createDebugHandlers, dispatchDebugHandler } from "./handlers.js";
-import type { DebugMessage, DebugHandlerResult, DebugResponse } from "./types.js";
+import type { DebugBridgeDeps, DebugMessage, DebugHandlerResult, DebugResponse } from "./types.js";
 
 const logger = createLogger("debug-bridge");
 
@@ -9,7 +9,7 @@ let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let logBuffer: LogEntry[] = [];
 
-const handlers = createDebugHandlers(logger);
+let handlers = createDebugHandlers(logger);
 
 function sendLog(entry: LogEntry): void {
   if (ws?.readyState === WebSocket.OPEN) {
@@ -43,11 +43,12 @@ function flushLogBuffer(): void {
   logBuffer = [];
 }
 
-export function initDebugBridge(): void {
+export function initDebugBridge(deps?: DebugBridgeDeps): void {
   if (!import.meta.env.DEV) {
     return;
   }
 
+  handlers = createDebugHandlers(logger, deps);
   setDebuggerSink(sendLog);
 
   logger.info("Initializing...");

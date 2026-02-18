@@ -1,16 +1,16 @@
 import type { Logger } from "@pleno-audit/extension-runtime";
-import type { DebugHandler, DebugHandlerResult } from "./types.js";
+import type { DebugBridgeDeps, DebugHandler, DebugHandlerResult } from "./types.js";
 import { getSnapshot } from "./snapshot.js";
 import { getStorageKeys, getStorageValue, setStorageValue, clearStorage } from "./storage.js";
 import { getServices, getService, clearServices } from "./services.js";
 import { getEvents, getEventsCount, clearEvents } from "./events.js";
 import { getDoHConfig, setDoHConfig, getDoHRequests } from "./doh.js";
-import { getNetworkConfig, setNetworkConfig, getNetworkRequests } from "./network.js";
+import { getNetworkConfig, setNetworkConfig } from "./network.js";
 import { openTab } from "./tabs.js";
 
 export type DebugHandlerRegistry = Record<string, DebugHandler>;
 
-export function createDebugHandlers(logger: Logger): DebugHandlerRegistry {
+export function createDebugHandlers(logger: Logger, deps?: DebugBridgeDeps): DebugHandlerRegistry {
   return {
     DEBUG_PING: async () => ({
       success: true,
@@ -42,8 +42,14 @@ export function createDebugHandlers(logger: Logger): DebugHandlerRegistry {
       setNetworkConfig(
         data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean }
       ),
-    DEBUG_NETWORK_REQUESTS_GET: async (data) =>
-      getNetworkRequests(data as { limit?: number; initiatorType?: string }),
+    DEBUG_NETWORK_REQUESTS_GET: async (data) => {
+      const params = data as { limit?: number; initiatorType?: string };
+      if (!deps?.getNetworkRequests) {
+        return { success: false, error: "getNetworkRequests not available" };
+      }
+      const result = await deps.getNetworkRequests(params);
+      return { success: true, data: result.requests };
+    },
   };
 }
 

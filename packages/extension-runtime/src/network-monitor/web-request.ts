@@ -142,6 +142,3 @@ export function registerNetworkMonitorListener(): void {
     logger.error("Failed to register webRequest listener:", error);
   }
 }
-
-// 後方互換性: 旧関数名のエイリアス
-export const registerExtensionMonitorListener = registerNetworkMonitorListener;

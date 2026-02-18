@@ -14,3 +14,10 @@ export interface DebugResponse {
 export type DebugHandlerResult = Omit<DebugResponse, "id">;
 
 export type DebugHandler = (data: unknown) => Promise<DebugHandlerResult>;
+
+export interface DebugBridgeDeps {
+  getNetworkRequests?: (params?: {
+    limit?: number;
+    initiatorType?: string;
+  }) => Promise<{ requests: unknown[]; total: number }>;
+}

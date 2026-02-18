@@ -42,25 +42,3 @@ export async function setNetworkConfig(params: {
     };
   }
 }
-
-export async function getNetworkRequests(params?: {
-  limit?: number;
-  initiatorType?: string;
-}): Promise<DebugHandlerResult> {
-  try {
-    const result = await chrome.runtime.sendMessage({
-      type: "GET_NETWORK_REQUESTS",
-      data: {
-        limit: params?.limit,
-        initiatorType: params?.initiatorType,
-      },
-    });
-
-    return { success: true, data: result?.requests || [] };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get network requests",
-    };
-  }
-}

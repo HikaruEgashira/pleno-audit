@@ -9,8 +9,6 @@ import type {
   EventLog,
   CapturedAIPrompt,
   AIMonitorConfig,
-  ExtensionRequestRecord,
-  ExtensionMonitorConfig,
   DataRetentionConfig,
   DetectionConfig,
   BlockingConfig,
@@ -22,7 +20,6 @@ import {
 } from "./storage-types.js";
 import type { NRDConfig } from "@pleno-audit/detectors";
 import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
-import { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./extension-monitor.js";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import { DEFAULT_AI_MONITOR_CONFIG } from "@pleno-audit/detectors";
 import { getBrowserAPI } from "./browser-adapter.js";
@@ -35,8 +32,6 @@ const STORAGE_KEYS = [
   "aiPrompts",
   "aiMonitorConfig",
   "nrdConfig",
-  "extensionRequests",
-  "extensionMonitorConfig",
   "dataRetentionConfig",
   "detectionConfig",
   "blockingConfig",
@@ -66,9 +61,6 @@ export async function getStorage(): Promise<StorageData> {
     aiMonitorConfig:
       (result.aiMonitorConfig as AIMonitorConfig) || DEFAULT_AI_MONITOR_CONFIG,
     nrdConfig: (result.nrdConfig as NRDConfig) || DEFAULT_NRD_CONFIG,
-    extensionRequests: (result.extensionRequests as ExtensionRequestRecord[]) || [],
-    extensionMonitorConfig:
-      (result.extensionMonitorConfig as ExtensionMonitorConfig) || DEFAULT_EXTENSION_MONITOR_CONFIG,
     dataRetentionConfig:
       (result.dataRetentionConfig as DataRetentionConfig) || DEFAULT_DATA_RETENTION_CONFIG,
     detectionConfig:
@@ -96,8 +88,6 @@ export async function getStorageKey<K extends StorageKey>(
     aiPrompts: [],
     aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
     nrdConfig: DEFAULT_NRD_CONFIG,
-    extensionRequests: [],
-    extensionMonitorConfig: DEFAULT_EXTENSION_MONITOR_CONFIG,
     dataRetentionConfig: DEFAULT_DATA_RETENTION_CONFIG,
     detectionConfig: DEFAULT_DETECTION_CONFIG,
     blockingConfig: DEFAULT_BLOCKING_CONFIG,
@@ -149,8 +139,6 @@ export async function clearAllStorage(options?: { preserveTheme?: boolean }): Pr
     aiPrompts: [],
     aiMonitorConfig: DEFAULT_AI_MONITOR_CONFIG,
     nrdConfig: DEFAULT_NRD_CONFIG,
-    extensionRequests: [],
-    extensionMonitorConfig: DEFAULT_EXTENSION_MONITOR_CONFIG,
     dataRetentionConfig: DEFAULT_DATA_RETENTION_CONFIG,
     detectionConfig: DEFAULT_DETECTION_CONFIG,
     blockingConfig: DEFAULT_BLOCKING_CONFIG,

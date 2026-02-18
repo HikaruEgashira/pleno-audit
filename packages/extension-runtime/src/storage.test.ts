@@ -27,10 +27,6 @@ vi.mock("@pleno-audit/csp", () => ({
   DEFAULT_CSP_CONFIG: { enabled: true, reportOnly: false },
 }));
 
-vi.mock("./extension-monitor.js", () => ({
-  DEFAULT_EXTENSION_MONITOR_CONFIG: { enabled: true },
-}));
-
 import {
   getStorage,
   setStorage,
@@ -61,7 +57,6 @@ describe("storage", () => {
       expect(result.events).toEqual([]);
       expect(result.cspReports).toEqual([]);
       expect(result.aiPrompts).toEqual([]);
-      expect(result.extensionRequests).toEqual([]);
     });
 
     it("returns stored values when available", async () => {
@@ -98,8 +93,6 @@ describe("storage", () => {
           "aiPrompts",
           "aiMonitorConfig",
           "nrdConfig",
-          "extensionRequests",
-          "extensionMonitorConfig",
           "dataRetentionConfig",
           "detectionConfig",
           "blockingConfig",
@@ -227,7 +220,6 @@ describe("storage", () => {
           events: [],
           cspReports: [],
           aiPrompts: [],
-          extensionRequests: [],
         })
       );
     });

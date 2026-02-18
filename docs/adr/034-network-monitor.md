@@ -60,7 +60,7 @@ interface NetworkMonitorConfig {
 - `extension-monitor.ts` → `network-monitor.ts`にリネーム
 - `DNRSettings.tsx` → `NetworkMonitorSettings.tsx`にリネーム
 - debugger CLI: `dnr` → `network`コマンド
-- 後方互換性のためのエイリアス（`createExtensionMonitor`等）を維持
+- 後方互換性のためのエイリアス（`createExtensionMonitor`等）を一時的に維持（後に削除済み）
 
 ## 理由
 
@@ -74,7 +74,14 @@ interface NetworkMonitorConfig {
 |--------|------|
 | ストレージ肥大化 | `unlimitedStorage`権限で対応（ADR 033） |
 | パフォーマンス | 将来的にサンプリングやフィルタオプションを追加可能 |
-| 後方互換性 | `ExtensionMonitor`型と関数のエイリアスを維持 |
+
+## 更新履歴
+
+### 後方互換レイヤーの完全削除
+
+後方互換レイヤー（`ExtensionMonitor`, `ExtensionMonitorConfig`, `createExtensionMonitor`, `registerExtensionMonitorListener`, `DEFAULT_EXTENSION_MONITOR_CONFIG`）を完全削除した。
+
+**理由**: `createExtensionMonitor` が `captureAllRequests: false` をハードコードしていたため、全リクエスト監視が機能しないバグが発生した。後方互換ファサードは技術負債であり、同種のバグ再発リスクになるため削除。
 
 ## 関連
 

@@ -65,7 +65,6 @@ export type {
   CSPReport,
   CapturedAIPrompt,
   AIMonitorConfig,
-  ExtensionMonitorConfig,
   ExtensionRequestRecord,
   NetworkMonitorConfig,
   NetworkRequestRecord,
@@ -96,11 +95,6 @@ export {
   removeDNRRuleForExtension,
   type NetworkMonitor,
   type ExtensionInfo,
-  // Backward compatibility aliases
-  createExtensionMonitor,
-  registerExtensionMonitorListener,
-  DEFAULT_EXTENSION_MONITOR_CONFIG,
-  type ExtensionMonitor as ExtensionMonitorType,
 } from "./network-monitor.js";
 
 // Extension Stats Analyzer

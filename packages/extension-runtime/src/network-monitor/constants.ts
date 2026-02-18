@@ -4,8 +4,6 @@
  * DNR関連定数とその意図を明確にするコメント
  */
 
-import type { ExtensionMonitorConfig } from "../storage-types.js";
-
 /**
  * 拡張機能IDのパターン（32文字の小文字英字）
  */
@@ -62,20 +60,6 @@ export const DNR_MAX_CALLS_PER_INTERVAL = 18;
  * 10分 / 18回 ≈ 33秒 に安全マージンを追加
  */
 export const DNR_MIN_INTERVAL_MS = 35 * 1000;
-
-// ============================================================================
-// デフォルト設定
-// ============================================================================
-
-/**
- * 後方互換性のためのデフォルト拡張機能監視設定
- */
-export const DEFAULT_EXTENSION_MONITOR_CONFIG: ExtensionMonitorConfig = {
-  enabled: true,
-  excludeOwnExtension: true,
-  excludedExtensions: [],
-  maxStoredRequests: 5000,
-};
 
 /**
  * DNRリソースタイプを解決
