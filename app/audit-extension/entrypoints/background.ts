@@ -18,7 +18,7 @@ import {
   setStorage,
   clearAIPrompts,
   clearAllStorage,
-  registerExtensionMonitorListener,
+  registerNetworkMonitorListener,
   createLogger,
   DEFAULT_NETWORK_MONITOR_CONFIG,
   DEFAULT_DATA_RETENTION_CONFIG,
@@ -282,7 +282,7 @@ function initializeDebugBridge(): void {
     return;
   }
   void import("@pleno-audit/debug-bridge").then(({ initDebugBridge }) => {
-    initDebugBridge();
+    initDebugBridge({ getNetworkRequests });
   });
 }
 
@@ -466,7 +466,7 @@ export default defineBackground(() => {
   const PROCESS_CHUNK_SIZE = 20;
 
   // MV3 Service Worker: webRequestリスナーは起動直後に同期的に登録する必要がある
-  registerExtensionMonitorListener();
+  registerNetworkMonitorListener();
   registerDoHMonitorListener();
 
   initializeBackgroundServices();

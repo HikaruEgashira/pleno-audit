@@ -16,7 +16,6 @@
 import type {
   NetworkMonitorConfig,
   NetworkRequestRecord,
-  ExtensionMonitorConfig,
 } from "../storage-types.js";
 import { createLogger } from "../logger.js";
 import {
@@ -29,11 +28,8 @@ import {
 
 // Internal modules
 import { state, applyConfig, clearGlobalCallbacks } from "./state.js";
-import { DEFAULT_EXTENSION_MONITOR_CONFIG, EXTENSION_ID_PATTERN } from "./constants.js";
-import {
-  registerNetworkMonitorListener,
-  registerExtensionMonitorListener,
-} from "./web-request.js";
+import { EXTENSION_ID_PATTERN } from "./constants.js";
+import { registerNetworkMonitorListener } from "./web-request.js";
 import {
   registerDNRRulesForExtensions,
   checkMatchedDNRRules,
@@ -47,11 +43,7 @@ import { toExtensionRequestRecords } from "./utils.js";
 
 // Re-exports for public API
 export { clearGlobalCallbacks } from "./state.js";
-export { DEFAULT_EXTENSION_MONITOR_CONFIG } from "./constants.js";
-export {
-  registerNetworkMonitorListener,
-  registerExtensionMonitorListener,
-} from "./web-request.js";
+export { registerNetworkMonitorListener } from "./web-request.js";
 export {
   registerDNRRulesForExtensions,
   checkMatchedDNRRules,
@@ -61,7 +53,7 @@ export {
 } from "./dnr-manager.js";
 
 // Re-export types
-export type { ExtensionInfo, NetworkMonitor, ExtensionMonitor } from "./types.js";
+export type { ExtensionInfo, NetworkMonitor } from "./types.js";
 
 const logger = createLogger("network-monitor");
 
@@ -170,20 +162,3 @@ export function createNetworkMonitor(
   };
 }
 
-/**
- * 後方互換性: 旧関数名のエイリアス
- */
-export function createExtensionMonitor(
-  config: ExtensionMonitorConfig,
-  ownExtensionId: string
-): import("./types.js").NetworkMonitor {
-  // ExtensionMonitorConfig を NetworkMonitorConfig に変換
-  const networkConfig: NetworkMonitorConfig = {
-    enabled: config.enabled,
-    captureAllRequests: false, // 後方互換: 拡張機能のみ
-    excludeOwnExtension: config.excludeOwnExtension,
-    excludedDomains: [],
-    excludedExtensions: config.excludedExtensions,
-  };
-  return createNetworkMonitor(networkConfig, ownExtensionId);
-}

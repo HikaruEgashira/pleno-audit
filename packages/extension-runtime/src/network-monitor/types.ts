@@ -7,8 +7,6 @@
 import type {
   NetworkMonitorConfig,
   NetworkRequestRecord,
-  ExtensionMonitorConfig,
-  ExtensionRequestRecord,
 } from "../storage-types.js";
 import type { DashboardStats } from "../extension-stats-analyzer.js";
 import type { SuspiciousPattern } from "../suspicious-pattern-detector.js";
@@ -17,8 +15,6 @@ import type { SuspiciousPattern } from "../suspicious-pattern-detector.js";
 export type {
   NetworkMonitorConfig,
   NetworkRequestRecord,
-  ExtensionMonitorConfig,
-  ExtensionRequestRecord,
 };
 
 /**
@@ -67,5 +63,3 @@ export interface NetworkMonitor {
   detectSuspiciousPatterns(records: NetworkRequestRecord[]): SuspiciousPattern[];
 }
 
-// 後方互換性のためのエイリアス
-export type ExtensionMonitor = NetworkMonitor;

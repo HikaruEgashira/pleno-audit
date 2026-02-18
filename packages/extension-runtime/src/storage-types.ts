@@ -12,13 +12,6 @@ import type { CSPConfig, CSPReport, GeneratedCSPByDomain } from "@pleno-audit/cs
 
 // Forecast config removed - enterprise feature
 
-export interface ExtensionMonitorConfig {
-  enabled: boolean;
-  excludeOwnExtension: boolean;
-  excludedExtensions: string[];
-  maxStoredRequests: number;
-}
-
 /**
  * Network Monitor Config - 全ネットワークリクエスト監視設定
  * CSPと並ぶコア機能として、全リクエストを記録しposture（態勢）を可視化

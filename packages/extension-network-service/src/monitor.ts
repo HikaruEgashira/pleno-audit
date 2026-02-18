@@ -1,7 +1,6 @@
 import {
-  createExtensionMonitor,
+  createNetworkMonitor,
   DEFAULT_NETWORK_MONITOR_CONFIG,
-  type ExtensionMonitorConfig,
   type NetworkMonitorConfig,
   type NetworkRequestRecord,
 } from "@pleno-audit/extension-runtime";
@@ -31,14 +30,7 @@ export async function initExtensionMonitor(context: ExtensionNetworkContext): Pr
   const networkConfig = await getNetworkMonitorConfig(context);
   if (!networkConfig.enabled) return;
 
-  const config: ExtensionMonitorConfig = {
-    enabled: networkConfig.enabled,
-    excludeOwnExtension: networkConfig.excludeOwnExtension,
-    excludedExtensions: networkConfig.excludedExtensions,
-    maxStoredRequests: 10000,
-  };
-
-  context.state.extensionMonitor = createExtensionMonitor(config, context.deps.getRuntimeId());
+  context.state.extensionMonitor = createNetworkMonitor(networkConfig, context.deps.getRuntimeId());
 
   context.state.extensionMonitor.onRequest((record) => {
     context.state.networkRequestBuffer.push(record as NetworkRequestRecord);
