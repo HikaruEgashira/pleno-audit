@@ -48,7 +48,7 @@ export function createDebugHandlers(logger: Logger, deps?: DebugBridgeDeps): Deb
         return { success: false, error: "getNetworkRequests not available" };
       }
       const result = await deps.getNetworkRequests(params);
-      return { success: true, data: result.requests };
+      return { success: true, data: { requests: result.requests, total: result.total } };
     },
   };
 }
