@@ -36,6 +36,7 @@ export function CSPSettings() {
         console.warn("[popup] GET_CSP_CONFIG failed", error);
         setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
         setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
+  
       });
   }, []);
 
@@ -49,12 +50,8 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config[key] === newConfig[key]
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
+
     });
   }
 
@@ -68,17 +65,9 @@ export function CSPSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
-      let rolledBack = false;
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        rolledBack = current.config.reportEndpoint === newConfig.reportEndpoint;
-        return rolledBack
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
-      if (rolledBack) {
-        setEndpointDraft(previousConfig.reportEndpoint ?? "");
-      }
+      setViewState({ kind: "ready", config: previousConfig });
+      setEndpointDraft(previousConfig.reportEndpoint ?? "");
+
     });
   }
 

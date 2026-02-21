@@ -49,12 +49,7 @@ export function DoHSettings() {
       data: { action },
     }).catch((error) => {
       console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config.action === newConfig.action
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
     });
   }
 

@@ -45,12 +45,7 @@ export function NetworkMonitorSettings() {
       data: newConfig,
     }).catch((error) => {
       console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
-      setViewState((current) => {
-        if (current.kind !== "ready") return current;
-        return current.config[key] === newConfig[key]
-          ? { kind: "ready", config: previousConfig }
-          : current;
-      });
+      setViewState({ kind: "ready", config: previousConfig });
     });
   }
 
@@ -159,5 +154,3 @@ export function NetworkMonitorSettings() {
     </div>
   );
 }
-
-export { NetworkMonitorSettings as DNRSettings };
