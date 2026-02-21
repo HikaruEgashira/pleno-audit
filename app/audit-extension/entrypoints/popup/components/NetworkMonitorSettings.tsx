@@ -46,6 +46,8 @@ export function NetworkMonitorSettings() {
     }).catch((error) => {
       console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
       setViewState({ kind: "ready", config: previousConfig });
+
+
     });
   }
 
