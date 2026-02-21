@@ -1,0 +1,33 @@
+/Users/hikae/ghq/github.com/HikaruEgashira/pleno-audit/.claude/settings.json をglobal settingsに移動
+
+---
+
+削除
+
+---
+
+mainに反映
+
+---
+
+[Request interrupted by user]
+
+---
+
+mainに反映
+
+---
+
+[Request interrupted by user]
+
+---
+
+retry
+
+---
+
+mainに反映
+
+---
+
+だめです。そちらも残して
