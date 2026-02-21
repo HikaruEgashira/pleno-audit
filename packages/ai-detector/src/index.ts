@@ -54,11 +54,18 @@ export {
   type ProviderInfo,
 } from "./provider-classifier.js";
 
-// DLP Rules
+// DLP Rules (includes sensitive data detection)
 export {
   createDLPManager,
+  ALL_DLP_RULES,
   EXTENDED_DLP_RULES,
   DEFAULT_DLP_CONFIG,
+  detectSensitiveData,
+  hasSensitiveData,
+  getHighestRiskClassification,
+  getSensitiveDataSummary,
+  type DataClassification,
+  type SensitiveDataResult,
   type DLPRule,
   type DLPConfig,
   type DLPDetectionResult,

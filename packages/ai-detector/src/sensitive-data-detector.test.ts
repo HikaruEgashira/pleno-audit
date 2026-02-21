@@ -418,3 +418,28 @@ describe("integration tests", () => {
     expect(hasSensitiveData(cleanText)).toBe(false);
   });
 });
+
+describe("ReDoS耐性", () => {
+  const BUDGET_MS = 50;
+
+  it(`email正規表現が悪意ある入力で ${BUDGET_MS}ms 以内に完了する`, () => {
+    const malicious = "a".repeat(50) + "@" + "b.".repeat(500) + "c";
+    const start = performance.now();
+    detectSensitiveData(malicious);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+  });
+
+  it(`@を含む100KBテキストで ${BUDGET_MS}ms 以内に完了する`, () => {
+    const chunk = "data@field.value&key=".repeat(5000);
+    const start = performance.now();
+    detectSensitiveData(chunk);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+  });
+
+  it(`hasSensitiveData も同様に高速`, () => {
+    const malicious = "a".repeat(50) + "@" + "b.".repeat(500) + "c";
+    const start = performance.now();
+    hasSensitiveData(malicious);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+  });
+});

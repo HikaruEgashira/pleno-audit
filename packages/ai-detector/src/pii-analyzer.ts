@@ -13,7 +13,7 @@ import {
   getSensitiveDataSummary,
   type SensitiveDataResult,
   type DataClassification,
-} from "./sensitive-data-detector.js";
+} from "./dlp-rules.js";
 import {
   scoreToRiskLevel5,
   type RiskLevel5,
