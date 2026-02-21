@@ -64,11 +64,6 @@
       "files": ["app/audit-extension/public/api-hooks.js"],
       "rules": { "no-restricted-globals": "off" }
     },
-    // AI service interceptor for monitoring (no actual communication)
-    {
-      "files": ["app/audit-extension/public/ai-hooks.js"],
-      "rules": { "no-restricted-globals": "off" }
-    },
     // Landing page website (separate from extension)
     {
       "files": ["app/website/**/*"],

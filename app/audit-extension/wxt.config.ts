@@ -58,10 +58,10 @@ export default defineConfig({
             },
       }),
       web_accessible_resources: isMV2
-        ? ["api-hooks.js", "ai-hooks.js", "parquet_wasm_bg.wasm"]
+        ? ["api-hooks.js", "parquet_wasm_bg.wasm"]
         : [
             {
-              resources: ["api-hooks.js", "ai-hooks.js", "parquet_wasm_bg.wasm"],
+              resources: ["api-hooks.js", "parquet_wasm_bg.wasm"],
               matches: ["<all_urls>"],
             },
           ],
@@ -70,12 +70,6 @@ export default defineConfig({
         content_scripts: [
           {
             js: ["api-hooks.js"],
-            matches: ["<all_urls>"],
-            run_at: "document_start",
-            world: "MAIN",
-          },
-          {
-            js: ["ai-hooks.js"],
             matches: ["<all_urls>"],
             run_at: "document_start",
             world: "MAIN",
