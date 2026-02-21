@@ -15,13 +15,15 @@ interface AuditEventInput {
 
 export interface DataExfiltrationData {
   source?: string;
-  timestamp: string;
+  timestamp: number | string;
   pageUrl: string;
-  targetUrl: string;
+  targetUrl?: string;
+  url?: string;
   targetDomain: string;
   method: string;
   bodySize: number;
   initiator: string;
+  sensitiveDataTypes?: string[];
 }
 
 export interface CredentialTheftData {
@@ -51,7 +53,7 @@ export interface SupplyChainRiskData {
 
 export interface TrackingBeaconData {
   source?: string;
-  timestamp: string;
+  timestamp: number | string;
   pageUrl: string;
   url: string;
   targetDomain: string;
@@ -134,6 +136,7 @@ export function createSecurityEventHandlers(
       data: DataExfiltrationData,
       sender: chrome.runtime.MessageSender,
     ): Promise<{ success: boolean }> {
+      const targetUrl = data.targetUrl || data.url || "";
       const pageDomain = resolvePageDomain(sender, data.pageUrl, deps.extractDomainFromUrl);
       const eventTimestamp = resolveEventTimestamp(data.timestamp);
 
@@ -142,12 +145,13 @@ export function createSecurityEventHandlers(
         domain: data.targetDomain,
         timestamp: eventTimestamp,
         details: {
-          targetUrl: data.targetUrl,
+          targetUrl,
           targetDomain: data.targetDomain,
           method: data.method,
           bodySize: data.bodySize,
           initiator: data.initiator,
           pageUrl: data.pageUrl,
+          sensitiveDataTypes: data.sensitiveDataTypes ?? [],
         },
       });
 

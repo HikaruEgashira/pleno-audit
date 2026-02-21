@@ -53,11 +53,13 @@ import {
   type RuntimeHandlerDependencies,
   createDebugBridgeHandler,
   createDomainRiskService,
+  createNetworkSecurityInspector,
   createSecurityEventHandlers,
   type ClipboardHijackData,
   type CookieAccessData,
   type DOMScrapingData,
   type DataExfiltrationData,
+  type NetworkInspectionRequest,
   type CredentialTheftData,
   type SupplyChainRiskData,
   type SuspiciousDownloadData,
@@ -201,6 +203,14 @@ const securityEventHandlers = createSecurityEventHandlers({
   getAlertManager: backgroundAlerts.getAlertManager,
   extractDomainFromUrl: backgroundUtils.extractDomainFromUrl,
   checkDataTransferPolicy: backgroundAlerts.checkDataTransferPolicy,
+  logger,
+});
+
+const networkSecurityInspector = createNetworkSecurityInspector({
+  handleDataExfiltration: (data, sender) =>
+    securityEventHandlers.handleDataExfiltration(data, sender),
+  handleTrackingBeacon: (data, sender) =>
+    securityEventHandlers.handleTrackingBeacon(data, sender),
   logger,
 });
 
@@ -397,6 +407,7 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
       backgroundAnalysis.handlePageAnalysis(payload as PageAnalysis),
     handleCSPViolation: (data, sender) => cspReportingService.handleCSPViolation(data as Omit<CSPViolation, "type">, sender),
     handleNetworkRequest: (data, sender) => cspReportingService.handleNetworkRequest(data as Omit<NetworkRequest, "type">, sender),
+    handleNetworkInspection: (data, sender) => networkSecurityInspector.handleNetworkInspection(data as NetworkInspectionRequest, sender),
     handleDataExfiltration: (data, sender) => securityEventHandlers.handleDataExfiltration(data as DataExfiltrationData, sender),
     handleCredentialTheft: (data, sender) => securityEventHandlers.handleCredentialTheft(data as CredentialTheftData, sender),
     handleSupplyChainRisk: (data, sender) => securityEventHandlers.handleSupplyChainRisk(data as SupplyChainRiskData, sender),
