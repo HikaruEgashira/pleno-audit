@@ -183,28 +183,32 @@ export function createNetworkSecurityInspector(
     const bodySample = normalizeBodySample(input.bodySample, maxSampleLength);
     const normalizedUrl = resolveAbsoluteUrl(input.url, input.pageUrl);
 
-    if (!normalizedUrl || method === "GET" || method === "HEAD") {
+    if (!normalizedUrl) {
       return {
         hasDataExfiltration: false,
         hasTrackingBeacon: false,
         sensitiveDataTypes: [],
-        normalizedUrl: normalizedUrl ?? "",
-        targetDomain: normalizedUrl ? getTargetDomain(normalizedUrl) : "",
+        normalizedUrl: "",
+        targetDomain: "",
         method,
         bodySize,
       };
     }
 
-    const sensitiveDataTypes = bodySize >= DATA_EXFILTRATION_THRESHOLD
-      ? []
-      : detectSensitiveData(bodySample);
-    const hasDataExfiltration = bodySize >= DATA_EXFILTRATION_THRESHOLD
-      || sensitiveDataTypes.length > 0;
-    const hasTracking = isTrackingBeacon(normalizedUrl, bodySize, bodySample);
+    const shouldEvaluateExfiltration = method !== "GET" && method !== "HEAD";
+    const sensitiveDataTypes = shouldEvaluateExfiltration
+      ? (bodySize >= DATA_EXFILTRATION_THRESHOLD
+        ? []
+        : detectSensitiveData(bodySample))
+      : [];
+    const hasDataExfiltration = shouldEvaluateExfiltration
+      ? bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveDataTypes.length > 0
+      : false;
+    const hasTrackingBeacon = isTrackingBeacon(normalizedUrl, bodySize, bodySample);
 
     return {
       hasDataExfiltration,
-      hasTrackingBeacon: hasTracking,
+      hasTrackingBeacon,
       sensitiveDataTypes,
       normalizedUrl,
       targetDomain: getTargetDomain(normalizedUrl),

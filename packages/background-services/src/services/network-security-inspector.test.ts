@@ -109,6 +109,34 @@ describe("createNetworkSecurityInspector", () => {
     expect(handleTrackingBeacon).not.toHaveBeenCalled();
   });
 
+  it("GET でも tracking beacon は判定する", async () => {
+    const handleDataExfiltration = vi.fn(async () => ({ success: true }));
+    const handleTrackingBeacon = vi.fn(async () => ({ success: true }));
+    const inspector = createNetworkSecurityInspector({
+      handleDataExfiltration,
+      handleTrackingBeacon,
+    });
+
+    const result = await inspector.handleNetworkInspection({
+      pageUrl: "https://example.com",
+      url: "/analytics/collect",
+      method: "GET",
+      initiator: "img",
+      bodySize: 0,
+      bodySample: "",
+    }, {} as chrome.runtime.MessageSender);
+
+    expect(result.success).toBe(true);
+    expect(result.detected).toBe(1);
+    expect(handleDataExfiltration).not.toHaveBeenCalled();
+    expect(handleTrackingBeacon).toHaveBeenCalledTimes(1);
+    expect(handleTrackingBeacon.mock.calls[0][0]).toMatchObject({
+      url: "https://example.com/analytics/collect",
+      targetDomain: "example.com",
+      initiator: "img",
+    });
+  });
+
   it("不正な payload は失敗を返す", async () => {
     const inspector = createNetworkSecurityInspector({
       handleDataExfiltration: async () => ({ success: true }),
