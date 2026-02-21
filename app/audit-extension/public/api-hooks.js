@@ -393,9 +393,10 @@
           checkSupplyChainRisk(node, 'script')
         }
         if (node.tagName === 'LINK' && node.href) {
-          const type = node.rel === 'stylesheet' ? 'style' : 'link'
+          const isStylesheet = node.relList ? node.relList.contains('stylesheet') : node.getAttribute('rel')?.split(/\s+/).includes('stylesheet')
+          const type = isStylesheet ? 'style' : 'link'
           emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.href, method: 'GET', initiator: type, resourceType: type, timestamp: Date.now() })
-          if (node.rel === 'stylesheet') checkSupplyChainRisk(node, 'stylesheet')
+          if (isStylesheet) checkSupplyChainRisk(node, 'stylesheet')
         }
         if (node.tagName === 'IFRAME' && node.src) {
           emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.src, method: 'GET', initiator: 'frame', resourceType: 'frame', timestamp: Date.now() })
@@ -405,11 +406,19 @@
   })
 
   const startObserving = () => {
-    if (document.body) observer.observe(document.body, { childList: true, subtree: true })
     if (document.head) observer.observe(document.head, { childList: true, subtree: true })
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true })
+    } else {
+      // body is not yet available — watch for it via DOMContentLoaded
+      const onReady = () => {
+        if (document.body) observer.observe(document.body, { childList: true, subtree: true })
+      }
+      document.addEventListener('DOMContentLoaded', onReady, { once: true })
+    }
   }
   if (document.body || document.head) startObserving()
-  else document.addEventListener('DOMContentLoaded', startObserving)
+  else document.addEventListener('DOMContentLoaded', startObserving, { once: true })
 
   // ===== Credential Theft =====
   const sensitiveTypes = ['password', 'email', 'tel', 'credit-card']

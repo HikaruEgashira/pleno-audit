@@ -7,15 +7,27 @@ const DATA_EXFILTRATION_THRESHOLD = 10 * 1024;
 const TRACKING_BEACON_SIZE_LIMIT = 2048;
 const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i;
 const TRACKING_PAYLOAD_PATTERNS = /event|click|view|session|user_id|visitor|pageview|action/i;
-const SENSITIVE_PATTERNS = [
-  /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
-  /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
-  /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
-  /\d{3}-\d{2}-\d{4}/,
-  /["']password["']\s*:\s*["'][^"']+["']/i,
-  /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,
-  /["']secret["']\s*:\s*["'][^"']+["']/i,
-  /["']token["']\s*:\s*["'][^"']+["']/i,
+// Each entry: [cheapGuard, regex] — guard is checked with indexOf before running regex
+const SENSITIVE_CHECKS: ReadonlyArray<
+  readonly [guard: string, pattern: RegExp, type: string]
+> = [
+  // Email: rewrite to avoid catastrophic backtracking on long strings.
+  // Original `[A-Za-z0-9.-]+` ate dots greedily, causing exponential
+  // backtracking against the trailing `\.[A-Za-z]{2,}`.
+  // Fix: domain part uses `[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*`
+  // which never backtracks because each segment is anchored by non-dot chars.
+  [
+    "@",
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}/,
+    "email",
+  ],
+  ["4", /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, "credit_card"],
+  ["5", /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/, "credit_card"],
+  ["-", /\d{3}-\d{2}-\d{4}/, "ssn"],
+  ["password", /["']password["']\s*:\s*["'][^"']+["']/i, "password"],
+  ["api", /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i, "api_key"],
+  ["secret", /["']secret["']\s*:\s*["'][^"']+["']/i, "secret"],
+  ["token", /["']token["']\s*:\s*["'][^"']+["']/i, "token"],
 ];
 
 interface LoggerLike {
@@ -105,18 +117,21 @@ function getTargetDomain(url: string): string {
   }
 }
 
-function detectSensitiveData(bodySample: string): string[] {
+/** @internal exported for testing */
+export function detectSensitiveData(bodySample: string): string[] {
   if (!bodySample) {
     return [];
   }
   const types: string[] = [];
-  if (SENSITIVE_PATTERNS[0].test(bodySample)) types.push("email");
-  if (SENSITIVE_PATTERNS[1].test(bodySample) || SENSITIVE_PATTERNS[2].test(bodySample)) types.push("credit_card");
-  if (SENSITIVE_PATTERNS[3].test(bodySample)) types.push("ssn");
-  if (SENSITIVE_PATTERNS[4].test(bodySample)) types.push("password");
-  if (SENSITIVE_PATTERNS[5].test(bodySample)) types.push("api_key");
-  if (SENSITIVE_PATTERNS[6].test(bodySample)) types.push("secret");
-  if (SENSITIVE_PATTERNS[7].test(bodySample)) types.push("token");
+  const seen = new Set<string>();
+  for (const [guard, pattern, type] of SENSITIVE_CHECKS) {
+    if (seen.has(type)) continue;
+    if (!bodySample.includes(guard)) continue;
+    if (pattern.test(bodySample)) {
+      types.push(type);
+      seen.add(type);
+    }
+  }
   return types;
 }
 
