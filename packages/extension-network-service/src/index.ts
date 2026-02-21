@@ -5,7 +5,6 @@ import {
   getNetworkMonitorConfig,
   initExtensionMonitor,
   setNetworkMonitorConfig,
-  flushNetworkRequestBuffer,
   checkDNRMatchesHandler,
   getKnownExtensions,
 } from "./monitor";
@@ -31,7 +30,6 @@ export function createExtensionNetworkService(
     getNetworkMonitorConfig: () => getNetworkMonitorConfig(context),
     setNetworkMonitorConfig: (config) => setNetworkMonitorConfig(context, config),
     initExtensionMonitor: () => initExtensionMonitor(context),
-    flushNetworkRequestBuffer: () => flushNetworkRequestBuffer(context),
     checkDNRMatchesHandler: () => checkDNRMatchesHandler(context),
     getNetworkRequests: (options) => getNetworkRequests(context, options),
     getExtensionRequests: (options) => getExtensionRequests(context, options),

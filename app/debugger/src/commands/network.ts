@@ -87,18 +87,22 @@ networkCommand
       });
 
       if (response.success) {
-        const requests = response.data as Array<{
-          timestamp: number;
-          url: string;
-          method: string;
-          initiatorType: string;
-          domain: string;
-        }>;
+        const responseData = response.data as {
+          requests: Array<{
+            timestamp: number;
+            url: string;
+            method: string;
+            initiatorType: string;
+            domain: string;
+          }>;
+          total: number;
+        };
+        const requests = responseData.requests;
 
         if (options.pretty) {
-          console.log(JSON.stringify(requests, null, 2));
+          console.log(JSON.stringify(responseData, null, 2));
         } else {
-          console.log(`Network Requests (${requests.length}):`);
+          console.log(`Network Requests (${requests.length}/${responseData.total}):`);
           for (const req of requests) {
             const time = new Date(req.timestamp).toLocaleTimeString();
             const urlShort = req.url.length > 60 ? req.url.substring(0, 60) + "..." : req.url;

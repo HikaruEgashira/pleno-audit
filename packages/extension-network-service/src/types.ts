@@ -43,7 +43,6 @@ export interface ExtensionNetworkService {
   getNetworkMonitorConfig: () => Promise<NetworkMonitorConfig>;
   setNetworkMonitorConfig: (config: NetworkMonitorConfig) => Promise<{ success: boolean }>;
   initExtensionMonitor: () => Promise<void>;
-  flushNetworkRequestBuffer: () => Promise<void>;
   checkDNRMatchesHandler: () => Promise<void>;
   getNetworkRequests: (
     options?: NetworkRequestQueryOptions
@@ -64,7 +63,6 @@ export interface ExtensionNetworkService {
 export interface ExtensionNetworkState {
   extensionMonitor: NetworkMonitor | null;
   cooldownManager: CooldownManager | null;
-  networkRequestBuffer: NetworkRequestRecord[];
 }
 
 export interface LoggerLike {

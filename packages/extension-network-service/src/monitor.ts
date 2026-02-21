@@ -21,6 +21,23 @@ export async function getNetworkMonitorConfig(
   };
 }
 
+/**
+ * リクエストを直接Parquetストアへ書き込む。
+ *
+ * MV3 Service Workerは30秒アイドルでkillされるため、
+ * インメモリバッファに溜めてアラームでflushする方式では
+ * flush前にバッファが消失する。Parquetストアの WriteBuffer が
+ * 内部で書き込みを直列化するため、呼び出し側でのバッファリングは不要。
+ */
+async function persistRecord(
+  context: ExtensionNetworkContext,
+  record: NetworkRequestRecord,
+): Promise<void> {
+  const store = await context.deps.getOrInitParquetStore();
+  const parquetRecord = networkRequestRecordToParquetRecord(record);
+  await store.appendRows("network-requests", [parquetRecord]);
+}
+
 export async function initExtensionMonitor(context: ExtensionNetworkContext): Promise<void> {
   if (context.state.extensionMonitor) {
     context.deps.logger.debug("Extension monitor already started");
@@ -33,7 +50,11 @@ export async function initExtensionMonitor(context: ExtensionNetworkContext): Pr
   context.state.extensionMonitor = createNetworkMonitor(networkConfig, context.deps.getRuntimeId());
 
   context.state.extensionMonitor.onRequest((record) => {
-    context.state.networkRequestBuffer.push(record as NetworkRequestRecord);
+    const networkRecord = record as NetworkRequestRecord;
+
+    void persistRecord(context, networkRecord).catch((error) => {
+      context.deps.logger.error("Failed to persist network request:", error);
+    });
 
     void context.deps
       .addEvent({
@@ -46,7 +67,7 @@ export async function initExtensionMonitor(context: ExtensionNetworkContext): Pr
           url: record.url,
           method: record.method,
           resourceType: record.resourceType,
-          initiatorType: (record as NetworkRequestRecord).initiatorType,
+          initiatorType: networkRecord.initiatorType,
         },
       })
       .catch((error) => {
@@ -81,22 +102,6 @@ export async function setNetworkMonitorConfig(
   }
 }
 
-export async function flushNetworkRequestBuffer(context: ExtensionNetworkContext): Promise<void> {
-  if (context.state.networkRequestBuffer.length === 0) return;
-
-  const toFlush = context.state.networkRequestBuffer.splice(
-    0,
-    context.state.networkRequestBuffer.length
-  );
-  try {
-    const store = await context.deps.getOrInitParquetStore();
-    const records = toFlush.map((record) => networkRequestRecordToParquetRecord(record));
-    await store.appendRows("network-requests", records);
-  } catch (error) {
-    context.state.networkRequestBuffer.unshift(...toFlush);
-    context.deps.logger.error("Failed to flush network requests to Parquet:", error);
-  }
-}
 
 export async function checkDNRMatchesHandler(context: ExtensionNetworkContext): Promise<void> {
   if (!context.state.extensionMonitor) return;
