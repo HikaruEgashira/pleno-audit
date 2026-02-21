@@ -20,6 +20,10 @@ export function createSecurityEventHandlers(
       execute: (message, sender) => deps.handleNetworkRequest(message.data as Omit<NetworkRequest, "type">, sender),
       fallback: () => ({ success: false }),
     }],
+    ["NETWORK_INSPECTION_REQUEST", {
+      execute: (message, sender) => deps.handleNetworkInspection(message.data, sender),
+      fallback: () => ({ success: false }),
+    }],
     ["DATA_EXFILTRATION_DETECTED", {
       execute: (message, sender) => deps.handleDataExfiltration(message.data, sender),
       fallback: () => ({ success: false }),

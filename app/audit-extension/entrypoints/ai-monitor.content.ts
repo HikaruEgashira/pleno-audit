@@ -58,6 +58,7 @@ export default defineContentScript({
       "COOKIE_ACCESS_DETECTED",
       "DOM_SCRAPING_DETECTED",
       "TRACKING_BEACON_DETECTED",
+      "NETWORK_INSPECTION_REQUEST",
     ]);
     const HIGH_PRIORITY_TYPES = new Set([
       "AI_PROMPT_CAPTURED",
@@ -201,6 +202,7 @@ export default defineContentScript({
       "__CREDENTIAL_THEFT_DETECTED__",
       "__SUPPLY_CHAIN_RISK_DETECTED__",
       "__TRACKING_BEACON_DETECTED__",
+      "__NETWORK_INSPECTION_REQUEST__",
       "__CLIPBOARD_HIJACK_DETECTED__",
       "__COOKIE_ACCESS_DETECTED__",
       "__XSS_DETECTED__",

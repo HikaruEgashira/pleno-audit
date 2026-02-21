@@ -23,69 +23,20 @@
     console.debug('[api-hooks] Chaining with ai-hooks.js')
   }
 
-  function createSharedHookUtils() {
-    const DATA_EXFILTRATION_THRESHOLD = 10 * 1024
-    const TRACKING_URL_PATTERNS = /tracking|beacon|analytics|pixel|collect|telemetry|metrics|ping/i
-    const TRACKING_BEACON_SIZE_LIMIT = 2048
-    const SENSITIVE_PATTERNS = [
-      /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
-      /4[0-9]{3}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
-      /5[1-5][0-9]{2}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/,
-      /\d{3}-\d{2}-\d{4}/,
-      /["']password["']\s*:\s*["'][^"']+["']/i,
-      /["']api[_-]?key["']\s*:\s*["'][^"']+["']/i,
-      /["']secret["']\s*:\s*["'][^"']+["']/i,
-      /["']token["']\s*:\s*["'][^"']+["']/i,
-      /[A-Za-z0-9]{32,}/,
-    ]
+  const INSPECTION_BODY_SAMPLE_LIMIT = 4096
 
+  function createSharedHookUtils() {
     function emitSecurityEvent(eventName, data) {
       window.dispatchEvent(new CustomEvent(eventName, { detail: data }))
-    }
-
-    function containsSensitiveData(body) {
-      if (!body) return { hasSensitive: false, types: [] }
-      let text = ''
-      if (typeof body === 'string') {
-        text = body
-      } else if (body instanceof FormData) {
-        for (const [key, value] of body.entries()) {
-          if (typeof value === 'string') text += key + '=' + value + '&'
-        }
-      } else if (typeof body === 'object') {
-        try { text = JSON.stringify(body) } catch { return { hasSensitive: false, types: [] } }
-      }
-
-      const types = []
-      if (SENSITIVE_PATTERNS[0].test(text)) types.push('email')
-      if (SENSITIVE_PATTERNS[1].test(text) || SENSITIVE_PATTERNS[2].test(text)) types.push('credit_card')
-      if (SENSITIVE_PATTERNS[3].test(text)) types.push('ssn')
-      if (SENSITIVE_PATTERNS[4].test(text)) types.push('password')
-      if (SENSITIVE_PATTERNS[5].test(text)) types.push('api_key')
-      if (SENSITIVE_PATTERNS[6].test(text)) types.push('secret')
-      if (SENSITIVE_PATTERNS[7].test(text)) types.push('token')
-
-      return { hasSensitive: types.length > 0, types }
-    }
-
-    function isTrackingBeacon(url, bodySize, body) {
-      const isSmallPayload = bodySize < TRACKING_BEACON_SIZE_LIMIT
-      const urlHasTrackingPattern = TRACKING_URL_PATTERNS.test(url)
-      let hasTrackingPayload = false
-      if (body) {
-        let text = ''
-        if (typeof body === 'string') text = body
-        else if (typeof body === 'object') try { text = JSON.stringify(body) } catch {}
-        hasTrackingPayload = /event|click|view|session|user_id|visitor|pageview|action/i.test(text)
-      }
-      return isSmallPayload && (urlHasTrackingPattern || hasTrackingPayload)
     }
 
     function getBodySize(body) {
       if (!body) return 0
       if (typeof body === 'string') return new Blob([body]).size
+      if (body instanceof URLSearchParams) return new Blob([body.toString()]).size
       if (body instanceof Blob) return body.size
       if (body instanceof ArrayBuffer) return body.byteLength
+      if (ArrayBuffer.isView(body)) return body.byteLength
       if (body instanceof FormData) {
         let size = 0
         for (const [key, value] of body.entries()) {
@@ -98,27 +49,83 @@
         }
         return size
       }
-      if (typeof body === 'object') return new Blob([JSON.stringify(body)]).size
       return 0
     }
 
+    function getBodySample(body) {
+      if (!body) return ''
+      if (typeof body === 'string') return body.slice(0, INSPECTION_BODY_SAMPLE_LIMIT)
+      if (body instanceof URLSearchParams) return body.toString().slice(0, INSPECTION_BODY_SAMPLE_LIMIT)
+      if (body instanceof Blob || body instanceof ArrayBuffer || ArrayBuffer.isView(body)) return ''
+      if (body instanceof FormData) {
+        let text = ''
+        for (const [key, value] of body.entries()) {
+          const part = typeof value === 'string'
+            ? `${key}=${value}&`
+            : `${key}=[binary]&`
+          text += part
+          if (text.length >= INSPECTION_BODY_SAMPLE_LIMIT) {
+            return text.slice(0, INSPECTION_BODY_SAMPLE_LIMIT)
+          }
+        }
+        return text
+      }
+      if (typeof body === 'object' && body.constructor === Object) {
+        try {
+          return JSON.stringify(body).slice(0, INSPECTION_BODY_SAMPLE_LIMIT)
+        } catch {
+          return ''
+        }
+      }
+      return ''
+    }
+
+    function scheduleNetworkInspection({ url, method, initiator, body, pageUrl }) {
+      const normalizedMethod = (method || 'GET').toUpperCase()
+      if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') return
+
+      const bodySize = getBodySize(body)
+      const payload = {
+        url,
+        method: normalizedMethod,
+        initiator,
+        pageUrl,
+        timestamp: Date.now(),
+        bodySize,
+      }
+
+      const dispatch = () => {
+        const bodySample = getBodySample(body)
+        if (bodySample) {
+          emitSecurityEvent('__NETWORK_INSPECTION_REQUEST__', {
+            ...payload,
+            bodySample,
+          })
+          return
+        }
+        emitSecurityEvent('__NETWORK_INSPECTION_REQUEST__', payload)
+      }
+
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => dispatch(), { timeout: 300 })
+        return
+      }
+      setTimeout(dispatch, 0)
+    }
+
     return {
-      DATA_EXFILTRATION_THRESHOLD,
-      containsSensitiveData,
-      isTrackingBeacon,
       getBodySize,
       emitSecurityEvent,
+      scheduleNetworkInspection,
     }
   }
 
   const sharedHookUtils = window.__PLENO_HOOKS_SHARED__ || createSharedHookUtils()
   window.__PLENO_HOOKS_SHARED__ = sharedHookUtils
   const {
-    DATA_EXFILTRATION_THRESHOLD,
-    containsSensitiveData,
-    isTrackingBeacon,
     getBodySize,
     emitSecurityEvent,
+    scheduleNetworkInspection,
   } = sharedHookUtils
 
   // ===== FETCH API HOOK =====
@@ -130,44 +137,24 @@
     if (url) {
       try {
         const fullUrl = new URL(url, window.location.origin).href
+        const normalizedMethod = method.toUpperCase()
         const bodySize = getBodySize(body)
 
         emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
           url: fullUrl,
-          method: method.toUpperCase(),
+          method: normalizedMethod,
           initiator: 'fetch',
           resourceType: 'fetch',
           timestamp: Date.now(),
           bodySize: bodySize
         })
-
-        // Check for tracking beacon
-        if (method.toUpperCase() === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
-          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
-            url: fullUrl,
-            bodySize: bodySize,
-            initiator: 'fetch',
-            timestamp: Date.now(),
-            targetDomain: new URL(fullUrl).hostname
-          })
-        }
-
-        // Check for potential data exfiltration
-        if (method.toUpperCase() !== 'GET') {
-          const sensitiveCheck = containsSensitiveData(body)
-          // Alert if large body OR sensitive data detected
-          if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-            emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
-              url: fullUrl,
-              method: method.toUpperCase(),
-              bodySize: bodySize,
-              initiator: 'fetch',
-              timestamp: Date.now(),
-              targetDomain: new URL(fullUrl).hostname,
-              sensitiveDataTypes: sensitiveCheck.types
-            })
-          }
-        }
+        scheduleNetworkInspection({
+          url: fullUrl,
+          method: normalizedMethod,
+          initiator: 'fetch',
+          body,
+          pageUrl: window.location.href,
+        })
       } catch (error) {
         console.debug('[api-hooks] Failed to inspect fetch URL.', error)
       }
@@ -198,33 +185,13 @@
           timestamp: Date.now(),
           bodySize: bodySize
         })
-
-        // Check for tracking beacon
-        if (method === 'POST' && isTrackingBeacon(fullUrl, bodySize, body)) {
-          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
-            url: fullUrl,
-            bodySize: bodySize,
-            initiator: 'xhr',
-            timestamp: Date.now(),
-            targetDomain: new URL(fullUrl).hostname
-          })
-        }
-
-        // Check for potential data exfiltration
-        if (method !== 'GET') {
-          const sensitiveCheck = containsSensitiveData(body)
-          if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-            emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
-              url: fullUrl,
-              method: method,
-              bodySize: bodySize,
-              initiator: 'xhr',
-              timestamp: Date.now(),
-              targetDomain: new URL(fullUrl).hostname,
-              sensitiveDataTypes: sensitiveCheck.types
-            })
-          }
-        }
+        scheduleNetworkInspection({
+          url: fullUrl,
+          method,
+          initiator: 'xhr',
+          body,
+          pageUrl: window.location.href,
+        })
       } catch (error) {
         console.debug('[api-hooks] Failed to inspect XHR URL.', error)
       }
@@ -270,31 +237,13 @@
           timestamp: Date.now(),
           bodySize: bodySize
         })
-
-        // sendBeacon is typically used for tracking - always check
-        if (isTrackingBeacon(fullUrl, bodySize, data)) {
-          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
-            url: fullUrl,
-            bodySize: bodySize,
-            initiator: 'beacon',
-            timestamp: Date.now(),
-            targetDomain: new URL(fullUrl).hostname
-          })
-        }
-
-        // Check for potential data exfiltration
-        const sensitiveCheck = containsSensitiveData(data)
-        if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-          emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
-            url: fullUrl,
-            method: 'POST',
-            bodySize: bodySize,
-            initiator: 'beacon',
-            timestamp: Date.now(),
-            targetDomain: new URL(fullUrl).hostname,
-            sensitiveDataTypes: sensitiveCheck.types
-          })
-        }
+        scheduleNetworkInspection({
+          url: fullUrl,
+          method: 'POST',
+          initiator: 'beacon',
+          body: data,
+          pageUrl: window.location.href,
+        })
       } catch (error) {
         console.debug('[api-hooks] Failed to inspect beacon URL.', error)
       }

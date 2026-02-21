@@ -22,6 +22,10 @@ export { createCSPReportingService } from "./services/csp-reporting-service.js";
 export { createDomainRiskService } from "./services/domain-risk-service.js";
 export { createDebugBridgeHandler } from "./services/debug-bridge-handler.js";
 export {
+  createNetworkSecurityInspector,
+  type NetworkInspectionRequest,
+} from "./services/network-security-inspector.js";
+export {
   createSecurityEventHandlers,
   type ClipboardHijackData,
   type CookieAccessData,

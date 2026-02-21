@@ -28,14 +28,6 @@
   }
 
   const sharedHookUtils = window.__PLENO_HOOKS_SHARED__
-  if (!sharedHookUtils) {
-    console.warn('[ai-hooks] Shared hook utils are unavailable; using limited fallback.')
-  }
-  const DATA_EXFILTRATION_THRESHOLD = sharedHookUtils?.DATA_EXFILTRATION_THRESHOLD ?? 10 * 1024
-  const containsSensitiveData = sharedHookUtils?.containsSensitiveData
-    ?? (() => ({ hasSensitive: false, types: [] }))
-  const getBodySize = sharedHookUtils?.getBodySize ?? (() => 0)
-  const isTrackingBeacon = sharedHookUtils?.isTrackingBeacon ?? (() => false)
   const emitSecurityEvent = sharedHookUtils?.emitSecurityEvent
     ?? ((eventName, data) => window.dispatchEvent(new CustomEvent(eventName, { detail: data })))
 
@@ -310,54 +302,10 @@
     return crypto.randomUUID()
   }
 
-  function checkDataExfiltration(url, method, body) {
-    if (method === 'GET') return
-    try {
-      const fullUrl = new URL(url, window.location.origin).href
-      const bodySize = getBodySize(body)
-      const sensitiveCheck = containsSensitiveData(body)
-
-      if (bodySize >= DATA_EXFILTRATION_THRESHOLD || sensitiveCheck.hasSensitive) {
-        emitSecurityEvent('__DATA_EXFILTRATION_DETECTED__', {
-          url: fullUrl,
-          method: method.toUpperCase(),
-          bodySize: bodySize,
-          initiator: 'fetch',
-          timestamp: Date.now(),
-          targetDomain: new URL(fullUrl).hostname,
-          sensitiveDataTypes: sensitiveCheck.types
-        })
-      }
-    } catch (error) {
-      console.debug('[ai-hooks] Failed to inspect possible data exfiltration.', error)
-    }
-  }
-
   window.fetch = async function(input, init) {
     const url = typeof input === 'string' ? input : input?.url
     const method = init?.method || (typeof input === 'object' ? input.method : 'GET') || 'GET'
     const body = init?.body
-
-    // Always check for data exfiltration (even for non-AI requests)
-    if (body && method !== 'GET') {
-      checkDataExfiltration(url, method, body)
-
-      // Check for tracking beacons
-      const bodySize = getBodySize(body)
-      if (isTrackingBeacon(url, bodySize, body)) {
-        try {
-          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
-            url: new URL(url, window.location.origin).href,
-            bodySize: bodySize,
-            initiator: 'fetch',
-            timestamp: Date.now(),
-            targetDomain: new URL(url, window.location.origin).hostname
-          })
-        } catch (error) {
-          console.debug('[ai-hooks] Failed to inspect fetch tracking beacon URL.', error)
-        }
-      }
-    }
 
     // Only check POST/PUT requests with body for AI capture
     if (!body || method === 'GET') {
@@ -428,26 +376,6 @@
   XMLHttpRequest.prototype.send = function(body) {
     const url = this.__aiCaptureUrl
     const method = this.__aiCaptureMethod
-
-    // Check for data exfiltration and tracking beacons (all XHR POST/PUT)
-    if (body && method && method.toUpperCase() !== 'GET') {
-      checkDataExfiltration(url, method, body)
-
-      const bodySize = getBodySize(body)
-      if (isTrackingBeacon(url, bodySize, body)) {
-        try {
-          emitSecurityEvent('__TRACKING_BEACON_DETECTED__', {
-            url: new URL(url, window.location.origin).href,
-            bodySize: bodySize,
-            initiator: 'xhr',
-            timestamp: Date.now(),
-            targetDomain: new URL(url, window.location.origin).hostname
-          })
-        } catch (error) {
-          console.debug('[ai-hooks] Failed to inspect XHR tracking beacon URL.', error)
-        }
-      }
-    }
 
     if (!body || method === 'GET') {
       return originalXHRSend.call(this, body)
