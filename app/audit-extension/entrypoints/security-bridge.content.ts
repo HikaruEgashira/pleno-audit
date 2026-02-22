@@ -188,20 +188,13 @@ export default defineContentScript({
           },
         });
         if (!sent) {
-          if (circuitState === "half-open") {
-            circuitState = "open";
-            circuitOpenedAt = Date.now();
-            logger.warn(`Circuit open: dropped ${batch.length} events (SW still unavailable).`);
-            scheduleRecoveryCheck();
-          } else {
-            circuitState = "open";
-            circuitOpenedAt = Date.now();
-            for (let i = batch.length - 1; i >= 0; i--) {
-              queue.unshift(batch[i]);
-            }
-            logger.warn("Circuit open: queued events preserved for recovery.");
-            scheduleRecoveryCheck();
+          circuitState = "open";
+          circuitOpenedAt = Date.now();
+          for (let i = batch.length - 1; i >= 0; i--) {
+            queue.unshift(batch[i]);
           }
+          logger.warn("Circuit open: queued events preserved for recovery.");
+          scheduleRecoveryCheck();
           return;
         }
         circuitState = "closed";
