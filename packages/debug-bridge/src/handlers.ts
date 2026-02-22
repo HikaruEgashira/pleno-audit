@@ -37,10 +37,11 @@ export function createDebugHandlers(logger: Logger, deps?: DebugBridgeDeps): Deb
     DEBUG_DOH_CONFIG_SET: async (data) =>
       setDoHConfig(data as { action?: string; maxStoredRequests?: number }),
     DEBUG_DOH_REQUESTS: async (data) => getDoHRequests(data as { limit?: number; offset?: number }),
-    DEBUG_NETWORK_CONFIG_GET: async () => getNetworkConfig(),
+    DEBUG_NETWORK_CONFIG_GET: async () => getNetworkConfig(deps),
     DEBUG_NETWORK_CONFIG_SET: async (data) =>
       setNetworkConfig(
-        data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean }
+        data as { enabled?: boolean; captureAllRequests?: boolean; excludeOwnExtension?: boolean },
+        deps
       ),
     DEBUG_NETWORK_REQUESTS_GET: async (data) => {
       const params = data as { limit?: number; initiatorType?: string };
