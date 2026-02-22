@@ -38,6 +38,7 @@ export const state: NetworkMonitorState = {
   dnrRuleToExtensionMap: new Map<number, string>(),
   excludedDomains: new Set<string>(),
   excludedExtensions: new Set<string>(),
+  recentWebRequestHits: new Map<string, number>(),
 };
 
 /**

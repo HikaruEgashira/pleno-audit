@@ -17,7 +17,7 @@ import {
   DNR_MAX_CALLS_PER_INTERVAL,
   DNR_MIN_INTERVAL_MS,
 } from "./constants.js";
-import { emitRecord } from "./web-request.js";
+import { emitRecord, extractDomain } from "./web-request.js";
 
 const logger = createLogger("network-monitor");
 
@@ -136,6 +136,42 @@ export async function registerDNRRulesForExtensions(
 /**
  * DNRマッチルールをチェック
  */
+/**
+ * webRequestで既に検出済みか判定
+ *
+ * DNRのチェック間隔(35秒+)内にwebRequestで同じ(extensionId, tabId)の
+ * リクエストが検出されていれば、DNRのマッチは重複とみなす
+ */
+function isAlreadyCoveredByWebRequest(extensionId: string, tabId: number, since: number): boolean {
+  const key = `${extensionId}:${tabId}`;
+  const lastSeen = state.recentWebRequestHits.get(key);
+  return lastSeen != null && lastSeen >= since;
+}
+
+/**
+ * recentWebRequestHitsから古いエントリを除去
+ */
+function pruneRecentWebRequestHits(cutoff: number): void {
+  for (const [key, timestamp] of state.recentWebRequestHits) {
+    if (timestamp < cutoff) {
+      state.recentWebRequestHits.delete(key);
+    }
+  }
+}
+
+/**
+ * tabIdからページURLを取得（ベストエフォート）
+ */
+async function resolveTabUrl(tabId: number): Promise<string | null> {
+  if (tabId < 0) return null;
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return tab.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
   ensureConfigCachesCurrent();
 
@@ -148,13 +184,18 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
     return [];
   }
 
+  const checkWindow = state.lastMatchedRulesCheck;
+
   try {
     const matchedRules = await chrome.declarativeNetRequest.getMatchedRules({
-      minTimeStamp: state.lastMatchedRulesCheck,
+      minTimeStamp: checkWindow,
     });
 
     state.lastMatchedRulesCheck = now;
+    pruneRecentWebRequestHits(now - DNR_QUOTA_INTERVAL_MS);
+
     const records: NetworkRequestRecord[] = [];
+    const tabUrlCache = new Map<number, string | null>();
 
     for (const info of matchedRules.rulesMatchedInfo) {
       const ruleId = info.rule.ruleId;
@@ -166,14 +207,26 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
       if (!extensionId) continue;
       if (state.excludedExtensions.has(extensionId)) continue;
 
+      if (isAlreadyCoveredByWebRequest(extensionId, info.tabId, checkWindow)) {
+        continue;
+      }
+
       const extInfo = state.knownExtensions.get(extensionId);
+
+      let tabUrl: string | null;
+      if (tabUrlCache.has(info.tabId)) {
+        tabUrl = tabUrlCache.get(info.tabId) ?? null;
+      } else {
+        tabUrl = await resolveTabUrl(info.tabId);
+        tabUrlCache.set(info.tabId, tabUrl);
+      }
 
       const record: NetworkRequestRecord = {
         id: crypto.randomUUID(),
         timestamp: info.timeStamp,
-        url: `[DNR detected - tabId: ${info.tabId}]`,
+        url: tabUrl ?? `[DNR detected - tabId: ${info.tabId}]`,
         method: "UNKNOWN",
-        domain: "unknown",
+        domain: tabUrl ? extractDomain(tabUrl) : "unknown",
         resourceType: "xmlhttprequest",
         initiator: `chrome-extension://${extensionId}`,
         initiatorType: "extension",
@@ -186,6 +239,10 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
 
       records.push(record);
       emitRecord(record);
+    }
+
+    if (records.length > 0) {
+      logger.info(`DNR supplemental: ${records.length} requests not seen by webRequest`);
     }
 
     return records;
