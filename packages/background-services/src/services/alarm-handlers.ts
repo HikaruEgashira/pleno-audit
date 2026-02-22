@@ -5,7 +5,6 @@ interface LoggerLike {
 interface AlarmHandlerDependencies {
   logger: LoggerLike;
   flushReportQueue: () => Promise<void>;
-  flushNetworkRequestBuffer: () => Promise<void>;
   checkDNRMatchesHandler: () => Promise<void>;
   analyzeExtensionRisks: () => Promise<void>;
   cleanupOldData: () => Promise<{ deleted: number }>;
@@ -17,9 +16,6 @@ export function createAlarmHandlers(
   return new Map([
     ["flushCSPReports", () => {
       deps.flushReportQueue().catch((error) => deps.logger.debug("Flush reports failed:", error));
-    }],
-    ["flushNetworkRequests", () => {
-      deps.flushNetworkRequestBuffer().catch((error) => deps.logger.debug("Flush network requests failed:", error));
     }],
     ["checkDNRMatches", () => {
       deps.checkDNRMatchesHandler().catch((error) => deps.logger.debug("DNR match check failed:", error));

@@ -150,10 +150,6 @@ async function initExtensionMonitor() {
   await extensionNetworkService.initExtensionMonitor();
 }
 
-async function flushNetworkRequestBuffer() {
-  await extensionNetworkService.flushNetworkRequestBuffer();
-}
-
 /**
  * DNRマッチルールを定期チェック
  * Chrome DNR APIのレート制限（10分間に最大20回）に対応するため、
@@ -376,7 +372,6 @@ function registerRecurringAlarms(): void {
   // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
   chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
   chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
-  chrome.alarms.create("flushNetworkRequests", { periodInMinutes: 0.1 });
   // DNR API rate limit対応: 36秒間隔（Chrome制限: 10分間に最大20回、30秒以上の間隔）
   chrome.alarms.create("checkDNRMatches", { periodInMinutes: 0.6 });
   // Extension risk analysis (runs every 5 minutes)
@@ -486,7 +481,6 @@ export default defineBackground(() => {
   const alarmHandlers = createAlarmHandlersModule({
     logger,
     flushReportQueue: () => cspReportingService.flushReportQueue(),
-    flushNetworkRequestBuffer,
     checkDNRMatchesHandler,
     analyzeExtensionRisks,
     cleanupOldData: backgroundConfig.cleanupOldData,

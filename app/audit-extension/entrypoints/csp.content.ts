@@ -1,7 +1,7 @@
 /**
  * CSP Content Script
  * Detects CSP violations and forwards events to background.
- * Main world custom events are handled by ai-monitor.content.ts.
+ * Main world custom events are handled by security-bridge.content.ts.
  */
 
 import type { CSPViolation } from "@pleno-audit/csp";

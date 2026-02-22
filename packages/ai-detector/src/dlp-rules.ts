@@ -1,22 +1,38 @@
 /**
  * @fileoverview DLP (Data Loss Prevention) Rules
  *
- * DLPルールの管理と追加パターン検出を提供する。
- * - ルールの有効/無効化
- * - カスタムルール追加
- * - 追加のAPIキーパターン
- * - 日本固有のパターン
+ * テキスト内の機密データ検出を一元管理する。
+ * - 基本パターン（credentials, PII, financial, health, code, internal）
+ * - 拡張パターン（追加APIキー、日本固有、ネットワーク等）
+ * - ルールの有効/無効化、カスタムルール追加
  */
-
-import {
-  detectSensitiveData,
-  type DataClassification,
-  type SensitiveDataResult,
-} from "./sensitive-data-detector.js";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/**
+ * データ分類
+ */
+export type DataClassification =
+  | "credentials"
+  | "pii"
+  | "financial"
+  | "health"
+  | "code"
+  | "internal"
+  | "unknown";
+
+/**
+ * 検出結果
+ */
+export interface SensitiveDataResult {
+  classification: DataClassification;
+  confidence: "high" | "medium" | "low";
+  pattern: string;
+  matchedText?: string;
+  position?: number;
+}
 
 /**
  * DLPルール
@@ -66,14 +82,239 @@ export interface DLPAnalysisResult {
 }
 
 // ============================================================================
-// Extended Patterns
+// All DLP Rules
 // ============================================================================
 
 /**
- * 追加のDLPパターン
+ * 全DLPルール（基本パターン + 拡張パターン）
  */
-export const EXTENDED_DLP_RULES: DLPRule[] = [
-  // Additional API Keys
+export const ALL_DLP_RULES: DLPRule[] = [
+  // === Base: Credentials ===
+  {
+    id: "base-api-key",
+    name: "API Key",
+    description: "汎用APIキー・シークレット",
+    classification: "credentials",
+    pattern:
+      /(?:api[_-]?key|apikey|api_secret|secret_key|access_token|auth_token|bearer)[\s:="']+[a-zA-Z0-9_-]{20,}/gi,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-password",
+    name: "Password",
+    description: "パスワード",
+    classification: "credentials",
+    pattern: /(?:password|passwd|pwd)[\s:="']+[^\s"']{8,}/gi,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-openai-api-key",
+    name: "OpenAI API Key",
+    description: "OpenAI APIキー",
+    classification: "credentials",
+    pattern: /sk-[a-zA-Z0-9]{32,}/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-anthropic-api-key",
+    name: "Anthropic API Key",
+    description: "Anthropic APIキー",
+    classification: "credentials",
+    pattern: /sk-ant-[a-zA-Z0-9-]{80,}/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-github-token",
+    name: "GitHub Token",
+    description: "GitHub Personal Access Token",
+    classification: "credentials",
+    pattern: /ghp_[a-zA-Z0-9]{36}/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-github-oauth-token",
+    name: "GitHub OAuth Token",
+    description: "GitHub OAuthトークン",
+    classification: "credentials",
+    pattern: /gho_[a-zA-Z0-9]{36}/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-aws-access-key",
+    name: "AWS Access Key",
+    description: "AWSアクセスキー",
+    classification: "credentials",
+    pattern: /AKIA[0-9A-Z]{16}/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-private-key",
+    name: "Private Key",
+    description: "秘密鍵ヘッダー",
+    classification: "credentials",
+    pattern: /-----BEGIN (?:RSA |DSA |EC )?PRIVATE KEY-----/g,
+    confidence: "high",
+    enabled: true,
+  },
+
+  // === Base: PII ===
+  {
+    id: "base-email-address",
+    name: "Email Address",
+    description: "メールアドレス",
+    classification: "pii",
+    pattern:
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}/g,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-us-phone-number",
+    name: "US Phone Number",
+    description: "米国電話番号",
+    classification: "pii",
+    pattern: /(?:\+?1[-.]?)?\(?[0-9]{3}\)?[-.]?[0-9]{3}[-.]?[0-9]{4}/g,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-jp-phone-number",
+    name: "JP Phone Number",
+    description: "日本の携帯電話番号",
+    classification: "pii",
+    pattern: /0[789]0[-]?[0-9]{4}[-]?[0-9]{4}/g,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-possible-ssn",
+    name: "Possible SSN",
+    description: "社会保障番号の可能性",
+    classification: "pii",
+    pattern: /\d{3}[-]?\d{2}[-]?\d{4}/g,
+    confidence: "low",
+    enabled: true,
+  },
+  {
+    id: "base-physical-address",
+    name: "Physical Address",
+    description: "物理住所",
+    classification: "pii",
+    pattern:
+      /(?:住所|address)[\s:：]+.{10,50}(?:市|区|町|村|県|都|道|府|street|ave|road|st\.|dr\.)/gi,
+    confidence: "medium",
+    enabled: true,
+  },
+
+  // === Base: Financial ===
+  {
+    id: "base-credit-card-number",
+    name: "Credit Card Number",
+    description: "クレジットカード番号",
+    classification: "financial",
+    pattern: /(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})/g,
+    confidence: "high",
+    enabled: true,
+  },
+  {
+    id: "base-possible-card-number",
+    name: "Possible Card Number",
+    description: "カード番号の可能性",
+    classification: "financial",
+    pattern: /[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}/g,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-bank-account",
+    name: "Bank Account",
+    description: "口座番号",
+    classification: "financial",
+    pattern: /(?:口座番号|account.?number)[\s:：]*[0-9]{7,14}/gi,
+    confidence: "high",
+    enabled: true,
+  },
+
+  // === Base: Health ===
+  {
+    id: "base-medical-record",
+    name: "Medical Record",
+    description: "医療記録",
+    classification: "health",
+    pattern:
+      /(?:診断|diagnosis|medical.?record|patient.?id|health.?id)[\s:：]+[a-zA-Z0-9-]{5,}/gi,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-insurance-number",
+    name: "Insurance Number",
+    description: "保険証番号",
+    classification: "health",
+    pattern:
+      /(?:保険証番号|insurance.?number)[\s:：]*[a-zA-Z0-9]{8,}/gi,
+    confidence: "high",
+    enabled: true,
+  },
+
+  // === Base: Code ===
+  {
+    id: "base-source-code",
+    name: "Source Code",
+    description: "ソースコード",
+    classification: "code",
+    pattern: /(?:function|const|let|var|class|def|public|private)\s+\w+\s*[({]/g,
+    confidence: "low",
+    enabled: true,
+  },
+  {
+    id: "base-import-statement",
+    name: "Import Statement",
+    description: "インポート文",
+    classification: "code",
+    pattern: /(?:import|from|require)\s+['"][^'"]+['"]/g,
+    confidence: "low",
+    enabled: true,
+  },
+  {
+    id: "base-sql-query",
+    name: "SQL Query",
+    description: "SQLクエリ",
+    classification: "code",
+    pattern:
+      /(?:SELECT|INSERT|UPDATE|DELETE|CREATE|DROP)\s+(?:FROM|INTO|TABLE)/gi,
+    confidence: "medium",
+    enabled: true,
+  },
+
+  // === Base: Internal ===
+  {
+    id: "base-confidential-marker",
+    name: "Confidential Marker",
+    description: "機密マーカー",
+    classification: "internal",
+    pattern: /(?:内部|機密|confidential|internal.?only|do.?not.?share)/gi,
+    confidence: "medium",
+    enabled: true,
+  },
+  {
+    id: "base-proprietary-info",
+    name: "Proprietary Info",
+    description: "専有情報マーカー",
+    classification: "internal",
+    pattern: /(?:社内|proprietary|trade.?secret)/gi,
+    confidence: "medium",
+    enabled: true,
+  },
+
+  // === Extended: Additional API Keys ===
   {
     id: "google-api-key",
     name: "Google API Key",
@@ -165,7 +406,7 @@ export const EXTENDED_DLP_RULES: DLPRule[] = [
     enabled: true,
   },
 
-  // Japan-specific patterns
+  // === Extended: Japan-specific ===
   {
     id: "my-number",
     name: "マイナンバー",
@@ -203,13 +444,13 @@ export const EXTENDED_DLP_RULES: DLPRule[] = [
     enabled: true,
   },
 
-  // Network/URL patterns
+  // === Extended: Network/URL ===
   {
     id: "url-with-token",
     name: "URL内トークン",
     description: "URLに含まれるトークンやキー",
     classification: "credentials",
-    pattern: /https?:\/\/[^\s]*[?&](?:token|key|api_key|access_token|secret)=[A-Za-z0-9-_.~+/]+/gi,
+    pattern: /https?:\/\/[^\s?&]*[?&](?:token|key|api_key|access_token|secret)=[A-Za-z0-9-_.~+/]+/gi,
     confidence: "high",
     enabled: true,
   },
@@ -218,12 +459,12 @@ export const EXTENDED_DLP_RULES: DLPRule[] = [
     name: "接続文字列",
     description: "DB接続文字列等",
     classification: "credentials",
-    pattern: /(?:mongodb|mysql|postgresql|redis|amqp):\/\/[^\s]+:[^\s]+@[^\s]+/gi,
+    pattern: /(?:mongodb|mysql|postgresql|redis|amqp):\/\/[^\s:]+:[^\s@]+@[^\s]+/gi,
     confidence: "high",
     enabled: true,
   },
 
-  // Environment variables
+  // === Extended: Environment variables ===
   {
     id: "env-variable",
     name: "環境変数",
@@ -235,6 +476,124 @@ export const EXTENDED_DLP_RULES: DLPRule[] = [
   },
 ];
 
+/**
+ * 拡張ルールのみ（後方互換）
+ */
+export const EXTENDED_DLP_RULES: DLPRule[] = ALL_DLP_RULES.filter(
+  (r) => !r.id.startsWith("base-")
+);
+
+// ============================================================================
+// Sensitive Data Detection Functions
+// ============================================================================
+
+/**
+ * テキストをマスク
+ */
+function maskText(text: string): string {
+  if (text.length <= 4) return "****";
+  const visibleStart = Math.min(4, Math.floor(text.length / 4));
+  const visibleEnd = Math.min(4, Math.floor(text.length / 4));
+  const maskedLength = text.length - visibleStart - visibleEnd;
+  return (
+    text.substring(0, visibleStart) +
+    "*".repeat(maskedLength) +
+    text.substring(text.length - visibleEnd)
+  );
+}
+
+/**
+ * テキスト内の機密データを検出
+ */
+export function detectSensitiveData(text: string): SensitiveDataResult[] {
+  const results: SensitiveDataResult[] = [];
+  const baseRules = ALL_DLP_RULES.filter((r) => r.id.startsWith("base-") && r.enabled);
+
+  for (const rule of baseRules) {
+    const regex = new RegExp(rule.pattern.source, rule.pattern.flags);
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+      results.push({
+        classification: rule.classification,
+        confidence: rule.confidence,
+        pattern: rule.name,
+        matchedText: maskText(match[0]),
+        position: match.index,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 機密データが含まれているかチェック
+ */
+export function hasSensitiveData(text: string): boolean {
+  const baseRules = ALL_DLP_RULES.filter((r) => r.id.startsWith("base-") && r.enabled);
+
+  for (const rule of baseRules) {
+    const regex = new RegExp(rule.pattern.source, rule.pattern.flags);
+    if (regex.test(text)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 最も高リスクな分類を取得
+ */
+export function getHighestRiskClassification(
+  results: SensitiveDataResult[]
+): DataClassification | null {
+  if (results.length === 0) return null;
+
+  const priority: Record<DataClassification, number> = {
+    credentials: 7,
+    financial: 6,
+    health: 5,
+    pii: 4,
+    internal: 3,
+    code: 2,
+    unknown: 1,
+  };
+
+  return results.reduce((highest, result) => {
+    if (
+      !highest ||
+      priority[result.classification] > priority[highest.classification]
+    ) {
+      return result;
+    }
+    return highest;
+  }, results[0]).classification;
+}
+
+/**
+ * 分類ごとの検出数サマリーを取得
+ */
+export function getSensitiveDataSummary(
+  results: SensitiveDataResult[]
+): Record<DataClassification, number> {
+  const summary: Record<DataClassification, number> = {
+    credentials: 0,
+    pii: 0,
+    financial: 0,
+    health: 0,
+    code: 0,
+    internal: 0,
+    unknown: 0,
+  };
+
+  for (const result of results) {
+    summary[result.classification]++;
+  }
+
+  return summary;
+}
+
 // ============================================================================
 // DLP Manager
 // ============================================================================
@@ -244,7 +603,7 @@ export const EXTENDED_DLP_RULES: DLPRule[] = [
  */
 export const DEFAULT_DLP_CONFIG: DLPConfig = {
   enabled: true,
-  rules: EXTENDED_DLP_RULES,
+  rules: ALL_DLP_RULES,
   alertOnDetection: true,
   blockOnHighRisk: false,
 };
@@ -255,16 +614,10 @@ export const DEFAULT_DLP_CONFIG: DLPConfig = {
 export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
   let currentConfig = { ...config };
 
-  /**
-   * 設定を更新
-   */
   function updateConfig(updates: Partial<DLPConfig>): void {
     currentConfig = { ...currentConfig, ...updates };
   }
 
-  /**
-   * ルールを有効/無効化
-   */
   function setRuleEnabled(ruleId: string, enabled: boolean): boolean {
     const rule = currentConfig.rules.find((r) => r.id === ruleId);
     if (rule) {
@@ -274,16 +627,10 @@ export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
     return false;
   }
 
-  /**
-   * カスタムルールを追加
-   */
   function addCustomRule(rule: Omit<DLPRule, "custom">): void {
     currentConfig.rules.push({ ...rule, custom: true });
   }
 
-  /**
-   * カスタムルールを削除
-   */
   function removeCustomRule(ruleId: string): boolean {
     const index = currentConfig.rules.findIndex(
       (r) => r.id === ruleId && r.custom
@@ -295,9 +642,6 @@ export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
     return false;
   }
 
-  /**
-   * テキストを分析
-   */
   function analyze(text: string): DLPAnalysisResult {
     if (!currentConfig.enabled) {
       return {
@@ -320,18 +664,14 @@ export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
       };
     }
 
-    // 基本検出
-    const baseResults = detectSensitiveData(text);
-
-    // 拡張ルール検出
-    const extendedResults: DLPDetectionResult[] = [];
+    const allResults: DLPDetectionResult[] = [];
 
     for (const rule of currentConfig.rules.filter((r) => r.enabled)) {
       const regex = new RegExp(rule.pattern.source, rule.pattern.flags);
       let match: RegExpExecArray | null;
 
       while ((match = regex.exec(text)) !== null) {
-        extendedResults.push({
+        allResults.push({
           classification: rule.classification,
           confidence: rule.confidence,
           pattern: rule.name,
@@ -344,31 +684,20 @@ export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
       }
     }
 
-    // 基本結果をDLPDetectionResultに変換
-    const convertedBaseResults: DLPDetectionResult[] = baseResults.map((r) => ({
-      ...r,
-      ruleId: "base-" + r.pattern.toLowerCase().replace(/\s+/g, "-"),
-      ruleName: r.pattern,
-      blocked: false,
-    }));
-
-    // 結果をマージ（重複を除去）
-    const allResults = mergeResults([
-      ...convertedBaseResults,
-      ...extendedResults,
-    ]);
+    // 重複除去
+    const merged = mergeResults(allResults);
 
     // ブロック判定
     const shouldBlock =
       currentConfig.blockOnHighRisk &&
-      allResults.some(
+      merged.some(
         (r) =>
           r.confidence === "high" &&
           (r.classification === "credentials" || r.classification === "financial")
       );
 
     if (shouldBlock) {
-      allResults.forEach((r) => {
+      for (const r of merged) {
         if (
           r.confidence === "high" &&
           (r.classification === "credentials" ||
@@ -376,38 +705,28 @@ export function createDLPManager(config: DLPConfig = DEFAULT_DLP_CONFIG) {
         ) {
           r.blocked = true;
         }
-      });
+      }
     }
 
-    // サマリー作成
-    const summary = createSummary(allResults);
-    const riskLevel = calculateRiskLevel(allResults);
+    const summary = createSummary(merged);
+    const riskLevel = calculateRiskLevel(merged);
 
     return {
-      detected: allResults,
+      detected: merged,
       blocked: shouldBlock,
       riskLevel,
       summary,
     };
   }
 
-  /**
-   * 有効なルール一覧を取得
-   */
   function getEnabledRules(): DLPRule[] {
     return currentConfig.rules.filter((r) => r.enabled);
   }
 
-  /**
-   * 全ルール一覧を取得
-   */
   function getAllRules(): DLPRule[] {
     return [...currentConfig.rules];
   }
 
-  /**
-   * 現在の設定を取得
-   */
   function getConfig(): DLPConfig {
     return { ...currentConfig };
   }
@@ -430,24 +749,6 @@ export type DLPManager = ReturnType<typeof createDLPManager>;
 // Helper Functions
 // ============================================================================
 
-/**
- * テキストをマスク
- */
-function maskText(text: string): string {
-  if (text.length <= 4) return "****";
-  const visibleStart = Math.min(4, Math.floor(text.length / 4));
-  const visibleEnd = Math.min(4, Math.floor(text.length / 4));
-  const maskedLength = text.length - visibleStart - visibleEnd;
-  return (
-    text.substring(0, visibleStart) +
-    "*".repeat(maskedLength) +
-    text.substring(text.length - visibleEnd)
-  );
-}
-
-/**
- * 結果をマージ（位置が近い重複を除去）
- */
 function mergeResults(results: DLPDetectionResult[]): DLPDetectionResult[] {
   const merged: DLPDetectionResult[] = [];
 
@@ -468,9 +769,6 @@ function mergeResults(results: DLPDetectionResult[]): DLPDetectionResult[] {
   return merged;
 }
 
-/**
- * サマリーを作成
- */
 function createSummary(results: DLPDetectionResult[]): DLPAnalysisResult["summary"] {
   const byClassification: Record<DataClassification, number> = {
     credentials: 0,
@@ -498,9 +796,6 @@ function createSummary(results: DLPDetectionResult[]): DLPAnalysisResult["summar
   };
 }
 
-/**
- * リスクレベルを計算
- */
 function calculateRiskLevel(
   results: DLPDetectionResult[]
 ): DLPAnalysisResult["riskLevel"] {

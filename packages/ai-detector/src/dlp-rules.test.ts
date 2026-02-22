@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createDLPManager,
   EXTENDED_DLP_RULES,
+  ALL_DLP_RULES,
   DEFAULT_DLP_CONFIG,
   type DLPManager,
 } from "./dlp-rules.js";
@@ -319,7 +320,38 @@ describe("DEFAULT_DLP_CONFIG", () => {
     expect(DEFAULT_DLP_CONFIG.rules.length).toBeGreaterThan(0);
   });
 
-  it("includes all extended rules", () => {
-    expect(DEFAULT_DLP_CONFIG.rules).toEqual(EXTENDED_DLP_RULES);
+  it("includes all rules", () => {
+    expect(DEFAULT_DLP_CONFIG.rules).toEqual(ALL_DLP_RULES);
+  });
+});
+
+describe("ReDoS耐性", () => {
+  const BUDGET_MS = 50;
+
+  it(`url-with-token: ?&なし長大URLで ${BUDGET_MS}ms 以内`, () => {
+    const rule = EXTENDED_DLP_RULES.find((r) => r.id === "url-with-token")!;
+    // ?&がないため旧パターンでは[^\s]*が全部食ってバックトラック
+    const malicious = "https://example.com/" + "a".repeat(100_000);
+    const start = performance.now();
+    rule.pattern.test(malicious);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+  });
+
+  it(`connection-string: @なし長大文字列で ${BUDGET_MS}ms 以内`, () => {
+    const rule = EXTENDED_DLP_RULES.find((r) => r.id === "connection-string")!;
+    const malicious = "mongodb://" + "a:".repeat(50_000);
+    const start = performance.now();
+    rule.pattern.test(malicious);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+  });
+
+  it(`全DLPルールが100KBテキストで ${BUDGET_MS}ms 以内`, () => {
+    const big = "x".repeat(100_000);
+    const start = performance.now();
+    for (const rule of EXTENDED_DLP_RULES) {
+      const re = new RegExp(rule.pattern.source, rule.pattern.flags);
+      re.test(big);
+    }
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
   });
 });

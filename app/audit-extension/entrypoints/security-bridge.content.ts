@@ -1,5 +1,5 @@
 /**
- * AI Monitor Content Script
+ * Security Bridge Content Script
  * Main worldからの検知イベントをキュー制御し、負荷に応じて非同期バッチ転送する。
  */
 
@@ -28,7 +28,7 @@ function isExtensionContextValid(): boolean {
 
 async function sendMessageSafely(message: unknown): Promise<boolean> {
   if (!isExtensionContextValid()) {
-    console.warn("[ai-monitor] Extension context is unavailable.");
+    console.warn("[security-bridge] Extension context is unavailable.");
     return false;
   }
 
@@ -36,7 +36,7 @@ async function sendMessageSafely(message: unknown): Promise<boolean> {
     await chrome.runtime.sendMessage(message);
     return true;
   } catch (error) {
-    console.warn("[ai-monitor] Failed to send runtime event batch.", error);
+    console.warn("[security-bridge] Failed to send runtime event batch.", error);
     return false;
   }
 }
@@ -62,7 +62,6 @@ export default defineContentScript({
     ]);
     const HIGH_PRIORITY_TYPES = new Set([
       "AI_PROMPT_CAPTURED",
-      "DATA_EXFILTRATION_DETECTED",
       "XSS_DETECTED",
       "SUSPICIOUS_DOWNLOAD_DETECTED",
       "CREDENTIAL_THEFT_DETECTED",
@@ -101,7 +100,7 @@ export default defineContentScript({
         type,
         data: {
           ...payload,
-          source: "ai-monitor",
+          source: "security-bridge",
           queuedAt: now,
         },
       });
@@ -162,7 +161,7 @@ export default defineContentScript({
           consecutiveSendFailures += 1;
           if (consecutiveSendFailures >= MAX_SEND_FAILURES) {
             console.warn(
-              `[ai-monitor] Dropping ${batch.length} queued events after repeated send failures.`
+              `[security-bridge] Dropping ${batch.length} queued events after repeated send failures.`
             );
             return;
           }
@@ -198,7 +197,6 @@ export default defineContentScript({
     const securityEvents = [
       "__AI_PROMPT_CAPTURED__",
       "__SERVICE_DETECTION_NETWORK__",
-      "__DATA_EXFILTRATION_DETECTED__",
       "__CREDENTIAL_THEFT_DETECTED__",
       "__SUPPLY_CHAIN_RISK_DETECTED__",
       "__TRACKING_BEACON_DETECTED__",
