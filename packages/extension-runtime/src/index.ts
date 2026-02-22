@@ -156,6 +156,7 @@ export {
   type Logger,
   type LogLevel,
   type LogEntry,
+  type LogEventPayload,
 } from "./logger.js";
 
 // SSO Manager

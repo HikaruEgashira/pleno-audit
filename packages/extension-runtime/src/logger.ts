@@ -9,6 +9,12 @@
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+export interface LogEventPayload {
+  event: string;
+  data?: unknown;
+  error?: unknown;
+}
+
 export interface LogEntry {
   timestamp: number;
   level: LogLevel;
@@ -87,6 +93,124 @@ function serializeError(error: unknown): string {
   }
 }
 
+function serializeValue(value: unknown): string {
+  if (value instanceof Error) {
+    return serializeError(value);
+  }
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+function isLogEventPayload(value: unknown): value is LogEventPayload {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "event" in value &&
+    typeof (value as { event?: unknown }).event === "string"
+  );
+}
+
+function toSerializable(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+
+  const seen = new WeakSet<object>();
+  try {
+    return JSON.parse(
+      JSON.stringify(value, (_key, currentValue) => {
+        if (currentValue instanceof Error) {
+          return {
+            name: currentValue.name,
+            message: currentValue.message,
+            stack: currentValue.stack,
+          };
+        }
+        if (typeof currentValue === "bigint") {
+          return currentValue.toString();
+        }
+        if (typeof currentValue === "object" && currentValue !== null) {
+          if (seen.has(currentValue)) {
+            return "[Circular]";
+          }
+          seen.add(currentValue);
+        }
+        return currentValue;
+      })
+    );
+  } catch {
+    return serializeValue(value);
+  }
+}
+
+function formatLegacySinkData(args: unknown[]): unknown {
+  if (args.length <= 1) return undefined;
+  const dataArgs = args.slice(1).map(toSerializable);
+  return dataArgs.length === 1 ? dataArgs[0] : dataArgs;
+}
+
+interface NormalizedLog {
+  consoleArgs: unknown[];
+  message: string;
+  data?: unknown;
+}
+
+function normalizeLogArgs(args: unknown[]): NormalizedLog {
+  if (args.length === 0) {
+    return { consoleArgs: [], message: "" };
+  }
+
+  const [first, ...rest] = args;
+  if (isLogEventPayload(first)) {
+    const consoleArgs: unknown[] = [first.event];
+    const sinkData: unknown[] = [];
+
+    if (first.data !== undefined) {
+      consoleArgs.push(first.data);
+      sinkData.push(first.data);
+    }
+    if (first.error !== undefined) {
+      consoleArgs.push(first.error);
+      sinkData.push({ error: first.error });
+    }
+    if (rest.length > 0) {
+      consoleArgs.push(...rest);
+      sinkData.push(...rest);
+    }
+
+    return {
+      consoleArgs,
+      message: first.event,
+      data: sinkData.length === 0
+        ? undefined
+        : toSerializable(sinkData.length === 1 ? sinkData[0] : sinkData),
+    };
+  }
+
+  return {
+    consoleArgs: args,
+    message: args.map(serializeValue).join(" "),
+    data: formatLegacySinkData(args),
+  };
+}
+
 /**
  * Create a logger instance for a specific module
  */
@@ -94,7 +218,8 @@ export function createLogger(module: string): Logger {
   const log = (level: LogLevel, ...args: unknown[]) => {
     if (!shouldLog(level)) return;
 
-    const formatted = [`${PREFIX}[${module}]`, ...args];
+    const normalized = normalizeLogArgs(args);
+    const formatted = [`${PREFIX}[${module}]`, ...normalized.consoleArgs];
 
     // Console output
     switch (level) {
@@ -114,27 +239,12 @@ export function createLogger(module: string): Logger {
 
     // Forward to debugger if connected
     if (debuggerSink) {
-      const message = args
-        .map((arg) => {
-          if (arg instanceof Error) {
-            return serializeError(arg);
-          }
-          if (typeof arg === "object") {
-            try {
-              return JSON.stringify(arg);
-            } catch {
-              return String(arg);
-            }
-          }
-          return String(arg);
-        })
-        .join(" ");
-
       debuggerSink({
         timestamp: Date.now(),
         level,
         module,
-        message,
+        message: normalized.message,
+        data: normalized.data,
       });
     }
   };

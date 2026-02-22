@@ -1,5 +1,9 @@
 import { useState, useEffect } from "preact/hooks";
-import { DEFAULT_NETWORK_MONITOR_CONFIG, type NetworkMonitorConfig } from "@pleno-audit/extension-runtime";
+import {
+  createLogger,
+  DEFAULT_NETWORK_MONITOR_CONFIG,
+  type NetworkMonitorConfig,
+} from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
@@ -19,6 +23,8 @@ type ViewState =
   | { kind: "loading" }
   | { kind: "ready"; config: NetworkMonitorConfig };
 
+const logger = createLogger("popup-network-monitor-settings");
+
 export function NetworkMonitorSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
@@ -30,7 +36,10 @@ export function NetworkMonitorSettings() {
         setViewState({ kind: "ready", config: nextConfig });
       })
       .catch((error) => {
-        console.warn("[popup] GET_NETWORK_MONITOR_CONFIG failed", error);
+        logger.warn({
+          event: "POPUP_GET_NETWORK_MONITOR_CONFIG_FAILED",
+          error,
+        });
         setViewState({ kind: "ready", config: DEFAULT_NETWORK_MONITOR_CONFIG });
       });
   }, []);
@@ -44,10 +53,11 @@ export function NetworkMonitorSettings() {
       type: "SET_NETWORK_MONITOR_CONFIG",
       data: newConfig,
     }).catch((error) => {
-      console.warn("[popup] SET_NETWORK_MONITOR_CONFIG failed", error);
+      logger.warn({
+        event: "POPUP_SET_NETWORK_MONITOR_CONFIG_FAILED",
+        error,
+      });
       setViewState({ kind: "ready", config: previousConfig });
-
-
     });
   }
 

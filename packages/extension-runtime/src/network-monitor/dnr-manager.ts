@@ -127,7 +127,10 @@ export async function registerDNRRulesForExtensions(
 
     state.dnrRuleToExtensionMap = nextRuleMap;
     state.dnrRulesRegistered = true;
-    logger.info(`DNR rules registered for ${newRules.length} extensions`);
+    logger.info({
+      event: "DNR_RULES_REGISTERED",
+      data: { extensionCount: newRules.length },
+    });
   } catch (error) {
     logger.error("Failed to register DNR rules:", error);
   }
@@ -243,7 +246,10 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
     }
 
     if (records.length > 0) {
-      logger.info(`DNR supplemental: ${records.length} requests not seen by webRequest`);
+      logger.info({
+        event: "DNR_SUPPLEMENTAL_REQUESTS_DETECTED",
+        data: { requestCount: records.length },
+      });
     }
 
     return records;
@@ -288,7 +294,10 @@ export async function clearDNRRules(): Promise<void> {
  */
 export async function addDNRRuleForExtension(extensionId: string): Promise<void> {
   if (!extensionId || !EXTENSION_ID_PATTERN.test(extensionId)) {
-    logger.warn(`Invalid extension ID format: ${extensionId}`);
+    logger.warn({
+      event: "DNR_INVALID_EXTENSION_ID_FORMAT",
+      data: { extensionId },
+    });
     return;
   }
 
@@ -299,7 +308,10 @@ export async function addDNRRuleForExtension(extensionId: string): Promise<void>
 
     const ruleId = nextAvailableRuleId();
     if (ruleId === null) {
-      logger.warn(`Cannot add DNR rule for ${extensionId}: no available rule ID`);
+      logger.warn({
+        event: "DNR_RULE_ADD_SKIPPED_NO_AVAILABLE_RULE_ID",
+        data: { extensionId },
+      });
       return;
     }
 
@@ -307,9 +319,16 @@ export async function addDNRRuleForExtension(extensionId: string): Promise<void>
       addRules: [createDNRRule(extensionId, ruleId)],
     });
     state.dnrRuleToExtensionMap.set(ruleId, extensionId);
-    logger.info(`DNR rule ${ruleId} added for extension ${extensionId}`);
+    logger.info({
+      event: "DNR_RULE_ADDED_FOR_EXTENSION",
+      data: { extensionId, ruleId },
+    });
   } catch (error) {
-    logger.error(`Failed to add DNR rule for ${extensionId}:`, error);
+    logger.error({
+      event: "DNR_RULE_ADD_FAILED",
+      data: { extensionId },
+      error,
+    });
   }
 }
 
@@ -327,9 +346,16 @@ export async function removeDNRRuleForExtension(
       removeRuleIds: [ruleIdToRemove],
     });
     state.dnrRuleToExtensionMap.delete(ruleIdToRemove);
-    logger.info(`DNR rule ${ruleIdToRemove} removed for extension ${extensionId}`);
+    logger.info({
+      event: "DNR_RULE_REMOVED_FOR_EXTENSION",
+      data: { extensionId, ruleId: ruleIdToRemove },
+    });
   } catch (error) {
-    logger.error(`Failed to remove DNR rule for ${extensionId}:`, error);
+    logger.error({
+      event: "DNR_RULE_REMOVE_FAILED",
+      data: { extensionId },
+      error,
+    });
   }
 }
 
@@ -370,7 +396,10 @@ export async function restoreDNRMapping(): Promise<boolean> {
     }
 
     state.dnrRulesRegistered = state.dnrRuleToExtensionMap.size > 0;
-    logger.info(`DNR mapping restored: ${state.dnrRuleToExtensionMap.size} rules`);
+    logger.info({
+      event: "DNR_MAPPING_RESTORED",
+      data: { ruleCount: state.dnrRuleToExtensionMap.size },
+    });
     return needsReconciliation;
   } catch (error) {
     logger.error("Failed to restore DNR mapping:", error);

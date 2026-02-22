@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "preact/hooks";
 import { useTheme } from "../lib/theme";
 import { ThemeToggle } from "./ThemeToggle";
 import {
+  createLogger,
   DEFAULT_BLOCKING_CONFIG,
   DEFAULT_NOTIFICATION_CONFIG,
   type BlockingConfig,
@@ -12,6 +13,8 @@ interface Props {
   onClearData: () => void;
   onExport?: () => void;
 }
+
+const logger = createLogger("settings-menu");
 
 function formatRetentionDays(days: number): string {
   if (days === 0) return "無期限";
@@ -29,7 +32,11 @@ export function SettingsMenu({ onClearData, onExport }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   function reportOperationError(message: string, error: unknown): void {
-    console.warn(`[settings-menu] ${message}`, error);
+    logger.warn({
+      event: "SETTINGS_MENU_OPERATION_FAILED",
+      data: { message },
+      error,
+    });
   }
 
   useEffect(() => {

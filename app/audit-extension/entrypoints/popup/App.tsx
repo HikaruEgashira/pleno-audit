@@ -5,7 +5,11 @@ import type {
 } from "@pleno-audit/detectors";
 import { analyzePromptPII, assessPromptRisk } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
-import type { StorageData, DoHRequestRecord } from "@pleno-audit/extension-runtime";
+import {
+  createLogger,
+  type StorageData,
+  type DoHRequestRecord,
+} from "@pleno-audit/extension-runtime";
 import { Shield } from "lucide-preact";
 import { ThemeContext, useThemeState, useTheme } from "../../lib/theme";
 import { Badge, Button, ErrorBoundary, PopupSettingsMenu } from "../../components";
@@ -19,6 +23,7 @@ import { aggregateServices, type UnifiedService } from "./utils/serviceAggregato
 import { sendMessage } from "./utils/messaging";
 
 type Tab = "service" | "event" | "policy";
+const logger = createLogger("popup-app");
 
 function countEvents(data: TabData): number {
   const nrdCount = data.services.filter((s) => s.nrdResult?.isNRD).length;
@@ -104,7 +109,10 @@ function PopupContent() {
         events: [],
       });
     } catch (error) {
-      console.warn("[popup] storage load failed", error);
+      logger.warn({
+        event: "POPUP_STORAGE_LOAD_FAILED",
+        error,
+      });
       setData({
         services: {},
         events: [],
@@ -129,7 +137,10 @@ function PopupContent() {
       if (Array.isArray(vData)) setViolations(vData);
       if (Array.isArray(nData)) setNetworkRequests(nData);
     } catch (error) {
-      console.warn("[popup] CSP data load failed", error);
+      logger.warn({
+        event: "POPUP_CSP_DATA_LOAD_FAILED",
+        error,
+      });
     }
   }
 
@@ -138,7 +149,10 @@ function PopupContent() {
       const data = await sendMessage<CapturedAIPrompt[]>({ type: "GET_AI_PROMPTS" });
       if (Array.isArray(data)) setAIPrompts(data);
     } catch (error) {
-      console.warn("[popup] AI data load failed", error);
+      logger.warn({
+        event: "POPUP_AI_DATA_LOAD_FAILED",
+        error,
+      });
     }
   }
 
@@ -147,7 +161,10 @@ function PopupContent() {
       const result = await sendMessage<{ requests: DoHRequestRecord[] }>({ type: "GET_DOH_REQUESTS", data: { limit: 100 } });
       if (result?.requests) setDoHRequests(result.requests);
     } catch (error) {
-      console.warn("[popup] DoH data load failed", error);
+      logger.warn({
+        event: "POPUP_DOH_DATA_LOAD_FAILED",
+        error,
+      });
     }
   }
 
@@ -157,7 +174,10 @@ function PopupContent() {
     aggregateServices(services, networkRequests, violations)
       .then(setUnifiedServices)
       .catch((error) => {
-        console.warn("[popup] aggregateServices failed", error);
+        logger.warn({
+          event: "POPUP_AGGREGATE_SERVICES_FAILED",
+          error,
+        });
       });
   }, [data.services, networkRequests, violations]);
 

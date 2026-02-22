@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "preact/hooks";
 import type { DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { Badge, Button } from "../../../components";
 import {
@@ -11,6 +12,8 @@ import {
   type SortType,
 } from "../utils/serviceAggregator";
 import { usePopupStyles } from "../styles";
+
+const logger = createLogger("popup-service-tab");
 
 interface ServiceTabProps {
   services: DetectedService[];
@@ -169,7 +172,10 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
         const result = await aggregateServices(services, networkRequests, violations);
         setUnifiedServices(result);
       } catch (error) {
-        console.warn("[popup] Failed to aggregate services.", error);
+        logger.warn({
+          event: "POPUP_AGGREGATE_SERVICES_FAILED",
+          error,
+        });
       } finally {
         setLoading(false);
       }
