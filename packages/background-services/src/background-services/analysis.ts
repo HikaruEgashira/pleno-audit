@@ -1,14 +1,15 @@
 import type { BackgroundServiceState } from "./state";
 import type { PageAnalysis } from "./types";
-import { DEFAULT_DETECTION_CONFIG } from "@pleno-audit/extension-runtime";
+import { DEFAULT_DETECTION_CONFIG, queryExistingCookies } from "@pleno-audit/extension-runtime";
 import { getAlertManager, checkDomainPolicy } from "./alerts";
 import { addEvent } from "./events";
-import { initStorage, updateService } from "./storage";
+import { initStorage, updateService, addCookieToService } from "./storage";
 
 export async function handlePageAnalysis(state: BackgroundServiceState, analysis: PageAnalysis) {
   const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
   const storage = await initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
+  const isNewDomain = !storage.services[domain];
   const onNewDomain = (newDomain: string) => checkDomainPolicy(state, newDomain);
 
   if (faviconUrl) {
@@ -92,5 +93,18 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
       isCookieBannerGDPRCompliant,
       hasLoginForm,
     });
+  }
+
+  // Proactively query existing cookies for newly detected domains
+  if (isNewDomain) {
+    queryExistingCookies(domain)
+      .then(async (cookies) => {
+        for (const cookie of cookies) {
+          await addCookieToService(state, domain, cookie);
+        }
+      })
+      .catch((err) => {
+        state.logger?.debug("Failed to query existing cookies:", domain, err);
+      });
   }
 }

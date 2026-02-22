@@ -34,6 +34,7 @@ export { checkMigrationNeeded, migrateToDatabase } from "./migration.js";
 export {
   startCookieMonitor,
   onCookieChange,
+  queryExistingCookies,
   type CookieChangeCallback,
 } from "./cookie-monitor.js";
 
