@@ -47,6 +47,8 @@ export interface NetworkMonitorState {
   dnrRuleToExtensionMap: Map<number, string>;
   excludedDomains: Set<string>;
   excludedExtensions: Set<string>;
+  /** webRequestで検出済みのリクエストを追跡 (extensionId:tabId → 直近タイムスタンプ) */
+  recentWebRequestHits: Map<string, number>;
 }
 
 /**

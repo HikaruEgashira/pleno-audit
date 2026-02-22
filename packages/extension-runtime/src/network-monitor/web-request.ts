@@ -97,9 +97,10 @@ export function handleWebRequest(details: chrome.webRequest.WebRequestBodyDetail
   const domain = extractDomain(details.url);
   if (state.excludedDomains.has(domain)) return;
 
+  const now = Date.now();
   const record: NetworkRequestRecord = {
     id: crypto.randomUUID(),
-    timestamp: Date.now(),
+    timestamp: now,
     url: details.url,
     method: details.method,
     domain,
@@ -112,6 +113,10 @@ export function handleWebRequest(details: chrome.webRequest.WebRequestBodyDetail
     frameId: details.frameId,
     detectedBy: "webRequest",
   };
+
+  if (extensionId) {
+    state.recentWebRequestHits.set(`${extensionId}:${details.tabId}`, now);
+  }
 
   logger.debug("Network request detected:", {
     initiatorType,
