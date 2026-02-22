@@ -302,7 +302,11 @@ function initializeDebugBridge(): void {
     return;
   }
   void import("@pleno-audit/debug-bridge").then(({ initDebugBridge }) => {
-    initDebugBridge({ getNetworkRequests });
+    initDebugBridge({
+      getNetworkRequests,
+      getNetworkMonitorConfig,
+      setNetworkMonitorConfig,
+    });
   });
 }
 

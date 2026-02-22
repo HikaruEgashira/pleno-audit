@@ -1,12 +1,29 @@
 import { DEFAULT_NETWORK_CONFIG } from "./constants.js";
-import type { DebugHandlerResult } from "./types.js";
+import type { NetworkMonitorConfig } from "@pleno-audit/extension-runtime";
+import type { DebugBridgeDeps, DebugHandlerResult } from "./types.js";
 
-export async function getNetworkConfig(): Promise<DebugHandlerResult> {
+type NetworkConfigUpdates = {
+  enabled?: boolean;
+  captureAllRequests?: boolean;
+  excludeOwnExtension?: boolean;
+};
+
+async function getNetworkConfigFromStorage(): Promise<NetworkMonitorConfig> {
+  const storage = await chrome.storage.local.get("networkMonitorConfig");
+  return storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG;
+}
+
+export async function getNetworkConfig(deps?: DebugBridgeDeps): Promise<DebugHandlerResult> {
   try {
-    const storage = await chrome.storage.local.get("networkMonitorConfig");
+    if (deps?.getNetworkMonitorConfig) {
+      const config = await deps.getNetworkMonitorConfig();
+      return { success: true, data: config };
+    }
+
+    const config = await getNetworkConfigFromStorage();
     return {
       success: true,
-      data: storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG,
+      data: config,
     };
   } catch (error) {
     return {
@@ -16,24 +33,33 @@ export async function getNetworkConfig(): Promise<DebugHandlerResult> {
   }
 }
 
-export async function setNetworkConfig(params: {
-  enabled?: boolean;
-  captureAllRequests?: boolean;
-  excludeOwnExtension?: boolean;
-}): Promise<DebugHandlerResult> {
+export async function setNetworkConfig(
+  params: NetworkConfigUpdates,
+  deps?: DebugBridgeDeps
+): Promise<DebugHandlerResult> {
   try {
-    const storage = await chrome.storage.local.get("networkMonitorConfig");
-    const currentConfig = storage.networkMonitorConfig || DEFAULT_NETWORK_CONFIG;
-    const newConfig = { ...currentConfig, ...params };
+    if (deps?.getNetworkMonitorConfig && deps?.setNetworkMonitorConfig) {
+      const currentConfig = await deps.getNetworkMonitorConfig();
+      const newConfig: NetworkMonitorConfig = {
+        ...currentConfig,
+        ...params,
+      };
+      const result = await deps.setNetworkMonitorConfig(newConfig);
+
+      if (!result.success) {
+        return { success: false, error: "Failed to set network monitor config" };
+      }
+
+      const appliedConfig = await deps.getNetworkMonitorConfig();
+      return { success: true, data: appliedConfig };
+    }
+
+    const currentConfig = await getNetworkConfigFromStorage();
+    const newConfig: NetworkMonitorConfig = {
+      ...currentConfig,
+      ...params,
+    };
     await chrome.storage.local.set({ networkMonitorConfig: newConfig });
-
-    chrome.runtime
-      .sendMessage({
-        type: "SET_NETWORK_MONITOR_CONFIG",
-        data: newConfig,
-      })
-      .catch(() => {});
-
     return { success: true, data: newConfig };
   } catch (error) {
     return {

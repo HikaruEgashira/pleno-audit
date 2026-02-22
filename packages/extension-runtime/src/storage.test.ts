@@ -57,6 +57,17 @@ describe("storage", () => {
       expect(result.events).toEqual([]);
       expect(result.cspReports).toEqual([]);
       expect(result.aiPrompts).toEqual([]);
+      expect(result.networkMonitorConfig).toEqual({
+        enabled: true,
+        captureAllRequests: true,
+        excludeOwnExtension: true,
+        excludedDomains: [],
+        excludedExtensions: [],
+      });
+      expect(result.doHMonitorConfig).toEqual({
+        action: "detect",
+        maxStoredRequests: 1000,
+      });
     });
 
     it("returns stored values when available", async () => {
@@ -93,9 +104,14 @@ describe("storage", () => {
           "aiPrompts",
           "aiMonitorConfig",
           "nrdConfig",
+          "networkMonitorConfig",
+          "doHRequests",
+          "doHMonitorConfig",
           "dataRetentionConfig",
           "detectionConfig",
           "blockingConfig",
+          "notificationConfig",
+          "alertCooldown",
         ])
       );
     });
@@ -166,6 +182,20 @@ describe("storage", () => {
       const result = await getStorageKey("aiMonitorConfig");
 
       expect(result).toEqual({ enabled: true });
+    });
+
+    it("returns default config for networkMonitorConfig", async () => {
+      mockStorageGet.mockResolvedValue({});
+
+      const result = await getStorageKey("networkMonitorConfig");
+
+      expect(result).toEqual({
+        enabled: true,
+        captureAllRequests: true,
+        excludeOwnExtension: true,
+        excludedDomains: [],
+        excludedExtensions: [],
+      });
     });
   });
 

@@ -1,3 +1,5 @@
+import type { NetworkMonitorConfig } from "@pleno-audit/extension-runtime";
+
 export interface DebugMessage {
   type: string;
   id?: string;
@@ -20,4 +22,8 @@ export interface DebugBridgeDeps {
     limit?: number;
     initiatorType?: string;
   }) => Promise<{ requests: unknown[]; total: number }>;
+  getNetworkMonitorConfig?: () => Promise<NetworkMonitorConfig>;
+  setNetworkMonitorConfig?: (
+    config: NetworkMonitorConfig
+  ) => Promise<{ success: boolean }>;
 }
