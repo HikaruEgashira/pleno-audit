@@ -102,7 +102,9 @@ export async function registerDNRRulesForExtensions(
   extensionIds: string[]
 ): Promise<void> {
   if (extensionIds.length === 0) {
-    logger.debug("No extensions to monitor with DNR");
+    logger.debug({
+      event: "DNR_RULES_REGISTER_SKIPPED_NO_EXTENSIONS",
+    });
     return;
   }
 
@@ -132,7 +134,10 @@ export async function registerDNRRulesForExtensions(
       data: { extensionCount: newRules.length },
     });
   } catch (error) {
-    logger.error("Failed to register DNR rules:", error);
+    logger.error({
+      event: "DNR_RULES_REGISTER_FAILED",
+      error,
+    });
   }
 }
 
@@ -256,11 +261,16 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
   } catch (error) {
     const errorMessage = String(error);
     if (errorMessage.includes("quota") || errorMessage.includes("QUOTA")) {
-      logger.warn("DNR quota exceeded, entering backoff mode");
+      logger.warn({
+        event: "DNR_QUOTA_EXCEEDED_ENTER_BACKOFF",
+      });
       state.dnrCallCount = DNR_MAX_CALLS_PER_INTERVAL;
       return [];
     }
-    logger.error("Failed to check matched DNR rules:", error);
+    logger.error({
+      event: "DNR_MATCHED_RULES_CHECK_FAILED",
+      error,
+    });
     return [];
   }
 }
@@ -283,9 +293,14 @@ export async function clearDNRRules(): Promise<void> {
 
     state.dnrRulesRegistered = false;
     state.dnrRuleToExtensionMap.clear();
-    logger.debug("DNR rules cleared");
+    logger.debug({
+      event: "DNR_RULES_CLEARED",
+    });
   } catch (error) {
-    logger.error("Failed to clear DNR rules:", error);
+    logger.error({
+      event: "DNR_RULES_CLEAR_FAILED",
+      error,
+    });
   }
 }
 
@@ -402,7 +417,10 @@ export async function restoreDNRMapping(): Promise<boolean> {
     });
     return needsReconciliation;
   } catch (error) {
-    logger.error("Failed to restore DNR mapping:", error);
+    logger.error({
+      event: "DNR_MAPPING_RESTORE_FAILED",
+      error,
+    });
     return true;
   }
 }

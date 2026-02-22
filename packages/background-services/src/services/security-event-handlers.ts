@@ -128,6 +128,13 @@ function sourceLabel(source?: string): string {
   return source || "unknown";
 }
 
+function sanitizeFilename(filename: string): string {
+  const normalized = filename.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  const basename = parts[parts.length - 1] || "unknown";
+  return basename.slice(0, 128);
+}
+
 export function createSecurityEventHandlers(
   deps: SecurityEventHandlerDependencies,
 ) {
@@ -524,7 +531,7 @@ export function createSecurityEventHandlers(
           source: sourceLabel(data.source),
           domain: pageDomain,
           type: data.type,
-          filename: data.filename,
+          filename: sanitizeFilename(data.filename),
         },
       });
 
