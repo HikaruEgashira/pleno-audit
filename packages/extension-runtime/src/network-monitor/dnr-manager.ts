@@ -192,7 +192,8 @@ export async function checkMatchedDNRRules(): Promise<NetworkRequestRecord[]> {
     });
 
     state.lastMatchedRulesCheck = now;
-    pruneRecentWebRequestHits(now - DNR_QUOTA_INTERVAL_MS);
+    const cutoff = Math.max(checkWindow, now - DNR_QUOTA_INTERVAL_MS);
+    pruneRecentWebRequestHits(cutoff);
 
     const records: NetworkRequestRecord[] = [];
     const tabUrlCache = new Map<number, string | null>();
