@@ -4,7 +4,7 @@ import {
   DEFAULT_NRD_CONFIG,
   DEFAULT_TYPOSQUAT_CONFIG,
 } from "@pleno-audit/detectors";
-import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { CSPViolation } from "@pleno-audit/csp";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
 import {
   startCookieMonitor,
@@ -401,8 +401,7 @@ function createRuntimeHandlerDependencies(): RuntimeHandlerDependencies {
     handlePageAnalysis: async (payload) =>
       backgroundAnalysis.handlePageAnalysis(payload as PageAnalysis),
     handleCSPViolation: (data, sender) => cspReportingService.handleCSPViolation(data as Omit<CSPViolation, "type">, sender),
-    handleNetworkRequest: (data, sender) => cspReportingService.handleNetworkRequest(data as Omit<NetworkRequest, "type">, sender),
-    handleNetworkInspection: (data, sender) => networkSecurityInspector.handleNetworkInspection(data as NetworkInspectionRequest, sender),
+handleNetworkInspection: (data, sender) => networkSecurityInspector.handleNetworkInspection(data as NetworkInspectionRequest, sender),
     handleDataExfiltration: (data, sender) => securityEventHandlers.handleDataExfiltration(data as DataExfiltrationData, sender),
     handleCredentialTheft: (data, sender) => securityEventHandlers.handleCredentialTheft(data as CredentialTheftData, sender),
     handleSupplyChainRisk: (data, sender) => securityEventHandlers.handleSupplyChainRisk(data as SupplyChainRiskData, sender),

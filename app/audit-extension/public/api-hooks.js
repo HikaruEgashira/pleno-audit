@@ -7,7 +7,6 @@
   const originalFetch = window.fetch
   const originalXHROpen = XMLHttpRequest.prototype.open
   const originalXHRSend = XMLHttpRequest.prototype.send
-  const originalWebSocket = window.WebSocket
   const originalSendBeacon = navigator.sendBeacon?.bind(navigator)
 
   const INSPECTION_BODY_SAMPLE_LIMIT = 4096
@@ -235,10 +234,6 @@
       try {
         const fullUrl = new URL(url, window.location.origin).href
         const normalizedMethod = method.toUpperCase()
-        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
-          url: fullUrl, method: normalizedMethod, initiator: 'fetch',
-          resourceType: 'fetch', timestamp: Date.now(), bodySize: getBodySize(body),
-        })
         scheduleNetworkInspection({ url: fullUrl, method: normalizedMethod, initiator: 'fetch', body, pageUrl: window.location.href })
       } catch {}
     }
@@ -288,10 +283,6 @@
     if (xhrUrl) {
       try {
         const fullUrl = new URL(xhrUrl, window.location.origin).href
-        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
-          url: fullUrl, method: xhrMethod, initiator: 'xhr', resourceType: 'xhr',
-          timestamp: Date.now(), bodySize: getBodySize(body),
-        })
         scheduleNetworkInspection({ url: fullUrl, method: xhrMethod, initiator: 'xhr', body, pageUrl: window.location.href })
       } catch {}
     }
@@ -326,28 +317,11 @@
     return originalXHRSend.call(this, body)
   }
 
-  // ===== WebSocket =====
-  window.WebSocket = function(url, protocols) {
-    emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
-      url, method: 'WEBSOCKET', initiator: 'websocket', resourceType: 'websocket', timestamp: Date.now(),
-    })
-    return protocols !== undefined ? new originalWebSocket(url, protocols) : new originalWebSocket(url)
-  }
-  window.WebSocket.prototype = originalWebSocket.prototype
-  window.WebSocket.CONNECTING = originalWebSocket.CONNECTING
-  window.WebSocket.OPEN = originalWebSocket.OPEN
-  window.WebSocket.CLOSING = originalWebSocket.CLOSING
-  window.WebSocket.CLOSED = originalWebSocket.CLOSED
-
   // ===== Beacon =====
   if (originalSendBeacon) {
     navigator.sendBeacon = function(url, data) {
       try {
         const fullUrl = new URL(url, window.location.origin).href
-        emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', {
-          url: fullUrl, method: 'POST', initiator: 'beacon', resourceType: 'beacon',
-          timestamp: Date.now(), bodySize: getBodySize(data),
-        })
         scheduleNetworkInspection({ url: fullUrl, method: 'POST', initiator: 'beacon', body: data, pageUrl: window.location.href })
       } catch {}
       return originalSendBeacon(url, data)
@@ -380,26 +354,17 @@
     }
   }
 
-  // ===== DOM Mutation Observer =====
+  // ===== DOM Mutation Observer (Supply Chain Risk only) =====
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue
-        if (node.tagName === 'IMG' && node.src) {
-          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.src, method: 'GET', initiator: 'img', resourceType: 'img', timestamp: Date.now() })
-        }
         if (node.tagName === 'SCRIPT' && node.src) {
-          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.src, method: 'GET', initiator: 'script', resourceType: 'script', timestamp: Date.now() })
           checkSupplyChainRisk(node, 'script')
         }
         if (node.tagName === 'LINK' && node.href) {
           const isStylesheet = node.relList ? node.relList.contains('stylesheet') : node.getAttribute('rel')?.split(/\s+/).includes('stylesheet')
-          const type = isStylesheet ? 'style' : 'link'
-          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.href, method: 'GET', initiator: type, resourceType: type, timestamp: Date.now() })
           if (isStylesheet) checkSupplyChainRisk(node, 'stylesheet')
-        }
-        if (node.tagName === 'IFRAME' && node.src) {
-          emitSecurityEvent('__SERVICE_DETECTION_NETWORK__', { url: node.src, method: 'GET', initiator: 'frame', resourceType: 'frame', timestamp: Date.now() })
         }
       }
     }
