@@ -3,10 +3,16 @@
  * Main worldからの検知イベントをキュー制御し、負荷に応じて非同期バッチ転送する。
  */
 
+import { createLogger } from "@pleno-audit/extension-runtime";
+
+const logger = createLogger("security-bridge");
+
 type RuntimeEvent = {
   type: string;
   data: Record<string, unknown>;
 };
+
+type CircuitState = "closed" | "open" | "half-open";
 
 declare global {
   interface Window {
@@ -28,7 +34,7 @@ function isExtensionContextValid(): boolean {
 
 async function sendMessageSafely(message: unknown): Promise<boolean> {
   if (!isExtensionContextValid()) {
-    console.warn("[security-bridge] Extension context is unavailable.");
+    logger.warn("Extension context is unavailable.");
     return false;
   }
 
@@ -36,7 +42,7 @@ async function sendMessageSafely(message: unknown): Promise<boolean> {
     await chrome.runtime.sendMessage(message);
     return true;
   } catch (error) {
-    console.warn("[security-bridge] Failed to send runtime event batch.", error);
+    logger.warn("Failed to send runtime event batch.", error);
     return false;
   }
 }
@@ -51,8 +57,9 @@ export default defineContentScript({
     let flushScheduled = false;
     let longTaskDetectedAt = 0;
     let fallbackTimer: number | null = null;
-    let consecutiveSendFailures = 0;
-    const MAX_SEND_FAILURES = 3;
+    let circuitState: CircuitState = "closed";
+    let circuitOpenedAt = 0;
+    const CIRCUIT_RECOVERY_MS = 5000;
 
     const LOW_PRIORITY_TYPES = new Set([
       "COOKIE_ACCESS_DETECTED",
@@ -105,7 +112,9 @@ export default defineContentScript({
         },
       });
 
-      scheduleFlush();
+      if (circuitState !== "open") {
+        scheduleFlush();
+      }
     }
 
     function scheduleFlush(): void {
@@ -132,9 +141,30 @@ export default defineContentScript({
       }, timeoutMs);
     }
 
+    function scheduleRecoveryCheck(): void {
+      window.setTimeout(() => {
+        if (circuitState === "open") {
+          circuitState = "half-open";
+          scheduleFlush();
+        }
+      }, CIRCUIT_RECOVERY_MS);
+    }
+
     async function flushQueue(deadline?: IdleDeadline): Promise<void> {
       flushScheduled = false;
       if (queue.length === 0) return;
+
+      if (circuitState === "open") {
+        const elapsed = Date.now() - circuitOpenedAt;
+        if (elapsed < CIRCUIT_RECOVERY_MS) {
+          window.setTimeout(() => {
+            circuitState = "half-open";
+            scheduleFlush();
+          }, CIRCUIT_RECOVERY_MS - elapsed);
+          return;
+        }
+        circuitState = "half-open";
+      }
 
       const now = Date.now();
       const highLoad = isHighLoad(now);
@@ -158,21 +188,23 @@ export default defineContentScript({
           },
         });
         if (!sent) {
-          consecutiveSendFailures += 1;
-          if (consecutiveSendFailures >= MAX_SEND_FAILURES) {
-            console.warn(
-              `[security-bridge] Dropping ${batch.length} queued events after repeated send failures.`
-            );
-            return;
+          if (circuitState === "half-open") {
+            circuitState = "open";
+            circuitOpenedAt = Date.now();
+            logger.warn(`Circuit open: dropped ${batch.length} events (SW still unavailable).`);
+            scheduleRecoveryCheck();
+          } else {
+            circuitState = "open";
+            circuitOpenedAt = Date.now();
+            for (let i = batch.length - 1; i >= 0; i--) {
+              queue.unshift(batch[i]);
+            }
+            logger.warn("Circuit open: queued events preserved for recovery.");
+            scheduleRecoveryCheck();
           }
-          queue.unshift(...batch);
-          window.setTimeout(
-            () => scheduleFlush(),
-            500 * consecutiveSendFailures
-          );
           return;
         }
-        consecutiveSendFailures = 0;
+        circuitState = "closed";
       }
 
       if (queue.length > 0) {
