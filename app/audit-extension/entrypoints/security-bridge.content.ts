@@ -228,7 +228,6 @@ export default defineContentScript({
 
     const securityEvents = [
       "__AI_PROMPT_CAPTURED__",
-      "__SERVICE_DETECTION_NETWORK__",
       "__CREDENTIAL_THEFT_DETECTED__",
       "__SUPPLY_CHAIN_RISK_DETECTED__",
       "__TRACKING_BEACON_DETECTED__",

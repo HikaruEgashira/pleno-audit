@@ -89,11 +89,7 @@ export interface RuntimeHandlerDependencies {
     data: Omit<CSPViolation, "type">,
     sender: chrome.runtime.MessageSender,
   ) => Promise<unknown>;
-  handleNetworkRequest: (
-    data: Omit<NetworkRequest, "type">,
-    sender: chrome.runtime.MessageSender,
-  ) => Promise<unknown>;
-  handleNetworkInspection: (data: unknown, sender: chrome.runtime.MessageSender) => Promise<unknown>;
+handleNetworkInspection: (data: unknown, sender: chrome.runtime.MessageSender) => Promise<unknown>;
   handleDataExfiltration: (data: unknown, sender: chrome.runtime.MessageSender) => Promise<unknown>;
   handleCredentialTheft: (data: unknown, sender: chrome.runtime.MessageSender) => Promise<unknown>;
   handleSupplyChainRisk: (data: unknown, sender: chrome.runtime.MessageSender) => Promise<unknown>;

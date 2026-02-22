@@ -1,4 +1,4 @@
-import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import type { CSPViolation } from "@pleno-audit/csp";
 import type { AsyncHandlerEntry, RuntimeHandlerDependencies } from "./types";
 
 export function createSecurityEventHandlers(
@@ -16,11 +16,7 @@ export function createSecurityEventHandlers(
       execute: (message, sender) => deps.handleCSPViolation(message.data as Omit<CSPViolation, "type">, sender),
       fallback: () => ({ success: false }),
     }],
-    ["NETWORK_REQUEST", {
-      execute: (message, sender) => deps.handleNetworkRequest(message.data as Omit<NetworkRequest, "type">, sender),
-      fallback: () => ({ success: false }),
-    }],
-    ["NETWORK_INSPECTION_REQUEST", {
+["NETWORK_INSPECTION_REQUEST", {
       execute: (message, sender) => deps.handleNetworkInspection(message.data, sender),
       fallback: () => ({ success: false }),
     }],
