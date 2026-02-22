@@ -2,7 +2,10 @@ import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig, NRDConfig } from "@pleno-audit/detectors";
 import { DEFAULT_NRD_CONFIG } from "@pleno-audit/detectors";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
-import type { EnterpriseStatus } from "@pleno-audit/extension-runtime";
+import {
+  createLogger,
+  type EnterpriseStatus,
+} from "@pleno-audit/extension-runtime";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
 import { LockedBanner } from "./LockedBanner";
@@ -14,6 +17,7 @@ const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
   settingsLocked: false,
   config: null,
 };
+const logger = createLogger("popup-settings");
 
 export function Settings() {
   const styles = usePopupStyles();
@@ -33,7 +37,10 @@ export function Settings() {
     sendMessage<EnterpriseStatus>({ type: "GET_ENTERPRISE_STATUS" })
       .then(setEnterpriseStatus)
       .catch((error) => {
-        console.warn("[popup] Failed to load enterprise status.", error);
+        logger.warn({
+          event: "POPUP_ENTERPRISE_STATUS_LOAD_FAILED",
+          error,
+        });
         setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS);
       });
   }, []);
@@ -49,7 +56,10 @@ export function Settings() {
       setConfig(cspResult.value);
       setEndpoint(cspResult.value?.reportEndpoint ?? "");
     } else {
-      console.warn("[popup] Failed to load CSP config.", cspResult.reason);
+      logger.warn({
+        event: "POPUP_CSP_CONFIG_LOAD_FAILED",
+        data: { reason: String(cspResult.reason) },
+      });
       setConfig(DEFAULT_CSP_CONFIG);
       setEndpoint(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
     }
@@ -57,14 +67,20 @@ export function Settings() {
     if (nrdResult.status === "fulfilled") {
       setNRDConfig(nrdResult.value);
     } else {
-      console.warn("[popup] Failed to load NRD config.", nrdResult.reason);
+      logger.warn({
+        event: "POPUP_NRD_CONFIG_LOAD_FAILED",
+        data: { reason: String(nrdResult.reason) },
+      });
       setNRDConfig(DEFAULT_NRD_CONFIG);
     }
 
     if (retentionResult.status === "fulfilled") {
       setRetentionDays(retentionResult.value?.retentionDays ?? 180);
     } else {
-      console.warn("[popup] Failed to load retention config.", retentionResult.reason);
+      logger.warn({
+        event: "POPUP_RETENTION_CONFIG_LOAD_FAILED",
+        data: { reason: String(retentionResult.reason) },
+      });
       setRetentionDays(180);
     }
   }
@@ -81,7 +97,10 @@ export function Settings() {
         lastCleanupTimestamp: 0,
       },
     }).catch((error) => {
-      console.warn("[popup] Failed to save retention setting.", error);
+      logger.warn({
+        event: "POPUP_RETENTION_CONFIG_SAVE_FAILED",
+        error,
+      });
       setRetentionDays(previous);
     });
   }
@@ -113,7 +132,10 @@ export function Settings() {
       setMessage("Settings saved!");
       setTimeout(() => setMessage(""), 2000);
     } catch (error) {
-      console.warn("[popup] Failed to save settings.", error);
+      logger.warn({
+        event: "POPUP_SETTINGS_SAVE_FAILED",
+        error,
+      });
     }
     setSaving(false);
   }
@@ -126,7 +148,10 @@ export function Settings() {
       // Reload config after reset
       loadConfig();
     } catch (error) {
-      console.warn("[popup] Failed to reset data.", error);
+      logger.warn({
+        event: "POPUP_RESET_ALL_DATA_FAILED",
+        error,
+      });
     }
   }
 

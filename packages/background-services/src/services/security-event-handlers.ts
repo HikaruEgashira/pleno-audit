@@ -128,6 +128,13 @@ function sourceLabel(source?: string): string {
   return source || "unknown";
 }
 
+function sanitizeFilename(filename: string): string {
+  const normalized = filename.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  const basename = parts[parts.length - 1] || "unknown";
+  return basename.slice(0, 128);
+}
+
 export function createSecurityEventHandlers(
   deps: SecurityEventHandlerDependencies,
 ) {
@@ -163,11 +170,15 @@ export function createSecurityEventHandlers(
         initiator: data.initiator,
       });
 
-      deps.logger.warn(`Data exfiltration detected (via ${sourceLabel(data.source)}):`, {
-        from: pageDomain,
-        to: data.targetDomain,
-        size: `${Math.round(data.bodySize / 1024)}KB`,
-        method: data.method,
+      deps.logger.warn({
+        event: "SECURITY_DATA_EXFILTRATION_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          from: pageDomain,
+          to: data.targetDomain,
+          sizeKB: Math.round(data.bodySize / 1024),
+          method: data.method,
+        },
       });
 
       deps.checkDataTransferPolicy({
@@ -217,11 +228,15 @@ export function createSecurityEventHandlers(
           risks: data.risks,
         });
 
-        deps.logger.warn(`Credential theft risk detected (via ${sourceLabel(data.source)}):`, {
-          from: pageDomain,
-          to: data.targetDomain,
-          fieldType: data.fieldType,
-          risks: data.risks.join(", "),
+        deps.logger.warn({
+          event: "SECURITY_CREDENTIAL_THEFT_RISK_DETECTED",
+          data: {
+            source: sourceLabel(data.source),
+            from: pageDomain,
+            to: data.targetDomain,
+            fieldType: data.fieldType,
+            risks: data.risks,
+          },
         });
       }
 
@@ -265,11 +280,15 @@ export function createSecurityEventHandlers(
         risks: data.risks,
       });
 
-      deps.logger.warn(`Supply chain risk detected (via ${sourceLabel(data.source)}):`, {
-        page: pageDomain,
-        resource: resourceDomain,
-        type: data.resourceType,
-        risks: data.risks.join(", "),
+      deps.logger.warn({
+        event: "SECURITY_SUPPLY_CHAIN_RISK_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          page: pageDomain,
+          resource: resourceDomain,
+          resourceType: data.resourceType,
+          risks: data.risks,
+        },
       });
 
       return { success: true };
@@ -306,9 +325,13 @@ export function createSecurityEventHandlers(
         initiator: data.initiator,
       });
 
-      deps.logger.debug(`Tracking beacon detected (via ${sourceLabel(data.source)}):`, {
-        from: pageDomain,
-        to: data.targetDomain,
+      deps.logger.debug({
+        event: "SECURITY_TRACKING_BEACON_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          from: pageDomain,
+          to: data.targetDomain,
+        },
       });
 
       return { success: true };
@@ -342,9 +365,13 @@ export function createSecurityEventHandlers(
         textPreview: data.text,
       });
 
-      deps.logger.warn(`Clipboard hijack detected (via ${sourceLabel(data.source)}):`, {
-        domain: pageDomain,
-        cryptoType: data.cryptoType,
+      deps.logger.warn({
+        event: "SECURITY_CLIPBOARD_HIJACK_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          domain: pageDomain,
+          cryptoType: data.cryptoType,
+        },
       });
 
       return { success: true };
@@ -375,8 +402,12 @@ export function createSecurityEventHandlers(
         readCount: data.readCount,
       });
 
-      deps.logger.debug(`Cookie access detected (via ${sourceLabel(data.source)}):`, {
-        domain: pageDomain,
+      deps.logger.debug({
+        event: "SECURITY_COOKIE_ACCESS_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          domain: pageDomain,
+        },
       });
 
       return { success: true };
@@ -409,9 +440,13 @@ export function createSecurityEventHandlers(
         payloadPreview: data.payloadPreview,
       });
 
-      deps.logger.warn(`XSS detected (via ${sourceLabel(data.source)}):`, {
-        domain: pageDomain,
-        type: data.type,
+      deps.logger.warn({
+        event: "SECURITY_XSS_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          domain: pageDomain,
+          type: data.type,
+        },
       });
 
       return { success: true };
@@ -444,9 +479,13 @@ export function createSecurityEventHandlers(
         callCount: data.callCount,
       });
 
-      deps.logger.debug(`DOM scraping detected (via ${sourceLabel(data.source)}):`, {
-        domain: pageDomain,
-        callCount: data.callCount,
+      deps.logger.debug({
+        event: "SECURITY_DOM_SCRAPING_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          domain: pageDomain,
+          callCount: data.callCount,
+        },
       });
 
       return { success: true };
@@ -486,10 +525,14 @@ export function createSecurityEventHandlers(
         mimeType: data.mimeType,
       });
 
-      deps.logger.warn(`Suspicious download detected (via ${sourceLabel(data.source)}):`, {
-        domain: pageDomain,
-        type: data.type,
-        filename: data.filename,
+      deps.logger.warn({
+        event: "SECURITY_SUSPICIOUS_DOWNLOAD_DETECTED",
+        data: {
+          source: sourceLabel(data.source),
+          domain: pageDomain,
+          type: data.type,
+          filename: sanitizeFilename(data.filename),
+        },
       });
 
       return { success: true };

@@ -6,6 +6,8 @@
 import { createLogger } from "@pleno-audit/extension-runtime";
 
 const logger = createLogger("security-bridge");
+const loggedContextUnavailableByType = new Set<string>();
+const loggedBatchSendFailureByType = new Set<string>();
 
 type RuntimeEvent = {
   type: string;
@@ -32,17 +34,48 @@ function isExtensionContextValid(): boolean {
   }
 }
 
+function getMessageType(message: unknown): string {
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    typeof (message as { type?: unknown }).type === "string"
+  ) {
+    return (message as { type: string }).type;
+  }
+  return "unknown";
+}
+
 async function sendMessageSafely(message: unknown): Promise<boolean> {
+  const messageType = getMessageType(message);
+
   if (!isExtensionContextValid()) {
-    logger.warn("Extension context is unavailable.");
+    if (!loggedContextUnavailableByType.has(messageType)) {
+      logger.warn({
+        event: "SECURITY_BRIDGE_EXTENSION_CONTEXT_UNAVAILABLE",
+        data: { messageType },
+      });
+      loggedContextUnavailableByType.add(messageType);
+    }
     return false;
   }
+  loggedContextUnavailableByType.delete(messageType);
 
   try {
     await chrome.runtime.sendMessage(message);
+    loggedBatchSendFailureByType.delete(messageType);
     return true;
   } catch (error) {
-    logger.warn("Failed to send runtime event batch.", error);
+    if (!loggedBatchSendFailureByType.has(messageType)) {
+      logger.warn({
+        event: "SECURITY_BRIDGE_RUNTIME_BATCH_SEND_FAILED",
+        data: {
+          messageType,
+        },
+        error,
+      });
+      loggedBatchSendFailureByType.add(messageType);
+    }
     return false;
   }
 }

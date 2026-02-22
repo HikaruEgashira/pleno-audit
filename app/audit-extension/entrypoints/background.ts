@@ -244,6 +244,7 @@ const domainRiskService = createDomainRiskService({
 async function clearAllData(): Promise<{ success: boolean }> {
   try {
     logger.info("Clearing all data...");
+    let indexedDbCleared = true;
 
     // 1. Clear report queue
     cspReportingService.clearReportQueue();
@@ -259,14 +260,27 @@ async function clearAllData(): Promise<{ success: boolean }> {
         id: crypto.randomUUID(),
       });
     } catch (error) {
-      logger.warn("Error clearing IndexedDB:", error);
+      indexedDbCleared = false;
+      logger.error({
+        event: "CLEAR_ALL_DATA_INDEXEDDB_CLEAR_FAILED",
+        error,
+      });
       // Continue even if IndexedDB clear fails
     }
 
     // 4. Clear chrome.storage.local and reset to defaults (preserve theme)
     await clearAllStorage({ preserveTheme: true });
 
-    logger.info("All data cleared successfully");
+    if (indexedDbCleared) {
+      logger.info("All data cleared successfully");
+    } else {
+      logger.warn({
+        event: "CLEAR_ALL_DATA_PARTIAL_SUCCESS",
+        data: {
+          indexedDbCleared,
+        },
+      });
+    }
     return { success: true };
   } catch (error) {
     logger.error("Error clearing all data:", error);
@@ -294,7 +308,7 @@ function initializeDebugBridge(): void {
 
 async function initializeEventStore(): Promise<void> {
   await backgroundEvents.getOrInitParquetStore();
-  logger.info("EventStore initialized");
+  logger.debug("EventStore initialized");
 }
 
 async function initializeEnterpriseManagedFlow(): Promise<void> {
@@ -348,7 +362,7 @@ async function migrateLegacyEventsIfNeeded(): Promise<void> {
 
   const store = await backgroundEvents.getOrInitParquetStore();
   const result = await migrateEventsToIndexedDB(store);
-  logger.info(`Event migration: ${result.success ? "success" : "failed"}`, result);
+  logger.debug(`Event migration: ${result.success ? "success" : "failed"}`, result);
 }
 
 function initializeBackgroundServices(): void {
@@ -364,7 +378,7 @@ function initializeBackgroundServices(): void {
   void initializeCSPReporter().catch((error) => logger.error("CSP reporter init failed:", error));
   void migrateLegacyEventsIfNeeded().catch((error) => logger.error("Event migration error:", error));
   void initExtensionMonitor()
-    .then(() => logger.info("Extension monitor initialization completed"))
+    .then(() => logger.debug("Extension monitor initialization completed"))
     .catch((error) => logger.error("Extension monitor init failed:", error));
 }
 
@@ -502,7 +516,13 @@ export default defineBackground(() => {
     const type = typeof message.type === "string" ? message.type : "";
 
     if (!type) {
-      logger.warn("Unknown message type:", message.type);
+      logger.debug({
+        event: "RUNTIME_MESSAGE_TYPE_MISSING",
+        data: {
+          senderTabId: sender.tab?.id,
+          senderUrl: sender.tab?.url,
+        },
+      });
       return false;
     }
 
@@ -582,7 +602,14 @@ export default defineBackground(() => {
       return runAsyncMessageHandlerModule(logger, asyncHandler, message, sender, sendResponse);
     }
 
-    logger.warn("Unknown message type:", type);
+    logger.warn({
+      event: "RUNTIME_MESSAGE_TYPE_UNHANDLED",
+      data: {
+        type,
+        senderTabId: sender.tab?.id,
+        senderUrl: sender.tab?.url,
+      },
+    });
     return false;
   });
 

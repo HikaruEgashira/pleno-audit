@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import {
+  createLogger,
   DEFAULT_DOH_MONITOR_CONFIG,
   type DoHMonitorConfig,
   type DoHAction,
@@ -23,6 +24,8 @@ type ViewState =
   | { kind: "loading" }
   | { kind: "ready"; config: DoHMonitorConfig };
 
+const logger = createLogger("popup-doh-settings");
+
 export function DoHSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
@@ -34,7 +37,10 @@ export function DoHSettings() {
         setViewState({ kind: "ready", config: nextConfig });
       })
       .catch((error) => {
-        console.warn("[popup] GET_DOH_MONITOR_CONFIG failed", error);
+        logger.warn({
+          event: "POPUP_GET_DOH_MONITOR_CONFIG_FAILED",
+          error,
+        });
         setViewState({ kind: "ready", config: DEFAULT_DOH_MONITOR_CONFIG });
       });
   }, []);
@@ -48,10 +54,11 @@ export function DoHSettings() {
       type: "SET_DOH_MONITOR_CONFIG",
       data: { action },
     }).catch((error) => {
-      console.warn("[popup] SET_DOH_MONITOR_CONFIG failed", error);
+      logger.warn({
+        event: "POPUP_SET_DOH_MONITOR_CONFIG_FAILED",
+        error,
+      });
       setViewState({ kind: "ready", config: previousConfig });
-
-
     });
   }
 

@@ -1,6 +1,9 @@
 import { findFaviconUrl, type DetectedService } from "@pleno-audit/detectors";
 import type { CSPViolation, NetworkRequest } from "@pleno-audit/csp";
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { sendMessage } from "./messaging";
+
+const logger = createLogger("popup-service-aggregator");
 
 export type ServiceTag =
   | { type: "nrd"; domainAge: number | null; confidence: string }
@@ -248,7 +251,10 @@ export async function aggregateServices(
       });
     }
   } catch (error) {
-    console.warn("[service-aggregator] Failed to load extension data.", error);
+    logger.warn({
+      event: "POPUP_EXTENSION_DATA_LOAD_FAILED",
+      error,
+    });
   }
 
   return result;

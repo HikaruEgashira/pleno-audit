@@ -4,7 +4,6 @@ import {
   setDebuggerSink,
   hasDebuggerSink,
   type LogEntry,
-  type Logger,
 } from "./logger.js";
 
 describe("createLogger", () => {
@@ -103,6 +102,8 @@ describe("createLogger", () => {
 describe("setDebuggerSink", () => {
   beforeEach(() => {
     vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
     setDebuggerSink(null);
   });
 
@@ -175,6 +176,7 @@ describe("setDebuggerSink", () => {
     const entry = sink.mock.calls[0][0] as LogEntry;
     expect(entry.message).toContain("key");
     expect(entry.message).toContain("value");
+    expect(entry.data).toEqual({ key: "value" });
   });
 
   it("serializes Error objects in sink message", () => {
@@ -187,6 +189,42 @@ describe("setDebuggerSink", () => {
 
     const entry = sink.mock.calls[0][0] as LogEntry;
     expect(entry.message).toContain("test error");
+    expect(entry.data).toMatchObject({
+      message: "test error",
+      name: "Error",
+    });
+  });
+
+  it("supports event payload logging", () => {
+    const sink = vi.fn();
+    setDebuggerSink(sink);
+
+    const logger = createLogger("test");
+    logger.warn({
+      event: "TEST_EVENT",
+      data: { key: "value" },
+      error: new Error("payload error"),
+    });
+
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("[Pleno Audit]"),
+      "TEST_EVENT",
+      { key: "value" },
+      expect.any(Error)
+    );
+
+    const entry = sink.mock.calls[0][0] as LogEntry;
+    expect(entry.message).toBe("TEST_EVENT");
+    expect(entry.data).toEqual([
+      { key: "value" },
+      {
+        error: {
+          name: "Error",
+          message: "payload error",
+          stack: expect.any(String),
+        },
+      },
+    ]);
   });
 
   it("does not forward to sink when not set", () => {

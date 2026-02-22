@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import {
+  createLogger,
   DEFAULT_DETECTION_CONFIG,
   type DetectionConfig,
   type EnterpriseStatus,
@@ -29,6 +30,7 @@ const DEFAULT_ENTERPRISE_STATUS: EnterpriseStatus = {
   settingsLocked: false,
   config: null,
 };
+const logger = createLogger("popup-detection-settings");
 
 export function DetectionSettings() {
   const { colors } = useTheme();
@@ -42,7 +44,10 @@ export function DetectionSettings() {
         setConfig(result);
       })
       .catch((error) => {
-        console.warn("[popup] Failed to load detection config.", error);
+        logger.warn({
+          event: "POPUP_DETECTION_CONFIG_LOAD_FAILED",
+          error,
+        });
         setConfig(DEFAULT_DETECTION_CONFIG);
       });
 
@@ -51,7 +56,10 @@ export function DetectionSettings() {
         setEnterpriseStatus(status);
       })
       .catch((error) => {
-        console.warn("[popup] Failed to load enterprise status.", error);
+        logger.warn({
+          event: "POPUP_ENTERPRISE_STATUS_LOAD_FAILED",
+          error,
+        });
         setEnterpriseStatus(DEFAULT_ENTERPRISE_STATUS);
       });
   }, []);
@@ -67,7 +75,10 @@ export function DetectionSettings() {
       type: "SET_DETECTION_CONFIG",
       data: newConfig,
     }).catch((error) => {
-      console.warn("[popup] Failed to save detection config.", error);
+      logger.warn({
+        event: "POPUP_DETECTION_CONFIG_SAVE_FAILED",
+        error,
+      });
       setConfig((current) => {
         if (!current) return current;
         return current[key] === newConfig[key]

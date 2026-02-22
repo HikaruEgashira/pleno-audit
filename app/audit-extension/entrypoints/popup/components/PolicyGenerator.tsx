@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import type { GeneratedCSPPolicy } from "@pleno-audit/csp";
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { Badge, Button } from "../../../components";
 import { usePopupStyles } from "../styles";
 import { useTheme } from "../../../lib/theme";
@@ -15,6 +16,8 @@ interface GeneratedCSPByDomain {
   policies: DomainCSPPolicy[];
   totalDomains: number;
 }
+
+const logger = createLogger("popup-policy-generator");
 
 export function PolicyGenerator() {
   const styles = usePopupStyles();
@@ -60,7 +63,10 @@ export function PolicyGenerator() {
         }
       }
     } catch (error) {
-      console.warn("[popup] Failed to regenerate CSP policy.", error);
+      logger.warn({
+        event: "POPUP_CSP_POLICY_REGENERATE_FAILED",
+        error,
+      });
     } finally {
       setLoading(false);
     }
@@ -70,7 +76,10 @@ export function PolicyGenerator() {
     try {
       await navigator.clipboard.writeText(policyString);
     } catch (error) {
-      console.warn("[popup] Failed to copy CSP policy.", error);
+      logger.warn({
+        event: "POPUP_CSP_POLICY_COPY_FAILED",
+        error,
+      });
     }
   }
 

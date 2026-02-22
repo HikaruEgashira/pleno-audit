@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import type { CSPConfig } from "@pleno-audit/detectors";
 import { DEFAULT_CSP_CONFIG } from "@pleno-audit/csp";
+import { createLogger } from "@pleno-audit/extension-runtime";
 import { useTheme } from "../../../lib/theme";
 import { sendMessage } from "../utils/messaging";
 
@@ -20,6 +21,8 @@ type ViewState =
   | { kind: "loading" }
   | { kind: "ready"; config: CSPConfig };
 
+const logger = createLogger("popup-csp-settings");
+
 export function CSPSettings() {
   const { colors } = useTheme();
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
@@ -33,11 +36,12 @@ export function CSPSettings() {
         setEndpointDraft(cfg.reportEndpoint ?? "");
       })
       .catch((error) => {
-        console.warn("[popup] GET_CSP_CONFIG failed", error);
+        logger.warn({
+          event: "POPUP_GET_CSP_CONFIG_FAILED",
+          error,
+        });
         setViewState({ kind: "ready", config: DEFAULT_CSP_CONFIG });
         setEndpointDraft(DEFAULT_CSP_CONFIG.reportEndpoint ?? "");
-
-
       });
   }, []);
 
@@ -50,10 +54,11 @@ export function CSPSettings() {
       type: "SET_CSP_CONFIG",
       data: newConfig,
     }).catch((error) => {
-      console.warn("[popup] SET_CSP_CONFIG toggle failed", error);
+      logger.warn({
+        event: "POPUP_SET_CSP_CONFIG_TOGGLE_FAILED",
+        error,
+      });
       setViewState({ kind: "ready", config: previousConfig });
-
-
     });
   }
 
@@ -66,11 +71,12 @@ export function CSPSettings() {
       type: "SET_CSP_CONFIG",
       data: newConfig,
     }).catch((error) => {
-      console.warn("[popup] SET_CSP_CONFIG endpoint failed", error);
+      logger.warn({
+        event: "POPUP_SET_CSP_CONFIG_ENDPOINT_FAILED",
+        error,
+      });
       setViewState({ kind: "ready", config: previousConfig });
       setEndpointDraft(previousConfig.reportEndpoint ?? "");
-
-
     });
   }
 
