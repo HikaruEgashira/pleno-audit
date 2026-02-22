@@ -193,7 +193,7 @@ export default defineContentScript({
           for (let i = batch.length - 1; i >= 0; i--) {
             queue.unshift(batch[i]);
           }
-          logger.warn("Circuit open: queued events preserved for recovery.");
+          logger.debug("Circuit open: queued events preserved for recovery.");
           scheduleRecoveryCheck();
           return;
         }
