@@ -15,22 +15,70 @@ const INDEXEDDB_NAMES = ["PlenoAuditDB", "PlenoAuditParquet", "PlenoAuditEvents"
 
 let app: ReturnType<typeof createApp> | null = null;
 let db: ParquetAdapter | null = null;
+let initLocalServerPromise: Promise<void> | null = null;
+let clearAllIndexedDBPromise: Promise<void> | null = null;
 
 async function initLocalServer(): Promise<void> {
   if (app) return;
+  if (initLocalServerPromise) {
+    await initLocalServerPromise;
+    return;
+  }
 
-  // Parquetアダプターを初期化
-  db = new ParquetAdapter();
-  await db.init();
-  app = createApp(db);
+  initLocalServerPromise = (async () => {
+    // Parquetアダプターを初期化
+    const nextDb = new ParquetAdapter();
+    await nextDb.init();
+    db = nextDb;
+    app = createApp(nextDb);
+  })();
+
+  try {
+    await initLocalServerPromise;
+  } finally {
+    initLocalServerPromise = null;
+  }
+}
+
+async function waitForClearCompletion(): Promise<void> {
+  if (!clearAllIndexedDBPromise) return;
+  await clearAllIndexedDBPromise;
+}
+
+async function ensureLocalServerReady(): Promise<void> {
+  await waitForClearCompletion();
+  if (!app || !db) {
+    await initLocalServer();
+  }
+}
+
+function parseResponseBody(bodyText: string): unknown {
+  if (bodyText.length === 0) return null;
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return bodyText;
+  }
+}
+
+function extractErrorMessage(payload: unknown, fallback: string): string {
+  if (typeof payload === "string" && payload.length > 0) {
+    return payload;
+  }
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const value = (payload as { error?: unknown }).error;
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+  return fallback;
 }
 
 async function handleLocalApiRequest(
   request: { method: string; path: string; body?: unknown }
 ): Promise<{ status: number; data: unknown }> {
-  if (!app) {
-    throw new Error("Local server not initialized");
-  }
+  await ensureLocalServerReady();
+  if (!app) throw new Error("Local server not initialized");
 
   const req = new Request(`http://localhost${request.path}`, {
     method: request.method,
@@ -39,7 +87,13 @@ async function handleLocalApiRequest(
   });
 
   const response = await app.fetch(req);
-  const data = await response.json();
+  const bodyText = await response.text();
+  const data = parseResponseBody(bodyText);
+
+  if (!response.ok) {
+    const message = extractErrorMessage(data, response.statusText);
+    throw new Error(`Local API request failed: ${response.status} ${message}`);
+  }
 
   return { status: response.status, data };
 }
@@ -47,9 +101,7 @@ async function handleLocalApiRequest(
 async function handleLegacyMessage(
   message: LegacyDBMessage
 ): Promise<LegacyDBResponse> {
-  if (!db) {
-    await initLocalServer();
-  }
+  await ensureLocalServerReady();
 
   try {
     switch (message.type) {
@@ -128,32 +180,39 @@ async function handleLegacyMessage(
   }
 }
 
+async function closeLocalServer(): Promise<void> {
+  if (!db) {
+    app = null;
+    return;
+  }
+  await db.close();
+  db = null;
+  app = null;
+}
+
+async function deleteIndexedDatabase(dbName: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(dbName);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => {
+      console.warn(`[offscreen] IndexedDB delete is blocked: ${dbName}`);
+    };
+  });
+}
+
 async function handleClearAllIndexedDB(
   message: ClearAllIndexedDBMessage
 ): Promise<ClearAllIndexedDBResponse> {
   try {
-    // Close existing database connections
-    if (db) {
-      await db.close();
-      db = null;
-      app = null;
+    if (!clearAllIndexedDBPromise) {
+      clearAllIndexedDBPromise = (async () => {
+        await closeLocalServer();
+        await Promise.all(INDEXEDDB_NAMES.map((dbName) => deleteIndexedDatabase(dbName)));
+        await initLocalServer();
+      })();
     }
-
-    // Delete all IndexedDB databases
-    const deletePromises = INDEXEDDB_NAMES.map((dbName) => {
-      return new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(dbName);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-        request.onblocked = () => {
-          // Database is blocked, but we'll consider it a success
-          // It will be deleted when connections close
-          resolve();
-        };
-      });
-    });
-
-    await Promise.all(deletePromises);
+    await clearAllIndexedDBPromise;
 
     return { id: message.id, success: true };
   } catch (error) {
@@ -162,6 +221,8 @@ async function handleClearAllIndexedDB(
       success: false,
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    clearAllIndexedDBPromise = null;
   }
 }
 

@@ -43,6 +43,7 @@ export interface ExtensionNetworkService {
   getNetworkMonitorConfig: () => Promise<NetworkMonitorConfig>;
   setNetworkMonitorConfig: (config: NetworkMonitorConfig) => Promise<{ success: boolean }>;
   initExtensionMonitor: () => Promise<void>;
+  stopExtensionMonitor: () => Promise<void>;
   checkDNRMatchesHandler: () => Promise<void>;
   getNetworkRequests: (
     options?: NetworkRequestQueryOptions

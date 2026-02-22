@@ -162,4 +162,10 @@ export class ParquetIndexedDBAdapter {
       request.onsuccess = () => resolve(request.result as ParquetFileRecord[]);
     });
   }
+
+  close(): void {
+    if (!this.db) return;
+    this.db.close();
+    this.db = null;
+  }
 }

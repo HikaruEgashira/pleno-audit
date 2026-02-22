@@ -92,4 +92,12 @@ export class WriteBuffer<T> {
     this.buffers.delete(type);
     this.flushTimers.delete(type);
   }
+
+  dispose(): void {
+    for (const timer of this.flushTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.flushTimers.clear();
+    this.buffers.clear();
+  }
 }

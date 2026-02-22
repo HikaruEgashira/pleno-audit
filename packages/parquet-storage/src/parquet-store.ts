@@ -296,6 +296,13 @@ export class ParquetStore {
     this.indexCache.clear();
   }
 
+  async close(): Promise<void> {
+    await this.writeBuffer.flushAll();
+    this.writeBuffer.dispose();
+    this.indexedDB.close();
+    this.indexCache.clear();
+  }
+
   private async loadDataForType(
     type: ParquetLogType,
     startDate: string,

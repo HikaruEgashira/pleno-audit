@@ -79,6 +79,12 @@ export async function initExtensionMonitor(context: ExtensionNetworkContext): Pr
   context.deps.logger.info("Extension monitor started");
 }
 
+export async function stopExtensionMonitor(context: ExtensionNetworkContext): Promise<void> {
+  if (!context.state.extensionMonitor) return;
+  await context.state.extensionMonitor.stop();
+  context.state.extensionMonitor = null;
+}
+
 export async function setNetworkMonitorConfig(
   context: ExtensionNetworkContext,
   newConfig: NetworkMonitorConfig
@@ -87,8 +93,7 @@ export async function setNetworkMonitorConfig(
     await context.deps.setStorage({ networkMonitorConfig: newConfig });
 
     if (context.state.extensionMonitor) {
-      await context.state.extensionMonitor.stop();
-      context.state.extensionMonitor = null;
+      await stopExtensionMonitor(context);
     }
 
     if (newConfig.enabled) {
