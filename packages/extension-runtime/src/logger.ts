@@ -191,8 +191,10 @@ function normalizeLogArgs(args: unknown[]): NormalizedLog {
       sinkData.push({ error: first.error });
     }
     if (rest.length > 0) {
-      consoleArgs.push(...rest);
-      sinkData.push(...rest);
+      for (const arg of rest) {
+        consoleArgs.push(arg);
+        sinkData.push(arg);
+      }
     }
 
     return {
