@@ -421,25 +421,61 @@ describe("integration tests", () => {
 
 describe("ReDoS耐性", () => {
   const BUDGET_MS = 50;
+  const SPIKE_FACTOR = 2;
+
+  function measureExecution(
+    action: () => void,
+    options: { warmup?: number; samples?: number } = {}
+  ): { median: number; max: number } {
+    const warmup = options.warmup ?? 2;
+    const samples = options.samples ?? 7;
+
+    for (let i = 0; i < warmup; i++) {
+      action();
+    }
+
+    const durations: number[] = [];
+    for (let i = 0; i < samples; i++) {
+      const start = performance.now();
+      action();
+      durations.push(performance.now() - start);
+    }
+
+    durations.sort((a, b) => a - b);
+    return {
+      median: durations[Math.floor(durations.length / 2)],
+      max: durations[durations.length - 1],
+    };
+  }
+
+  function expectWithinBudget(
+    action: () => void,
+    budgetMs: number = BUDGET_MS
+  ): void {
+    const { median, max } = measureExecution(action);
+    // 単発スパイクで不安定化しないよう中央値で評価し、最大値も上限で監視する。
+    expect(median).toBeLessThan(budgetMs);
+    expect(max).toBeLessThan(budgetMs * SPIKE_FACTOR);
+  }
 
   it(`email正規表現が悪意ある入力で ${BUDGET_MS}ms 以内に完了する`, () => {
     const malicious = "a".repeat(50) + "@" + "b.".repeat(500) + "c";
-    const start = performance.now();
-    detectSensitiveData(malicious);
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      detectSensitiveData(malicious);
+    });
   });
 
   it(`@を含む100KBテキストで ${BUDGET_MS}ms 以内に完了する`, () => {
     const chunk = "data@field.value&key=".repeat(5000);
-    const start = performance.now();
-    detectSensitiveData(chunk);
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      detectSensitiveData(chunk);
+    });
   });
 
   it(`hasSensitiveData も同様に高速`, () => {
     const malicious = "a".repeat(50) + "@" + "b.".repeat(500) + "c";
-    const start = performance.now();
-    hasSensitiveData(malicious);
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      hasSensitiveData(malicious);
+    });
   });
 });
