@@ -79,7 +79,9 @@ async function executeTests(): Promise<DefenseScore | { error: string }> {
       currentTest: null,
       phase: "completed",
     };
-    chrome.runtime.sendMessage(completedEvent).catch(() => {});
+    chrome.runtime.sendMessage(completedEvent).catch((err) => {
+      logger.debug("Failed to notify scan completion:", err);
+    });
 
     return score;
   } catch (error) {

@@ -34,9 +34,14 @@ export async function closeParquetStore(state: BackgroundServiceState): Promise<
     return;
   }
 
-  await store.close();
-  state.parquetStore = null;
-  parquetStorePromise = null;
+  try {
+    await store.close();
+  } catch (error) {
+    state.logger.error("ParquetStore close failed:", error);
+  } finally {
+    state.parquetStore = null;
+    parquetStorePromise = null;
+  }
 }
 
 export async function addEvent(state: BackgroundServiceState, event: NewEvent): Promise<EventLog> {

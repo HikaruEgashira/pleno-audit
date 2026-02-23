@@ -31,7 +31,9 @@ export async function setDoHConfig(params: {
         type: "SET_DOH_MONITOR_CONFIG",
         data: params,
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn("[doh] Failed to notify SET_DOH_MONITOR_CONFIG:", err);
+      });
 
     return { success: true };
   } catch (error) {

@@ -25,23 +25,99 @@ export interface ApiClientConfig {
   remoteEndpoint?: string;
 }
 
-let offscreenReady = false;
-let offscreenCreating: Promise<void> | null = null;
-let offscreenReadyResolvers: (() => void)[] = [];
 const LOCAL_REQUEST_MAX_RETRIES = 1;
 
+type OffscreenPhase = "idle" | "creating" | "ready";
+
+class OffscreenDocGuard {
+  private phase: OffscreenPhase = "idle";
+  private createPromise: Promise<void> | null = null;
+  private readyResolvers: (() => void)[] = [];
+
+  markReady(): void {
+    this.phase = "ready";
+    this.createPromise = null;
+    const resolvers = this.readyResolvers;
+    this.readyResolvers = [];
+    for (const resolve of resolvers) {
+      resolve();
+    }
+  }
+
+  reset(): void {
+    this.phase = "idle";
+    this.createPromise = null;
+    this.readyResolvers = [];
+  }
+
+  get isReady(): boolean {
+    return this.phase === "ready";
+  }
+
+  async ensure(): Promise<void> {
+    if (this.phase === "ready") return;
+
+    if (this.phase === "creating" && this.createPromise) {
+      await this.createPromise;
+      return;
+    }
+
+    this.phase = "creating";
+    this.createPromise = (async () => {
+      if (this.phase === "ready") return;
+
+      try {
+        await chrome.offscreen.createDocument({
+          url: "offscreen.html",
+          reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
+          justification: "Running local parquet-storage database",
+        });
+        await this.waitForReady();
+      } catch (error) {
+        if (error instanceof Error && (
+          error.message.includes("already exists") ||
+          error.message.includes("Only a single offscreen document")
+        )) {
+          this.phase = "ready";
+          return;
+        }
+        this.phase = "idle";
+        throw error;
+      }
+    })();
+
+    try {
+      await this.createPromise;
+    } finally {
+      this.createPromise = null;
+    }
+  }
+
+  private waitForReady(timeout = 15000): Promise<void> {
+    if (this.phase === "ready") return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        logger.error("Offscreen document did not respond within timeout");
+        reject(new Error("Offscreen ready timeout"));
+      }, timeout);
+
+      this.readyResolvers.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+}
+
+const offscreenGuard = new OffscreenDocGuard();
+
 export function markOffscreenReady(): void {
-  offscreenReady = true;
-  offscreenReadyResolvers.forEach(resolve => {
-    resolve();
-  });
-  offscreenReadyResolvers = [];
+  offscreenGuard.markReady();
 }
 
 function resetOffscreenState(): void {
-  offscreenReady = false;
-  offscreenCreating = null;
-  offscreenReadyResolvers = [];
+  offscreenGuard.reset();
 }
 
 function isRetryableLocalRequestError(error: unknown): boolean {
@@ -55,58 +131,8 @@ function isRetryableLocalRequestError(error: unknown): boolean {
   );
 }
 
-async function waitForOffscreenReady(timeout = 15000): Promise<void> {
-  if (offscreenReady) return;
-
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      logger.error("Offscreen document did not respond within timeout");
-      reject(new Error("Offscreen ready timeout"));
-    }, timeout);
-
-    offscreenReadyResolvers.push(() => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
 export async function ensureOffscreenDocument(): Promise<void> {
-  // 既にreadyなら即座にreturn
-  if (offscreenReady) return;
-
-  // 作成中のプロミスがあれば待機
-  if (offscreenCreating) {
-    await offscreenCreating;
-    return;
-  }
-
-  offscreenCreating = (async () => {
-    // 再度チェック（待機中に別の呼び出しが完了した可能性）
-    if (offscreenReady) return;
-
-    try {
-      await chrome.offscreen.createDocument({
-        url: "offscreen.html",
-        reasons: [chrome.offscreen.Reason.LOCAL_STORAGE],
-        justification: "Running local parquet-storage database",
-      });
-      await waitForOffscreenReady();
-    } catch (error) {
-      // ドキュメントが既に存在する場合は成功として扱う
-      if (error instanceof Error && (
-        error.message.includes("already exists") ||
-        error.message.includes("Only a single offscreen document")
-      )) {
-        offscreenReady = true;
-        return;
-      }
-      offscreenCreating = null;
-      throw error;
-    }
-  })();
-
-  return offscreenCreating;
+  return offscreenGuard.ensure();
 }
 
 function generateId(): string {
