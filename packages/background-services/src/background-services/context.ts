@@ -1,0 +1,28 @@
+import type { Logger } from "@pleno-audit/extension-runtime";
+import { createBackgroundServiceState } from "./state";
+import type { BackgroundServiceState } from "./state";
+
+type Tail<T extends unknown[]> = T extends [unknown, ...infer Rest] ? Rest : never;
+
+export type BoundFn<
+  Fn extends (state: BackgroundServiceState, ...args: unknown[]) => unknown
+> = (...args: Tail<Parameters<Fn>>) => ReturnType<Fn>;
+
+export interface BackgroundServiceContext {
+  state: BackgroundServiceState;
+  bind: <Fn extends (state: BackgroundServiceState, ...args: unknown[]) => unknown>(
+    fn: Fn
+  ) => BoundFn<Fn>;
+}
+
+export function createBackgroundServiceContext(logger: Logger): BackgroundServiceContext {
+  const state = createBackgroundServiceState(logger);
+
+  const bind = <Fn extends (state: BackgroundServiceState, ...args: unknown[]) => unknown>(
+    fn: Fn
+  ): BoundFn<Fn> => {
+    return (...args: Tail<Parameters<Fn>>): ReturnType<Fn> => fn(state, ...args);
+  };
+
+  return { state, bind };
+}
