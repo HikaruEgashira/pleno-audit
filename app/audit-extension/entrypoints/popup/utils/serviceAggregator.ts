@@ -34,31 +34,6 @@ export interface UnifiedService {
 
 export type SortType = "activity" | "connections" | "name";
 
-export function sortServices(
-  services: UnifiedService[],
-  sortType: SortType
-): UnifiedService[] {
-  return [...services].sort((a, b) => {
-    switch (sortType) {
-      case "activity":
-        return b.lastActivity - a.lastActivity;
-      case "connections": {
-        const aCount = a.connections.reduce((sum, c) => sum + c.requestCount, 0);
-        const bCount = b.connections.reduce((sum, c) => sum + c.requestCount, 0);
-        if (bCount !== aCount) return bCount - aCount;
-        return b.lastActivity - a.lastActivity;
-      }
-      case "name": {
-        const aName = a.source.type === "domain" ? a.source.domain : a.source.extensionName;
-        const bName = b.source.type === "domain" ? b.source.domain : b.source.extensionName;
-        return aName.localeCompare(bName);
-      }
-      default:
-        return 0;
-    }
-  });
-}
-
 interface ExtensionStats {
   byExtension: Record<string, { name: string; count: number; domains: string[] }>;
   byDomain: Record<string, { count: number; extensions: string[] }>;
