@@ -6,11 +6,14 @@ import { useTheme } from "../../../lib/theme";
 import { Badge, Button } from "../../../components";
 import {
   aggregateServices,
-  sortServices,
-  type UnifiedService,
   type ServiceTag,
   type SortType,
 } from "../utils/serviceAggregator";
+import {
+  buildServiceIndex,
+  queryServiceIndex,
+  type FilterCategory,
+} from "../utils/serviceExplorer";
 import { usePopupStyles } from "../styles";
 
 const logger = createLogger("popup-service-tab");
@@ -82,15 +85,6 @@ const SORT_OPTIONS: { value: SortType; label: string }[] = [
   { value: "name", label: "名前順" },
 ];
 
-type FilterCategory = "nrd" | "typosquat" | "ai" | "login" | "extension";
-
-function hasTag(service: UnifiedService, category: FilterCategory): boolean {
-  if (category === "extension") {
-    return service.source.type === "extension";
-  }
-  return service.tags.some((t) => t.type === category);
-}
-
 function formatRelativeTime(timestamp: number): string {
   if (timestamp === 0) return "";
   const now = Date.now();
@@ -116,54 +110,21 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<Set<FilterCategory>>(new Set());
 
-  const sortedServices = useMemo(
-    () => sortServices(unifiedServices, sortType),
-    [unifiedServices, sortType]
+  const serviceIndex = useMemo(
+    () => buildServiceIndex(unifiedServices),
+    [unifiedServices]
   );
 
-  const counts = useMemo(() => {
-    const result: Record<FilterCategory, number> = {
-      nrd: 0,
-      typosquat: 0,
-      ai: 0,
-      login: 0,
-      extension: 0,
-    };
-    for (const service of sortedServices) {
-      if (hasTag(service, "nrd")) result.nrd++;
-      if (hasTag(service, "typosquat")) result.typosquat++;
-      if (hasTag(service, "ai")) result.ai++;
-      if (hasTag(service, "login")) result.login++;
-      if (hasTag(service, "extension")) result.extension++;
-    }
-    return result;
-  }, [sortedServices]);
-
-  const filtered = useMemo(() => {
-    let result = sortedServices;
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (s) =>
-          (s.source.type === "domain" &&
-            (s.source.domain.toLowerCase().includes(q))) ||
-          (s.source.type === "extension" &&
-            s.source.extensionName.toLowerCase().includes(q))
-      );
-    }
-
-    if (activeFilters.size > 0) {
-      result = result.filter((s) => {
-        for (const filter of activeFilters) {
-          if (hasTag(s, filter)) return true;
-        }
-        return false;
-      });
-    }
-
-    return result;
-  }, [sortedServices, searchQuery, activeFilters]);
+  const queryResult = useMemo(
+    () =>
+      queryServiceIndex(serviceIndex, {
+        sortType,
+        searchQuery,
+        activeFilters,
+        limit: 100,
+      }),
+    [serviceIndex, sortType, searchQuery, activeFilters]
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -259,7 +220,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
     return <p style={styles.emptyText}>読み込み中...</p>;
   }
 
-  if (sortedServices.length === 0) {
+  if (serviceIndex.entries.length === 0) {
     return (
       <div style={popupStyles.tabContent}>
         <p style={styles.emptyText}>サービスはまだ検出されていません</p>
@@ -278,49 +239,49 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
           placeholder="検索..."
           style={styles.filterInput}
         />
-        {counts.nrd > 0 && (
+        {serviceIndex.counts.nrd > 0 && (
           <Button
             variant={activeFilters.has("nrd") ? "primary" : "secondary"}
             size="sm"
             onClick={() => toggleFilter("nrd")}
           >
-            NRD ({counts.nrd})
+            NRD ({serviceIndex.counts.nrd})
           </Button>
         )}
-        {counts.typosquat > 0 && (
+        {serviceIndex.counts.typosquat > 0 && (
           <Button
             variant={activeFilters.has("typosquat") ? "primary" : "secondary"}
             size="sm"
             onClick={() => toggleFilter("typosquat")}
           >
-            Typosquat ({counts.typosquat})
+            Typosquat ({serviceIndex.counts.typosquat})
           </Button>
         )}
-        {counts.ai > 0 && (
+        {serviceIndex.counts.ai > 0 && (
           <Button
             variant={activeFilters.has("ai") ? "primary" : "secondary"}
             size="sm"
             onClick={() => toggleFilter("ai")}
           >
-            AI ({counts.ai})
+            AI ({serviceIndex.counts.ai})
           </Button>
         )}
-        {counts.login > 0 && (
+        {serviceIndex.counts.login > 0 && (
           <Button
             variant={activeFilters.has("login") ? "primary" : "secondary"}
             size="sm"
             onClick={() => toggleFilter("login")}
           >
-            login ({counts.login})
+            login ({serviceIndex.counts.login})
           </Button>
         )}
-        {counts.extension > 0 && (
+        {serviceIndex.counts.extension > 0 && (
           <Button
             variant={activeFilters.has("extension") ? "primary" : "secondary"}
             size="sm"
             onClick={() => toggleFilter("extension")}
           >
-            Extension ({counts.extension})
+            Extension ({serviceIndex.counts.extension})
           </Button>
         )}
         <select
@@ -355,7 +316,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 100).map((service) => {
+            {queryResult.services.map((service) => {
               const hasConnections = service.connections.length > 0;
               const isExpanded = hasConnections && expandedIds.has(service.id);
               const isDomain = service.source.type === "domain";
@@ -517,7 +478,7 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
             })}
           </tbody>
         </table>
-        {filtered.length > 100 && (
+        {queryResult.hasMore && (
           <div
             style={{
               padding: "8px",
@@ -527,10 +488,10 @@ export function ServiceTab({ services, violations, networkRequests }: ServiceTab
               borderTop: `1px solid ${colors.borderLight}`,
             }}
           >
-            +{filtered.length - 100} more
+            +{queryResult.total - 100} more
           </div>
         )}
-        {filtered.length === 0 && (
+        {queryResult.total === 0 && (
           <div
             style={{
               padding: "16px",
