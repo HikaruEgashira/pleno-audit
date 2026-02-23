@@ -191,12 +191,23 @@ async function closeLocalServer(): Promise<void> {
 }
 
 async function deleteIndexedDatabase(dbName: string): Promise<void> {
+  const BLOCKED_TIMEOUT_MS = 10_000;
   await new Promise<void>((resolve, reject) => {
+    let blockedTimer: ReturnType<typeof setTimeout> | null = null;
     const request = indexedDB.deleteDatabase(dbName);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      if (blockedTimer) clearTimeout(blockedTimer);
+      resolve();
+    };
+    request.onerror = () => {
+      if (blockedTimer) clearTimeout(blockedTimer);
+      reject(request.error);
+    };
     request.onblocked = () => {
       console.warn(`[offscreen] IndexedDB delete is blocked: ${dbName}`);
+      blockedTimer = setTimeout(() => {
+        reject(new Error(`IndexedDB delete blocked timeout: ${dbName}`));
+      }, BLOCKED_TIMEOUT_MS);
     };
   });
 }
