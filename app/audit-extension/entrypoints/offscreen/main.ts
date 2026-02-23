@@ -218,8 +218,9 @@ async function deleteIndexedDatabase(dbName: string): Promise<void> {
 async function handleClearAllIndexedDB(
   message: ClearAllIndexedDBMessage
 ): Promise<ClearAllIndexedDBResponse> {
+  const isCreator = !clearAllIndexedDBPromise;
   try {
-    if (!clearAllIndexedDBPromise) {
+    if (isCreator) {
       clearAllIndexedDBPromise = (async () => {
         await closeLocalServer();
         await Promise.all(INDEXEDDB_NAMES.map((dbName) => deleteIndexedDatabase(dbName)));
@@ -236,7 +237,9 @@ async function handleClearAllIndexedDB(
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
-    clearAllIndexedDBPromise = null;
+    if (isCreator) {
+      clearAllIndexedDBPromise = null;
+    }
   }
 }
 
