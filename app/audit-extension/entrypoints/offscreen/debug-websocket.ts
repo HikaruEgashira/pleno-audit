@@ -82,7 +82,9 @@ function connect(): void {
         reconnectTimer = null;
       }
 
-      chrome.runtime.sendMessage({ type: "DEBUG_BRIDGE_CONNECTED" }).catch(() => {});
+      chrome.runtime.sendMessage({ type: "DEBUG_BRIDGE_CONNECTED" }).catch((err) => {
+        console.warn("[debug-ws] Failed to notify DEBUG_BRIDGE_CONNECTED:", err);
+      });
       const version = chrome.runtime.getManifest?.()?.version ?? "unknown";
       sendToServer({
         success: true,
@@ -109,7 +111,9 @@ function connect(): void {
     ws.onclose = (event) => {
       console.log(`[debug-ws] Disconnected (code: ${event.code}, reason: ${event.reason || "none"})`);
       ws = null;
-      chrome.runtime.sendMessage({ type: "DEBUG_BRIDGE_DISCONNECTED" }).catch(() => {});
+      chrome.runtime.sendMessage({ type: "DEBUG_BRIDGE_DISCONNECTED" }).catch((err) => {
+        console.warn("[debug-ws] Failed to notify DEBUG_BRIDGE_DISCONNECTED:", err);
+      });
       scheduleReconnect();
     };
 
