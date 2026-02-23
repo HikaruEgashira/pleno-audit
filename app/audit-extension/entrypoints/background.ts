@@ -241,14 +241,25 @@ const domainRiskService = createDomainRiskService({
   getAlertManager: backgroundAlerts.getAlertManager,
 });
 
-let clearAllDataPromise: Promise<{ success: boolean }> | null = null;
+class OperationGuard<T> {
+  private pending: Promise<T> | null = null;
+
+  async run(operation: () => Promise<T>): Promise<T> {
+    if (this.pending) return this.pending;
+
+    this.pending = operation();
+    try {
+      return await this.pending;
+    } finally {
+      this.pending = null;
+    }
+  }
+}
+
+const clearAllDataGuard = new OperationGuard<{ success: boolean }>();
 
 async function clearAllData(): Promise<{ success: boolean }> {
-  if (clearAllDataPromise) {
-    return clearAllDataPromise;
-  }
-
-  clearAllDataPromise = (async () => {
+  return clearAllDataGuard.run(async () => {
     let monitorStopped = false;
     try {
       logger.info("Clearing all data...");
@@ -304,11 +315,8 @@ async function clearAllData(): Promise<{ success: boolean }> {
           logger.error("Extension monitor re-init failed after clear:", error);
         });
       }
-      clearAllDataPromise = null;
     }
-  })();
-
-  return clearAllDataPromise;
+  });
 }
 
 // Main world hooks are enabled for detection, while heavy processing is shifted to async handlers.
