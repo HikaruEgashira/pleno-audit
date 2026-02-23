@@ -1,5 +1,5 @@
-import type { Logger } from "@pleno-audit/extension-runtime";
-import { createBackgroundServiceState } from "./background-services/state";
+import { queryExistingCookies, type Logger } from "@pleno-audit/extension-runtime";
+import { createBackgroundServiceContext } from "./background-services/context";
 import {
   ensureApiClient,
   ensureSyncManager,
@@ -38,89 +38,100 @@ import {
   setSyncConfig,
   triggerSync,
 } from "./background-services/config";
-import { handlePageAnalysis } from "./background-services/analysis";
+import { createPageAnalysisHandler } from "./background-services/analysis";
 import { extractDomainFromUrl } from "./background-services/utils";
 
 export type { NewEvent, PageAnalysis } from "./background-services/types";
 
-type Tail<T extends unknown[]> = T extends [unknown, ...infer Rest] ? Rest : never;
-
-function bindState<
-  Args extends unknown[],
-  Result,
-  Fn extends (state: ReturnType<typeof createBackgroundServiceState>, ...args: Args) => Result
->(state: ReturnType<typeof createBackgroundServiceState>, fn: Fn) {
-  return (...args: Tail<Parameters<Fn>>): ReturnType<Fn> => fn(state, ...args);
-}
-
 export function createBackgroundServices(serviceLogger: Logger) {
-  const state = createBackgroundServiceState(serviceLogger);
+  const { state, bind } = createBackgroundServiceContext(serviceLogger);
+
+  const api = {
+    ensureApiClient: bind(ensureApiClient),
+    initializeApiClientWithMigration: (
+      checkMigrationNeeded: Parameters<typeof initializeApiClientWithMigration>[1],
+      migrateToDatabase: Parameters<typeof initializeApiClientWithMigration>[2]
+    ) => initializeApiClientWithMigration(state, checkMigrationNeeded, migrateToDatabase),
+    clearReportsIfInitialized: async () => {
+      if (!state.apiClient) {
+        return;
+      }
+      await state.apiClient.clearReports();
+    },
+  };
+
+  const sync = {
+    ensureSyncManager: bind(ensureSyncManager),
+    initializeSyncManagerWithAutoStart: () => initializeSyncManagerWithAutoStart(state),
+    getSyncConfig: bind(getSyncConfig),
+    setSyncConfig: bind(setSyncConfig),
+    triggerSync: bind(triggerSync),
+  };
+
+  const events = {
+    getOrInitParquetStore: bind(getOrInitParquetStore),
+    addEvent: bind(addEvent),
+    closeParquetStore: bind(closeParquetStore),
+  };
+
+  const alerts = {
+    getAlertManager: bind(getAlertManager),
+    getPolicyManager: bind(getPolicyManager),
+    checkDomainPolicy: bind(checkDomainPolicy),
+    checkAIServicePolicy: bind(checkAIServicePolicy),
+    checkDataTransferPolicy: bind(checkDataTransferPolicy),
+    registerNotificationClickHandler,
+  };
+
+  const storage = {
+    queueStorageOperation: bind(queueStorageOperation),
+    initStorage,
+    saveStorage,
+    updateService: (domain: string, update: Parameters<typeof updateService>[2]) =>
+      updateService(state, domain, update, (newDomain) =>
+        alerts.checkDomainPolicy(newDomain)
+      ),
+    addCookieToService: bind(addCookieToService),
+  };
+
+  const analysis = {
+    handlePageAnalysis: createPageAnalysisHandler({
+      logger: state.logger,
+      getAlertManager: alerts.getAlertManager,
+      initStorage: storage.initStorage,
+      updateService: storage.updateService,
+      addEvent: events.addEvent,
+      addCookieToService: storage.addCookieToService,
+      queryExistingCookies,
+    }),
+  };
+
+  const config = {
+    getDetectionConfig,
+    setDetectionConfig,
+    getNotificationConfig,
+    setNotificationConfig,
+    getDataRetentionConfig,
+    setDataRetentionConfig: bind(setDataRetentionConfig),
+    cleanupOldData: bind(cleanupOldData),
+    getBlockingConfig,
+    setBlockingConfig: bind(setBlockingConfig),
+    getConnectionConfig: bind(getConnectionConfig),
+    setConnectionConfig: bind(setConnectionConfig),
+  };
+
+  const utils = {
+    extractDomainFromUrl,
+  };
 
   return {
-    api: {
-      ensureApiClient: bindState(state, ensureApiClient),
-      initializeApiClientWithMigration: (
-        checkMigrationNeeded: Parameters<typeof initializeApiClientWithMigration>[1],
-        migrateToDatabase: Parameters<typeof initializeApiClientWithMigration>[2]
-      ) => initializeApiClientWithMigration(state, checkMigrationNeeded, migrateToDatabase),
-      clearReportsIfInitialized: async () => {
-        if (!state.apiClient) {
-          return;
-        }
-        await state.apiClient.clearReports();
-      },
-    },
-    sync: {
-      ensureSyncManager: bindState(state, ensureSyncManager),
-      initializeSyncManagerWithAutoStart: () => initializeSyncManagerWithAutoStart(state),
-      getSyncConfig: bindState(state, getSyncConfig),
-      setSyncConfig: bindState(state, setSyncConfig),
-      triggerSync: bindState(state, triggerSync),
-    },
-    events: {
-      getOrInitParquetStore: bindState(state, getOrInitParquetStore),
-      addEvent: bindState(state, addEvent),
-      closeParquetStore: bindState(state, closeParquetStore),
-    },
-    alerts: {
-      getAlertManager: bindState(state, getAlertManager),
-      getPolicyManager: bindState(state, getPolicyManager),
-      checkDomainPolicy: bindState(state, checkDomainPolicy),
-      checkAIServicePolicy: bindState(state, checkAIServicePolicy),
-      checkDataTransferPolicy: bindState(state, checkDataTransferPolicy),
-      registerNotificationClickHandler,
-    },
-    storage: {
-      queueStorageOperation: bindState(state, queueStorageOperation),
-      initStorage,
-      saveStorage,
-      updateService: (
-        domain: string,
-        update: Parameters<typeof updateService>[2]
-      ) =>
-        updateService(state, domain, update, (newDomain) =>
-          checkDomainPolicy(state, newDomain)
-        ),
-      addCookieToService: bindState(state, addCookieToService),
-    },
-    analysis: {
-      handlePageAnalysis: bindState(state, handlePageAnalysis),
-    },
-    config: {
-      getDetectionConfig,
-      setDetectionConfig,
-      getNotificationConfig,
-      setNotificationConfig,
-      getDataRetentionConfig,
-      setDataRetentionConfig: bindState(state, setDataRetentionConfig),
-      cleanupOldData: bindState(state, cleanupOldData),
-      getBlockingConfig,
-      setBlockingConfig: bindState(state, setBlockingConfig),
-      getConnectionConfig: bindState(state, getConnectionConfig),
-      setConnectionConfig: bindState(state, setConnectionConfig),
-    },
-    utils: {
-      extractDomainFromUrl,
-    },
+    api,
+    sync,
+    events,
+    alerts,
+    storage,
+    analysis,
+    config,
+    utils,
   };
 }

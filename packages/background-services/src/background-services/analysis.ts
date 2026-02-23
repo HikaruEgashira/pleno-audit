@@ -1,24 +1,33 @@
-import type { BackgroundServiceState } from "./state";
-import type { PageAnalysis } from "./types";
+import type { AlertManager } from "@pleno-audit/alerts";
+import type { CookieInfo, DetectedService } from "@pleno-audit/detectors";
+import type { Logger } from "@pleno-audit/extension-runtime";
 import { DEFAULT_DETECTION_CONFIG, queryExistingCookies } from "@pleno-audit/extension-runtime";
-import { getAlertManager, checkDomainPolicy } from "./alerts";
-import { addEvent } from "./events";
-import { initStorage, updateService, addCookieToService } from "./storage";
+import type { NewEvent, PageAnalysis, StorageData } from "./types";
 
-export async function handlePageAnalysis(state: BackgroundServiceState, analysis: PageAnalysis) {
+export interface PageAnalysisDependencies {
+  logger: Logger;
+  getAlertManager: () => AlertManager;
+  initStorage: () => Promise<StorageData>;
+  updateService: (domain: string, update: Partial<DetectedService>) => Promise<void>;
+  addEvent: (event: NewEvent) => Promise<unknown>;
+  addCookieToService: (domain: string, cookie: CookieInfo) => Promise<void>;
+  queryExistingCookies: typeof queryExistingCookies;
+}
+
+export function createPageAnalysisHandler(deps: PageAnalysisDependencies) {
+  return async (analysis: PageAnalysis) => {
   const { domain, login, privacy, tos, cookiePolicy, cookieBanner, timestamp, faviconUrl } = analysis;
-  const storage = await initStorage();
+  const storage = await deps.initStorage();
   const detectionConfig = storage.detectionConfig || DEFAULT_DETECTION_CONFIG;
   const isNewDomain = !storage.services[domain];
-  const onNewDomain = (newDomain: string) => checkDomainPolicy(state, newDomain);
 
   if (faviconUrl) {
-    await updateService(state, domain, { faviconUrl }, onNewDomain);
+    await deps.updateService(domain, { faviconUrl });
   }
 
   if (detectionConfig.enableLogin && (login.hasPasswordInput || login.isLoginUrl)) {
-    await updateService(state, domain, { hasLoginPage: true }, onNewDomain);
-    await addEvent(state, {
+    await deps.updateService(domain, { hasLoginPage: true });
+    await deps.addEvent({
       type: "login_detected",
       domain,
       timestamp,
@@ -27,8 +36,8 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (detectionConfig.enablePrivacy && privacy.found && privacy.url) {
-    await updateService(state, domain, { privacyPolicyUrl: privacy.url }, onNewDomain);
-    await addEvent(state, {
+    await deps.updateService(domain, { privacyPolicyUrl: privacy.url });
+    await deps.addEvent({
       type: "privacy_policy_found",
       domain,
       timestamp,
@@ -37,8 +46,8 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (detectionConfig.enableTos && tos.found && tos.url) {
-    await updateService(state, domain, { termsOfServiceUrl: tos.url }, onNewDomain);
-    await addEvent(state, {
+    await deps.updateService(domain, { termsOfServiceUrl: tos.url });
+    await deps.addEvent({
       type: "terms_of_service_found",
       domain,
       timestamp,
@@ -47,7 +56,7 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (cookiePolicy?.found && cookiePolicy.url) {
-    await addEvent(state, {
+    await deps.addEvent({
       type: "cookie_policy_found",
       domain,
       timestamp,
@@ -56,7 +65,7 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
   }
 
   if (cookieBanner?.found) {
-    await addEvent(state, {
+    await deps.addEvent({
       type: "cookie_banner_detected",
       domain,
       timestamp,
@@ -84,7 +93,7 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
     (hasCookieBanner && !isCookieBannerGDPRCompliant);
 
   if (hasViolations) {
-    await getAlertManager(state).alertCompliance({
+    await deps.getAlertManager().alertCompliance({
       pageDomain: domain,
       hasPrivacyPolicy,
       hasTermsOfService,
@@ -97,14 +106,15 @@ export async function handlePageAnalysis(state: BackgroundServiceState, analysis
 
   // Proactively query existing cookies for newly detected domains
   if (isNewDomain) {
-    queryExistingCookies(domain)
+    deps.queryExistingCookies(domain)
       .then(async (cookies) => {
         for (const cookie of cookies) {
-          await addCookieToService(state, domain, cookie);
+          await deps.addCookieToService(domain, cookie);
         }
       })
       .catch((err) => {
-        state.logger?.debug("Failed to query existing cookies:", domain, err);
+        deps.logger?.debug("Failed to query existing cookies:", domain, err);
       });
   }
+  };
 }
