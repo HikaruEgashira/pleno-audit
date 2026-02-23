@@ -297,10 +297,13 @@ export class ParquetStore {
   }
 
   async close(): Promise<void> {
-    await this.writeBuffer.flushAll();
-    this.writeBuffer.dispose();
-    this.indexedDB.close();
-    this.indexCache.clear();
+    try {
+      await this.writeBuffer.flushAll();
+    } finally {
+      this.writeBuffer.dispose();
+      this.indexedDB.close();
+      this.indexCache.clear();
+    }
   }
 
   private async loadDataForType(

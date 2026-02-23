@@ -185,9 +185,12 @@ async function closeLocalServer(): Promise<void> {
     app = null;
     return;
   }
-  await db.close();
-  db = null;
-  app = null;
+  try {
+    await db.close();
+  } finally {
+    db = null;
+    app = null;
+  }
 }
 
 async function deleteIndexedDatabase(dbName: string): Promise<void> {
