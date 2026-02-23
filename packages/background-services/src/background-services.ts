@@ -6,7 +6,7 @@ import {
   initializeApiClientWithMigration,
   initializeSyncManagerWithAutoStart,
 } from "./background-services/client";
-import { addEvent, getOrInitParquetStore } from "./background-services/events";
+import { addEvent, closeParquetStore, getOrInitParquetStore } from "./background-services/events";
 import {
   checkAIServicePolicy,
   checkDataTransferPolicy,
@@ -80,6 +80,7 @@ export function createBackgroundServices(serviceLogger: Logger) {
     events: {
       getOrInitParquetStore: bindState(state, getOrInitParquetStore),
       addEvent: bindState(state, addEvent),
+      closeParquetStore: bindState(state, closeParquetStore),
     },
     alerts: {
       getAlertManager: bindState(state, getAlertManager),

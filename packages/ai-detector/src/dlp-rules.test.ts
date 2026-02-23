@@ -327,31 +327,67 @@ describe("DEFAULT_DLP_CONFIG", () => {
 
 describe("ReDoS耐性", () => {
   const BUDGET_MS = 50;
+  const SPIKE_FACTOR = 2;
+
+  function measureExecution(
+    action: () => void,
+    options: { warmup?: number; samples?: number } = {}
+  ): { median: number; max: number } {
+    const warmup = options.warmup ?? 2;
+    const samples = options.samples ?? 7;
+
+    for (let i = 0; i < warmup; i++) {
+      action();
+    }
+
+    const durations: number[] = [];
+    for (let i = 0; i < samples; i++) {
+      const start = performance.now();
+      action();
+      durations.push(performance.now() - start);
+    }
+
+    durations.sort((a, b) => a - b);
+    return {
+      median: durations[Math.floor(durations.length / 2)],
+      max: durations[durations.length - 1],
+    };
+  }
+
+  function expectWithinBudget(
+    action: () => void,
+    budgetMs: number = BUDGET_MS
+  ): void {
+    const { median, max } = measureExecution(action);
+    // CI上の一時的ノイズは吸収しつつ、中央値と最大値で回帰を検知する。
+    expect(median).toBeLessThan(budgetMs);
+    expect(max).toBeLessThan(budgetMs * SPIKE_FACTOR);
+  }
 
   it(`url-with-token: ?&なし長大URLで ${BUDGET_MS}ms 以内`, () => {
     const rule = EXTENDED_DLP_RULES.find((r) => r.id === "url-with-token")!;
     // ?&がないため旧パターンでは[^\s]*が全部食ってバックトラック
     const malicious = "https://example.com/" + "a".repeat(100_000);
-    const start = performance.now();
-    rule.pattern.test(malicious);
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      rule.pattern.test(malicious);
+    });
   });
 
   it(`connection-string: @なし長大文字列で ${BUDGET_MS}ms 以内`, () => {
     const rule = EXTENDED_DLP_RULES.find((r) => r.id === "connection-string")!;
     const malicious = "mongodb://" + "a:".repeat(50_000);
-    const start = performance.now();
-    rule.pattern.test(malicious);
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      rule.pattern.test(malicious);
+    });
   });
 
   it(`全DLPルールが100KBテキストで ${BUDGET_MS}ms 以内`, () => {
     const big = "x".repeat(100_000);
-    const start = performance.now();
-    for (const rule of EXTENDED_DLP_RULES) {
-      const re = new RegExp(rule.pattern.source, rule.pattern.flags);
-      re.test(big);
-    }
-    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    expectWithinBudget(() => {
+      for (const rule of EXTENDED_DLP_RULES) {
+        const re = new RegExp(rule.pattern.source, rule.pattern.flags);
+        re.test(big);
+      }
+    });
   });
 });

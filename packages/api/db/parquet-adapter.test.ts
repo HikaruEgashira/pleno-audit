@@ -20,6 +20,7 @@ const mockGetNetworkRequests = vi.fn();
 const mockGetStats = vi.fn();
 const mockDeleteOldReports = vi.fn();
 const mockClearAll = vi.fn();
+const mockClose = vi.fn();
 
 // Mock ParquetStore class
 vi.mock("@pleno-audit/parquet-storage", () => ({
@@ -32,6 +33,7 @@ vi.mock("@pleno-audit/parquet-storage", () => ({
     getStats = mockGetStats;
     deleteOldReports = mockDeleteOldReports;
     clearAll = mockClearAll;
+    close = mockClose;
   },
 }));
 
@@ -359,7 +361,10 @@ describe("ParquetAdapter", () => {
 
   describe("close", () => {
     it("closes the adapter gracefully", async () => {
+      mockClose.mockResolvedValue(undefined);
+
       await expect(adapter.close()).resolves.not.toThrow();
+      expect(mockClose).toHaveBeenCalled();
     });
   });
 });

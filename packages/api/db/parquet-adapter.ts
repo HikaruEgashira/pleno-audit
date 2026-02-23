@@ -151,7 +151,7 @@ export class ParquetAdapter implements DatabaseAdapter {
   }
 
   async close(): Promise<void> {
-    // Parquetはリソースクリーンアップが不要
+    await this.store.close();
     logger.debug("ParquetAdapter closed");
   }
 }

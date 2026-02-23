@@ -44,13 +44,14 @@ function resetOffscreenState(): void {
   offscreenReadyResolvers = [];
 }
 
-function isRetryableMessageChannelError(error: unknown): boolean {
+function isRetryableLocalRequestError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
     message.includes("A listener indicated an asynchronous response by returning true")
     || message.includes("message channel closed before a response was received")
     || message.includes("The message port closed before a response was received")
     || message.includes("Could not establish connection. Receiving end does not exist")
+    || message.includes("Local server not initialized")
   );
 }
 
@@ -200,7 +201,7 @@ export class ApiClient {
       try {
         return await sendLocalApiMessage<T>(request);
       } catch (error) {
-        const canRetry = attempt < LOCAL_REQUEST_MAX_RETRIES && isRetryableMessageChannelError(error);
+        const canRetry = attempt < LOCAL_REQUEST_MAX_RETRIES && isRetryableLocalRequestError(error);
         if (!canRetry) {
           throw error;
         }

@@ -241,51 +241,74 @@ const domainRiskService = createDomainRiskService({
   getAlertManager: backgroundAlerts.getAlertManager,
 });
 
+let clearAllDataPromise: Promise<{ success: boolean }> | null = null;
+
 async function clearAllData(): Promise<{ success: boolean }> {
-  try {
-    logger.info("Clearing all data...");
-    let indexedDbCleared = true;
-
-    // 1. Clear report queue
-    cspReportingService.clearReportQueue();
-
-    // 2. Clear API client reports
-    await backgroundApi.clearReportsIfInitialized();
-
-    // 3. Clear all IndexedDB databases via offscreen document
-    try {
-      await ensureOffscreenDocument();
-      await chrome.runtime.sendMessage({
-        type: "CLEAR_ALL_INDEXEDDB",
-        id: crypto.randomUUID(),
-      });
-    } catch (error) {
-      indexedDbCleared = false;
-      logger.error({
-        event: "CLEAR_ALL_DATA_INDEXEDDB_CLEAR_FAILED",
-        error,
-      });
-      // Continue even if IndexedDB clear fails
-    }
-
-    // 4. Clear chrome.storage.local and reset to defaults (preserve theme)
-    await clearAllStorage({ preserveTheme: true });
-
-    if (indexedDbCleared) {
-      logger.info("All data cleared successfully");
-    } else {
-      logger.warn({
-        event: "CLEAR_ALL_DATA_PARTIAL_SUCCESS",
-        data: {
-          indexedDbCleared,
-        },
-      });
-    }
-    return { success: true };
-  } catch (error) {
-    logger.error("Error clearing all data:", error);
-    return { success: false };
+  if (clearAllDataPromise) {
+    return clearAllDataPromise;
   }
+
+  clearAllDataPromise = (async () => {
+    let monitorStopped = false;
+    try {
+      logger.info("Clearing all data...");
+      let indexedDbCleared = true;
+
+      // 1. Stop event producers before DB teardown to avoid closing-race transactions.
+      await extensionNetworkService.stopExtensionMonitor();
+      monitorStopped = true;
+      await backgroundEvents.closeParquetStore();
+
+      // 2. Clear in-memory queue first.
+      cspReportingService.clearReportQueue();
+
+      // 3. Clear API client reports.
+      await backgroundApi.clearReportsIfInitialized();
+
+      // 4. Clear all IndexedDB databases via offscreen document.
+      try {
+        await ensureOffscreenDocument();
+        await chrome.runtime.sendMessage({
+          type: "CLEAR_ALL_INDEXEDDB",
+          id: crypto.randomUUID(),
+        });
+      } catch (error) {
+        indexedDbCleared = false;
+        logger.error({
+          event: "CLEAR_ALL_DATA_INDEXEDDB_CLEAR_FAILED",
+          error,
+        });
+        // Continue even if IndexedDB clear fails.
+      }
+
+      // 5. Clear chrome.storage.local and reset to defaults (preserve theme).
+      await clearAllStorage({ preserveTheme: true });
+
+      if (indexedDbCleared) {
+        logger.info("All data cleared successfully");
+      } else {
+        logger.warn({
+          event: "CLEAR_ALL_DATA_PARTIAL_SUCCESS",
+          data: {
+            indexedDbCleared,
+          },
+        });
+      }
+      return { success: true };
+    } catch (error) {
+      logger.error("Error clearing all data:", error);
+      return { success: false };
+    } finally {
+      if (monitorStopped) {
+        await initExtensionMonitor().catch((error) => {
+          logger.error("Extension monitor re-init failed after clear:", error);
+        });
+      }
+      clearAllDataPromise = null;
+    }
+  })();
+
+  return clearAllDataPromise;
 }
 
 // Main world hooks are enabled for detection, while heavy processing is shifted to async handlers.

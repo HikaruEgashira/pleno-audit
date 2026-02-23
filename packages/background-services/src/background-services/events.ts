@@ -17,11 +17,26 @@ export async function getOrInitParquetStore(state: BackgroundServiceState): Prom
         const store = new ParquetStore();
         await store.init();
         return store;
-      })();
+      })().catch((error) => {
+        parquetStorePromise = null;
+        throw error;
+      });
     }
     state.parquetStore = await parquetStorePromise;
   }
   return state.parquetStore;
+}
+
+export async function closeParquetStore(state: BackgroundServiceState): Promise<void> {
+  const store = state.parquetStore ?? (parquetStorePromise ? await parquetStorePromise : null);
+  if (!store) {
+    parquetStorePromise = null;
+    return;
+  }
+
+  await store.close();
+  state.parquetStore = null;
+  parquetStorePromise = null;
 }
 
 export async function addEvent(state: BackgroundServiceState, event: NewEvent): Promise<EventLog> {
