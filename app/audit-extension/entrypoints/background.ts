@@ -126,12 +126,21 @@ class DoHMonitorManager {
     return { requests, total };
   }
 
-  start(): void {
-    this.monitor = createDoHMonitor(DEFAULT_DOH_MONITOR_CONFIG);
+  async start(): Promise<void> {
+    const storage = await this.deps.getStorage();
+    const config = storage.doHMonitorConfig ?? DEFAULT_DOH_MONITOR_CONFIG;
+    this.monitor = createDoHMonitor(config);
     this.monitor.start().catch((err) => this.deps.logger.error("Failed to start DoH monitor:", err));
     this.monitor.onRequest((record: DoHRequestRecord) => {
-      void this.handleRequest(record);
+      void this.enqueueRequest(record);
     });
+  }
+
+  private requestQueue: Promise<void> = Promise.resolve();
+
+  private enqueueRequest(record: DoHRequestRecord): Promise<void> {
+    this.requestQueue = this.requestQueue.then(() => this.handleRequest(record));
+    return this.requestQueue;
   }
 
   private async handleRequest(record: DoHRequestRecord): Promise<void> {
@@ -277,7 +286,7 @@ class BackgroundRuntime {
     this.registerAlarmListeners();
     this.registerRuntimeMessageHandlers();
 
-    doHMonitorManager.start();
+    void doHMonitorManager.start();
 
     startCookieMonitor();
     onCookieChange((cookie, removed) => {
@@ -458,7 +467,7 @@ class BackgroundRuntime {
   }
 
   private registerRecurringAlarms(): void {
-    // ServiceWorker keep-alive用のalarm（30秒ごとにwake-up）
+    // ServiceWorker keep-alive用のalarm（24秒ごとにwake-up）
     chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
     chrome.alarms.create("flushCSPReports", { periodInMinutes: 0.5 });
     // DNR API rate limit対応: 36秒間隔（Chrome制限: 10分間に最大20回、30秒以上の間隔）
