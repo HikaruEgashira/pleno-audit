@@ -43,18 +43,18 @@ function convertToEvents(
         severity: age !== null && age < 7 ? "critical" : "high",
         title: service.domain,
         domain: service.domain,
-        timestamp: service.lastVisit || Date.now(),
+        timestamp: service.nrdResult.checkedAt,
       });
     }
     if (service.typosquatResult?.isTyposquat) {
-      const score = service.typosquatResult.score || 0;
+      const score = service.typosquatResult.totalScore;
       events.push({
         id: `typosquat-${service.domain}`,
         category: "typosquat",
-        severity: score >= 0.9 ? "critical" : score >= 0.7 ? "high" : "medium",
+        severity: score >= 70 ? "critical" : score >= 40 ? "high" : "medium",
         title: service.domain,
         domain: service.domain,
-        timestamp: service.lastVisit || Date.now(),
+        timestamp: service.typosquatResult.checkedAt,
       });
     }
   }

@@ -14,7 +14,7 @@ export interface NetworkRequestQueryOptions {
 }
 
 export interface ExtensionStats {
-  byExtension: Record<string, { name: string; count: number; domains: string[] }>;
+  byExtension: Record<string, { name: string; count: number; domains: string[]; lastActivityTime: number }>;
   byDomain: Record<string, { count: number; extensions: string[] }>;
   total: number;
 }
@@ -89,7 +89,7 @@ export function summarizeExtensionStats(
 ): ExtensionStats {
   const byExtension: Record<
     string,
-    { name: string; count: number; domains: Set<string> }
+    { name: string; count: number; domains: Set<string>; lastActivityTime: number }
   > = {};
   const byDomain: Record<string, { count: number; extensions: Set<string> }> = {};
 
@@ -101,10 +101,14 @@ export function summarizeExtensionStats(
         name: request.extensionName || "Unknown",
         count: 0,
         domains: new Set(),
+        lastActivityTime: 0,
       };
     }
     byExtension[request.extensionId].count++;
     byExtension[request.extensionId].domains.add(request.domain);
+    if (request.timestamp > byExtension[request.extensionId].lastActivityTime) {
+      byExtension[request.extensionId].lastActivityTime = request.timestamp;
+    }
 
     if (!byDomain[request.domain]) {
       byDomain[request.domain] = { count: 0, extensions: new Set() };
@@ -119,6 +123,7 @@ export function summarizeExtensionStats(
       name: data.name,
       count: data.count,
       domains: Array.from(data.domains),
+      lastActivityTime: data.lastActivityTime,
     };
   }
 
