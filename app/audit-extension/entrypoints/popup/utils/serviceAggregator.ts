@@ -214,8 +214,7 @@ export async function aggregateServices(
         }))
         .sort((a, b) => b.requestCount - a.requestCount);
 
-      // 拡張機能のlastActivityは、接続があればその存在を示す適度な値、なければ0
-      const lastActivity = connections.length > 0 ? Date.now() - 60000 : 0;
+      const lastActivity = statData?.lastActivityTime ?? 0;
 
       result.push({
         id: `extension:${id}`,
